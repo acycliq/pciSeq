@@ -138,7 +138,7 @@ class Stage(object):
 
     def load(self, i):
         label_image = self.load_label_image(i)
-        spots = load_spots(i, self.scaling_factor, self.my_config['STARFISH_SPOTS'])
+        spots = load_spots(i, self.scaling_factor, self.my_config['MATLAB_SPOTS'])
         return label_image, spots
 
     def my_multithread(self, ids):
