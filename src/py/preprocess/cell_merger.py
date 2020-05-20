@@ -60,25 +60,26 @@ def load_spots(fov_id, scaling_factor, my_dir):
     # fov_id = fov['fov_id']
     # my_dir = self.my_config['STARFISH_SPOTS']  # That has be kept in a more tidy manner. It is a bit of a mess!
 
-    fov_csv = [f"fov_{int(fov_id):03d}.csv"]
+    # fov_csv = [f"fov_{int(fov_id):03d}.csv"]
+    fov_csv = ['spots_%d.csv' % fov_id]
     filename = [os.path.join(my_dir, f) for f in os.listdir(my_dir) if f in fov_csv]
+
     if filename:
         f = filename[0]
     else:
         f = None
 
     logger.info('reading: %s' % f)
-    spots = pd.read_csv(f, index_col=0).dropna()
+    spots = pd.read_csv(f).dropna()
 
-    spots = spots[['target', 'xc', 'yc']]
+    spots = spots[['Gene', 'x', 'y']]
     spots = spots[~spots.duplicated()]
-    gene_name, idx = np.unique(spots.target.values, return_inverse=True)
+    gene_name, idx = np.unique(spots.Gene.values, return_inverse=True)
     spots['gene_id'] = idx  # this is effectively the gene id
 
-    spots['x'] = spots.xc * scaling_factor
-    spots['y'] = spots.yc * scaling_factor
-    spots = spots.rename(columns={"target": "Gene"}) \
-        .sort_values(['x', 'y'], ascending=[True, True]) \
+    spots['x'] = spots.x * scaling_factor
+    spots['y'] = spots.y * scaling_factor
+    spots = spots.sort_values(['x', 'y'], ascending=[True, True]) \
         .reset_index(drop=True)  # <-- DO NOT FORGET TO RESET THE INDEX
 
     return spots
@@ -101,7 +102,7 @@ class Stage(object):
         # start = time.time()
         # for i, d in enumerate(self._fovs_obj.fovs[:20]):
         #     d['label_image_orig'] = self.load_label_image(i)
-        #     d['spots_orig'] = load_spots(i, self.scaling_factor, self.my_config['STARFISH_SPOTS'])
+        #     d['spots_orig'] = load_spots(i, self.scaling_factor, self.my_config['MATLAB_SPOTS'])
         # logger.info('Finished Single thread in %s secs' % (time.time()-start))
 
         start = time.time()
@@ -912,7 +913,7 @@ class Stage(object):
         cell_props['label'] = cell_props.label.fillna(-1).astype(int).astype('str').replace('-1', np.nan)
 
         cells_headers = ['cell_id', 'label', 'fov_id', 'area', 'x', 'y']
-        cell_props[cells_headers].to_csv('cell_props2.csv', index=False)
+        cell_props[cells_headers].to_csv('cell_props.csv', index=False)
 
         # 2. save the cell coords
         coords_headers = ['cell_id', 'label', 'coords']
@@ -931,7 +932,7 @@ class Stage(object):
         spots_df[spots_headers].to_csv('spots.csv', index=False)
         logger.info('Total number of collected spots: %d' % spots_df.shape[0])
 
-        # # 3. Save now the spots seperately for each fov
+        # # 3b. Save now the spots seperately for each fov
         # for fov in self.fovs:
         #     fov_id = fov['fov_id']
         #     fov_dir = get_dir(self.my_config, fov_id)
