@@ -5,7 +5,7 @@ Then is saves the corresponding csv on the filesystem
 import pandas as pd
 import os
 import config
-from src.py.common import fov
+from src.preprocess import fov
 import logging
 
 
