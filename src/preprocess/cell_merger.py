@@ -913,7 +913,7 @@ class Stage(object):
         cell_props['label'] = cell_props.label.fillna(-1).astype(int).astype('str').replace('-1', np.nan)
 
         cells_headers = ['cell_id', 'label', 'fov_id', 'area', 'x', 'y']
-        cell_props[cells_headers].to_csv('cell_props.csv', index=False)
+        cell_props[cells_headers].to_csv('expanded_cells.csv', index=False)
 
         # 2. save the cell coords
         coords_headers = ['cell_id', 'label', 'coords']
