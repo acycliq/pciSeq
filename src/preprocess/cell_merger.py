@@ -12,7 +12,7 @@ import itertools
 # import credentials
 import math
 from collections import defaultdict
-from src.py.common.fov import Fov
+from src.preprocess.fov import Fov
 # from preprocess import Stage_spots
 from multiprocessing import Pool as ProcessPool
 from multiprocessing.dummy import Pool as ThreadPool
