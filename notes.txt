@@ -1,0 +1,12 @@
+1. I did the cell segmentation. That was done in Matlab, to be ported in Python asap
+
+
+2. I did the map tiles. To do the map tiles i run '''main.py''' which produced the output below
+C:\ProgramData\Anaconda3\python.exe "D:/Home/Dimitris/OneDrive - University College London/Data/David/Midbrain Sequencing Data/main.py"
+D:\Home\Dimitris\OneDrive - University College London\Data\David\Midbrain Sequencing Data
+2020-05-18 20:41:27,871:INFO:Resizing image: ./background_image.tif
+2020-05-18 20:41:27,872:INFO:VIPS: residual scale 9.58409 x 9.58409
+2020-05-18 20:41:27,873:INFO:Done! Image is now 194250 by 262144
+2020-05-18 20:41:27,874:INFO:Started doing the image tiles
+2020-05-18 21:45:24,298:INFO:Done. Pyramid of tiles saved at: ./262144px
+
