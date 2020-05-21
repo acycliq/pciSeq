@@ -366,21 +366,22 @@ function dapiChart(config) {
 
         // 2. if zoom >= 7 then render the glyphs too
         return function (evt) {
-            if (map.getZoom() >= 7 ) {
-                //then render the glyphs
-                renderGlyphs(evt);
-
-                //show the legend button
-                legendControl()
-            }
-            else {
-                dapiConfig.removeLayer(geneLayers)
-                closeLegend()
-                localStorage.clear();
-            }
-            console.log("Current Zoom Level =" + map.getZoom());
-            console.log('exiting moveend callback');
-            console.log('')
+            // DONT SHOW THE GENES FOR NOW....
+            // if (map.getZoom() >= 7 ) {
+            //     //then render the glyphs
+            //     renderGlyphs(evt);
+            //
+            //     //show the legend button
+            //     legendControl()
+            // }
+            // else {
+            //     dapiConfig.removeLayer(geneLayers)
+            //     closeLegend()
+            //     localStorage.clear();
+            // }
+            // console.log("Current Zoom Level =" + map.getZoom());
+            // console.log('exiting moveend callback');
+            // console.log('')
         };
     }
 
