@@ -19,7 +19,7 @@ logging.basicConfig(
 )
 
 if __name__ == "__main__":
-    case = 'MOUSE'  # 'MOUSE' or 'HUMAN'
+    case = 'MOUSE_FULL_CORONAL'  # 'MOUSE' or 'HUMAN'
     use_cache = False
 
     my_config = getattr(config, case)
