@@ -15,7 +15,9 @@ credentials.py
 dashboard/data/mouse/img/default_98genes/16384px/
 dashboard/data/mouse/img/default/32768px/
 
-262144px/*.png
+
 *.gz
 gsf-save*.*
 *.7z
+*.png
+
