@@ -1,0 +1,150 @@
+
+
+function glyphSettings()
+{
+    var out = [
+
+        {gene:'MEG3', taxonomy: 'in_general',  glyphSymbol: '+',  glyphName: 'plus'},
+        {gene:'SPARCL1',         taxonomy: 'in_general',  glyphSymbol: '.',  glyphName: 'point'},
+        {gene:'CALM2',          taxonomy: 'in_general',  glyphSymbol: 's',  glyphName: 'square'},
+        {gene:'GRIK2',       taxonomy: 'in_general',  glyphSymbol: '^',  glyphName: 'triangleUp'},
+        {gene:'FTH1',          taxonomy: 'in_general',  glyphSymbol: '>',  glyphName: 'triangleRight'},
+        {gene:'CHN1',         taxonomy: 'in_general',  glyphSymbol: '<',  glyphName: 'triangleLeft'},
+        {gene:'ENC1',          taxonomy: 'in_general',  glyphSymbol: 'p',  glyphName: 'star5'},
+        {gene:'SLC1A2',        taxonomy: 'in_general',  glyphSymbol: 'h',  glyphName: 'star6'},
+        {gene:'ETNPPL',            taxonomy: 'sst',         glyphSymbol: '+',  glyphName: 'plus'},
+        {gene:'STMN1',         taxonomy: 'sst',         glyphSymbol: 'o',  glyphName: 'circle'},
+        {gene:'NELL2',           taxonomy: 'sst',         glyphSymbol: '*',  glyphName: 'asterisk'},
+        {gene:'PCDH15',           taxonomy: 'sst',         glyphSymbol: '.',  glyphName: 'point'},
+        {gene:'CTNNA2',         taxonomy: 'sst',         glyphSymbol: 'x',  glyphName: 'cross'},
+        {gene:'DCN',         taxonomy: 'sst',         glyphSymbol: 's',  glyphName: 'square'},
+        {gene:'IL1RAPL1',          taxonomy: 'sst',         glyphSymbol: 'd',  glyphName: 'diamond'},
+        {gene:'CADPS',          taxonomy: 'sst',         glyphSymbol: '^',  glyphName: 'triangleUp'},
+        {gene:'OLFM1',      taxonomy: 'sst',         glyphSymbol: '<',  glyphName: 'triangleLeft'},
+        {gene:'CELF2',         taxonomy: 'sst',         glyphSymbol: '>',  glyphName: 'triangleRight'},
+        {gene:'THSD7A',        taxonomy: 'sst',         glyphSymbol: 'p',  glyphName: 'star5'},
+        {gene:'LY86',          taxonomy: 'pvalb',       glyphSymbol: 'o',  glyphName: 'circle'},
+        {gene:'NTM',         taxonomy: 'pvalb',       glyphSymbol: '*',  glyphName: 'asterisk'},
+        {gene:'CNTN3',        taxonomy: 'pvalb',       glyphSymbol: 's',  glyphName: 'square'},
+        {gene:'SLC17A7',        taxonomy: 'pvalb',       glyphSymbol: 'd',  glyphName: 'diamond'},
+        {gene:'ERBB4',        taxonomy: 'pvalb',       glyphSymbol: 'v',  glyphName: 'triangleDown'},
+        {gene:'KCNC2',         taxonomy: 'pvalb',       glyphSymbol: 'p',  glyphName: 'star5'},
+        {gene:'OPALIN',           taxonomy: 'ngf',         glyphSymbol: '+',  glyphName: 'plus'},
+        {gene:'CRYM',        taxonomy: 'ngf',         glyphSymbol: 'o',  glyphName: 'circle'},
+        {gene:'TMEM255A',         taxonomy: 'ngf',         glyphSymbol: '*',  glyphName: 'asterisk'},
+        {gene:'ANXA1',         taxonomy: 'ngf',         glyphSymbol: 'x',  glyphName: 'cross'},
+        {gene:'PTPRD',           taxonomy: 'ngf',         glyphSymbol: 's',  glyphName: 'square'},
+        {gene:'MIR4500HG',          taxonomy: 'ngf',         glyphSymbol: 'd',  glyphName: 'diamond'},
+        {gene:'IQCJ-SCHIP1',          taxonomy: 'ngf',         glyphSymbol: '^',  glyphName: 'triangleUp'},
+        {gene:'PTPRK',         taxonomy: 'ngf',         glyphSymbol: '>',  glyphName: 'triangleRight'},
+        {gene:'CADM2',         taxonomy: 'ngf',         glyphSymbol: 'h',  glyphName: 'star6'},
+        {gene:'NECAB1',        taxonomy: 'cxcl14',      glyphSymbol: 'o',  glyphName: 'circle'},
+        {gene:'LINCR-0003',        taxonomy: 'cxcl14',      glyphSymbol: '*',  glyphName: 'asterisk'},
+        {gene:'PVALB',         taxonomy: 'cxcl14',      glyphSymbol: 's',  glyphName: 'square'},
+        {gene:'OXR1',         taxonomy: 'cxcl14',      glyphSymbol: 'd',  glyphName: 'diamond'},
+        {gene:'LHFPL3',         taxonomy: 'cxcl14',      glyphSymbol: 'h',  glyphName: 'star6'},
+        {gene:'SERPINE2',          taxonomy: 'cnr1',        glyphSymbol: 'o',  glyphName: 'circle'},
+        {gene:'SORBS2',          taxonomy: 'cnr1',        glyphSymbol: '*',  glyphName: 'asterisk'},
+        {gene:'PTPRZ1',           taxonomy: 'cnr1',        glyphSymbol: '.',  glyphName: 'point'},
+        {gene:'SCHIP1',      taxonomy: 'cnr1',        glyphSymbol: 'x',  glyphName: 'cross'},
+        {gene:'NTNG1',        taxonomy: 'cnr1',        glyphSymbol: 's',  glyphName: 'square'},
+        {gene:'LAMP5',          taxonomy: 'cnr1',        glyphSymbol: '^',  glyphName: 'triangleUp'},
+        {gene:'DPP10',        taxonomy: 'cnr1',        glyphSymbol: 'v',  glyphName: 'triangleDown'},
+        {gene:'ADARB2',         taxonomy: 'cnr1',        glyphSymbol: '>',  glyphName: 'triangleRight'},
+        {gene:'SYT1',           taxonomy: 'cnr1',        glyphSymbol: '<',  glyphName: 'triangleLeft'},
+        {gene:'GRIA1',        taxonomy: 'cnr1',        glyphSymbol: 'p',  glyphName: 'star5'},
+        {gene:'COL6A1',       taxonomy: 'cnr1',        glyphSymbol: 'h',  glyphName: 'star6'},
+        {gene:'SMYD1',          taxonomy: 'vip',         glyphSymbol: '+',  glyphName: 'plus'},
+        {gene:'ITPR2',         taxonomy: 'vip',         glyphSymbol: 'o',  glyphName: 'circle'},
+        {gene:'GRIK1',         taxonomy: 'vip',         glyphSymbol: '*',  glyphName: 'asterisk'},
+        {gene:'GRIA4',         taxonomy: 'vip',         glyphSymbol: '.',  glyphName: 'point'},
+        {gene:'PCDH7',        taxonomy: 'vip',         glyphSymbol: 'x',  glyphName: 'cross'},
+        {gene:'OLFM3',          taxonomy: 'vip',         glyphSymbol: 's',  glyphName: 'square'},
+        {gene:'PDE1A',         taxonomy: 'vip',         glyphSymbol: '^',  glyphName: 'triangleUp'},
+        {gene:'RGS12',           taxonomy: 'vip',         glyphSymbol: 'v',  glyphName: 'triangleDown'},
+        {gene:'GPM6A',           taxonomy: 'vip',         glyphSymbol: '>',  glyphName: 'triangleRight'},
+        {gene:'LDB2',         taxonomy: 'vip',         glyphSymbol: 'p',  glyphName: 'star5'},
+        {gene:'CDH10',       taxonomy: 'less_active', glyphSymbol: '+',  glyphName: 'plus'},
+        {gene:'CALB1',         taxonomy: 'less_active', glyphSymbol: '*',  glyphName: 'asterisk'},
+        {gene:'CACNA2D1',         taxonomy: 'less_active', glyphSymbol: '.',  glyphName: 'point'},
+        {gene:'RIMS2',        taxonomy: 'less_active', glyphSymbol: 'd',  glyphName: 'diamond'},
+        {gene:'CDH13',          taxonomy: 'less_active', glyphSymbol: 'v',  glyphName: 'triangleDown'},
+        {gene:'NCAM2',         taxonomy: 'less_active', glyphSymbol: '^',  glyphName: 'triangleUp'},
+        {gene:'CBLN2', taxonomy: 'less_active', glyphSymbol: '<',  glyphName: 'triangleLeft'},
+        {gene:'KLHL5',          taxonomy: 'less_active', glyphSymbol: '>',  glyphName: 'triangleRight'},
+        {gene:'CDH9',         taxonomy: 'less_active', glyphSymbol: 'p',  glyphName: 'star5'},
+        {gene:'ZMAT4',         taxonomy: 'less_active', glyphSymbol: 'h',  glyphName: 'star6'},
+        {gene:'SPOCK1',           taxonomy: 'pc_or_in',    glyphSymbol: '+',  glyphName: 'plus'},
+        {gene:'PCDH9',        taxonomy: 'pc_or_in',    glyphSymbol: 'o',  glyphName: 'circle'},
+        {gene:'NXPH2',          taxonomy: 'pc_or_in',    glyphSymbol: '*',  glyphName: 'asterisk'},
+        {gene:'GABBR2',       taxonomy: 'pc_or_in',    glyphSymbol: '.',  glyphName: 'point'},
+        {gene:'SLC6A1',         taxonomy: 'pc_or_in',    glyphSymbol: 'x',  glyphName: 'cross'},
+        {gene:'NDNF',        taxonomy: 'pc_or_in',    glyphSymbol: 'x',  glyphName: 'cross'},
+        {gene:'SYNPR',          taxonomy: 'pc_or_in',    glyphSymbol: 's',  glyphName: 'square'},
+        {gene:'ALCAM',         taxonomy: 'pc_or_in',    glyphSymbol: 'd',  glyphName: 'diamond'},
+        {gene:'SNTG1',         taxonomy: 'pc_or_in',    glyphSymbol: '^',  glyphName: 'triangleUp'},
+        {gene:'TMEFF2',        taxonomy: 'pc_or_in',    glyphSymbol: 'v',  glyphName: 'triangleDown'},
+        {gene:'EDIL3',         taxonomy: 'pc_or_in',    glyphSymbol: '<',  glyphName: 'triangleLeft'},
+        {gene:'PCLO',         taxonomy: 'pc_or_in',    glyphSymbol: '>',  glyphName: 'triangleRight'},
+        {gene:'ARPP21',        taxonomy: 'pc_or_in',    glyphSymbol: 'h',  glyphName: 'star6'},
+        {gene:'CNTNAP4',          taxonomy: 'pc',          glyphSymbol: '*',  glyphName: 'asterisk'},
+        {gene:'PDGFRA',          taxonomy: 'pc',          glyphSymbol: '.',  glyphName: 'point'},
+        {gene:'NOSTRIN',          taxonomy: 'pc',          glyphSymbol: '+',  glyphName: 'plus'},
+        {gene:'LINC00507',         taxonomy: 'pc',          glyphSymbol: 'x',  glyphName: 'cross'},
+        {gene:'SLIT2',          taxonomy: 'pc',          glyphSymbol: 'o',  glyphName: 'circle'},
+        {gene:'CNTNAP2',       taxonomy: 'pc',          glyphSymbol: 's',  glyphName: 'square'},
+        {gene:'LRMP',          taxonomy: 'pc',          glyphSymbol: 'd',  glyphName: 'diamond'},
+        {gene:'MIAT',           taxonomy: 'pc',          glyphSymbol: '>',  glyphName: 'triangleRight'},
+        {gene:'GAD1',        taxonomy: 'pc',          glyphSymbol: 'v',  glyphName: 'triangleDown'},
+        {gene:'ID3',          taxonomy: 'pc',          glyphSymbol: '<',  glyphName: 'triangleLeft'},
+        {gene:'SCUBE1', taxonomy: 'pc',          glyphSymbol: '^',  glyphName: 'triangleUp'},
+        {gene:'TRHDE',         taxonomy: 'pc',          glyphSymbol: 'p',  glyphName: 'star5'},
+        {gene:'FSTL5',         taxonomy: 'pc',          glyphSymbol: 'h',  glyphName: 'star6'},
+        {gene:'NXPH1',       taxonomy: 'pc2',         glyphSymbol: '+',  glyphName: 'plus'},
+        {gene:'COL5A2',         taxonomy: 'pc2',         glyphSymbol: 'o',  glyphName: 'circle'},
+        {gene:'LHX6',          taxonomy: 'pc2',         glyphSymbol: '*',  glyphName: 'asterisk'},
+        {gene:'RIT2',         taxonomy: 'pc2',         glyphSymbol: '.',  glyphName: 'point'},
+        {gene:'VIP',        taxonomy: 'pc2',         glyphSymbol: 's',  glyphName: 'square'},
+        {gene:'RELN',          taxonomy: 'pc2',         glyphSymbol: 'v',  glyphName: 'triangleDown'},
+        {gene:'KCNT2',       taxonomy: 'pc2',         glyphSymbol: '>',  glyphName: 'triangleRight'},
+        {gene:'RXFP1',           taxonomy: 'non_neuron',  glyphSymbol: '*',  glyphName: 'asterisk'},
+        {gene:'COL24A1',        taxonomy: 'non_neuron',  glyphSymbol: '.',  glyphName: 'point'},
+        {gene:'CMTM8',          taxonomy: 'non_neuron',  glyphSymbol: 's',  glyphName: 'square'},
+        {gene:'SPOCK3',          taxonomy: 'non_neuron',  glyphSymbol: 'x',  glyphName: 'cross'},
+        {gene:'RORB',           taxonomy: 'non_neuron',  glyphSymbol: '+',  glyphName: 'plus'},
+        {gene:'TH',         taxonomy: 'non_neuron',  glyphSymbol: 'o',  glyphName: 'circle'},
+        {gene:'COL21A1',          taxonomy: 'non_neuron',  glyphSymbol: 'v',  glyphName: 'triangleDown'},
+        {gene:'MYZAP',         taxonomy: 'non_neuron',  glyphSymbol: 'p',  glyphName: 'star5'},
+        {gene:'KIT',       taxonomy: 'pc2',         glyphSymbol: '>',  glyphName: 'triangleRight'},
+        {gene:'FEZF2',           taxonomy: 'non_neuron',  glyphSymbol: '*',  glyphName: 'asterisk'},
+        {gene:'SPHKAP',        taxonomy: 'non_neuron',  glyphSymbol: '.',  glyphName: 'point'},
+        {gene:'SULF1',          taxonomy: 'non_neuron',  glyphSymbol: 's',  glyphName: 'square'},
+        {gene:'EGFEM1P',          taxonomy: 'non_neuron',  glyphSymbol: 'x',  glyphName: 'cross'},
+        {gene:'ANKRD34B',           taxonomy: 'non_neuron',  glyphSymbol: '+',  glyphName: 'plus'},
+        {gene:'COL22A1',         taxonomy: 'non_neuron',  glyphSymbol: 'o',  glyphName: 'circle'},
+        {gene:'HTR2C',          taxonomy: 'non_neuron',  glyphSymbol: 'v',  glyphName: 'triangleDown'},
+        {gene:'PAX6',         taxonomy: 'non_neuron',  glyphSymbol: 'p',  glyphName: 'star5'},
+
+        {gene: 'Generic',       taxonomy: 'generic',     glyphSymbol: 'o',  glyphName: 'circle'},
+
+        ];
+    
+    return out
+}
+
+//create color ramp.
+function glyphColor(y) {
+    return y === 'non_neuron' ? '#FFFFFF' : //hsv: [0 0 1]);
+        y === 'pc_or_in' ? '#407F59' :      //hsv: [.4 .5 .5]);
+            y === 'less_active' ? '#96B38F' :   //hsv: [.3 .2 .7]);
+                y === 'pc' ? '#00FF00' :            //hsv: [1/3 1 1]);
+                    y === 'pc2' ? '#44B300' :           //hsv: [.27 1 .7]);
+                        y === 'in_general' ? '#0000FF' :    //hsv: [2/3 1 1]);
+                            y === 'sst' ? '#00B3FF' :           //hsv: [.55 1 1]);
+                                y === 'pvalb' ? '#5C33FF' :         //hsv: [.7 .8 1]);
+                                    y === 'ngf' ? '#FF00E6' :           //hsv: [.85 1 1]);
+                                        y === 'cnr1' ? '#FF0000' :          //hsv: [ 1 1 1]);
+                                            y === 'vip' ? '#FFC700' :           //hsv: [.13 1 1]);
+                                                y === 'cxcl14' ? '#995C00' :        //hsv: [.1 1 .6]);
+                                                    '#FD6A02';
+}
