@@ -103,7 +103,7 @@ def tile_maker(z_depth, out_dir, img_path):
 if __name__ == "__main__":
     im = r'./background_image.tif'
     # split_image(im)
-    tile_maker(10, './262144px', im)
+    tile_maker(10, 'dashboard/img/262144px', im)
 
 
 
