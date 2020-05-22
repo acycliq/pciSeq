@@ -4,8 +4,8 @@ function config() {
             name: 'default',
             roi: {"x0": 0, "x1": 20268, "y0": 0, "y1": 27352}, // Now I am confused!! (ah ok, see note below)
             imageSize: [194250, 262144],
-            cellBoundaries: './cell_coords.json',
-            cellData: '../data/cell_call_demo_data/mouse_full_coronal/cell_type_output/cellData.json',
+            cellBoundaries: './dashboard/cell_coords.json',
+            cellData: './data/cell_call_demo_data/mouse_full_coronal/cell_type_output/cellData.json',
             tiles: './img/262144px/{z}/{y}/{x}.png'
         }, // 1
     ];
