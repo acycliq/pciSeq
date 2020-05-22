@@ -3,13 +3,10 @@ produces the fov boundaries in geojson format. Writes the fov_boundaries.js whic
 I think I will write something to do that inside jabascript anyway....
 '''
 
-import pandas as pd
 import logging
 import config
 import os
 import json
-# from shapely.geometry import Point
-# from shapely.geometry.polygon import Polygon
 from src.preprocess.fov import Fov
 
 logger = logging.getLogger()
@@ -104,8 +101,6 @@ def fov_boundaries(fovs):
 
 
 if __name__ == "__main__":
-    # case_study = 'HUMAN_FULL'  # 'MOUSE' or 'HUMAN'
-    use_cache = False
     cfg = config.PREPROCESSOR
 
     fovs_across = cfg['FOVS_ACROSS']
