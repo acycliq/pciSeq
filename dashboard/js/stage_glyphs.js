@@ -1,10 +1,10 @@
-function renderGlyphs(evt) {
+function renderGlyphs(evt, config) {
     var sw = evt.target.getBounds().getSouthWest();
     var ne = evt.target.getBounds().getNorthEast();
     var aw = activeWindow(sw, ne);
 
     var my_fovs = fov_tracker(sw, ne);
-    var spotsPaths = my_fovs.map(d => make_url(d));
+    var spotsPaths = my_fovs.map(d => config.spot_json(d));
 
     var q = d3.queue();
     for (var i = 0; i < spotsPaths.length; i++) {
@@ -62,12 +62,13 @@ function isInside(d, aw) {
 
 }
 
-// THAT NEEDS TO MOVE SOMEWHERE MORE VISIBLE, IN THE CONFIG FILE MAYBE
-function make_url(i) {
-    rootUrl = "./data/fov/";
-    url = rootUrl + 'fov_' + i + '/cell_type_out/fov_' + i + '_Dapi_overlays.json'
-    return url
-}
+// // THAT NEEDS TO MOVE SOMEWHERE MORE VISIBLE, IN THE CONFIG FILE MAYBE
+// 22-May-2020: not used anymore, replaced by '''my_fovs.map(d => config.spot_json(d))'''
+// function make_url(i) {
+//     rootUrl = "./data/fov/";
+//     url = rootUrl + 'fov_' + i + '/cell_type_out/fov_' + i + '_Dapi_overlays.json'
+//     return url
+// }
 
 
 function fov_tracker(sw, ne) {
