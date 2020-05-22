@@ -6,8 +6,6 @@ function config() {
             imageSize: [194250, 262144],
             cellBoundaries: './cell_coords.json',
             cellData: '../data/cell_call_demo_data/mouse_full_coronal/cell_type_output/cellData.json',
-            topo: './cellBoundaries.topojson',
-            // geneData: './dashboard/data/img/default/csv/Dapi_overlays.csv',
             tiles: './img/262144px/{z}/{y}/{x}.png'
         }, // 1
     ];
@@ -22,5 +20,3 @@ function config() {
 // You padded the original image to make the longer side a multiple of 2000 whereas you just scaled it up to the correct dimension
 // when you did the pyramid tiles
 //
-
-// data/cell_call_demo_data/mouse_full_coronal/cell_type_output/cellData.json
