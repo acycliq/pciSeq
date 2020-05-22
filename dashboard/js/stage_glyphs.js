@@ -62,8 +62,9 @@ function isInside(d, aw) {
 
 }
 
+// THAT NEEDS TO MOVE SOMEWHERE MORE VISIBLE, IN THE CONFIG FILE MAYBE
 function make_url(i) {
-    rootUrl = "https://raw.githubusercontent.com/acycliq/human_brain/human_data/demo_data/human_full/fovs/";
+    rootUrl = "../data/fov/";
     url = rootUrl + 'fov_' + i + '/cell_type_out/fov_' + i + '_Dapi_overlays.json'
     return url
 }
