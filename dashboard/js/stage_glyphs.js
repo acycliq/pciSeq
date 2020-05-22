@@ -64,7 +64,7 @@ function isInside(d, aw) {
 
 // THAT NEEDS TO MOVE SOMEWHERE MORE VISIBLE, IN THE CONFIG FILE MAYBE
 function make_url(i) {
-    rootUrl = "../data/fov/";
+    rootUrl = "./data/fov/";
     url = rootUrl + 'fov_' + i + '/cell_type_out/fov_' + i + '_Dapi_overlays.json'
     return url
 }

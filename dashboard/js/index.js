@@ -57,7 +57,7 @@ function legendControl() {
     if (!legend_added) {
         legendLink.addEventListener(`click`, () => {
             // Opens the page and stores the opened window instance
-            legendWindow = window.open(`./my_datatable.html`);
+            legendWindow = window.open(`./dashboard/my_datatable.html`); // <--- THATS NEEDS TO BE EXPOSED TO THE USER. MOVE I INSIDE config.js MAYBE
         });
     }
     legend_added = true;
