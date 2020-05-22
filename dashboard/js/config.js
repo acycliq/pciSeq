@@ -6,7 +6,9 @@ function config() {
             imageSize: [194250, 262144],
             cellBoundaries: './dashboard/cell_coords.json',
             cellData: './data/cell_call_demo_data/mouse_full_coronal/cell_type_output/cellData.json',
-            tiles: './img/262144px/{z}/{y}/{x}.png'
+            tiles: 'https://raw.githubusercontent.com/acycliq/full_coronal/master/{z}/{y}/{x}.png',
+             // 'https://raw.githubusercontent.com/acycliq/full_coronal/{z}/{y}/{x}.png',
+        // },
         }, // 1
     ];
     var out = d3.map(ini, function (d) {
