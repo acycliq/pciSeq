@@ -368,7 +368,7 @@ function dapiChart(config) {
         return function (evt) {
             if (map.getZoom() >= 7 ) {
                 //then render the glyphs
-                renderGlyphs(evt);
+                renderGlyphs(evt, config);
 
                 //show the legend button
                 legendControl()
