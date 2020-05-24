@@ -1,5 +1,7 @@
 ''''
-splits the big background image  into smaller images size 2000x2000px
+splits the big background image  into smaller images size 2000x2000px.
+Look also at https://stackoverflow.com/questions/10853119/chop-image-into-tiles-using-vips-command-line/15293104
+for an alternative (and probably better way)
 It also creates the pyramid tiles for the viewer
 '''
 import pyvips
@@ -17,6 +19,14 @@ logger = logging.getLogger()
 
 
 def split_image(im):
+    '''
+    you can just do:
+        im.dzsave('./out', suffix='.tif', skip_blanks=-1, background=0, depth='one', overlap=0, tile_size=2000, layout='google')
+    to split the image to smaller squares. However you need to write a couple of line to rename and move the file to the correct
+    folders
+    :param im:
+    :return:
+    '''
     im = pyvips.Image.new_from_file(im, access='random')
     tile_size = 2000;
 
