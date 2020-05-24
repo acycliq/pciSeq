@@ -1,161 +1,3 @@
-function renderGlyphs(evt, config) {
-    var sw = evt.target.getBounds().getSouthWest();
-    var ne = evt.target.getBounds().getNorthEast();
-    var aw = activeWindow(sw, ne);
-
-    var my_fovs = fov_tracker(sw, ne);
-    var spotsPaths = my_fovs.map(d => config.spot_json(d));
-
-    var q = d3.queue();
-    for (var i = 0; i < spotsPaths.length; i++) {
-        q = q.defer(d3.json, spotsPaths[i]);
-    }
-    q.await(onDataLoad(aw, spotsPaths));
-}
-
-
-function onDataLoad(bbox, spotsPaths) {
-    geneData = [];
-    return (err, ...args) => {
-        var t = [];
-        //loop over the data and filter out spots outside the viewing window
-        // args.forEach((el,i) => {t[i] = el.filter(d => isInside(d, bbox))});
-        args.forEach((el, i) => {
-            t[i] = el.filter(d => isInside(d, bbox));
-            // el.forEach(d => d['block_id'] = extractBlock_id(spotsPaths[i]))
-        });
-        //concatenate all
-        t.forEach(d => {
-            geneData = [...geneData, ...d]
-        });
-        renderChart(geneData);
-        refresh()
-        console.log('gene data loaded')
-    }
-}
-
-function refresh(){
-    // if localStorage hide the relevant layers
-    if(localStorage['updated_state'] && JSON.parse(localStorage['updated_state']).deselected){
-        var exit = JSON.parse(localStorage['updated_state']).deselected
-        exit.forEach(d => _removeOverlay(d))
-    }
-}
-
-function activeWindow(sw, ne) {
-    var bottomLeft = dapiConfig.t.untransform(L.point([sw.lng, sw.lat]));
-    var topRight = dapiConfig.t.untransform(L.point([ne.lng, ne.lat]));
-
-    return {'bottomLeft': bottomLeft, 'topRight': topRight}
-}
-
-function isInside(d, aw) {
-    // console.log('d is: ' + d)
-    // console.log('aw.bottomLeft is: ' + aw.bottomLeft)
-    // console.log('aw.topRight is: ' + aw.topRight)
-    if (d.x > aw.bottomLeft.x && d.x < aw.topRight.x
-        && d.y > aw.bottomLeft.y && d.y < aw.topRight.y) {
-        return true
-    } else {
-        return false
-    }
-
-}
-
-// // THAT NEEDS TO MOVE SOMEWHERE MORE VISIBLE, IN THE CONFIG FILE MAYBE
-// 22-May-2020: not used anymore, replaced by '''my_fovs.map(d => config.spot_json(d))'''
-// function make_url(i) {
-//     rootUrl = "./data/fov/";
-//     url = rootUrl + 'fov_' + i + '/cell_type_out/fov_' + i + '_Dapi_overlays.json'
-//     return url
-// }
-
-
-function fov_tracker(sw, ne) {
-// finds which fovs are engaged in the image shown on the browser's window
-
-    var fovPolygonsLayer = L.geoJson(fov_boundaries, {
-        coordsToLatLng: function (d) {
-            if (d) {
-                var coords = dapiConfig.t.transform(L.point([d[1], d[0]]));
-                return [coords.x, coords.y]
-            }
-        }
-    });
-
-    var step = fov_length() / 4;
-    var my_fovs = [];
-    for (var i = sw.lat; i <= ne.lat; i = i + step) {
-        for (var j = sw.lng; j <= ne.lng; j = j + step) {
-            var d = leafletPip.pointInLayer(L.latLng([i, j]), fovPolygonsLayer);
-            if (d[0]) {
-                my_fovs.push(d[0].feature.properties.id);
-            }
-        }
-    }
-
-    //make sure you include the four corners
-    my_fovs.push(leafletPip.pointInLayer(ne, fovPolygonsLayer)[0].feature.properties.id);
-    my_fovs.push(leafletPip.pointInLayer(L.latLng([sw.lat, ne.lng]), fovPolygonsLayer)[0].feature.properties.id);
-    my_fovs.push(leafletPip.pointInLayer(L.latLng([ne.lat, sw.lng]), fovPolygonsLayer)[0].feature.properties.id);
-
-    // get the unique blocks
-    var out = [...new Set(my_fovs)];
-    console.log(my_fovs);
-
-    return out
-}
-
-function fov_length() {
-    var side_length = [...new Set(fov_boundaries.features.map(d => d.properties.side_length))];
-    side_length = side_length[0];
-    side_length = dapiConfig.t.transform(L.point([0, side_length]));
-    side_length = side_length.y - side_length.x;
-
-    return side_length
-}
-
-
-function renderChart(geneData) {
-    myDots = make_dots(geneData);
-
-    // console.log('Adding dotLayer')
-    // dapiConfig.removeLayer(dotLayer);
-    // //create marker layer and display it on the map
-    // dotLayer = L.geoJson(myDots, {
-    //     pointToLayer: function (feature, latlng) {
-    //         return new svgGlyph(latlng, dapiConfig.style(feature))
-    //             .bindTooltip(feature.properties.Gene, {className: 'myCSSClass'})
-    //     },
-    //     onEachFeature: onEachDot
-    // });
-    //
-    // dapiConfig.addLayer(dotLayer);
-    geneData = null;
-    geneOverlays = []; // gene to layer map
-    console.log('New dot layer added!')
-
-    console.log('Adding geneLayers')
-    dapiConfig.removeLayer(geneLayers);
-    geneLayers = new L.LayerGroup().addTo(map);
-    //create marker layer and display it on the map
-    var genes = glyphSettings().map(d => d.gene).sort();
-    for (var i = 0; i < genes.length; i += 1) {
-        var geneName = genes[i];
-        var geneLayer = L.geoJson(myDots, {
-            pointToLayer: function (feature, latlng) {
-                return new svgGlyph(latlng, dapiConfig.style(feature, 'gene')).bindTooltip(feature.properties.Gene, {className: 'myCSSClass'});
-            },
-            filter: geneFilter(geneName),
-            class: function (feature, latlng) {return feature.properties.Gene + '_glyph'}, // i dont think i need that anymore, ok to remove
-            onEachFeature: onEachDot
-        });
-        geneLayer.addTo(geneLayers);
-        geneOverlays.push({geneName, geneLayer})
-    }
-    console.log('geneLayers added!')
-}
-
 function _removeOverlay(name) {
     var el = geneOverlays.filter(d => d.geneName === name);
     if (el){
@@ -170,255 +12,423 @@ function _addOverlay(name) {
     }
 }
 
-function onEachDot(feature, layer) {
-    layer.on({
-        mouseover: glyphMouseOver, // highlightDot,
-        mouseout: glyphMouseOut, //resetDotHighlight,
-        click: clickGlyph,
-        // popupopen: onPopupOpen,
-    });
-    if (feature.properties.neighbour) {
-        // layer.bindPopup(spotPopup, customOptions)
+function renderGlyphs(evt, config) {
+    var sw = evt.target.getBounds().getSouthWest();
+    var ne = evt.target.getBounds().getNorthEast();
+    var aw = activeWindow(sw, ne);
+
+    var my_fovs = fov_tracker(sw, ne);
+    var spotsPaths = my_fovs.map(d => config.spot_json(d));
+
+    var q = d3.queue();
+    for (var i = 0; i < spotsPaths.length; i++) {
+        q = q.defer(d3.json, spotsPaths[i]);
+    }
+    q.await(onDataLoad(aw, spotsPaths));
+
+
+    function onDataLoad(bbox, spotsPaths) {
+        geneData = [];
+        return (err, ...args) => {
+            var t = [];
+            //loop over the data and filter out spots outside the viewing window
+            // args.forEach((el,i) => {t[i] = el.filter(d => isInside(d, bbox))});
+            args.forEach((el, i) => {
+                t[i] = el.filter(d => isInside(d, bbox));
+                // el.forEach(d => d['block_id'] = extractBlock_id(spotsPaths[i]))
+            });
+            //concatenate all
+            t.forEach(d => {
+                geneData = [...geneData, ...d]
+            });
+            renderChart(geneData);
+            refresh()
+            console.log('gene data loaded')
+        }
     }
 
-}
+    function refresh() {
+        // if localStorage hide the relevant layers
+        if (localStorage['updated_state'] && JSON.parse(localStorage['updated_state']).deselected) {
+            var exit = JSON.parse(localStorage['updated_state']).deselected
+            exit.forEach(d => _removeOverlay(d))
+        }
+    }
 
-function glyphMouseOver(e) {
-    var layer = e.target;
-    dotStyleHighlight = highlightStyle(layer.feature);
-    layer.setStyle(dotStyleHighlight);
-    console.log('glyph mouseOver')
-}
+    function activeWindow(sw, ne) {
+        var bottomLeft = dapiConfig.t.untransform(L.point([sw.lng, sw.lat]));
+        var topRight = dapiConfig.t.untransform(L.point([ne.lng, ne.lat]));
+
+        return {'bottomLeft': bottomLeft, 'topRight': topRight}
+    }
+
+    function isInside(d, aw) {
+        // console.log('d is: ' + d)
+        // console.log('aw.bottomLeft is: ' + aw.bottomLeft)
+        // console.log('aw.topRight is: ' + aw.topRight)
+        if (d.x > aw.bottomLeft.x && d.x < aw.topRight.x
+            && d.y > aw.bottomLeft.y && d.y < aw.topRight.y) {
+            return true
+        } else {
+            return false
+        }
+
+    }
+
+// // THAT NEEDS TO MOVE SOMEWHERE MORE VISIBLE, IN THE CONFIG FILE MAYBE
+// 22-May-2020: not used anymore, replaced by '''my_fovs.map(d => config.spot_json(d))'''
+// function make_url(i) {
+//     rootUrl = "./data/fov/";
+//     url = rootUrl + 'fov_' + i + '/cell_type_out/fov_' + i + '_Dapi_overlays.json'
+//     return url
+// }
 
 
-function glyphMouseOut(e) {
-    console.log('glyph mouseout')
-    resetDotHighlight(e)
-    // if (map.hasLayer(glyphToNeighbourLayer)){
-    //     map.removeLayer(glyphToNeighbourLayer)
-    // }
-}
+    function fov_tracker(sw, ne) {
+// finds which fovs are engaged in the image shown on the browser's window
+
+        var fovPolygonsLayer = L.geoJson(fov_boundaries, {
+            coordsToLatLng: function (d) {
+                if (d) {
+                    var coords = dapiConfig.t.transform(L.point([d[1], d[0]]));
+                    return [coords.x, coords.y]
+                }
+            }
+        });
+
+        var step = fov_length() / 4;
+        var my_fovs = [];
+        for (var i = sw.lat; i <= ne.lat; i = i + step) {
+            for (var j = sw.lng; j <= ne.lng; j = j + step) {
+                var d = leafletPip.pointInLayer(L.latLng([i, j]), fovPolygonsLayer);
+                if (d[0]) {
+                    my_fovs.push(d[0].feature.properties.id);
+                }
+            }
+        }
+
+        //make sure you include the four corners
+        my_fovs.push(leafletPip.pointInLayer(ne, fovPolygonsLayer)[0].feature.properties.id);
+        my_fovs.push(leafletPip.pointInLayer(L.latLng([sw.lat, ne.lng]), fovPolygonsLayer)[0].feature.properties.id);
+        my_fovs.push(leafletPip.pointInLayer(L.latLng([ne.lat, sw.lng]), fovPolygonsLayer)[0].feature.properties.id);
+
+        // get the unique blocks
+        var out = [...new Set(my_fovs)];
+        console.log(my_fovs);
+
+        return out
+    }
+
+    function fov_length() {
+        var side_length = [...new Set(fov_boundaries.features.map(d => d.properties.side_length))];
+        side_length = side_length[0];
+        side_length = dapiConfig.t.transform(L.point([0, side_length]));
+        side_length = side_length.y - side_length.x;
+
+        return side_length
+    }
+
+
+    function renderChart(geneData) {
+        myDots = make_dots(geneData);
+
+        // console.log('Adding dotLayer')
+        // dapiConfig.removeLayer(dotLayer);
+        // //create marker layer and display it on the map
+        // dotLayer = L.geoJson(myDots, {
+        //     pointToLayer: function (feature, latlng) {
+        //         return new svgGlyph(latlng, dapiConfig.style(feature))
+        //             .bindTooltip(feature.properties.Gene, {className: 'myCSSClass'})
+        //     },
+        //     onEachFeature: onEachDot
+        // });
+        //
+        // dapiConfig.addLayer(dotLayer);
+        geneData = null;
+        geneOverlays = []; // gene to layer map
+        console.log('New dot layer added!')
+
+        console.log('Adding geneLayers')
+        dapiConfig.removeLayer(geneLayers);
+        geneLayers = new L.LayerGroup().addTo(map);
+        //create marker layer and display it on the map
+        var genes = glyphSettings().map(d => d.gene).sort();
+        for (var i = 0; i < genes.length; i += 1) {
+            var geneName = genes[i];
+            var geneLayer = L.geoJson(myDots, {
+                pointToLayer: function (feature, latlng) {
+                    return new svgGlyph(latlng, dapiConfig.style(feature, 'gene')).bindTooltip(feature.properties.Gene, {className: 'myCSSClass'});
+                },
+                filter: geneFilter(geneName),
+                class: function (feature, latlng) {
+                    return feature.properties.Gene + '_glyph'
+                }, // i dont think i need that anymore, ok to remove
+                onEachFeature: onEachDot
+            });
+            geneLayer.addTo(geneLayers);
+            geneOverlays.push({geneName, geneLayer})
+        }
+        console.log('geneLayers added!')
+    }
+
+
+    function onEachDot(feature, layer) {
+        layer.on({
+            mouseover: glyphMouseOver, // highlightDot,
+            mouseout: glyphMouseOut, //resetDotHighlight,
+            click: clickGlyph,
+            // popupopen: onPopupOpen,
+        });
+        if (feature.properties.neighbour) {
+            // layer.bindPopup(spotPopup, customOptions)
+        }
+
+    }
+
+    function glyphMouseOver(e) {
+        var layer = e.target;
+        dotStyleHighlight = highlightStyle(layer.feature);
+        layer.setStyle(dotStyleHighlight);
+        console.log('glyph mouseOver')
+    }
+
+
+    function glyphMouseOut(e) {
+        console.log('glyph mouseout')
+        resetDotHighlight(e)
+        // if (map.hasLayer(glyphToNeighbourLayer)){
+        //     map.removeLayer(glyphToNeighbourLayer)
+        // }
+    }
 
 //create highlight style, with darker color and larger radius
-function highlightStyle(feature) {
-    return {
-        radius: dapiConfig.getRadius(feature.properties.size) * 2,
-        fillColor: "#FFCE00",
-        color: "#FFCE00",
-        // color:feature.properties.glyphColor,
-        weight: 3,
-        opacity: 1,
-        fillOpacity: 0.5
-    };
-}
+    function highlightStyle(feature) {
+        return {
+            radius: dapiConfig.getRadius(feature.properties.size) * 2,
+            fillColor: "#FFCE00",
+            color: "#FFCE00",
+            // color:feature.properties.glyphColor,
+            weight: 3,
+            opacity: 1,
+            fillOpacity: 0.5
+        };
+    }
 
-function resetDotHighlight(e) {
+    function resetDotHighlight(e) {
         var layer = e.target;
         dotStyleDefault = dapiConfig.style(layer.feature);
         layer.setStyle(dotStyleDefault);
     }
 
-function HighlightNearbyCells(neighbours) {
-    if (map.hasLayer(nearbyCellLayer)) {
-        map.removeLayer(nearbyCellLayer)
-    }
-    nearbyCellLayer = L.geoJSON(cellPolygons, {
-        filter: isCellNearby(neighbours),
-        style: function (feature) {
-            return {
-                fillOpacity: 0.1,
-                color: feature.properties.agg.color,
-                weight: 3,
-            };
-        },
-        interactive: false
-    });
-    nearbyCellLayer.addTo(map);
+    function HighlightNearbyCells(neighbours) {
+        if (map.hasLayer(nearbyCellLayer)) {
+            map.removeLayer(nearbyCellLayer)
+        }
+        nearbyCellLayer = L.geoJSON(cellPolygons, {
+            filter: isCellNearby(neighbours),
+            style: function (feature) {
+                return {
+                    fillOpacity: 0.1,
+                    color: feature.properties.agg.color,
+                    weight: 3,
+                };
+            },
+            interactive: false
+        });
+        nearbyCellLayer.addTo(map);
 
-    function isCellNearby(neighbours) {
+        function isCellNearby(neighbours) {
+            return function (feature) {
+                var nearbyCells = d3.map(neighbours, d => +d.Cell_Num).keys()
+                    .map(el => +el)
+                    .filter(d => d != cellWatch);
+                return nearbyCells.includes(feature.properties.cell_id)
+            }
+        }
+    }
+
+    function geneFilter(geneName) {
         return function (feature) {
-            var nearbyCells = d3.map(neighbours, d => +d.Cell_Num).keys()
-                .map(el => +el)
-                .filter(d => d != cellWatch);
-            return nearbyCells.includes(feature.properties.cell_id)
+            return feature.properties.Gene === geneName;
         }
     }
-}
 
-function geneFilter(geneName){
-    return function (feature){
-        return feature.properties.Gene === geneName;
-    }
-}
-
-function clickGlyph(e) {
-    console.log('glyph clicked');
-    if (glyphToNeighbourLayer) {map.removeLayer(glyphToNeighbourLayer)}
-
-    var neighbours = e.target.feature.properties.neighbours,
-        focus_cell = e.target.feature.properties.neighbour,
-        focus_point = e.target.feature.geometry.coordinates,
-        res = [];
-
-    // Highlight nearby cells
-    HighlightNearbyCells(neighbours);
-
-
-    points_arr = neighbours.forEach(n => {
-        console.log(n.Cell_Num);
-
-        var temp_cell = cellData.filter(d => d.Cell_Num === n.Cell_Num);
-        if (Array.isArray(temp_cell) && temp_cell.length){
-            res.push({'X': temp_cell[0].X, 'Y': temp_cell[0].Y, 'color':temp_cell[0].agg.color, 'Cell_Num': temp_cell[0].Cell_Num})
+    function clickGlyph(e) {
+        console.log('glyph clicked');
+        if (glyphToNeighbourLayer) {
+            map.removeLayer(glyphToNeighbourLayer)
         }
-    });
 
-    var glyphToNeighbourFc = glyphToNeighbour(res, focus_point, neighbours);
-    glyphToNeighbourLayer = L.geoJson(glyphToNeighbourFc, {
-        onEachFeature: onEachGlyphToNeighbourLine,
-        interactive: false,
-    });
+        var neighbours = e.target.feature.properties.neighbours,
+            focus_cell = e.target.feature.properties.neighbour,
+            focus_point = e.target.feature.geometry.coordinates,
+            res = [];
 
-    function onEachGlyphToNeighbourLine(feature, layer) {
-        layer.setText('Prob = '+d3.format("0.0%")(feature.properties.Prob), {
-            offset: -5,
-            center: true,
-            orientation: feature.properties.angle,
-            attributes: {fill: feature.properties.color, 'font-size': 16},
+        // Highlight nearby cells
+        HighlightNearbyCells(neighbours);
+
+
+        points_arr = neighbours.forEach(n => {
+            console.log(n.Cell_Num);
+
+            var temp_cell = cellData.filter(d => d.Cell_Num === n.Cell_Num);
+            if (Array.isArray(temp_cell) && temp_cell.length) {
+                res.push({
+                    'X': temp_cell[0].X,
+                    'Y': temp_cell[0].Y,
+                    'color': temp_cell[0].agg.color,
+                    'Cell_Num': temp_cell[0].Cell_Num
+                })
+            }
         });
-        layer.setStyle({
-            'color': feature.properties.color,
-            'weight': feature.properties.Prob/0.25 + 1,
-            'className': 'geneToCellLine',
+
+        var glyphToNeighbourFc = glyphToNeighbour(res, focus_point, neighbours);
+        glyphToNeighbourLayer = L.geoJson(glyphToNeighbourFc, {
+            onEachFeature: onEachGlyphToNeighbourLine,
+            interactive: false,
         });
+
+        function onEachGlyphToNeighbourLine(feature, layer) {
+            layer.setText('Prob = ' + d3.format("0.0%")(feature.properties.Prob), {
+                offset: -5,
+                center: true,
+                orientation: feature.properties.angle,
+                attributes: {fill: feature.properties.color, 'font-size': 16},
+            });
+            layer.setStyle({
+                'color': feature.properties.color,
+                'weight': feature.properties.Prob / 0.25 + 1,
+                'className': 'geneToCellLine',
+            });
+        }
+
+        glyphToNeighbourLayer.addTo(map);
+        console.log('lines drawn');
+
+
+        // $('.geneToCellLine')
+        //     .append("text")
+        //         .attr("x", (50 / 2))
+        //         .attr("y", 50) //set your y attribute here
+        //         .style("text-anchor", "middle")
+        //         .style("font-size", "10px")
+        //         .style('fill', '#707070')
+        //         .text("Select an area by dragging across the lower chart from its edges");
+
+        // stop the click from propagating any further. Mouse clicks
+        // make the two controls at the bottom of the map sticky. If you want them to
+        // remain frozen when you click a glyph, keep the line below
+        e.stopPropagation(); //<---- that DOES NOT work, gives an error
+
+
+        // i dont remember if I need these 2 lines below ( i think i dont...)
+        // neighbours.forEach(d => cellData.filter(d => d.Cell_Num === focus_id))
+        // // cellData.filter(d => d.Cell_Num === e.target.feature.properties.neighbours[0].Cell_Num)
     }
-    glyphToNeighbourLayer.addTo(map);
-    console.log('lines drawn');
 
-
-    // $('.geneToCellLine')
-    //     .append("text")
-    //         .attr("x", (50 / 2))
-    //         .attr("y", 50) //set your y attribute here
-    //         .style("text-anchor", "middle")
-    //         .style("font-size", "10px")
-    //         .style('fill', '#707070')
-    //         .text("Select an area by dragging across the lower chart from its edges");
-
-    // stop the click from propagating any further. Mouse clicks
-    // make the two controls at the bottom of the map sticky. If you want them to
-    // remain frozen when you click a glyph, keep the line below
-    e.stopPropagation(); //<---- that DOES NOT work, gives an error
-
-
-    // i dont remember if I need these 2 lines below ( i think i dont...)
-    // neighbours.forEach(d => cellData.filter(d => d.Cell_Num === focus_id))
-    // // cellData.filter(d => d.Cell_Num === e.target.feature.properties.neighbours[0].Cell_Num)
-}
-
-function glyphToNeighbour(destination, origin, neighbours) {
-    var out = {
-        type: "FeatureCollection",
-        features: []
-    };
-    for (var i = 0; i < destination.length; ++i) {
-        var x = +destination[i].X,
-            y = +destination[i].Y,
-            lp = dapiConfig.t.transform(L.point([x, y])),
-            toPoint = [lp.x, lp.y];
-        var g = {
-            "type": "LineString",
-            "coordinates": [origin, toPoint]
+    function glyphToNeighbour(destination, origin, neighbours) {
+        var out = {
+            type: "FeatureCollection",
+            features: []
         };
+        for (var i = 0; i < destination.length; ++i) {
+            var x = +destination[i].X,
+                y = +destination[i].Y,
+                lp = dapiConfig.t.transform(L.point([x, y])),
+                toPoint = [lp.x, lp.y];
+            var g = {
+                "type": "LineString",
+                "coordinates": [origin, toPoint]
+            };
 
-        //create feature properties
-        var p = {
-            "fromPoint": origin,
-            "toPoint": toPoint,
-            "color": destination[i].color,
-            "Prob": d3.map(neighbours, d => d.Cell_Num).get(destination[i].Cell_Num).Prob,
-            "angle": getAngle(toPoint[0], toPoint[1], origin[0], origin[1]),
-        };
+            //create feature properties
+            var p = {
+                "fromPoint": origin,
+                "toPoint": toPoint,
+                "color": destination[i].color,
+                "Prob": d3.map(neighbours, d => d.Cell_Num).get(destination[i].Cell_Num).Prob,
+                "angle": getAngle(toPoint[0], toPoint[1], origin[0], origin[1]),
+            };
 
-        console.log('origin: ' + origin );
-        console.log('toPoint: ' + toPoint );
-        console.log('angle: ' + p.angle );
-        console.log('prob: ' + p.Prob );
-        console.log("-----")
-        //create features with proper geojson structure
-        out.features.push({
-            "geometry": g,
-            "type": "Feature",
-            "properties": p
-        });
+            console.log('origin: ' + origin);
+            console.log('toPoint: ' + toPoint);
+            console.log('angle: ' + p.angle);
+            console.log('prob: ' + p.Prob);
+            console.log("-----")
+            //create features with proper geojson structure
+            out.features.push({
+                "geometry": g,
+                "type": "Feature",
+                "properties": p
+            });
+        }
+        return out;
     }
-    return out;
-}
 
 
-function getAngle(ax, ay, bx, by) {
-    var dy = ay-by,
-        dx = ax-bx;
+    function getAngle(ax, ay, bx, by) {
+        var dy = ay - by,
+            dx = ax - bx;
 
-  return dx < 0? 180 - getAngleDeg(dx, dy): 360 - getAngleDeg(dx, dy)
-}
-
-
- /*
- * Calculates the angle between AB and the X axis
- * A and B are points (ax,ay) and (bx,by)
- */
-function getAngleDeg(dx, dy) {
-    // var dy = ay-by,
-    //     dx = ax-bx;
-  var angleRad = Math.atan(dy/dx);
-  var angleDeg = angleRad * 180 / Math.PI;
-
-  return angleDeg
-}
-
-
-function make_dots(data) {
-    var dots = {
-        type: "FeatureCollection",
-        features: []
-    };
-    for (var i = 0; i < data.length; ++i) {
-        var x = data[i].x,
-            y = data[i].y,
-            gene = data[i].Gene;
-        //console.log(gene)
-        var lp = dapiConfig.t.transform(L.point([x, y]));
-        var g = {
-            "type": "Point",
-            "coordinates": [lp.x, lp.y]
-        };
-
-        //create feature properties
-        var p = {
-            "id": i,
-            "x": x,
-            "y": y,
-            "Gene": gene,
-            "taxonomy": dapiConfig.getTaxonomy(gene),
-            "glyphName": dapiConfig.getGlyphName(gene),
-            "glyphColor": dapiConfig.getColor(gene),
-            "block_id": data[i].block_id,
-            "size": 30,
-            "type": 'gene',
-            "neighbour": parseFloat(data[i].neighbour), // why you are using parseFloat?? Cant remember why I did this!
-            "neighbours": dapiConfig.getNeighbours(data[i].neighbour_array, data[i].neighbour_prob),
-        };
-
-        //create features with proper geojson structure
-        dots.features.push({
-            "geometry": g,
-            "type": "Feature",
-            "properties": p
-        });
+        return dx < 0 ? 180 - getAngleDeg(dx, dy) : 360 - getAngleDeg(dx, dy)
     }
-    return dots;
+
+
+    /*
+    * Calculates the angle between AB and the X axis
+    * A and B are points (ax,ay) and (bx,by)
+    */
+    function getAngleDeg(dx, dy) {
+        // var dy = ay-by,
+        //     dx = ax-bx;
+        var angleRad = Math.atan(dy / dx);
+        var angleDeg = angleRad * 180 / Math.PI;
+
+        return angleDeg
+    }
+
+
+    function make_dots(data) {
+        var dots = {
+            type: "FeatureCollection",
+            features: []
+        };
+        for (var i = 0; i < data.length; ++i) {
+            var x = data[i].x,
+                y = data[i].y,
+                gene = data[i].Gene;
+            //console.log(gene)
+            var lp = dapiConfig.t.transform(L.point([x, y]));
+            var g = {
+                "type": "Point",
+                "coordinates": [lp.x, lp.y]
+            };
+
+            //create feature properties
+            var p = {
+                "id": i,
+                "x": x,
+                "y": y,
+                "Gene": gene,
+                "taxonomy": dapiConfig.getTaxonomy(gene),
+                "glyphName": dapiConfig.getGlyphName(gene),
+                "glyphColor": dapiConfig.getColor(gene),
+                "block_id": data[i].block_id,
+                "size": 30,
+                "type": 'gene',
+                "neighbour": parseFloat(data[i].neighbour), // why you are using parseFloat?? Cant remember why I did this!
+                "neighbours": dapiConfig.getNeighbours(data[i].neighbour_array, data[i].neighbour_prob),
+            };
+
+            //create features with proper geojson structure
+            dots.features.push({
+                "geometry": g,
+                "type": "Feature",
+                "properties": p
+            });
+        }
+        return dots;
+    }
+
+
 }
-
-
-
