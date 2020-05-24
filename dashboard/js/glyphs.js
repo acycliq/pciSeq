@@ -8,21 +8,6 @@ L.Canvas.include({
             r = Math.max(Math.round(layer._radius), 8);
 
         this._layers[layer._leaflet_id] = layer;
-
-        // ctx.beginPath();
-        // ctx.moveTo(p.x + r     , p.y );
-        // ctx.lineTo(p.x + 0.43*r, p.y + 0.25 * r);
-        // ctx.lineTo(p.x + 0.50*r, p.y + 0.87 * r);
-        // ctx.lineTo(p.x         , p.y + 0.50 * r);
-        // ctx.lineTo(p.x - 0.50*r, p.y + 0.87 * r);
-        // ctx.lineTo(p.x - 0.43*r, p.y + 0.25 * r);
-        // ctx.lineTo(p.x -      r, p.y );
-        // ctx.lineTo(p.x - 0.43*r, p.y - 0.25 * r);
-        // ctx.lineTo(p.x - 0.50*r, p.y - 0.87 * r);
-        // ctx.lineTo(p.x         , p.y - 0.50 * r);
-        // ctx.lineTo(p.x + 0.50*r, p.y - 0.87 * r);
-        // ctx.lineTo(p.x + 0.43*r, p.y - 0.25 * r);
-        // ctx.closePath();
         ctx = ctxPath('star6', ctx, p, r);
         this._fillStroke(ctx, layer);
     }
@@ -38,20 +23,6 @@ L.Canvas.include({
             r = Math.max(Math.round(layer._radius), 8);
 
         this._layers[layer._leaflet_id] = layer;
-
-        // ctx.beginPath();
-        // ctx.moveTo(p.x, p.y + 0.658351875 * r);
-        // ctx.lineTo(p.x + 0.618027443 * r, p.y + 1 * r);
-        // ctx.lineTo(p.x + 0.5 * r, p.y + 0.27637816 * r);
-        // ctx.lineTo(p.x + 1 * r, p.y - 0.236080209 * r);
-        // ctx.lineTo(p.x + 0.309026865 * r, p.y - 0.341634306 * r);
-        // ctx.lineTo(p.x + 0 * r, p.y - 1 * r);
-        // ctx.lineTo(p.x -0.309026865 * r, p.y - 0.341634306 * r);
-        // ctx.lineTo(p.x -1 * r, p.y - 0.236080209 * r);
-        // ctx.lineTo(p.x -0.5 * r, p.y + 0.27637816 * r);
-        // ctx.lineTo(p.x -0.618027443 * r, p.y + 	1 * r);
-        // ctx.lineTo(p.x, p.y + 0.658351875 * r);
-        // ctx.closePath();
         ctx = ctxPath('star5', ctx, p, r);
         this._fillStroke(ctx, layer);
 
@@ -67,14 +38,6 @@ L.Canvas.include({
             r = Math.max(Math.round(layer._radius), 6);
 
         this._layers[layer._leaflet_id] = layer;
-
-        // ctx.beginPath();
-        // ctx.moveTo(p.x-r, p.y);
-        // ctx.lineTo(p.x, p.y-r);
-        // ctx.lineTo(p.x+r, p.y);
-        // ctx.lineTo(p.x, p.y+r);
-        // ctx.lineTo(p.x-r, p.y);
-        // ctx.closePath();
         ctx = ctxPath('diamond', ctx, p, r);
         this._fillStroke(ctx, layer);
     }
@@ -90,14 +53,6 @@ L.Canvas.include({
             r = Math.max(Math.round(layer._radius), 5);
 
         this._layers[layer._leaflet_id] = layer;
-
-        // ctx.beginPath();
-        // ctx.moveTo(p.x-r, p.y-r);
-        // ctx.lineTo(p.x+r, p.y-r);
-        // ctx.lineTo(p.x+r, p.y+r);
-        // ctx.lineTo(p.x-r, p.y+r);
-        // ctx.lineTo(p.x-r, p.y-r);
-        // ctx.closePath();
         ctx = ctxPath('square', ctx, p, r);
         this._fillStroke(ctx, layer);
     }
@@ -112,12 +67,6 @@ L.Canvas.include({
             r = Math.max(Math.round(layer._radius), 5);
 
         this._layers[layer._leaflet_id] = layer;
-
-        // ctx.beginPath();
-        // ctx.moveTo(p.x-r, p.y+r);
-        // ctx.lineTo(p.x, p.y-r);
-        // ctx.lineTo(p.x+r, p.y+r);
-        // ctx.closePath();
         ctx = ctxPath('triangleUp', ctx, p, r);
         this._fillStroke(ctx, layer);
     }
@@ -133,13 +82,6 @@ L.Canvas.include({
             r = Math.max(Math.round(layer._radius), 5);
 
         this._layers[layer._leaflet_id] = layer;
-
-        // ctx.beginPath();
-        //
-        // ctx.moveTo(p.x - r, p.y - r);
-        // ctx.lineTo(p.x, p.y + r);
-        // ctx.lineTo(p.x + r, p.y - r);
-        // ctx.closePath();
         ctx = ctxPath('triangleDown', ctx, p, r);
         this._fillStroke(ctx, layer);
     }
@@ -156,13 +98,6 @@ L.Canvas.include({
             r = Math.max(Math.round(layer._radius), 5);
 
         this._layers[layer._leaflet_id] = layer;
-
-        // ctx.beginPath();
-
-        // ctx.moveTo(p.x - r, p.y - r);
-        // ctx.lineTo(p.x+r, p.y);
-        // ctx.lineTo(p.x - r, p.y + r);
-        // ctx.closePath();
         ctx = ctxPath('triangleRight', ctx, p, r);
         this._fillStroke(ctx, layer);
     }
@@ -178,13 +113,6 @@ L.Canvas.include({
             r = Math.max(Math.round(layer._radius), 5);
 
         this._layers[layer._leaflet_id] = layer;
-
-        // ctx.beginPath();
-        //
-        // ctx.moveTo(p.x + r, p.y - r);
-        // ctx.lineTo(p.x - r, p.y);
-        // ctx.lineTo(p.x + r, p.y + r);
-        // ctx.closePath();
         ctx = ctxPath('triangleLeft', ctx, p, r);
         this._fillStroke(ctx, layer);
     }
@@ -200,14 +128,6 @@ L.Canvas.include({
             r = Math.max(Math.round(layer._radius), 5);
 
         this._layers[layer._leaflet_id] = layer;
-
-        // ctx.beginPath();
-        //
-        // ctx.moveTo(p.x + r, p.y + r);
-        // ctx.lineTo(p.x - r, p.y - r);
-        // ctx.moveTo(p.x - r, p.y + r);
-        // ctx.lineTo(p.x + r, p.y - r);
-        // ctx.closePath();
         ctx = ctxPath('cross', ctx, p, r);
         this._fillStroke(ctx, layer);
     }
@@ -224,14 +144,6 @@ L.Canvas.include({
             r = Math.max(Math.round(layer._radius), 7);
 
         this._layers[layer._leaflet_id] = layer;
-
-        // ctx.beginPath();
-        //
-        // ctx.moveTo(p.x, p.y + r);
-        // ctx.lineTo(p.x, p.y - r);
-        // ctx.moveTo(p.x - r, p.y);
-        // ctx.lineTo(p.x + r, p.y);
-        // ctx.closePath();
         ctx = ctxPath('plus', ctx, p, r);
         this._fillStroke(ctx, layer);
     }
@@ -247,19 +159,6 @@ L.Canvas.include({
             r = Math.max(Math.round(layer._radius), 7);
 
         this._layers[layer._leaflet_id] = layer;
-
-        // ctx.beginPath();
-        //
-        // ctx.moveTo(p.x, p.y + r);
-        // ctx.lineTo(p.x, p.y - r);
-        // ctx.moveTo(p.x - r, p.y);
-        // ctx.lineTo(p.x + r, p.y);
-        // ctx.moveTo(p.x + 0.5*r, p.y + 0.5*r);
-        // ctx.lineTo(p.x - 0.5*r, p.y - 0.5*r);
-        // ctx.moveTo(p.x - 0.5*r, p.y + 0.5*r);
-        // ctx.lineTo(p.x + 0.5*r, p.y - 0.5*r);
-        // ctx.arc(p.x, p.y, 2, 0, Math.PI*2, true);
-        // ctx.closePath();
         ctx = ctxPath('asterisk', ctx, p, r);
         this._fillStroke(ctx, layer);
     }
@@ -275,10 +174,6 @@ L.Canvas.include({
             r = Math.max(Math.round(layer._radius), 6);
 
         this._layers[layer._leaflet_id] = layer;
-
-        // ctx.beginPath();
-        // ctx.arc(p.x, p.y, r, 0, Math.PI*2, true);
-        // ctx.closePath();
         ctx = ctxPath('circle', ctx, p, r);
         this._fillStroke(ctx, layer);
     }
@@ -294,11 +189,6 @@ L.Canvas.include({
             //r = Math.max(Math.round(layer._radius), 6);
 
         this._layers[layer._leaflet_id] = layer;
-
-        // ctx.beginPath();
-        // ctx.arc(p.x, p.y, 3, 0, Math.PI*2, true);
-        // ctx.arc(p.x, p.y, 2, 0, Math.PI*2, true);
-        // ctx.closePath();
         ctx = ctxPath('point', ctx, p);
         this._fillStroke(ctx, layer);
     }
