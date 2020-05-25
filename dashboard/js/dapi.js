@@ -357,6 +357,13 @@ function dapiChart(config) {
     dapiConfig.summary.addTo(map);
 
 
+
+	var loader = new PIXI.loaders.Loader();
+	loader.add('marker', './dashboard/assets/circle.png');
+	setup()
+	// document.addEventListener("DOMContentLoaded", setup);
+
+
     function moveend(config) {
         console.log('Triggering moveend callback');
         // 1. draw the cell polygons
@@ -383,6 +390,32 @@ function dapiChart(config) {
             console.log('')
         };
     }
+
+    function setup() {
+        console.log('Setup was called')
+        loader.load(myPoints);
+    };
+
+
+    function myPoints(loader, resources) {
+        var texture = resources.marker.texture;
+        var myPointLayer = drawPoints(texture);
+        myPointLayer.addTo(map);
+
+        var ticker = new PIXI.ticker.Ticker();
+        ticker.add(function (delta) {
+            myPointLayer.redraw({type: 'redraw', delta: delta});
+        });
+        map.on('zoomstart', function () {
+            ticker.start();
+        });
+        map.on('zoomend', function () {
+            ticker.stop();
+        });
+        map.on('zoomanim', myPointLayer.redraw, myPointLayer);
+    }
+
+    loader.load(myPoints);
 
 
     //
