@@ -60,7 +60,7 @@ function app(all_geneData, map) {
 
             var my_gene = 'Npy'
             // var pixiParticleContainer = new PIXI.ParticleContainer(all_geneData.length, {vertices: true});
-            var pixiParticleContainer = geneContainer_array.filter(d => d.name === my_gene)[0];
+            // var pixiParticleContainer = geneContainer_array.filter(d => d.name === my_gene)[0];
             // var colorScale = d3.scaleLinear()
             //     .domain([0, 50, 100])
             //     .range(["#c6233c", "#ffd300", "#008000"]);
@@ -68,11 +68,16 @@ function app(all_geneData, map) {
             // console.log('tint is ' + tint)
             // pixiParticleContainer.tint = 256 * (tint.r * 256 + tint.g) + tint.b;
             // pixiParticleContainer.name = 'myMarkers'
-            container.addChild(pixiParticleContainer)
+            // container.addChild(pixiParticleContainer)
+
+            geneContainer_array.forEach(d => container.addChild(d));
+            var all_genes = geneContainer_array.map(d => d.name).sort()
             if (firstDraw) {
                 prevZoom = zoom;
-                all_geneData.forEach(function (marker) {
-                    if (marker.Gene === my_gene) {
+                all_genes.forEach(gene => {
+                    var pixiParticleContainer = geneContainer_array.filter(d => d.name === gene)[0];
+                    var tempData = all_geneData.filter(d => d.Gene === gene)
+                    tempData.forEach(function (marker) {
                         var p = dapiConfig.t.transform(L.point([marker.x, marker.y]));
                         var coords = project([p.y, p.x]);
                         var markerSprite = new PIXI.Sprite(textures[0]);
@@ -82,8 +87,23 @@ function app(all_geneData, map) {
                         pixiParticleContainer.addChild(markerSprite); //<===== HERE THE MARKER IS ADDED TO THE PARTICLECONTAINER
                         markerSprites.push(markerSprite);
                         markerSprite.legend = marker.city || marker.label;
-                    }
-                });
+                    });
+
+                })
+
+                // all_geneData.forEach(function (marker) {
+                //     if (marker.Gene === my_gene) {
+                //         var p = dapiConfig.t.transform(L.point([marker.x, marker.y]));
+                //         var coords = project([p.y, p.x]);
+                //         var markerSprite = new PIXI.Sprite(textures[0]);
+                //         markerSprite.x = coords.x;
+                //         markerSprite.y = coords.y;
+                //         markerSprite.anchor.set(0.5, 0.5);
+                //         pixiParticleContainer.addChild(markerSprite); //<===== HERE THE MARKER IS ADDED TO THE PARTICLECONTAINER
+                //         markerSprites.push(markerSprite);
+                //         markerSprite.legend = marker.city || marker.label;
+                //     }
+                // });
             }
             if (firstDraw || prevZoom !== zoom) {
                 markerSprites.forEach(function (markerSprite) {
