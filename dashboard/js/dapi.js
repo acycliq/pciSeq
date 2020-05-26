@@ -357,19 +357,14 @@ function dapiChart(config) {
     dapiConfig.summary.addTo(map);
 
 
-
-	var loader = new PIXI.loaders.Loader();
-	loader.add('marker', './dashboard/assets/circle.png');
-	setup()
-	// document.addEventListener("DOMContentLoaded", setup);
-
-
     function moveend(config) {
         console.log('Triggering moveend callback');
         // 1. draw the cell polygons
         cellPolyLayer = drawCellPolygons();
         cellPolyLayer.addTo(map);
         console.log('cellPolyLayer added to the map')
+
+        app(all_geneData, map);
 
         // 2. if zoom >= 7 then render the glyphs too
         return function (evt) {
@@ -391,51 +386,7 @@ function dapiChart(config) {
         };
     }
 
-    function setup() {
-        console.log('Setup was called')
-        loader.load(myPoints);
-    };
 
-
-    function myPoints(loader, resources) {
-        var texture = resources.marker.texture;
-        var myPointLayer = drawPoints(texture);
-        myPointLayer.addTo(map);
-
-        var ticker = new PIXI.ticker.Ticker();
-        ticker.add(function (delta) {
-            myPointLayer.redraw({type: 'redraw', delta: delta});
-        });
-        map.on('zoomstart', function () {
-            ticker.start();
-        });
-        map.on('zoomend', function () {
-            ticker.stop();
-        });
-        map.on('zoomanim', myPointLayer.redraw, myPointLayer);
-    }
-
-    loader.load(myPoints);
-
-
-    //
-    // Code that calls pixi and draws markers over the cell centroids
-    // Not used anymore, im keeping it here for reference
-    // var loader = new PIXI.loaders.Loader();
-    // loader
-    //     .add('plane', 'img/plane.png')
-    //     .add('focusPlane', 'img/focus-circle.png')
-    //     .add('circle', 'img/circle.png')
-    //     .add('focusCircle', 'img/circle.png')
-    //     .add('bicycle', 'img/circle.png')
-    //     .add('focusBicycle', 'img/focus-circle.png');
-    // loader.load(setup);
-    //
-    // function setup(loader, resources) {
-    //     // cellSpitesLayer = drawCellSprites(resources, cellData, map);
-    //     // cellSpitesLayer.addTo(map);
-    //
-    // };
 
 
     // make placeholder for the coordinates control

@@ -6,6 +6,7 @@
 // Variables in the global scope
 var cellBoundaries,
     cellData,
+    all_geneData = [],
     dapiConfig,
     polygonsOverlay,
     cellPolygons,
@@ -103,16 +104,27 @@ function run() {
     configSettings = config().get('default');
     var boundariesjson = configSettings.cellBoundaries;
     var celljson = configSettings.cellData;
-    d3.queue()
-        .defer(d3.json, boundariesjson)
-        .defer(d3.json, celljson)
-        .await(onCellsLoaded(configSettings));
+    var q = d3.queue();
+        q = q.defer(d3.json, boundariesjson);
+        for (var i = 0; i < 154; i++) { // DO NOT FORGET TO REMOVE THAT (154)
+            q = q.defer(d3.json, configSettings.spot_json(i));
+            q = q.defer(d3.json, configSettings.cell_json(i));
+        }
+    q.await(onCellsLoaded(configSettings));
 }
 
 
 function onCellsLoaded(cfg) {
+    var data_1 = [],
+        // all_geneData = [],
+        data_3 = [];
     return (err, ...args) => {
-        [cellBoundaries, cellData] = postLoad(args);
+        args.forEach((d, i) => {
+            i === 0? data_1=d:
+                i % 2 === 0? data_3 = [...data_3, ...d]:
+                     all_geneData = [...all_geneData, ...d]
+        });
+        [cellBoundaries, cellData] = postLoad([data_1, data_3]);
         dapiChart(cfg);
     }
 }
@@ -141,6 +153,9 @@ function postLoad(arr) {
         d.topClass = d.ClassName[maxIndex(d.Prob)]; // Keeps the class with the highest probability
         d.agg = agg[i];
     });
+
+    // make sure the array is sorted by Cell_Num
+    _cellData.sort(function(a,b){return a.Cell_Num-b.Cell_Num});
 
     return [_cellBoundaries, _cellData]
 }
