@@ -21,8 +21,8 @@ var cellBoundaries,
     cellWatch, //keeps the id of the cell currently drawn on the map
     map,
     container_array = [],
-    pixiContainer,
-    pixiRenderer,
+    masterPixiContainer,
+    masterPixiRenderer,
     // layerControl, //you sure this has to be global?
     geneLayers,
     geneOverlays,

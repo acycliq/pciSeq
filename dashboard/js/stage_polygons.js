@@ -33,11 +33,11 @@ function drawCellOutline(color, alpha, project, container, coords) {
 function drawCellPolygons() {
     cellPolygons = myUtils().poly_collection(cellBoundaries, dapiConfig.t);
     cellBoundaries = null;
-    pixiContainer = new PIXI.Graphics(); // Assign this the global variable 'pixiRenderer'
+    masterPixiContainer = new PIXI.Graphics(); // Assign this the global variable 'pixiRenderer'
     var doubleBuffering = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
     var poly = renderPolygons(cellPolygons);
-    polygonsOverlay = L.pixiOverlay(poly, pixiContainer, {
+    polygonsOverlay = L.pixiOverlay(poly, masterPixiContainer, {
         doubleBuffering: doubleBuffering,
         destroyInteractionManager: true
     });
@@ -58,7 +58,7 @@ function renderPolygons(data) {
     return function (utils) {
         console.log('you passed in ' + data.features.length + ' data points')
         var container = utils.getContainer();  // That has to be pointing to the same object as the global var 'pixiContainer'
-        pixiRenderer = utils.getRenderer();   // Assign this to the global variable 'pixiRenderer'
+        masterPixiRenderer = utils.getRenderer();   // Assign this to the global variable 'pixiRenderer'
         var project = utils.latLngToLayerPoint;
         var zoom = utils.getMap().getZoom();
         var scale = utils.getScale;
