@@ -31,15 +31,26 @@ function app(all_geneData, map) {
             var n = all_geneData.filter(el => el.Gene === d).length;
             var c = new PIXI.ParticleContainer(n, {vertices: true});
             c.name = d;
-            c.tint = markerTint(d)
+            c.tint = markerColor(d);
             geneContainer_array.push(c)
         });
     }
 
-    function markerTint(geneName) {
-        var hex = glyphColor(glyphSettings().filter(d => d.gene === geneName)[0].taxonomy)
-        var out = myUtils().string2hex(hex);
+    function markerColor(geneName) {
+        var colorCode = glyphColor(glyphSettings().filter(d => d.gene === geneName)[0].taxonomy);
+        var out = myUtils().string2hex(colorCode);
         return out
+    }
+
+    function scaleRamp(z){
+        return z===0? 0.125:
+            z===1? 0.125:
+                z===2? 0.125:
+                    z===3? 0.125:
+                        z===4? 0.125:
+                            z===5? 0.125:
+                                z===6? 0.125:
+                                    z===7? 0.125: 1
     }
 
 
@@ -50,34 +61,42 @@ function app(all_geneData, map) {
 
         var frame = null;
         var focus = null;
-        return function (utils) {
+        return function (utils, event) {
             var zoom = utils.getMap().getZoom();
             var container = utils.getContainer(); // <----- I think this is referencing the same obj as '''masterMarkerContainer'''
-            masterMarkerRenderer = utils.getRenderer();
+            masterMarkerRenderer = utils.getRenderer(); // assign the renderer to the global '''masterMarkerRenderer''' variable
             var project = utils.latLngToLayerPoint;
             var scale = utils.getScale();
             var invScale = 1 / scale;
+            console.log('zoom is: ' + zoom)
+            console.log('scale is: ' + scale)
+            console.log('inv scale is: ' + invScale)
 
-            var my_gene = 'Npy'
-            // var pixiParticleContainer = new PIXI.ParticleContainer(all_geneData.length, {vertices: true});
-            // var pixiParticleContainer = geneContainer_array.filter(d => d.name === my_gene)[0];
-            // var colorScale = d3.scaleLinear()
-            //     .domain([0, 50, 100])
-            //     .range(["#c6233c", "#ffd300", "#008000"]);
-            // var tint = d3.color(colorScale(Math.random() * 100)).rgb();
-            // console.log('tint is ' + tint)
-            // pixiParticleContainer.tint = 256 * (tint.r * 256 + tint.g) + tint.b;
-            // pixiParticleContainer.name = 'myMarkers'
-            // container.addChild(pixiParticleContainer)
-
+            // get the particle containers from the geneContainer_array and add them to the container
             geneContainer_array.forEach(d => container.addChild(d));
-            var all_genes = geneContainer_array.map(d => d.name).sort()
+
+            // get all the gene names. Now that could potentially be a problem. Maybe I should have written
+            // a function just to do that. The line below gets the gene names from the particle containers name
+            // which is based on the glyphConfig.js file. This file can contain a lot more (but not less!) genes that what
+            // we are working with. It is a superset of our gene panel. Alternatively I could query the '''geneData''' object
+            // and get my gene names but I think this is more expensive. Usually however the glyphConfig.js contains settings
+            // for just our particular gene panel, however this is not necessary and is not enforced.
+            var all_genes = geneContainer_array.map(d => d.name).sort();
             if (firstDraw) {
                 prevZoom = zoom;
+
+                // for each gene
                 all_genes.forEach(gene => {
+                    // get the relevant particle container
                     var pixiParticleContainer = geneContainer_array.filter(d => d.name === gene)[0];
-                    var tempData = all_geneData.filter(d => d.Gene === gene)
+                    // and filter out data not relevant to that gene
+                    var tempData = all_geneData.filter(d => d.Gene === gene);
+                    // Loop inside that data slice
                     tempData.forEach(function (marker) {
+                        // get the coords of each datapoint and make a sprite.
+                        // Then add the marker to the particle container and repeat unti exhaustion
+                        // Note: The marker has to be added to the relevant particle container.
+                        // DO NOT ADD THE MARKER DIRECTLY TO THE CONTAINER (aka '''masterMarkerContainer''')
                         var p = dapiConfig.t.transform(L.point([marker.x, marker.y]));
                         var coords = project([p.y, p.x]);
                         var markerSprite = new PIXI.Sprite(textures[0]);
@@ -107,7 +126,8 @@ function app(all_geneData, map) {
             }
             if (firstDraw || prevZoom !== zoom) {
                 markerSprites.forEach(function (markerSprite) {
-                    markerSprite.scale.set(invScale / 2);
+                    var targetScale = zoom <=7? scaleRamp(zoom):  1 / (2*utils.getScale(event.zoom));
+                    markerSprite.scale.set(targetScale);
                 });
             }
             firstDraw = false;
@@ -123,4 +143,4 @@ function app(all_geneData, map) {
 // masterMarkerRenderer.render(masterMarkerContainer)
 
 
- // [...new Set(all_geneData.map(d => d.Gene))].sort()
+// [...new Set(all_geneData.map(d => d.Gene))].sort()
