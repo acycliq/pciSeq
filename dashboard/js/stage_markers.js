@@ -68,9 +68,9 @@ function app(all_geneData, map) {
             var project = utils.latLngToLayerPoint;
             var scale = utils.getScale();
             var invScale = 1 / scale;
-            console.log('zoom is: ' + zoom)
-            console.log('scale is: ' + scale)
-            console.log('inv scale is: ' + invScale)
+            console.log('zoom is: ' + zoom);
+            console.log('scale is: ' + scale);
+            console.log('inv scale is: ' + invScale);
 
             // get the particle containers from the geneContainer_array and add them to the container
             geneContainer_array.forEach(d => container.addChild(d));
@@ -109,28 +109,7 @@ function app(all_geneData, map) {
                     });
 
                 })
-
-                // all_geneData.forEach(function (marker) {
-                //     if (marker.Gene === my_gene) {
-                //         var p = dapiConfig.t.transform(L.point([marker.x, marker.y]));
-                //         var coords = project([p.y, p.x]);
-                //         var markerSprite = new PIXI.Sprite(textures[0]);
-                //         markerSprite.x = coords.x;
-                //         markerSprite.y = coords.y;
-                //         markerSprite.anchor.set(0.5, 0.5);
-                //         pixiParticleContainer.addChild(markerSprite); //<===== HERE THE MARKER IS ADDED TO THE PARTICLECONTAINER
-                //         markerSprites.push(markerSprite);
-                //         markerSprite.legend = marker.city || marker.label;
-                //     }
-                // });
             }
-            // if (firstDraw || prevZoom !== zoom) {
-            //     markerSprites.forEach(function (markerSprite) {
-            //         var targetScale = zoom <=7? scaleRamp(zoom):  1 / (2*utils.getScale(event.zoom));
-            //         markerSprite.scale.set(targetScale);
-            //     });
-            // }
-
 
             var start = null;
             var delta = 250;
