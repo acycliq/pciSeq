@@ -124,12 +124,47 @@ function app(all_geneData, map) {
                 //     }
                 // });
             }
-            if (firstDraw || prevZoom !== zoom) {
+            // if (firstDraw || prevZoom !== zoom) {
+            //     markerSprites.forEach(function (markerSprite) {
+            //         var targetScale = zoom <=7? scaleRamp(zoom):  1 / (2*utils.getScale(event.zoom));
+            //         markerSprite.scale.set(targetScale);
+            //     });
+            // }
+
+
+            var start = null;
+            var delta = 250;
+
+            function animate(timestamp) {
+                var progress;
+                if (start === null) start = timestamp;
+                progress = timestamp - start;
+                var lambda = progress / delta;
+                if (lambda > 1) lambda = 1;
+                lambda = lambda * (0.4 + lambda * (2.2 + lambda * -1.6));
                 markerSprites.forEach(function (markerSprite) {
                     var targetScale = zoom <=7? scaleRamp(zoom):  1 / (2*utils.getScale(event.zoom));
                     markerSprite.scale.set(targetScale);
                 });
+                masterMarkerRenderer.render(container);
+                if (progress < delta) {
+                    frame = requestAnimationFrame(animate);
+                }
             }
+
+            if (firstDraw || prevZoom !== zoom) {
+                markerSprites.forEach(function (markerSprite) {
+                    var targetScale = zoom <= 7 ? scaleRamp(zoom) : 1 / (2 * utils.getScale(event.zoom));
+                    markerSprite.scale.set(targetScale);
+                });
+            }
+
+            // Not quite sure if that makes any difference, maybe I am not using it right
+            // if (!firstDraw && prevZoom !== zoom) {
+            //     frame = requestAnimationFrame(animate);
+            // }
+
+
             firstDraw = false;
             prevZoom = zoom;
             masterMarkerRenderer.render(container);
