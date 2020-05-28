@@ -356,9 +356,13 @@ function dapiChart(config) {
     //...and the summary control too
     dapiConfig.summary.addTo(map);
 
+    //... and show the legend button
+    legendControl();
+
 
     function moveend(config) {
         console.log('Triggering moveend callback');
+
         // 1. draw the cell polygons
         cellPolyLayer = drawCellPolygons();
         cellPolyLayer.addTo(map);
@@ -368,25 +372,31 @@ function dapiChart(config) {
 
         // 2. if zoom >= 7 then render the glyphs too
         return function (evt) {
-            if (map.getZoom() >= 7 ) {
-                //then render the glyphs
+
+            if (map.getZoom() >= 7) {
+                // hide the markers drawn by pixi
+                geneContainer_array.map(d => d.visible = false);
+
+                //and then render the glyphs (leaflet + canvas)
                 renderGlyphs(evt, config);
 
-                //show the legend button
-                legendControl()
-            }
-            else {
+            } else {
                 dapiConfig.removeLayer(geneLayers)
-                closeLegend()
-                localStorage.clear();
+                // closeLegend()
+                // localStorage.clear();
+
+                // show the markers drawn by pixi
+                geneContainer_array.map(d => d.visible = true);
+
+                // call refresh(). If you have unchecked a gene from the gene panel
+                // then this spots from that gene should not show up
+                refresh()
             }
             console.log("Current Zoom Level =" + map.getZoom());
             console.log('exiting moveend callback');
             console.log('')
         };
     }
-
-
 
 
     // make placeholder for the coordinates control
@@ -447,7 +457,7 @@ function dapiChart(config) {
 
     // Hide the controls the first time the page loads up
     $('.uiElement.label').hide();
-    $('#legend').hide();
+    // $('#legend').hide();
     $('.leaflet-bottom.leaflet-left').hide();
     $('.leaflet-bottom.leaflet-right').hide();
 }

@@ -23,6 +23,9 @@ var cellBoundaries,
     container_array = [],
     masterPixiContainer,
     masterPixiRenderer,
+    masterMarkerContainer,
+    masterMarkerRenderer,
+    geneContainer_array = [],
     // layerControl, //you sure this has to be global?
     geneLayers,
     geneOverlays,
@@ -32,24 +35,45 @@ var cellBoundaries,
 
 
 localStorage.clear();
+console.log('Local storage cleared')
 
 
-// this will be watching if a cookie has been saved to local storage. If yes then it
+// this will be watching if something has been saved to local storage. If yes then it
 // triggers some action. It acts as an intermediate layer to pass communication between the datatables grid and
-// the viewer.On another tab, user-selected checkboxes are saved as a cookie. Then the cookie is picked up here,
-// the javacript code reads the selected values and triggers the appropriate action
-var cookieMonitor = function () {
+// the viewer. On another browser tab, user selection on the checkboxes results in data get saved on local storage.
+// This is picked up here, the javacript code reads the selected values and triggers the appropriate action
+var storageMonitor = function () {
     return function () {
         var state = JSON.parse(localStorage['updated_state']);
-        var enter = state.enter,
-            exit = state.exit;
+        var enter = state.enter, // data to add
+            exit = state.exit;   // data to remove
 
-        exit.forEach(d => _removeOverlay(d));
-        enter.forEach(d => _addOverlay(d))
+        exit.forEach(d =>{
+            // 1
+            _removeOverlay(d);
+
+            // 2
+            var x = masterMarkerContainer.getChildByName(d);
+            x.visible = false
+        });
+
+
+        enter.forEach(d => {
+            // 1
+            _addOverlay(d);
+
+            // 2
+            if  (map.getZoom() < 7){
+                var x = masterMarkerContainer.getChildByName(d);
+                x.visible = true
+            }
+        });
+
+        masterMarkerRenderer.render(masterMarkerContainer)
 
     };
 }();
-$(window).on("storage", cookieMonitor); // via jQuery. can be used also with VanillaJS
+$(window).on("storage", storageMonitor);
 
 
 function legendControl() {
@@ -64,6 +88,7 @@ function legendControl() {
     legend_added = true;
 
     $('#legend').show()
+    console.log('legend added')
 }
 
 
@@ -96,7 +121,15 @@ shortNames.forEach((d, i) => {
     container_array.push(c)
 });
 
-
+// // Do now the same, make an array and populate it with empty PIXI.ParticleContainers. Later these particle Containers
+// // will hold the markers/spots for each gene
+// var geneNames = glyphSettings().map(d => d.gene).sort();
+// geneNames.forEach((d, i) => {
+//     var n = all_geneData.map(el => { el.Gene=== d}).length;
+//     var c = new PIXI.ParticleContainer(n, {vertices: true});
+//     c.name = d;
+//     geneContainer_array.push(c)
+// });
 run();
 
 function run() {

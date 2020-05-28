@@ -202,7 +202,7 @@
         return function () {
             // var genePanel = table.columns(1).data()[0];
             // var _previousLegend = {'selected': genePanel, 'deselected': [] };
-            var cookie = +sessionStorage['dtCompleted'];
+            var cookie = +sessionStorage['dtCompleted']; // cookie is a misnomer here!
             if (cookie){
                 console.log('ok');
                 var genePanel = table.columns(1).data()[0];
