@@ -1,18 +1,21 @@
 function app(all_geneData, map) {
+    var _renderer = new PIXI.autoDetectRenderer(400, 300);
+    if (_renderer.type === PIXI.WEBGL_RENDERER) {
+        console.log('Using WebGL');
+    } else{
+        console.log('Using Canvas');
+    };
+
     loader.load(function (loader, resources) {
         var textures = [resources.plane.texture, resources.circle.texture, resources.bicycle.texture];
         var focusTextures = [resources.focusPlane.texture, resources.focusCircle.texture, resources.focusBicycle.texture];
-        var markers = Array(2000000).fill().map((e, i) => ({
-            "latitude": getRandom(0, 150000),
-            "longitude": getRandom(0, 150000)
-        }));
 
         // var legend = document.querySelector('div.legend.geometry');
         // var legendContent = legend.querySelector('.content');
         function mypixiLayer() {
             masterMarkerContainer = new PIXI.Graphics();
             var doubleBuffering = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-            var _mycallBack = myCallback(markers, textures, focusTextures, all_geneData);
+            var _mycallBack = myCallback(textures, focusTextures, all_geneData);
             return L.pixiOverlay(_mycallBack, masterMarkerContainer, {
                 doubleBuffering: true,
                 destroyInteractionManager: true
@@ -54,7 +57,7 @@ function app(all_geneData, map) {
     }
 
 
-    function myCallback(markers, textures, focusTextures, all_geneData) {
+    function myCallback(textures, focusTextures, all_geneData) {
         var firstDraw = true;
         var prevZoom;
         var markerSprites = [];
@@ -66,11 +69,25 @@ function app(all_geneData, map) {
             var container = utils.getContainer(); // <----- I think this is referencing the same obj as '''masterMarkerContainer'''
             masterMarkerRenderer = utils.getRenderer(); // assign the renderer to the global '''masterMarkerRenderer''' variable
             var project = utils.latLngToLayerPoint;
+            var tree = new RBush(); // <--- KDBush looks like a better option maybe!
             var scale = utils.getScale();
             var invScale = 1 / scale;
             console.log('zoom is: ' + zoom);
             console.log('scale is: ' + scale);
             console.log('inv scale is: ' + invScale);
+
+
+            // var p = new PIXI.Graphics();
+            // p.beginFill(0x000000);
+            // p.lineStyle(0);
+            // p.drawCircle(100, 100, 10);
+            // p.endFill();
+            //
+            // // var t = PIXI.RenderTexture.create(p.width, p.height);
+            // // masterMarkerRenderer.render(p, t);
+            // var t = masterMarkerRenderer.generateTexture(p);
+            // var myNewSprite = new PIXI.Sprite(t);
+
 
             // get the particle containers from the geneContainer_array and add them to the container
             geneContainer_array.forEach(d => container.addChild(d));
@@ -99,82 +116,54 @@ function app(all_geneData, map) {
                         // DO NOT ADD THE MARKER DIRECTLY TO THE CONTAINER (aka '''masterMarkerContainer''')
                         var p = dapiConfig.t.transform(L.point([marker.x, marker.y]));
                         var coords = project([p.y, p.x]);
-                        var markerSprite = new PIXI.Sprite(textures[0]);
-                        markerSprite.x0 = coords.x;
-                        markerSprite.y0 = coords.y;
+                        var markerSprite = new PIXI.Sprite(textures[1]);
                         markerSprite.x = coords.x;
                         markerSprite.y = coords.y;
                         markerSprite.anchor.set(0.5, 0.5);
                         pixiParticleContainer.addChild(markerSprite); //<===== HERE THE MARKER IS ADDED TO THE PARTICLECONTAINER
                         markerSprites.push(markerSprite);
                         markerSprite.legend = marker.city || marker.label;
-                    });
-                })
-                var quadTrees = {};
-                var start = +new Date();
-                for (var z = map.getMinZoom(); z <= map.getMaxZoom(); z++) {
-                    if (z < 9){
-                        quadTrees[z] = null  // I do not need the tree, I wont do mouse events when zoom < 7
-                    }
-                    else {
-                        var rInit = ((z <= 7) ? 10 : 24) / utils.getScale(z);
-                        quadTrees[z] = solveCollision(markerSprites, {r0: rInit, zoom: z});
-                    }
-                }
-                var end = +new Date();
-                var time = end - start;
-                console.log('total execution time = ' + time / 1000 + 'sec');
 
-                function findMarker(ll) {
-                    var layerPoint = project(ll);
-                    var quadTree = quadTrees[utils.getMap().getZoom()];
-                    var marker;
-                    var rMax = quadTree.rMax;
-                    var found = false;
-                    quadTree.visit(function (quad, x1, y1, x2, y2) {
-                        if (!quad.length) {
-                            var dx = quad.data.x - layerPoint.x;
-                            var dy = quad.data.y - layerPoint.y;
-                            var r = quad.data.scale.x * 16;
-                            if (dx * dx + dy * dy <= r * r) {
-                                marker = quad.data;
-                                found = true;
-                            }
-                        }
-                        return found || x1 > layerPoint.x + rMax || x2 + rMax < layerPoint.x || y1 > layerPoint.y + rMax || y2 + rMax < layerPoint.y;
-                    });
-                    return marker;
-                }
+                        // // comment this in for now. Will get back later
+                        // tree.insert({
+                        //     minX: p.x - 500,
+                        //     minY: p.y - 500,
+                        //     maxX: p.x + 500,
+                        //     maxY: p.y + 500,
+                        //     feature: marker,
+                        // })
 
-                map.on('click', function (e) {
-                    var redraw = false;
-                    if (focus) {
-                        focus.texture = textures[focus.textureIndex];
-                        focus = null;
-                        L.DomUtil.addClass(legend, 'hide');
-                        legendContent.innerHTML = '';
-                        redraw = true;
-                    }
-                    var marker = findMarker(e.latlng);
-                    if (marker) {
-                        marker.texture = focusTextures[marker.textureIndex];
-                        focus = marker;
-                        legendContent.innerHTML = marker.legend;
-                        L.DomUtil.removeClass(legend, 'hide');
-                        redraw = true;
-                    }
-                    if (redraw) utils.getRenderer().render(container);
+                    });
                 });
 
-                var self = this;
-                map.on('mousemove', L.Util.throttle(function (e) {
-                    var marker = findMarker(e.latlng);
-                    if (marker) {
-                        L.DomUtil.addClass(self._container, 'leaflet-interactive');
-                    } else {
-                        L.DomUtil.removeClass(self._container, 'leaflet-interactive');
+
+                // // comment this in for now. Will get back later
+                // utils.getMap().on('mousemove', L.Util.throttle(function (e) {
+                // onmyMousemove(e);
+                // }, 32));
+
+                function onmyMousemove(e) {
+                    console.log('im in')
+                    mouseTarget = findFeature(e.latlng);
+                }
+
+
+                function findFeature(latlng) {
+                    var point = {'x': latlng.lng, 'y': latlng.lat};
+                    var features = tree.search({
+                        minX: point.x,
+                        minY: point.y,
+                        maxX: point.x,
+                        maxY: point.y
+                    });
+
+                    console.log('length features is ' + features.length)
+                    if (features.length > 0) {
+                        console.log('got it')
                     }
-                }, 32));
+                    return features
+                }
+
             }
 
             var start = null;
