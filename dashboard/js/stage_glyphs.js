@@ -1,14 +1,35 @@
 function _removeOverlay(name) {
-    var el = geneOverlays.filter(d => d.geneName === name);
-    if (el){
-         geneLayers.removeLayer(el[0].geneLayer)
+    if (geneOverlays) {
+        var el = geneOverlays.filter(d => d.geneName === name);
+        if (el) {
+            geneLayers.removeLayer(el[0].geneLayer)
+        }
     }
 }
 
 function _addOverlay(name) {
-    var el = geneOverlays.filter(d => d.geneName === name);
-    if (el){
-         geneLayers.addLayer(el[0].geneLayer)
+    if (geneOverlays) {
+        var el = geneOverlays.filter(d => d.geneName === name);
+        if (el) {
+            geneLayers.addLayer(el[0].geneLayer)
+        }
+    }
+}
+
+function refresh() {
+    // if localStorage hide the relevant layers
+    // Call this to ensure that when you uncheck a gene from the gene panel and then you zoom in/out
+    // you will not show tha gene(s) that were not selected.
+    if (localStorage['updated_state'] && JSON.parse(localStorage['updated_state']).deselected) {
+        var exit = JSON.parse(localStorage['updated_state']).deselected
+        exit.forEach(d => {
+            _removeOverlay(d)
+
+            if (masterMarkerContainer) {
+                var x = masterMarkerContainer.getChildByName(d);
+                x.visible = false
+            }
+        })
     }
 }
 
@@ -47,13 +68,21 @@ function renderGlyphs(evt, config) {
         }
     }
 
-    function refresh() {
-        // if localStorage hide the relevant layers
-        if (localStorage['updated_state'] && JSON.parse(localStorage['updated_state']).deselected) {
-            var exit = JSON.parse(localStorage['updated_state']).deselected
-            exit.forEach(d => _removeOverlay(d))
-        }
-    }
+    // function refresh() {
+    //     // if localStorage hide the relevant layers
+    //     // Call this to ensure that when you uncheck a gene from the gene panel and then you zoom in/out
+    //     // you will not show tha gene(s) that were not selected.
+    //     if (localStorage['updated_state'] && JSON.parse(localStorage['updated_state']).deselected) {
+    //         var exit = JSON.parse(localStorage['updated_state']).deselected
+    //         exit.forEach(d => _removeOverlay(d))
+    //
+    //         if (masterMarkerContainer){
+    //             var x = masterMarkerContainer.getChildByName(d);
+    //             x.visible = false
+    //         }
+    //
+    //     }
+    // }
 
     function activeWindow(sw, ne) {
         var bottomLeft = dapiConfig.t.untransform(L.point([sw.lng, sw.lat]));

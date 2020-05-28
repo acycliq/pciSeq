@@ -38,7 +38,6 @@ function glyphOverlay(markers, textures, focusTextures) {
             }
             var container = utils.getContainer();
             var renderer = utils.getRenderer();
-            var renderer = pixiRenderer;
             var project = utils.latLngToLayerPoint;
             var scale = utils.getScale();
             var invScale = 1 / scale;
