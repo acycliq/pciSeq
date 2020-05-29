@@ -7,8 +7,8 @@ function config() {
             cellBoundaries: './dashboard/cell_coords.json',
             cellData: './data/cell_call_demo_data/mouse_full_coronal/cell_type_output/cellData.json',
             tiles: 'https://raw.githubusercontent.com/acycliq/full_coronal_datastore/master/{z}/{y}/{x}.png',
-            spot_json: function(d){ return "./data/fov/" + 'fov_' + d + '/cell_type_out/fov_' + d + '_Dapi_overlays.json'},
-            cell_json: function(d){ return "./data/fov/" + 'fov_' + d + '/cell_type_out/fov_' + d + '_iss.json'},
+            spot_json: function(d){ return "https://raw.githubusercontent.com/acycliq/full_coronal_json_files/master/data/fov/" + 'fov_' + d + '/cell_type_out/fov_' + d + '_Dapi_overlays.json'},
+            cell_json: function(d){ return "https://raw.githubusercontent.com/acycliq/full_coronal_json_files/master/data/fov/" + 'fov_' + d + '/cell_type_out/fov_' + d + '_iss.json'},
         }, // 1
     ];
     var out = d3.map(ini, function (d) {
