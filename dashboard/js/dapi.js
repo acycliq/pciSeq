@@ -318,6 +318,38 @@ function dapi(cfg) {
     }
 
 
+
+    var toggleMapControl = L.control({
+        position: 'topright'
+    });
+
+
+    toggleMapControl.onAdd = function (map) {
+        var div = L.DomUtil.create('div');
+        div.innerHTML =
+        '<div class="leaflet-control-layers leaflet-control-layers-expanded"> ' +
+        '  <form> ' +
+        '    <input class="leaflet-control-layers-overlays" id="command"  ' +
+        '      onclick = dapiConfig.toggleMapControl.update(this.checked) type="checkbox"> ' +
+        '      Hide Dapi ' +
+        '    </input> ' +
+        '  </form> ' +
+        ' </div>';
+        return div;
+    };
+
+    toggleMapControl.update = function (bool) {
+        if (bool) {
+            $('.leaflet-tile-container').hide();
+            console.log('Background image: hidden')
+        } else {
+            $('.leaflet-tile-container').show();
+            console.log('Background image: visible')
+        }
+
+    };
+
+
     // add the customised control
     customControl = L.control.custom().addTo(map);
 
@@ -335,6 +367,7 @@ function dapi(cfg) {
     dapiData.makeLineStringFeatures = makeLineStringFeatures;
     dapiData.info = info;
     dapiData.summary = summary;
+    dapiData.toggleMapControl = toggleMapControl;
     dapiData.createDiv = createDiv;
     dapiData.datatable = datatable;
     dapiData.customControl = customControl;
@@ -356,8 +389,15 @@ function dapiChart(config) {
     //...and the summary control too
     dapiConfig.summary.addTo(map);
 
+    // and the toggle to hide/show the background image
+    // dapiConfig.toggleMapControl.addTo(map); // changed my mind. I dont like the way it is placed, I did another button for this, simple one, not L.control
+
     //... and show the legend button
     legendControl();
+
+    //... and show the button to hide/show the dapi and the pie/info panels
+    $('#hideDapi').show();
+    console.log('check boxes added');
 
 
     function moveend(config) {
@@ -389,7 +429,7 @@ function dapiChart(config) {
                 geneContainer_array.map(d => d.visible = true);
 
                 // call refresh(). If you have unchecked a gene from the gene panel
-                // then this spots from that gene should not show up
+                // then the spots from that gene should not show up
                 refresh()
             }
             console.log("Current Zoom Level =" + map.getZoom());
