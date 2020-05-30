@@ -158,7 +158,7 @@ function renderPolygons(data) {
                     focus = highlightOutline(mouseTarget);
                     focus.addTo(map);
 
-                    if (!pinnedControls){
+                    if (!pinnedControls && !hiddenControls){
                         // show the info control, then update
                         $('.leaflet-bottom.leaflet-left').show();
                         dapiConfig.info.update(mouseTarget.properties);

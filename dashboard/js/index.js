@@ -30,8 +30,9 @@ var cellBoundaries,
     geneLayers,
     geneOverlays,
     legendWindow,
-    legend_added = false; //used to make sure the listener is attached only once
-    pinnedControls = false;
+    legend_added = false, //used to make sure the listener is attached only once
+    pinnedControls = false,
+    hiddenControls = false;
 
 
 localStorage.clear();
@@ -121,6 +122,20 @@ shortNames.forEach((d, i) => {
     container_array.push(c)
 });
 
+function hidePanels(bool){
+    if (bool){
+        $('.leaflet-bottom.leaflet-left').hide();
+        $('.leaflet-bottom.leaflet-right').hide();
+        hiddenControls = true
+    }
+    else{
+        $('.leaflet-bottom.leaflet-left').show();
+        $('.leaflet-bottom.leaflet-right').show();
+        hiddenControls = false
+    }
+    console.log('Info and donut panels: hidden= ' + bool)
+}
+
 // // Do now the same, make an array and populate it with empty PIXI.ParticleContainers. Later these particle Containers
 // // will hold the markers/spots for each gene
 // var geneNames = glyphSettings().map(d => d.gene).sort();
@@ -136,9 +151,10 @@ function run() {
     console.log('app starts')
     configSettings = config().get('default');
     var boundariesjson = configSettings.cellBoundaries;
-    var celljson = configSettings.cellData;
+    var celljson = configSettings.cellData; // is this still needed? I dont think so...
     var q = d3.queue();
         q = q.defer(d3.json, boundariesjson);
+        console.log('REMOVE THE HARDCODED "154" ');
         for (var i = 0; i < 154; i++) { // DO NOT FORGET TO REMOVE THAT (154)
             q = q.defer(d3.json, configSettings.spot_json(i));
             q = q.defer(d3.json, configSettings.cell_json(i));
@@ -153,9 +169,9 @@ function onCellsLoaded(cfg) {
         data_3 = [];
     return (err, ...args) => {
         args.forEach((d, i) => {
-            i === 0? data_1=d:
-                i % 2 === 0? data_3 = [...data_3, ...d]:
-                     all_geneData = [...all_geneData, ...d]
+            i === 0? data_1=d: // the cell boundaries are in position 0 of the args array
+                i % 2 === 0? data_3 = [...data_3, ...d]: // even positions in the args array hold the cell data
+                     all_geneData = [...all_geneData, ...d] // odd positions in the args array hold the gene data
         });
         [cellBoundaries, cellData] = postLoad([data_1, data_3]);
         dapiChart(cfg);
