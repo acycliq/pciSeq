@@ -354,7 +354,8 @@ table.no-spacing td {
     border-right: 2px solid #444;
     border-bottom: 2px solid #444;
     line-height: 1.6;
-    font-size: 1.2em;
+    font-size: 1em;
+    /*font-family: Apercu-Light;*/
     background: white;
     -moz-border-radius: 5px;
     -webkit-border-radius: 5px;
@@ -363,6 +364,15 @@ table.no-spacing td {
 
 #legend {
     top: 9px;
-    left: 50px;
+    left: 172px;
     cursor: pointer;
 }
+
+#hideDapi {
+    top: 9px;
+    left: 50px;
+    cursor: text;
+}
+/*.leaflet-tile-container {*/
+/*    display: none;*/
+/*}*/
