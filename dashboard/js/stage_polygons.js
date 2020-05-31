@@ -33,11 +33,11 @@ function drawCellOutline(color, alpha, project, container, coords) {
 function drawCellPolygons() {
     cellPolygons = myUtils().poly_collection(cellBoundaries, dapiConfig.t);
     cellBoundaries = null;
-    masterPixiContainer = new PIXI.Graphics(); // Assign this the global variable 'pixiRenderer'
+    masterCellContainer = new PIXI.Graphics(); // Assign this the global variable 'pixiRenderer'
     var doubleBuffering = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
     var poly = renderPolygons(cellPolygons);
-    polygonsOverlay = L.pixiOverlay(poly, masterPixiContainer, {
+    polygonsOverlay = L.pixiOverlay(poly, masterCellContainer, {
         doubleBuffering: doubleBuffering,
         destroyInteractionManager: true
     });
@@ -58,8 +58,8 @@ function renderPolygons(data) {
     return function (utils) {
         console.log('you passed in ' + data.features.length + ' data points')
         var container = utils.getContainer();  // That has to be pointing to the same object as the global var 'pixiContainer'
-        masterPixiRenderer = utils.getRenderer();   // Assign this to the global variable 'pixiRenderer'
-        var gl = masterPixiRenderer.gl;
+        masterCellRenderer = utils.getRenderer();   // Assign this to the global variable 'pixiRenderer'
+        var gl = masterCellRenderer.gl;
         var project = utils.latLngToLayerPoint;
         var zoom = utils.getMap().getZoom();
         var scale = utils.getScale;
@@ -69,14 +69,14 @@ function renderPolygons(data) {
 
         // ok, thats quite crucial. I think only one pixiRenderer should be used. Every other PixiGraphics object should
         // be attached to pixiRenderer and then you can add pixiRenderer as an overlay to the leaflet map
-        container_array.forEach(d => {
+        cellContainer_array.forEach(d => {
             container.addChild(d)
             dapiConfig.customControl._addButton(d.name) // update the layer control on the map
         });
         dapiConfig.customControl._isEnabled = false; //prevents the control from adding new elements
 
         if (firstDraw) {
-            if (masterPixiRenderer.type === PIXI.RENDERER_TYPE.WEBGL) {
+            if (masterCellRenderer.type === PIXI.RENDERER_TYPE.WEBGL) {
                 gl.blendFunc(gl.ONE, gl.ZERO);
                 document.querySelector('#webgl').style.display = 'block';
             } else {
@@ -94,7 +94,7 @@ function renderPolygons(data) {
                     var cName = truncateStr(feature.properties.topClass);
 
                     // 2. grab the relevant pixiGraphics object
-                    var cont = container_array.filter(d => d.name === cName)[0];
+                    var cont = cellContainer_array.filter(d => d.name === cName)[0];
 
                     // 3, now that you have the correct pixiGraphics object, draw the polygon.
                     // In this manner each pixiGraphics object will hold polygons that have the same shortname
@@ -321,7 +321,7 @@ function renderPolygons(data) {
         }
         firstDraw = false;
         // change the opacity depending on the zoom level
-        container_array.filter(d => d.alpha = alphaScale(zoom));
+        cellContainer_array.filter(d => d.alpha = alphaScale(zoom));
         dapiConfig.customControl._refresh() // That renders the chart again, but It has to be put somewhere more prominent!
         // pixiRenderer.render(pixiContainer);
     }
