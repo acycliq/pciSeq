@@ -149,10 +149,6 @@
 
 
 <script>
-    function getRandom(min, max) {
-        return min + Math.random() * (max - min);
-    }
-
     var loader = new PIXI.loaders.Loader();
     loader
         .add('plane', 'dashboard/assets/plane.png')
@@ -168,11 +164,6 @@
     }
 </script>
 
-<script>
-    window.addEventListener('load', function () {
-        console.log('Everything has loaded!')
-    });
-</script>
 
 </body>
 </html>
