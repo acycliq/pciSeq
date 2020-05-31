@@ -116,21 +116,21 @@
 </div>
 
 <div class="form-group">
-    <div class="map-content" id="hideDapi">
-        <div class="checkbox"  style="margin-top: 1px;">
+    <div class="map-content" id="hideDapiAndPanels">
+        <div class="checkbox"  style="margin-top: 1px; margin-bottom: 1px;">
             <label>
                 <input id="dapiToggle" onclick=dapiConfig.toggleMapControl.update(this.checked); type="checkbox">
                 Hide Dapi
             </label>
         </div>
-        <div class="checkbox" style="margin-bottom: 1px;">
+        <div class="checkbox panelsToggle" style="margin-top: 1px; margin-bottom: 1px;">
             <label>
                 <input id="panelsToggle" onclick=hidePanels(this.checked); type="checkbox">
                 Hide Panels
             </label>
         </div>
     </div>
-    <script>$('#hideDapi').hide();</script>
+    <script>$('#hideDapiAndPanels').hide();</script>
 </div>
 
 <script>
