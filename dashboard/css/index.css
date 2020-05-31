@@ -373,6 +373,21 @@ table.no-spacing td {
     left: 50px;
     cursor: text;
 }
+
+#webgl{
+    top: 9px;
+    left: 350px;
+    cursor: pointer;
+    pointer-events: none;
+    display: none;
+}
+.dot {
+  height: 10px;
+  width: 10px;
+  background-color: #0ecc18;
+  border-radius: 50%;
+  display: inline-block;
+}
 /*.leaflet-tile-container {*/
 /*    display: none;*/
 /*}*/

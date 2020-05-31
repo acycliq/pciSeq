@@ -59,6 +59,7 @@ function renderPolygons(data) {
         console.log('you passed in ' + data.features.length + ' data points')
         var container = utils.getContainer();  // That has to be pointing to the same object as the global var 'pixiContainer'
         masterPixiRenderer = utils.getRenderer();   // Assign this to the global variable 'pixiRenderer'
+        var gl = masterPixiRenderer.gl;
         var project = utils.latLngToLayerPoint;
         var zoom = utils.getMap().getZoom();
         var scale = utils.getScale;
@@ -75,6 +76,13 @@ function renderPolygons(data) {
         dapiConfig.customControl._isEnabled = false; //prevents the control from adding new elements
 
         if (firstDraw) {
+            if (masterPixiRenderer.type === PIXI.RENDERER_TYPE.WEBGL) {
+                gl.blendFunc(gl.ONE, gl.ZERO);
+                document.querySelector('#webgl').style.display = 'block';
+            } else {
+                document.body.removeChild(document.querySelector('#webgl'));
+            }
+
             // var markerCoords = project(markerLatLng)
             data.features.forEach(function (feature, index) {
                 var color = myUtils().string2hex(feature.properties.agg.color),
