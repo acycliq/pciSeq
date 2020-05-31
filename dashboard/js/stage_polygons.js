@@ -33,7 +33,7 @@ function drawCellOutline(color, alpha, project, container, coords) {
 function drawCellPolygons() {
     cellPolygons = myUtils().poly_collection(cellBoundaries, dapiConfig.t);
     cellBoundaries = null;
-    masterCellContainer = new PIXI.Graphics(); // Assign this the global variable 'pixiRenderer'
+    masterCellContainer = new PIXI.Graphics(); // Assign this the global variable 'masterCellContainer'
     var doubleBuffering = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
     var poly = renderPolygons(cellPolygons);
