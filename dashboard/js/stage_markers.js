@@ -1,10 +1,4 @@
 function app(all_geneData, map) {
-    var _renderer = new PIXI.autoDetectRenderer(400, 300);
-    if (_renderer.type === PIXI.WEBGL_RENDERER) {
-        console.log('Using WebGL');
-    } else{
-        console.log('Using Canvas');
-    };
 
     loader.load(function (loader, resources) {
         var textures = [resources.plane.texture, resources.circle.texture, resources.bicycle.texture];
@@ -202,6 +196,10 @@ function app(all_geneData, map) {
             firstDraw = false;
             prevZoom = zoom;
             masterMarkerRenderer.render(container);
+
+            // finally remove the preloader
+            removePreloader();
+            console.log('preloader removed')
         }
     }
 };
