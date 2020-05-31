@@ -7,15 +7,18 @@
         var host = window.location.hostname;
         if (host != 'localhost') {
             window.dataLayer = window.dataLayer || [];
-
-            function gtag() {
-                dataLayer.push(arguments);
-            }
-
+            function gtag() {dataLayer.push(arguments);}
             gtag('js', new Date());
-
             gtag('config', 'UA-128060564-8');
         }
+    </script>
+    <script src="https://ipmeta.io/plugin.js"></script>
+    <script>
+        provideGtagPlugin({
+            serviceProvider: 'dimension1',
+            networkDomain: 'dimension2',
+            networkType: 'dimension3',
+        });
     </script>
 
     <title>Viewer</title>
