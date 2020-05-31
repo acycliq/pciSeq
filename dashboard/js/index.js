@@ -20,9 +20,9 @@ var cellBoundaries,
     myDots,
     cellWatch, //keeps the id of the cell currently drawn on the map
     map,
-    container_array = [],
-    masterPixiContainer,
-    masterPixiRenderer,
+    cellContainer_array = [],
+    masterCellContainer,
+    masterCellRenderer,
     masterMarkerContainer,
     masterMarkerRenderer,
     geneContainer_array = [],
@@ -119,7 +119,7 @@ shortNames.forEach((d, i) => {
     // these are just empty right now, they only have a name
     var c = new PIXI.Graphics();
     c.name = d;
-    container_array.push(c)
+    cellContainer_array.push(c)
 });
 
 function hidePanels(bool){

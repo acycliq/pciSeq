@@ -123,21 +123,21 @@ L.Control.Custom = L.Control.Layers.extend({
         var tempContainer;
         var containerName = target.value;
         if (target.checked) {
-            tempContainer = container_array.filter(d => d.name === containerName)[0];
+            tempContainer = cellContainer_array.filter(d => d.name === containerName)[0];
             // pixiContainer.addChild(tempContainer);
             tempContainer.visible = true
-            masterPixiRenderer.render(masterPixiContainer)
+            masterCellRenderer.render(masterCellContainer)
         } else {
-            tempContainer = masterPixiContainer.getChildByName(containerName);
+            tempContainer = masterCellContainer.getChildByName(containerName);
             tempContainer.visible = false
             // pixiContainer.removeChild(tempContainer);
-            masterPixiRenderer.render(masterPixiContainer)
+            masterCellRenderer.render(masterCellContainer)
         }
     },
 
     _onInputClick: function (e) {
         // var containerName = e.target.value;
-        masterPixiRenderer.render(masterPixiContainer); // Not sure if I need that here. I cant remember if its on purpose or not...it is called a few lines below anyway
+        masterCellRenderer.render(masterCellContainer); // Not sure if I need that here. I cant remember if its on purpose or not...it is called a few lines below anyway
         this._contentToggle(e.target);
 
         this._radioController()
