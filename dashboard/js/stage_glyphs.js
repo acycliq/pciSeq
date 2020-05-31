@@ -63,7 +63,7 @@ function renderGlyphs(evt, config) {
                 geneData = [...geneData, ...d]
             });
             renderChart(geneData);
-            refresh()
+            refresh() // <== Pull this outside this function. It should be placed at the bottom of the '''moveend'' callback
             console.log('gene data loaded')
         }
     }
@@ -191,7 +191,7 @@ function renderGlyphs(evt, config) {
                 filter: geneFilter(geneName),
                 class: function (feature, latlng) {
                     return feature.properties.Gene + '_glyph'
-                }, // i dont think i need that anymore, ok to remove
+                }, // i dont think i need that anymore, ok to remove (assigning a class I mean....)
                 onEachFeature: onEachDot
             });
             geneLayer.addTo(geneLayers);
@@ -203,8 +203,8 @@ function renderGlyphs(evt, config) {
 
     function onEachDot(feature, layer) {
         layer.on({
-            mouseover: glyphMouseOver, // highlightDot,
-            mouseout: glyphMouseOut, //resetDotHighlight,
+            mouseover: glyphMouseOver,
+            mouseout: glyphMouseOut,
             click: clickGlyph,
             // popupopen: onPopupOpen,
         });
