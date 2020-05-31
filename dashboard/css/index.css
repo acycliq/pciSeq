@@ -368,7 +368,7 @@ table.no-spacing td {
     cursor: pointer;
 }
 
-#hideDapi {
+#hideDapiAndPanels {
     top: 9px;
     left: 50px;
     cursor: text;

@@ -138,7 +138,7 @@ function renderPolygons(data) {
                 }
                 else{
                     if (mouseTarget){
-                        pinnedControls = true
+                        pinnedControls = true;
                         d3.selectAll('.ribbon').nodes().map(d => d.src = 'https://cdn2.iconfinder.com/data/icons/oxygen/48x48/actions/note2.png')
                     }
                 }
@@ -168,6 +168,9 @@ function renderPolygons(data) {
                         donutchart(mouseTarget.properties);
                         renderDataTable(mouseTarget.properties);
                          // d3.select('.ribbon').node().src = 'https://cdn2.iconfinder.com/data/icons/oxygen/48x48/actions/note2.png'
+
+                        // finally show the checkbox that hides/unhides them
+                        $('.panelsToggle').show();
                     }
                     else {
                         // d3.select('.ribbon').node().src = 'https://cdn2.iconfinder.com/data/icons/snipicons/500/pin-128.png'

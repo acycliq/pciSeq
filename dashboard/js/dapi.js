@@ -396,7 +396,7 @@ function dapiChart(config) {
     legendControl();
 
     //... and show the button to hide/show the dapi and the pie/info panels
-    $('#hideDapi').show();
+    $('#hideDapiAndPanels').show();
     console.log('check boxes added');
 
 
@@ -500,4 +500,5 @@ function dapiChart(config) {
     // $('#legend').hide();
     $('.leaflet-bottom.leaflet-left').hide();
     $('.leaflet-bottom.leaflet-right').hide();
+    $('.panelsToggle').hide()
 }
