@@ -413,7 +413,7 @@ function dapiChart(config) {
         // 2. if zoom >= 7 then render the glyphs too
         return function (evt) {
 
-            if (map.getZoom() >= 7) {
+            if (map.getZoom() >= zoomSwitch) {
                 // hide the markers drawn by pixi
                 geneContainer_array.map(d => d.visible = false);
 
