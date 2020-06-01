@@ -38,51 +38,12 @@ function renderGlyphs(evt, config) {
     var ne = evt.target.getBounds().getNorthEast();
     var aw = activeWindow(sw, ne);
 
-    var my_fovs = fov_tracker(sw, ne);
-    var spotsPaths = my_fovs.map(d => config.spot_json(d));
-
-    var q = d3.queue();
-    for (var i = 0; i < spotsPaths.length; i++) {
-        q = q.defer(d3.json, spotsPaths[i]);
-    }
-    q.await(onDataLoad(aw, spotsPaths));
+    console.log('filtering spots using spatial index')
+    geneData = spotsIndex.range(aw.bottomLeft.x, aw.bottomLeft.y, aw.topRight.x, aw.topRight.y).map(id => all_geneData[id]);
+    renderChart(geneData);
+    refresh();
 
 
-    function onDataLoad(bbox, spotsPaths) {
-        geneData = [];
-        return (err, ...args) => {
-            var t = [];
-            //loop over the data and filter out spots outside the viewing window
-            // args.forEach((el,i) => {t[i] = el.filter(d => isInside(d, bbox))});
-            args.forEach((el, i) => {
-                t[i] = el.filter(d => isInside(d, bbox));
-                // el.forEach(d => d['block_id'] = extractBlock_id(spotsPaths[i]))
-            });
-            //concatenate all
-            t.forEach(d => {
-                geneData = [...geneData, ...d]
-            });
-            renderChart(geneData);
-            refresh() // <== Pull this outside this function. It should be placed at the bottom of the '''moveend'' callback
-            console.log('gene data loaded')
-        }
-    }
-
-    // function refresh() {
-    //     // if localStorage hide the relevant layers
-    //     // Call this to ensure that when you uncheck a gene from the gene panel and then you zoom in/out
-    //     // you will not show tha gene(s) that were not selected.
-    //     if (localStorage['updated_state'] && JSON.parse(localStorage['updated_state']).deselected) {
-    //         var exit = JSON.parse(localStorage['updated_state']).deselected
-    //         exit.forEach(d => _removeOverlay(d))
-    //
-    //         if (masterMarkerContainer){
-    //             var x = masterMarkerContainer.getChildByName(d);
-    //             x.visible = false
-    //         }
-    //
-    //     }
-    // }
 
     function activeWindow(sw, ne) {
         var bottomLeft = dapiConfig.t.untransform(L.point([sw.lng, sw.lat]));
@@ -91,89 +52,11 @@ function renderGlyphs(evt, config) {
         return {'bottomLeft': bottomLeft, 'topRight': topRight}
     }
 
-    function isInside(d, aw) {
-        // console.log('d is: ' + d)
-        // console.log('aw.bottomLeft is: ' + aw.bottomLeft)
-        // console.log('aw.topRight is: ' + aw.topRight)
-        if (d.x > aw.bottomLeft.x && d.x < aw.topRight.x
-            && d.y > aw.bottomLeft.y && d.y < aw.topRight.y) {
-            return true
-        } else {
-            return false
-        }
-
-    }
-
-// // THAT NEEDS TO MOVE SOMEWHERE MORE VISIBLE, IN THE CONFIG FILE MAYBE
-// 22-May-2020: not used anymore, replaced by '''my_fovs.map(d => config.spot_json(d))'''
-// function make_url(i) {
-//     rootUrl = "./data/fov/";
-//     url = rootUrl + 'fov_' + i + '/cell_type_out/fov_' + i + '_Dapi_overlays.json'
-//     return url
-// }
-
-
-    function fov_tracker(sw, ne) {
-// finds which fovs are engaged in the image shown on the browser's window
-
-        var fovPolygonsLayer = L.geoJson(fov_boundaries, {
-            coordsToLatLng: function (d) {
-                if (d) {
-                    var coords = dapiConfig.t.transform(L.point([d[1], d[0]]));
-                    return [coords.x, coords.y]
-                }
-            }
-        });
-
-        var step = fov_length() / 4;
-        var my_fovs = [];
-        for (var i = sw.lat; i <= ne.lat; i = i + step) {
-            for (var j = sw.lng; j <= ne.lng; j = j + step) {
-                var d = leafletPip.pointInLayer(L.latLng([i, j]), fovPolygonsLayer);
-                if (d[0]) {
-                    my_fovs.push(d[0].feature.properties.id);
-                }
-            }
-        }
-
-        //make sure you include the four corners
-        my_fovs.push(leafletPip.pointInLayer(ne, fovPolygonsLayer)[0].feature.properties.id);
-        my_fovs.push(leafletPip.pointInLayer(L.latLng([sw.lat, ne.lng]), fovPolygonsLayer)[0].feature.properties.id);
-        my_fovs.push(leafletPip.pointInLayer(L.latLng([ne.lat, sw.lng]), fovPolygonsLayer)[0].feature.properties.id);
-
-        // get the unique blocks
-        var out = [...new Set(my_fovs)];
-        console.log(my_fovs);
-
-        return out
-    }
-
-    function fov_length() {
-        var side_length = [...new Set(fov_boundaries.features.map(d => d.properties.side_length))];
-        side_length = side_length[0];
-        side_length = dapiConfig.t.transform(L.point([0, side_length]));
-        side_length = side_length.y - side_length.x;
-
-        return side_length
-    }
 
 
     function renderChart(geneData) {
         myDots = make_dots(geneData);
-
-        // console.log('Adding dotLayer')
-        // dapiConfig.removeLayer(dotLayer);
-        // //create marker layer and display it on the map
-        // dotLayer = L.geoJson(myDots, {
-        //     pointToLayer: function (feature, latlng) {
-        //         return new svgGlyph(latlng, dapiConfig.style(feature))
-        //             .bindTooltip(feature.properties.Gene, {className: 'myCSSClass'})
-        //     },
-        //     onEachFeature: onEachDot
-        // });
-        //
-        // dapiConfig.addLayer(dotLayer);
-        geneData = null;
+        geneData = null; //delete geneData, not needed anymore
         geneOverlays = []; // gene to layer map
         console.log('New dot layer added!')
 
