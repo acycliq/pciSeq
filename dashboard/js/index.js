@@ -33,7 +33,8 @@ var cellBoundaries,
     legendWindow,
     legend_added = false, //used to make sure the listener is attached only once
     pinnedControls = false,
-    hiddenControls = false;
+    hiddenControls = false,
+    zoomSwitch = 6; // determines when the glyphs will start showing up
 
 
 localStorage.clear();
@@ -65,7 +66,7 @@ var storageMonitor = function () {
             _addOverlay(d);
 
             // 2
-            if  (map.getZoom() < 7){
+            if  (map.getZoom() < zoomSwitch){
                 var x = masterMarkerContainer.getChildByName(d);
                 x.visible = true
             }
