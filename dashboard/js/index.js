@@ -7,6 +7,7 @@
 var cellBoundaries,
     cellData,
     all_geneData = [],
+    spotsIndex, //spatial index
     dapiConfig,
     polygonsOverlay,
     cellPolygons,
@@ -174,6 +175,11 @@ function onCellsLoaded(cfg) {
                      all_geneData = [...all_geneData, ...d] // odd positions in the args array hold the gene data
         });
         [cellBoundaries, cellData] = postLoad([data_1, data_3]);
+
+        //finaly make a spatial index on the spots. We will need that to filter them if/when needed
+        spotsIndex = new KDBush(all_geneData, p => p.x, p => p.y, 64, Int32Array);
+
+        // do now the chart
         dapiChart(cfg);
     }
 }
