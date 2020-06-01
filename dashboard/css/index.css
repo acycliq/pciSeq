@@ -381,13 +381,76 @@ table.no-spacing td {
     pointer-events: none;
     display: none;
 }
-.dot {
+.greenDot {
   height: 10px;
   width: 10px;
   background-color: #0ecc18;
   border-radius: 50%;
   display: inline-block;
 }
+
+.redDot {
+  height: 10px;
+  width: 10px;
+  background-color: #cc0008;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.blinking {
+  -webkit-animation: 1s blink ease infinite;
+  -moz-animation: 1s blink ease infinite;
+  -ms-animation: 1s blink ease infinite;
+  -o-animation: 1s blink ease infinite;
+  animation: 1s blink ease infinite;
+
+}
+
+@keyframes blink {
+  from, to {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@-moz-keyframes blink {
+  from, to {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@-webkit-keyframes blink {
+  from, to {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@-ms-keyframes blink {
+  from, to {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@-o-keyframes blink {
+  from, to {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 /*.leaflet-tile-container {*/
 /*    display: none;*/
 /*}*/

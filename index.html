@@ -68,6 +68,8 @@
 
     <script src="https://unpkg.com/kdbush@3.0.0/kdbush.min.js"></script>
 
+    <script src="https://api.mapbox.com/mapbox-gl-js/v1.10.1/mapbox-gl.js"></script>
+
     <!--    <script src="pixi.min.js"></script>-->
     <!--    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.2.1/pixi.js.map"></script>-->
     <!--    <script src="./js/tools.min.js"></script>-->
@@ -104,8 +106,8 @@
 
 <!--<img id="webgl" src="dashboard/assets/WebGL_Logo.png" style="position: absolute; top: 20px; left: 20px; height: 50px; z-index: 600; pointer-events: none; display: none;" >-->
 <div id="webgl" class="map-content">
-    <span class="dot"> </span>
-    <span style="margin-top: 5px;"> Running on WebGL</span>
+    <span class="greenDot"> </span>
+    <span style="margin-top: 5px;">Hardware acceleration is enable</span>
 </div>
 
 <div id="preloader">
@@ -167,6 +169,17 @@
         console.log('ok, loaded')
     }
 </script>
+
+<script src='mapbox-gl-supported.js'></script>
+<!--<script>-->
+<!--if (mapboxgl.supported({failIfMajorPerformanceCaveat: true})) {-->
+<!--    document.getElementById('webgl').innerHTML = 'GPU acceleration: Enabled';-->
+<!--    console.log('GPU acceleration: Enabled')-->
+<!--} else {-->
+<!--    document.getElementById('webgl').innerHTML = 'GPU acceleration: Disabled';-->
+<!--    console.log('GPU acceleration: Disabled')-->
+<!--}-->
+<!--</script>-->
 
 
 </body>

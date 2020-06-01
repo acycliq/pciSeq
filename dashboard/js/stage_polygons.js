@@ -76,11 +76,16 @@ function renderPolygons(data) {
         dapiConfig.customControl._isEnabled = false; //prevents the control from adding new elements
 
         if (firstDraw) {
-            if (masterCellRenderer.type === PIXI.RENDERER_TYPE.WEBGL) {
+            if ( (masterCellRenderer.type === PIXI.RENDERER_TYPE.WEBGL) && (mapboxgl.supported({failIfMajorPerformanceCaveat: true})) ){
+                document.getElementById('webgl').innerHTML = '<span class="greenDot"> </span><span> GPU acceleration: Enabled</span>'
+                console.log('GPU acceleration: Enabled')
                 gl.blendFunc(gl.ONE, gl.ZERO);
                 document.querySelector('#webgl').style.display = 'block';
             } else {
-                document.body.removeChild(document.querySelector('#webgl'));
+                document.getElementById('webgl').innerHTML = '<span class="redDot blinking"> </span><span> GPU acceleration: Disabled</span>';
+                console.log('GPU acceleration: Disabled')
+                document.querySelector('#webgl').style.display = 'block';
+                // document.body.removeChild(document.querySelector('#webgl'));
             }
 
             // var markerCoords = project(markerLatLng)
