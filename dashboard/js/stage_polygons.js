@@ -82,7 +82,7 @@ function renderPolygons(data) {
                 gl.blendFunc(gl.ONE, gl.ZERO);
                 document.querySelector('#webgl').style.display = 'block';
             } else {
-                document.getElementById('webgl').innerHTML = '<span class="redDot blinking"> </span><span> GPU acceleration: Disabled</span>';
+                document.getElementById('webgl').innerHTML = '<span class="redDot blinking"> </span><span> Browser is not using the GPU</span>';
                 console.log('GPU acceleration: Disabled')
                 document.querySelector('#webgl').style.display = 'block';
                 // document.body.removeChild(document.querySelector('#webgl'));
