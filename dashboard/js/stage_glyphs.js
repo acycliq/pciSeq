@@ -41,7 +41,7 @@ function renderGlyphs(evt, config) {
     console.log('filtering spots using spatial index')
     geneData = spotsIndex.range(aw.bottomLeft.x, aw.bottomLeft.y, aw.topRight.x, aw.topRight.y).map(id => all_geneData[id]);
     renderChart(geneData);
-    refresh();
+    // refresh();
 
 
 
