@@ -399,16 +399,23 @@ function dapiChart(config) {
     $('#hideDapiAndPanels').show();
     console.log('check boxes added');
 
+    // 1. draw the cell polygons
+    cellPolyLayer = drawCellPolygons();
+    cellPolyLayer.addTo(map);
+    console.log('cellPolyLayer added to the map');
+
+    // draw the spots
+    add_spots(all_geneData, map);
+
 
     function moveend(config) {
         console.log('Triggering moveend callback');
 
-        // 1. draw the cell polygons
-        cellPolyLayer = drawCellPolygons();
-        cellPolyLayer.addTo(map);
-        console.log('cellPolyLayer added to the map')
+        // // 1. draw the cell polygons
+        // cellPolyLayer = drawCellPolygons();
+        // cellPolyLayer.addTo(map);
+        // console.log('cellPolyLayer added to the map')
 
-        app(all_geneData, map);
 
         // 2. if zoom >= 7 then render the glyphs too
         return function (evt) {
@@ -419,6 +426,7 @@ function dapiChart(config) {
 
                 //and then render the glyphs (leaflet + canvas)
                 renderGlyphs(evt, config);
+                refresh();
 
             } else {
                 dapiConfig.removeLayer(geneLayers)

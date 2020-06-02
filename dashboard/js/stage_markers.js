@@ -1,4 +1,4 @@
-function app(all_geneData, map) {
+function add_spots(all_geneData, map) {
 
     loader.load(function (loader, resources) {
         var textures = [resources.plane.texture, resources.circle.texture, resources.bicycle.texture];
