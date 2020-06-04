@@ -26,7 +26,7 @@ function add_spots(all_geneData, map) {
         var geneNames = glyphSettings().map(d => d.gene).sort();
         geneNames.forEach((d, i) => {
             var n = all_geneData.filter(el => el.Gene === d).length;
-            var c = new PIXI.ParticleContainer(n, {vertices: true});
+            var c = new PIXI.particles.ParticleContainer(n, {vertices: true});
             c.name = d;
             c.tint = markerColor(d);
             geneContainer_array.push(c)
