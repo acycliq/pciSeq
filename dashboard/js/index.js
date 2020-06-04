@@ -153,15 +153,17 @@ function run() {
     console.log('app starts')
     configSettings = config().get('default');
     var boundariesjson = configSettings.cellBoundaries;
-    var celljson = configSettings.cellData; // is this still needed? I dont think so...
+    // var celljson = configSettings.cellData; // is this still needed? I dont think so...
+
+    console.log('queue starts')
     var q = d3.queue();
-        q = q.defer(d3.json, boundariesjson);
-        console.log('REMOVE THE HARDCODED "154" ');
-        for (var i = 0; i < 154; i++) { // DO NOT FORGET TO REMOVE THAT (154)
-            q = q.defer(d3.json, configSettings.spot_json(i));
-            q = q.defer(d3.json, configSettings.cell_json(i));
-        }
+    q = q.defer(d3.json, boundariesjson);
+    for (var i = 0; i < configSettings.num_jsons; i++) {
+        q = q.defer(d3.json, configSettings.spot_json(i));
+        q = q.defer(d3.json, configSettings.cell_json(i));
+    }
     q.await(onCellsLoaded(configSettings));
+
 }
 
 
@@ -170,12 +172,17 @@ function onCellsLoaded(cfg) {
         // all_geneData = [],
         data_3 = [];
     return (err, ...args) => {
+        console.log('loading data')
         args.forEach((d, i) => {
-            i === 0? data_1=d: // the cell boundaries are in position 0 of the args array
-                i % 2 === 0? data_3 = [...data_3, ...d]: // even positions in the args array hold the cell data
-                     all_geneData = [...all_geneData, ...d] // odd positions in the args array hold the gene data
+            i === 0 ? data_1 = d : // the cell boundaries are in position 0 of the args array
+                i % 2 === 0 ? data_3 = [...data_3, ...d] : // even positions in the args array hold the cell data
+                    all_geneData = [...all_geneData, ...d] // odd positions in the args array hold the gene data
         });
         [cellBoundaries, cellData] = postLoad([data_1, data_3]);
+        console.log('loading data finished');
+        console.log('num of genes loaded: ' + all_geneData.length);
+        console.log('num of cells loaded: ' + cellData.length);
+
 
         //finaly make a spatial index on the spots. We will need that to filter them if/when needed
         spotsIndex = new KDBush(all_geneData, p => p.x, p => p.y, 64, Int32Array);
