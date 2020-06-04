@@ -155,7 +155,6 @@ function run() {
     var boundariesjson = configSettings.cellBoundaries;
     // var celljson = configSettings.cellData; // is this still needed? I dont think so...
 
-    console.log('queue starts')
     var q = d3.queue();
     q = q.defer(d3.json, boundariesjson);
     for (var i = 0; i < configSettings.num_jsons; i++) {
@@ -185,6 +184,7 @@ function onCellsLoaded(cfg) {
 
 
         //finaly make a spatial index on the spots. We will need that to filter them if/when needed
+        console.log('Creating the index');
         spotsIndex = new KDBush(all_geneData, p => p.x, p => p.y, 64, Int32Array);
 
         // do now the chart
