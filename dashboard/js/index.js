@@ -34,7 +34,7 @@ var cellBoundaries,
     legend_added = false, //used to make sure the listener is attached only once
     pinnedControls = false,
     hiddenControls = false,
-    zoomSwitch = 6; // determines when the glyphs will start showing up
+    zoomSwitch = 7; // determines when the glyphs will start showing up
 
 
 localStorage.clear();
