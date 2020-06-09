@@ -24,6 +24,31 @@ function add_spots_patched(all_geneData, map) {
         return out
     }
 
+    const groupBy = (array, key) => {
+        // from https://learnwithparam.com/blog/how-to-group-by-array-of-objects-using-a-key/
+        // Return the end result
+        return array.reduce((result, currentValue) => {
+            // If an array already present for key, push it to the array. Else create an array and push the object
+            (result[currentValue[key]] = result[currentValue[key]] || []).push(
+                currentValue
+            );
+            // Return the current iteration `result` value, this will be taken as next iteration `result` value and accumulate
+            return result;
+        }, {}); // empty object is the initial value for result object
+    };
+
+    function scaleRamp(z) {
+        return z === 0 ? 0.125 :
+            z === 1 ? 0.125 :
+                z === 2 ? 0.125 :
+                    z === 3 ? 0.125 :
+                        z === 4 ? 0.125 :
+                            z === 5 ? 0.125 :
+                                z === 6 ? 0.0625 :
+                                    z === 7 ? 0.03125 : 1
+    }
+
+
     var markersLength = all_geneData.length;
 
     loader.load(function (loader, resources) {
@@ -35,19 +60,28 @@ function add_spots_patched(all_geneData, map) {
             var zoomChangeTs = null;
             var pixiContainer = new PIXI.Graphics();
 
-            var geneNames = glyphSettings().map(d => d.gene).sort();
-            geneNames.forEach((d, i) => {
-                var n = all_geneData.filter(el => el.Gene === d).length;
-                var c = new PIXI.particles.ParticleContainer(n, {vertices: true});
-                c.anchor = {x: 0.5, y: 0.5};
-                c.x = 0;
-                c.y = 0;
-                c.name = d;
-                geneContainer_array.push(c)
-            });
-            var innerContainer = geneContainer_array[0];
+            // group by gene name
+            var data = groupBy(all_geneData, 'Gene');
 
-            pixiContainer.addChild(innerContainer);
+            // get all the gene names
+            var geneNames = Object.keys(data).sort();
+
+            // populate an array with empty particle containers. One for each gene
+            geneNames.forEach(gene => {
+                var n = data[gene].length;
+                var pc = new PIXI.particles.ParticleContainer(n, {vertices: true});
+                pc.anchor = {x: 0.5, y: 0.5};
+                pc.x = 0;
+                pc.y = 0;
+                pc.name = gene;
+                pixiContainer.addChild(pc);
+                geneContainer_array.push(pc)
+            })
+
+            // var dummy_gene = 'Sst'
+            // var innerContainer = geneContainer_array.filter(d => d.name === dummy_gene)[0];
+
+            // pixiContainer.addChild(innerContainer);
             var doubleBuffering = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
             var initialScale;
             return L.pixiOverlay(function (utils, event) {
@@ -58,25 +92,37 @@ function add_spots_patched(all_geneData, map) {
                 var getScale = utils.getScale;
                 var invScale = 1 / getScale();
 
-                var my_color =  markerColor('Gad1')
-                var texture = generateCircleTexture(my_color, 16, renderer)
-                innerContainer.texture = texture;
-                innerContainer.baseTexture = texture.baseTexture;
 
+                geneNames.forEach(gene => {
+                    var my_color = markerColor(gene);
+                    var texture = generateCircleTexture(my_color, 16, renderer)
+                    var pc = geneContainer_array.filter(d => d.name === gene)[0];
+                    pc.texture = texture;
+                    pc.baseTexture = texture.baseTexture;
+                })
+
+                // var innerContainer = geneContainer_array.filter(d => d.name === dummy_gene)[0];
                 if (event.type === 'add') {
 
                     initialScale = invScale / 8;
-                    innerContainer.localScale = initialScale;
-                    for (var i = 0; i < markersLength; i++) {
-                        // our patched particleContainer accepts simple {x: ..., y: ...} objects as children:
-                        var x = all_geneData[i].x;
-                        var y = all_geneData[i].y;
-                        var point = dapiConfig.t.transform(L.point([x, y]));
-                        var coords = project([point.y, point.x]);
-                        innerContainer.addChild({
-                            x: coords.x,
-                            y: coords.y,
-                        });
+                    initialScale = 0.125;
+                    var targetScale = zoom <= 7 ? scaleRamp(zoom) : 1 / (2 * utils.getScale(event.zoom));
+                    for (var i = 0; i < geneNames.length; i++) {
+                        var gene = geneNames[i];
+                        var innerContainer = geneContainer_array.filter(d => d.name === gene)[0];
+                        innerContainer.localScale = targetScale;
+                        var _data = data[gene];
+                        for (var j = 0; j < _data.length; j++) {
+                            // our patched particleContainer accepts simple {x: ..., y: ...} objects as children:
+                            var x = _data[j].x;
+                            var y = _data[j].y;
+                            var point = dapiConfig.t.transform(L.point([x, y]));
+                            var coords = project([point.y, point.x]);
+                            innerContainer.addChild({
+                                x: coords.x,
+                                y: coords.y,
+                            });
+                        }
                     }
                 }
 
@@ -88,6 +134,19 @@ function add_spots_patched(all_geneData, map) {
         })();
 
         pixiLayer.addTo(map);
+
+        // var ticker = new PIXI.ticker.Ticker();
+        // ticker.add(function (delta) {
+        //     pixiLayer.redraw({type: 'redraw', delta: delta});
+        // });
+        // map.on('zoomstart', function () {
+        //     ticker.start();
+        // });
+        // map.on('zoomend', function () {
+        //     ticker.stop();
+        // });
+        // map.on('zoomanim', pixiLayer.redraw, pixiLayer);
+
         removePreloader();
     });
 };
