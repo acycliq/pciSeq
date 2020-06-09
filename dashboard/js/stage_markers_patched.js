@@ -33,6 +33,8 @@ function add_spots_patched(all_geneData, map) {
             // innerContainer.texture = texture;
             // innerContainer.baseTexture = texture.baseTexture;
             innerContainer.anchor = {x: 0.5, y: 0.5};
+            innerContainer.x = 0;
+            innerContainer.y = 0;
 
             pixiContainer.addChild(innerContainer);
             var doubleBuffering = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
@@ -50,9 +52,7 @@ function add_spots_patched(all_geneData, map) {
                 innerContainer.baseTexture = texture.baseTexture;
 
                 if (event.type === 'add') {
-                    innerContainer.x = 0;
-                    innerContainer.y = 0;
-                    // innerContainer.tint = markerColor('Pvalb');
+
                     initialScale = invScale / 8;
                     innerContainer.localScale = initialScale;
                     for (var i = 0; i < markersLength; i++) {
