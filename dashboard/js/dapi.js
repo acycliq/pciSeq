@@ -400,14 +400,14 @@ function dapiChart(config) {
     console.log('check boxes added');
 
     // 1. draw the cell polygons
-    // cellPolyLayer = drawCellPolygons();
-    // cellPolyLayer.addTo(map);
-    // console.log('cellPolyLayer added to the map');
+    cellPolyLayer = drawCellPolygons();
+    cellPolyLayer.addTo(map);
+    console.log('cellPolyLayer added to the map');
 
     // draw the spots
     // add_spots(all_geneData, map);
 
-    // drew the spots (particle Containers approach)
+    // draw the spots (particle Containers approach)
     add_spots_patched(all_geneData, map);
 
 
