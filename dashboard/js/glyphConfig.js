@@ -49,7 +49,7 @@ function glyphSettings()
         {gene: 'Trp53i11',      taxonomy: 'cnr1',        glyphSymbol: 'x',  glyphName: 'cross'},
         {gene: 'Sema3c',        taxonomy: 'cnr1',        glyphSymbol: 's',  glyphName: 'square'},
         // {gene: 'Syt6',          taxonomy: 'cnr1',        glyphSymbol: '^',  glyphName: 'triangleUp'},
-        // {gene: 'Yjefn3',        taxonomy: 'cnr1',        glyphSymbol: 'v',  glyphName: 'triangleDown'},
+        {gene: 'Yjefn3',        taxonomy: 'cnr1',        glyphSymbol: 'v',  glyphName: 'triangleDown'},
         {gene: 'Rgs10',         taxonomy: 'cnr1',        glyphSymbol: '>',  glyphName: 'triangleRight'},
         {gene: 'Nov',           taxonomy: 'cnr1',        glyphSymbol: '<',  glyphName: 'triangleLeft'},
         {gene: 'Kctd12',        taxonomy: 'cnr1',        glyphSymbol: 'p',  glyphName: 'star5'},
