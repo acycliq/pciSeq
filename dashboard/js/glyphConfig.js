@@ -66,7 +66,7 @@ function glyphSettings()
         // {gene: 'Qrfpr',         taxonomy: 'vip',         glyphSymbol: 'p',  glyphName: 'star5'},
         // {gene: 'Zcchc12',       taxonomy: 'less_active', glyphSymbol: '+',  glyphName: 'plus'},
         {gene: 'Calb1',         taxonomy: 'less_active', glyphSymbol: '*',  glyphName: 'asterisk'},
-        {gene: 'Vsnl1',         taxonomy: 'less_active', glyphSymbol: '.',  glyphName: 'point'},
+        // {gene: 'Vsnl1',         taxonomy: 'less_active', glyphSymbol: '.',  glyphName: 'point'},
         // {gene: 'Tmsb10',        taxonomy: 'less_active', glyphSymbol: 'd',  glyphName: 'diamond'},
         // {gene: 'Rbp4',          taxonomy: 'less_active', glyphSymbol: 'v',  glyphName: 'triangleDown'},
         // {gene: 'Fxyd6',         taxonomy: 'less_active', glyphSymbol: '^',  glyphName: 'triangleUp'},
