@@ -58,7 +58,7 @@ function add_spots_patched(all_geneData, map) {
 
         var pixiLayer = (function () {
             var zoomChangeTs = null;
-            var pixiContainer = new PIXI.Graphics();
+            masterMarkerContainer = new PIXI.Graphics();
 
             // group by gene name
             var data = groupBy(all_geneData, 'Gene');
@@ -74,7 +74,7 @@ function add_spots_patched(all_geneData, map) {
                 pc.x = 0;
                 pc.y = 0;
                 pc.name = gene;
-                pixiContainer.addChild(pc);
+                masterMarkerContainer.addChild(pc);
                 geneContainer_array.push(pc)
             })
 
@@ -87,7 +87,7 @@ function add_spots_patched(all_geneData, map) {
             return L.pixiOverlay(function (utils, event) {
                 var zoom = utils.getMap().getZoom();
                 var container = utils.getContainer();
-                var renderer = utils.getRenderer();
+               masterMarkerRenderer = utils.getRenderer();
                 var project = utils.latLngToLayerPoint;
                 var getScale = utils.getScale;
                 var invScale = 1 / getScale();
@@ -95,7 +95,7 @@ function add_spots_patched(all_geneData, map) {
 
                 geneNames.forEach(gene => {
                     var my_color = markerColor(gene);
-                    var texture = generateCircleTexture(my_color, 16, renderer)
+                    var texture = generateCircleTexture(my_color, 16, masterMarkerRenderer)
                     var pc = geneContainer_array.filter(d => d.name === gene)[0];
                     pc.texture = texture;
                     pc.baseTexture = texture.baseTexture;
@@ -126,8 +126,8 @@ function add_spots_patched(all_geneData, map) {
                     }
                 }
 
-                renderer.render(pixiContainer);
-            }, pixiContainer, {
+                masterMarkerRenderer.render(masterMarkerContainer);
+            }, masterMarkerContainer, {
                 doubleBuffering: true,
                 destroyInteractionManager: true
             }); // L.pixiOverlay closes
