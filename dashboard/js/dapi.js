@@ -24,7 +24,7 @@ function dapi(cfg) {
     map = L.map('mymap', {
         crs: L.CRS.MySimple,
         attributionControl: false,
-    }).setView([img[1] / 2, img[0] / 2], 2);
+    }).setView([img[1], img[0] / 2], 2);
     L.tileLayer(tiles, {
         minZoom: 0,
         maxZoom: 10

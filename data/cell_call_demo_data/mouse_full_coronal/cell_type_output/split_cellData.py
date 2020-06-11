@@ -39,5 +39,5 @@ def splitter(str_id, n):
 
 
 N = 15
-splitter('cellData', N)
-splitter('geneData', N)
+splitter('cellData_landscape', N)
+splitter('geneData_landscape', N)
