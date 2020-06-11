@@ -111,9 +111,15 @@ def tile_maker(z_depth, out_dir, img_path):
 
 
 if __name__ == "__main__":
-    im = r'./background_image.tif'
+    imPath = r'data/background_image/background_image_landscape.tif'
     # split_image(im)
-    tile_maker(10, 'dashboard/img/262144px', im)
+
+    # # to rotate the image do:
+    # im = pyvips.Image.new_from_file(imPath)
+    # im = im.rotate(90, interpolate=pyvips.Interpolate.new("nearest"))
+    # im.write_to_file(r'data/background_image/background_image_adj_rot.tif')
+
+    tile_maker(10, 'dashboard/img/262144px_landscape', imPath)
 
 
 

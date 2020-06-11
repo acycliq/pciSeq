@@ -24,7 +24,7 @@ function dapi(cfg) {
     map = L.map('mymap', {
         crs: L.CRS.MySimple,
         attributionControl: false,
-    }).setView([img[1] / 2, img[0] / 2], 2);
+    }).setView([img[1], img[0] / 2], 2);
     L.tileLayer(tiles, {
         minZoom: 0,
         maxZoom: 10
@@ -405,7 +405,10 @@ function dapiChart(config) {
     console.log('cellPolyLayer added to the map');
 
     // draw the spots
-    add_spots(all_geneData, map);
+    // add_spots(all_geneData, map);
+
+    // draw the spots (particle Containers approach)
+    add_spots_patched(all_geneData, map);
 
 
     function moveend(config) {
