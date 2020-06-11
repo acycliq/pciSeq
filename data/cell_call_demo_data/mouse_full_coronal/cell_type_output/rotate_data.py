@@ -11,19 +11,19 @@ genes = pd.read_json('geneData.json')
 
 ## clockwise where Y is points down.
 ## From https://math.stackexchange.com/questions/1330161/how-to-rotate-points-through-90-degree
-cells_rot = cells.copy()
-cells_rot.X = -1 * cells.Y + 27352
-cells_rot.Y = cells.X + 7084
+cells_landscape = cells.copy()
+cells_landscape.X = cells.Y - 27352/2 + 20268/2 + 7084/2
+cells_landscape.Y = -(cells.X - 20268/2) + 27352/2 + 7084/2
 
 ## clockwise where Y is points down
 ## https://math.stackexchange.com/questions/1330161/how-to-rotate-points-through-90-degree
-genes_rot = genes.copy()
-genes_rot.x = -1 * genes.y + 27352
-genes_rot.y = genes.x + 7084
+genes_landscape = genes.copy()
+genes_landscape.x = genes.y - 27352/2 + 20268/2 + 7084/2
+genes_landscape.y = -(genes.x - 20268/2) + 27352/2 + 7084/2
 
 
-cells_rot.to_json('cellData_rot.json', orient='records')
-genes_rot.to_json('geneData_rot.json', orient='records')
+cells_landscape.to_json('cellData_landscape.json', orient='records')
+genes_landscape.to_json('geneData_landscape.json', orient='records')
 
 coords_path = os.path.join(config.ROOT_DIR, 'dashboard', 'cell_coords.json')
 cell_coords = pd.read_json(coords_path)
@@ -35,19 +35,22 @@ for x in cell_coords.itertuples():
     # print(d)
     if d.size > 1:
         # print(d)
-        dr = np.array([-d[:, 1], d[:, 0]]).T
-        dr = dr + np.array([27352, 7084])  # because 27352 - 20268 = 7084
-        dr = dr.tolist()
+        dr = np.array([d[:, 1], -d[:, 0]]).T
+        dr = dr + np.array([(20268 - 27352) / 2, (20268 + 27352) / 2])
+        dr = dr + np.array([7084/2, 7084/2])  # because 27352 - 20268 = 7084
+        dr = dr.astype(np.int).tolist()
         out.append(dr)
     else:
         out.append(None)
 
-cell_coords['coords_rot'] = out
+cell_coords['coords_landscape'] = out
 
-cell_coords_rot = cell_coords.copy()
-cell_coords_rot = cell_coords_rot[['cell_id', 'label', 'coords_rot']]
-cell_coords_rot = cell_coords_rot.rename(columns={'coords_rot': 'coords'})
+cell_coords_landscape = cell_coords.copy()
+cell_coords_landscape = cell_coords_landscape[['cell_id', 'label', 'coords_landscape']]
+cell_coords_landscape = cell_coords_landscape.rename(columns={'coords_landscape': 'coords'})
+cell_coords_landscape.cell_id = cell_coords_landscape.cell_id.astype(np.int)
+cell_coords_landscape.label = cell_coords_landscape.label.astype(np.int)
 
-cell_coords_rot.to_json('cell_coords_rot.json', orient='records')
+cell_coords_landscape.to_json('cell_coords_landscape.json', orient='records')
 
 print('Done')
