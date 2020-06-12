@@ -95,7 +95,7 @@ function add_spots_patched(all_geneData, map) {
 
                 geneNames.forEach(gene => {
                     var my_color = markerColor(gene);
-                    var texture = generateCircleTexture(my_color, 16, masterMarkerRenderer)
+                    var texture = generateCircleTexture(my_color, 16, masterMarkerRenderer);
                     var pc = geneContainer_array.filter(d => d.name === gene)[0];
                     pc.texture = texture;
                     pc.baseTexture = texture.baseTexture;
@@ -106,7 +106,7 @@ function add_spots_patched(all_geneData, map) {
 
                     initialScale = invScale / 8;
                     initialScale = 0.125;
-                    var targetScale = zoom <= 7 ? scaleRamp(zoom) : 1 / (2 * utils.getScale(event.zoom));
+                    var targetScale = zoom <= zoomSwitch ? scaleRamp(zoom) : 1 / (2 * utils.getScale(event.zoom));
                     for (var i = 0; i < geneNames.length; i++) {
                         var gene = geneNames[i];
                         var innerContainer = geneContainer_array.filter(d => d.name === gene)[0];
