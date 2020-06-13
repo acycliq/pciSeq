@@ -1,11 +1,5 @@
 function add_spots_patched(all_geneData, map) {
 
-    function markerColor(geneName) {
-        var colorCode = glyphColor(glyphSettings().filter(d => d.gene === geneName)[0].taxonomy);
-        var out = myUtils().string2hex(colorCode);
-        return out
-    }
-
     function generateCircleTexture(color, radius, renderer) {
         const gfx = new PIXI.Graphics();
         const tileSize = radius * 2;
@@ -49,106 +43,102 @@ function add_spots_patched(all_geneData, map) {
     }
 
 
-    var markersLength = all_geneData.length;
+    // var texture = textures[1];
+    // var texture = generateCircleTexture(5)
 
-    loader.load(function (loader, resources) {
-        var textures = [resources.plane.texture, resources.circle.texture, resources.bicycle.texture];
-        // var texture = textures[1];
-        // var texture = generateCircleTexture(5)
+    var pixiLayer = (function () {
+        var zoomChangeTs = null;
+        masterMarkerContainer = new PIXI.Graphics();
 
-        var pixiLayer = (function () {
-            var zoomChangeTs = null;
-            masterMarkerContainer = new PIXI.Graphics();
+        // group by gene name
+        var data = groupBy(all_geneData, 'Gene');
 
-            // group by gene name
-            var data = groupBy(all_geneData, 'Gene');
+        // get all the gene names
+        var geneNames = Object.keys(data).sort();
 
-            // get all the gene names
-            var geneNames = Object.keys(data).sort();
+        // populate an array with empty particle containers. One for each gene
+        geneNames.forEach(gene => {
+            var n = data[gene].length;
+            var pc = new PIXI.particles.ParticleContainer(n, {vertices: true});
+            pc.anchor = {x: 0.5, y: 0.5};
+            pc.x = 0;
+            pc.y = 0;
+            pc.name = gene;
+            masterMarkerContainer.addChild(pc);
+            geneContainer_array.push(pc)
+        })
 
-            // populate an array with empty particle containers. One for each gene
+        // var dummy_gene = 'Sst'
+        // var innerContainer = geneContainer_array.filter(d => d.name === dummy_gene)[0];
+
+        // pixiContainer.addChild(innerContainer);
+        var doubleBuffering = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        var initialScale;
+        return L.pixiOverlay(function (utils, event) {
+            var zoom = utils.getMap().getZoom();
+            var container = utils.getContainer();
+            masterMarkerRenderer = utils.getRenderer();
+            var project = utils.latLngToLayerPoint;
+            var getScale = utils.getScale;
+            var invScale = 1 / getScale();
+
+
             geneNames.forEach(gene => {
-                var n = data[gene].length;
-                var pc = new PIXI.particles.ParticleContainer(n, {vertices: true});
-                pc.anchor = {x: 0.5, y: 0.5};
-                pc.x = 0;
-                pc.y = 0;
-                pc.name = gene;
-                masterMarkerContainer.addChild(pc);
-                geneContainer_array.push(pc)
+                var my_color = markerColor(gene);
+                var texture = generateCircleTexture(my_color, 16, masterMarkerRenderer);
+                var pc = geneContainer_array.filter(d => d.name === gene)[0];
+                pc.texture = texture;
+                pc.baseTexture = texture.baseTexture;
             })
 
-            // var dummy_gene = 'Sst'
             // var innerContainer = geneContainer_array.filter(d => d.name === dummy_gene)[0];
+            if (event.type === 'add') {
 
-            // pixiContainer.addChild(innerContainer);
-            var doubleBuffering = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-            var initialScale;
-            return L.pixiOverlay(function (utils, event) {
-                var zoom = utils.getMap().getZoom();
-                var container = utils.getContainer();
-               masterMarkerRenderer = utils.getRenderer();
-                var project = utils.latLngToLayerPoint;
-                var getScale = utils.getScale;
-                var invScale = 1 / getScale();
-
-
-                geneNames.forEach(gene => {
-                    var my_color = markerColor(gene);
-                    var texture = generateCircleTexture(my_color, 16, masterMarkerRenderer);
-                    var pc = geneContainer_array.filter(d => d.name === gene)[0];
-                    pc.texture = texture;
-                    pc.baseTexture = texture.baseTexture;
-                })
-
-                // var innerContainer = geneContainer_array.filter(d => d.name === dummy_gene)[0];
-                if (event.type === 'add') {
-
-                    initialScale = invScale / 8;
-                    initialScale = 0.125;
-                    var targetScale = zoom <= zoomSwitch ? scaleRamp(zoom) : 1 / (2 * utils.getScale(event.zoom));
-                    for (var i = 0; i < geneNames.length; i++) {
-                        var gene = geneNames[i];
-                        var innerContainer = geneContainer_array.filter(d => d.name === gene)[0];
-                        innerContainer.localScale = targetScale;
-                        var _data = data[gene];
-                        for (var j = 0; j < _data.length; j++) {
-                            // our patched particleContainer accepts simple {x: ..., y: ...} objects as children:
-                            var x = _data[j].x;
-                            var y = _data[j].y;
-                            var point = dapiConfig.t.transform(L.point([x, y]));
-                            var coords = project([point.y, point.x]);
-                            innerContainer.addChild({
-                                x: coords.x,
-                                y: coords.y,
-                            });
-                        }
+                initialScale = invScale / 8;
+                initialScale = 0.125;
+                var targetScale = zoom <= zoomSwitch ? scaleRamp(zoom) : 1 / (2 * utils.getScale(event.zoom));
+                for (var i = 0; i < geneNames.length; i++) {
+                    var gene = geneNames[i];
+                    var innerContainer = geneContainer_array.filter(d => d.name === gene)[0];
+                    innerContainer.localScale = targetScale;
+                    var _data = data[gene];
+                    for (var j = 0; j < _data.length; j++) {
+                        // our patched particleContainer accepts simple {x: ..., y: ...} objects as children:
+                        var x = _data[j].x;
+                        var y = _data[j].y;
+                        var point = dapiConfig.t.transform(L.point([x, y]));
+                        var coords = project([point.y, point.x]);
+                        innerContainer.addChild({
+                            x: coords.x,
+                            y: coords.y,
+                        });
                     }
                 }
+            }
 
-                masterMarkerRenderer.render(masterMarkerContainer);
-            }, masterMarkerContainer, {
-                doubleBuffering: true,
-                destroyInteractionManager: true
-            }); // L.pixiOverlay closes
-        })();
+            masterMarkerRenderer.render(masterMarkerContainer);
+        }, masterMarkerContainer, {
+            doubleBuffering: true,
+            destroyInteractionManager: true
+        }); // L.pixiOverlay closes
+    })();
 
-        pixiLayer.addTo(map);
+    pixiLayer.addTo(map);
 
-        // var ticker = new PIXI.ticker.Ticker();
-        // ticker.add(function (delta) {
-        //     pixiLayer.redraw({type: 'redraw', delta: delta});
-        // });
-        // map.on('zoomstart', function () {
-        //     ticker.start();
-        // });
-        // map.on('zoomend', function () {
-        //     ticker.stop();
-        // });
-        // map.on('zoomanim', pixiLayer.redraw, pixiLayer);
+    // var ticker = new PIXI.ticker.Ticker();
+    // ticker.add(function (delta) {
+    //     pixiLayer.redraw({type: 'redraw', delta: delta});
+    // });
+    // map.on('zoomstart', function () {
+    //     ticker.start();
+    // });
+    // map.on('zoomend', function () {
+    //     ticker.stop();
+    // });
+    // map.on('zoomanim', pixiLayer.redraw, pixiLayer);
 
-        removePreloader();
-    });
+    removePreloader();
+
 };
 
 
