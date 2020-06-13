@@ -147,7 +147,8 @@ function hidePanels(bool){
 //     c.name = d;
 //     geneContainer_array.push(c)
 // });
-run();
+
+// run();
 
 function run() {
     console.log('app starts')
