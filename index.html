@@ -59,7 +59,7 @@
     <!--  I think this Pixi.js and PixiOverlay.js in one file?? -->
     <script src="dashboard/js/lib/js/pixiOverlay/example.min.js"></script>
     <script src="dashboard/js/lib/js/pixiOverlay/tools.min.js"></script>
-        <script src="dashboard/js/lib/js/pixiOverlay/MarkerContainer.js"></script>
+    <script src="dashboard/js/lib/js/pixiOverlay/MarkerContainer.js"></script>
     <script src="dashboard/js/lib/js/pixiOverlay/bezier-easing.js"></script>
 
     <!-- leaflet Coordinates v0.1.3 -->
@@ -163,32 +163,8 @@
 
 
 <script>
-    var loader = new PIXI.loaders.Loader();
-    loader
-        .add('plane', 'dashboard/assets/plane.png')
-        .add('focusPlane', 'dashboard/assets/focus-plane.png')
-        .add('circle', 'dashboard/assets/circle.png')
-        .add('marker', 'dashboard/assets/circle.png')
-        .add('focusCircle', 'dashboard/assets/focus-circle.png')
-        .add('bicycle', 'dashboard/assets/bicycle.png')
-        .add('focusBicycle', 'dashboard/assets/focus-bicycle.png');
-    document.addEventListener("DOMContentLoaded", myPageLoaded);
-
-    function myPageLoaded() {
-        // console.log('ok, loaded')
-    }
+    document.addEventListener("DOMContentLoaded", run(), false);
 </script>
-
-<!--<script src='mapbox-gl-supported.js'></script>-->
-<!--<script>-->
-<!--if (mapboxgl.supported({failIfMajorPerformanceCaveat: true})) {-->
-<!--    document.getElementById('webgl').innerHTML = 'GPU acceleration: Enabled';-->
-<!--    console.log('GPU acceleration: Enabled')-->
-<!--} else {-->
-<!--    document.getElementById('webgl').innerHTML = 'GPU acceleration: Disabled';-->
-<!--    console.log('GPU acceleration: Disabled')-->
-<!--}-->
-<!--</script>-->
 
 
 </body>
