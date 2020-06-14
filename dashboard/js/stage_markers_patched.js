@@ -1,4 +1,6 @@
 function add_spots_patched(all_geneData, map) {
+    // this is used to simulate leaflet zoom animation timing:
+	var easing = BezierEasing(0, 0, 0.25, 1);
 
     function generateCircleTexture(color, radius, renderer) {
         const gfx = new PIXI.Graphics();
@@ -38,16 +40,12 @@ function add_spots_patched(all_geneData, map) {
                     z === 3 ? 0.125 :
                         z === 4 ? 0.125 :
                             z === 5 ? 0.125 :
-                                z === 6 ? 0.0625 :
+                                z === 6 ? 0.0625 : // every time you zoom in, leaflet scales up by 2. Divide here by 2 to keep the marker the same as in zoom level 5
                                     z === 7 ? 0.03125 : 1
     }
 
 
-    // var texture = textures[1];
-    // var texture = generateCircleTexture(5)
-
     var pixiLayer = (function () {
-        var zoomChangeTs = null;
         masterMarkerContainer = new PIXI.Graphics();
 
         // group by gene name
@@ -65,15 +63,14 @@ function add_spots_patched(all_geneData, map) {
             pc.y = 0;
             pc.name = gene;
             masterMarkerContainer.addChild(pc);
-            geneContainer_array.push(pc)
-        })
-
-        // var dummy_gene = 'Sst'
-        // var innerContainer = geneContainer_array.filter(d => d.name === dummy_gene)[0];
+            geneContainer_array.push(pc) // I think I can get rid of this. I can access the pc via masterMarkerContainer.getChildByName
+        });
 
         // pixiContainer.addChild(innerContainer);
         var doubleBuffering = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         var initialScale;
+        var firstDraw = true;
+        var prevZoom;
         return L.pixiOverlay(function (utils, event) {
             var zoom = utils.getMap().getZoom();
             var container = utils.getContainer();
@@ -92,29 +89,42 @@ function add_spots_patched(all_geneData, map) {
             })
 
             // var innerContainer = geneContainer_array.filter(d => d.name === dummy_gene)[0];
-            if (event.type === 'add') {
+            if (firstDraw) {
+                if (event.type === 'add') {
 
-                initialScale = invScale / 8;
-                initialScale = 0.125;
-                var targetScale = zoom <= zoomSwitch ? scaleRamp(zoom) : 1 / (2 * utils.getScale(event.zoom));
-                for (var i = 0; i < geneNames.length; i++) {
-                    var gene = geneNames[i];
-                    var innerContainer = geneContainer_array.filter(d => d.name === gene)[0];
-                    innerContainer.localScale = targetScale;
-                    var _data = data[gene];
-                    for (var j = 0; j < _data.length; j++) {
-                        // our patched particleContainer accepts simple {x: ..., y: ...} objects as children:
-                        var x = _data[j].x;
-                        var y = _data[j].y;
-                        var point = dapiConfig.t.transform(L.point([x, y]));
-                        var coords = project([point.y, point.x]);
-                        innerContainer.addChild({
-                            x: coords.x,
-                            y: coords.y,
-                        });
+                    initialScale = invScale / 8;
+                    initialScale = 0.125;
+                    var targetScale = zoom <= zoomSwitch ? scaleRamp(zoom) : 1;
+                    for (var i = 0; i < geneNames.length; i++) {
+                        var gene = geneNames[i];
+                        var innerContainer = geneContainer_array.filter(d => d.name === gene)[0];
+                        innerContainer.localScale = targetScale;
+                        var _data = data[gene];
+                        for (var j = 0; j < _data.length; j++) {
+                            // our patched particleContainer accepts simple {x: ..., y: ...} objects as children:
+                            var x = _data[j].x;
+                            var y = _data[j].y;
+                            var point = dapiConfig.t.transform(L.point([x, y]));
+                            var coords = project([point.y, point.x]);
+                            innerContainer.addChild({
+                                x: coords.x,
+                                y: coords.y,
+                            });
+                        }
                     }
                 }
             }
+
+            if (prevZoom !== zoom) {
+                // console.log('zoom: From ' + prevZoom + ' to ' + zoom);
+                geneNames.forEach(gene => {
+                    var innerContainer = masterMarkerContainer.getChildByName(gene);
+                    innerContainer.localScale = scaleRamp(zoom)
+                })
+            }
+            firstDraw = false;
+            prevZoom = zoom;
+
 
             masterMarkerRenderer.render(masterMarkerContainer);
         }, masterMarkerContainer, {
@@ -125,26 +135,7 @@ function add_spots_patched(all_geneData, map) {
 
     pixiLayer.addTo(map);
 
-    // var ticker = new PIXI.ticker.Ticker();
-    // ticker.add(function (delta) {
-    //     pixiLayer.redraw({type: 'redraw', delta: delta});
-    // });
-    // map.on('zoomstart', function () {
-    //     ticker.start();
-    // });
-    // map.on('zoomend', function () {
-    //     ticker.stop();
-    // });
-    // map.on('zoomanim', pixiLayer.redraw, pixiLayer);
-
+    // All done, hide the preloader now.
     removePreloader();
 
 };
-
-
-// myMarkersContainer = masterMarkerContainer.getChildByName('myMarkers');
-// myMarkersContainer.visible = false
-// masterMarkerRenderer.render(masterMarkerContainer)
-
-
-// [...new Set(all_geneData.map(d => d.Gene))].sort()
