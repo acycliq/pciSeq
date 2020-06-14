@@ -99,11 +99,11 @@ def tile_maker(z_depth, out_dir, img_path):
     assert max(im.width, im.height) == dim, 'Something went wrong. Image isnt scaled up properly. ' \
                                             'It should be %d pixels in its longest side' % dim
 
-    im = im.gravity('south-west', dim, dim)
+    im = im.gravity('south-west', dim, dim) # <---- I THINK IS NEED TO REMOVE THIS. NOT NEEDED ANYMORE
 
     # now you can create a fresh one and populate it with tiles
     logger.info('Started doing the image tiles ')
-    im.dzsave(out_dir, layout='google', suffix='.png', background=0, skip_blanks=0)
+    im.dzsave(out_dir, layout='google', suffix='.jpg', background=0, skip_blanks=0)
     logger.info('Done. Pyramid of tiles saved at: %s' % out_dir)
 
     return pixel_dims
@@ -119,7 +119,7 @@ if __name__ == "__main__":
     # im = im.rotate(90, interpolate=pyvips.Interpolate.new("nearest"))
     # im.write_to_file(r'data/background_image/background_image_adj_rot.tif')
 
-    tile_maker(10, 'dashboard/img/262144px_landscape', imPath)
+    tile_maker(10, 'dashboard/img/262144px_landscape_jpg', imPath)
 
 
 
