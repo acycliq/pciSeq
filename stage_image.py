@@ -99,7 +99,7 @@ def tile_maker(z_depth, out_dir, img_path):
     assert max(im.width, im.height) == dim, 'Something went wrong. Image isnt scaled up properly. ' \
                                             'It should be %d pixels in its longest side' % dim
 
-    im = im.gravity('south-west', dim, dim) # <---- I THINK IS NEED TO REMOVE THIS. NOT NEEDED ANYMORE
+    # im = im.gravity('south-west', dim, dim) # <---- Uncomment this if the origin is the bottomleft corner
 
     # now you can create a fresh one and populate it with tiles
     logger.info('Started doing the image tiles ')
