@@ -382,6 +382,8 @@ function dapiChart(config) {
         console.log('Map is ready')
     });
     map.on('moveend', moveend(config));
+    map.on('zoomanim', zoomanim_end);
+    map.on('zoomend', zoomanim_end); // attach zooanimend to both zoomanim and zoomend
 
     // Now add the info control  to map...
     dapiConfig.info.addTo(map);
@@ -414,15 +416,8 @@ function dapiChart(config) {
     function moveend(config) {
         console.log('Triggering moveend callback');
 
-        // // 1. draw the cell polygons
-        // cellPolyLayer = drawCellPolygons();
-        // cellPolyLayer.addTo(map);
-        // console.log('cellPolyLayer added to the map')
-
-
-        // 2. if zoom >= 7 then render the glyphs too
+        // if zoom >= 7 then render the glyphs too
         return function (evt) {
-
             if (map.getZoom() >= zoomSwitch) {
                 // hide the markers drawn by pixi
                 geneContainer_array.map(d => d.visible = false);
@@ -432,7 +427,7 @@ function dapiChart(config) {
                 refresh();
 
             } else {
-                dapiConfig.removeLayer(geneLayers)
+                dapiConfig.removeLayer(geneLayers);
                 // closeLegend()
                 // localStorage.clear();
 
@@ -447,6 +442,11 @@ function dapiChart(config) {
             console.log('exiting moveend callback');
             console.log('')
         };
+    }
+
+    function zoomanim_end(){
+        // make sure dapi remains hidden when you change zoom levels and the 'Hide Dapi' checkbox is checked
+        dapiConfig.toggleMapControl.update( document.getElementById('dapiToggle').checked );
     }
 
 
