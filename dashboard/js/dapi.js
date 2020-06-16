@@ -383,7 +383,7 @@ function dapiChart(config) {
     });
     map.on('moveend', moveend(config));
     map.on('zoomanim', zoomanim_end);
-    map.on('zoomend', zoomanim_end); // attach zooanimend to both zoomanim and zoomend
+    map.on('zoomend', zoomanim_end); // attach zooanim_end to both zoomanim and zoomend
 
     // Now add the info control  to map...
     dapiConfig.info.addTo(map);
