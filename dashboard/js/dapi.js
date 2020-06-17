@@ -512,4 +512,6 @@ function dapiChart(config) {
     $('.leaflet-bottom.leaflet-left').hide();
     $('.leaflet-bottom.leaflet-right').hide();
     $('.panelsToggle').hide()
+
+    L.control.layers.tree({}, overlaysTree, {position:'topleft'}).addTo(map);
 }
