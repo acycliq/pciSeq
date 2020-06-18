@@ -53,6 +53,61 @@
             this._setTrees(baseTree, overlaysTree);
         },
 
+        _onInputClick: function (e) {
+            // var containerName = e.target.value;
+            masterCellRenderer.render(masterCellContainer); // Not sure if I need that here. I cant remember if its on purpose or not...it is called a few lines below anyway
+            this._contentToggle(e.target);
+
+            // this._radioController()
+
+        },
+
+        _onInputClickPatched: function () {
+            var t,
+                e,
+                i = this._layerControlInputs,
+                n = [], //enter
+                r = []; //exit
+            this._handlingClick = !0;
+            for (var o = i.length - 1; 0 <= o; o--) {
+                t = i[o];
+                var containerName = this._layerControlInputs[0].labels[0].innerText;
+                e = cellContainer_array.filter(d => d.name === containerName)[0];
+                // e = this._getLayer(t.layerId).layer;
+                t.checked ? n.push(e) : t.checked || r.push(e);
+            }
+
+            for (o = 0; o < r.length; o++)
+                r[o].visible = false;
+                // this._map.hasLayer(r[o]) && this._map.removeLayer(r[o]);
+            for (o = 0; o < n.length; o++)
+                n[o].visible = true;
+                // this._map.hasLayer(n[o]) || this._map.addLayer(n[o]);
+            this._handlingClick = !1,
+                this._refocusOnMap()
+
+            masterCellRenderer.render(masterCellContainer)
+
+            // this._layerControlInputs[0].labels[0].innerText
+        },
+
+        _contentToggle: function (target) {
+            var tempContainer;
+            // var containerName = target.value;
+            var containerName = target.labels[0].innerText;
+            if (target.checked) {
+                tempContainer = cellContainer_array.filter(d => d.name === containerName)[0];
+                // pixiContainer.addChild(tempContainer);
+                tempContainer.visible = true
+                masterCellRenderer.render(masterCellContainer)
+            } else {
+                tempContainer = masterCellContainer.getChildByName(containerName);
+                tempContainer.visible = false
+                // pixiContainer.removeChild(tempContainer);
+                masterCellRenderer.render(masterCellContainer)
+            }
+        },
+
         setBaseTree: function(tree) {
             return this._setTrees(tree);
         },
@@ -453,7 +508,7 @@
                     input.checked = select;
                     input.indeterminate = false;
                 }
-                ctx._onInputClick();
+                ctx._onInputClickPatched();
             }
             if (tree.selectAllCheckbox) {
                 // selAll is already created
