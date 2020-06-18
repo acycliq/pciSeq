@@ -513,5 +513,59 @@ function dapiChart(config) {
     $('.leaflet-bottom.leaflet-right').hide();
     $('.panelsToggle').hide()
 
+
+    var overlaysTree = {
+    label: 'Points of Interest',
+    selectAllCheckbox: 'Un/select all',
+        children: [
+            {
+                label: 'Europe',
+                selectAllCheckbox: true,
+                children: [
+                    {
+                        label: 'France',
+                        selectAllCheckbox: true,
+                        children: [
+                            {label: 'Astro.1', layer: cellContainer_array[0]},
+                            // {label: 'Notre Dame', layer: L.marker([47000, 7000])},
+                            // {label: 'Louvre', layer: L.marker([7000, 1000])},
+                        ]
+                    },
+                    // {
+                    //     label: 'Germany',
+                    //     selectAllCheckbox: true,
+                    //     children: [
+                    //         {label: 'Branderburger Tor', layer: L.marker([0, 0])},
+                    //         {label: 'Kölner Dom', layer: L.marker([50000, 60000])},
+                    //     ]
+                    // }, {
+                    //     label: 'Spain',
+                    //     selectAllCheckbox: 'De/seleccionar todo',
+                    //     children: [
+                    //         {label: 'Palacio Real', layer: L.marker([90000, 27000])},
+                    //         {label: 'La Alhambra', layer: L.marker([27000, 100000])},
+                    //     ]
+                    // }
+                ]
+            },
+            // {
+            //     label: 'Asia',
+            //     selectAllCheckbox: true,
+            //     children: [
+            //         {
+            //             label: 'Jordan',
+            //             selectAllCheckbox: true,
+            //             children: [
+            //                 {label: 'Petra', layer: L.marker([95000, 100000])},
+            //                 {label: 'Wadi Rum', layer: L.marker([45000, 11000])}
+            //             ]
+            //         }, {
+            //             /* ... */
+            //         }
+            //     ]
+            // }
+        ]
+    };
+
     L.control.layers.tree({}, overlaysTree, {position:'topleft'}).addTo(map);
 }
