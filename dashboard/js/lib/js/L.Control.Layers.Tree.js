@@ -71,7 +71,7 @@
             this._handlingClick = !0;
             for (var o = i.length - 1; 0 <= o; o--) {
                 t = i[o];
-                var containerName = this._layerControlInputs[0].labels[0].innerText;
+                var containerName = this._layerControlInputs[o].labels[0].innerText;
                 e = cellContainer_array.filter(d => d.name === containerName)[0];
                 // e = this._getLayer(t.layerId).layer;
                 t.checked ? n.push(e) : t.checked || r.push(e);
@@ -488,7 +488,7 @@
                     this._layerControlInputs.push(input);
                 }
                 input.layerId = L.Util.stamp(tree.layer);
-                L.DomEvent.on(input, 'click', this._onInputClick, this);
+                L.DomEvent.on(input, 'click', this._onInputClickPatched, this);
                 label.appendChild(input);
             }
 

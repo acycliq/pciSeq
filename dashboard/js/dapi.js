@@ -527,7 +527,7 @@ function dapiChart(config) {
                         selectAllCheckbox: true,
                         children: [
                             {label: 'Astro.1', layer: cellContainer_array[0]},
-                            // {label: 'Notre Dame', layer: L.marker([47000, 7000])},
+                            {label: 'Astro.2', layer: cellContainer_array[1]},
                             // {label: 'Louvre', layer: L.marker([7000, 1000])},
                         ]
                     },
