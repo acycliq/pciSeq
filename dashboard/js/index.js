@@ -121,6 +121,9 @@ shortNames.forEach((d, i) => {
     // these are just empty right now, they only have a name
     var c = new PIXI.Graphics();
     c.name = d;
+    c.options = [];
+    c.options.minZoom = 0  // Needed only to fool the layer tree control and prevent an error from being raised
+    c.options.maxZoom = 10 // Needed only to fool the layer tree control and prevent an error from being raised
     cellContainer_array.push(c)
 });
 
