@@ -106,26 +106,26 @@ function closeLegend() {
     }
 }
 
-function truncateStr(strIn){
-    var n = 2;
-    return myUtils().fw_stripper(strIn, n);
-}
-
-var shortNames = d3.map(classColorsCodes(), d => truncateStr(d.className))
-    .keys()
-    .filter(d => d != "Other")
-    .sort();
-
-shortNames.forEach((d, i) => {
-    // make some pixiGraphics (aka containers) objects to hold the cell polygons and name them based on their short names
-    // these are just empty right now, they only have a name
-    var c = new PIXI.Graphics();
-    c.name = d;
-    c.options = [];
-    c.options.minZoom = 0  // Needed only to fool the layer tree control and prevent an error from being raised
-    c.options.maxZoom = 10 // Needed only to fool the layer tree control and prevent an error from being raised
-    cellContainer_array.push(c)
-});
+// function truncateStr(strIn){
+//     var n = 5; //DO NOT CHECK THIS IN. REVERT BACK TO n = 2
+//     return myUtils().fw_stripper(strIn, n);
+// }
+//
+// var shortNames = d3.map(classColorsCodes(), d => truncateStr(d.className))
+//     .keys()
+//     .filter(d => d != "Other")
+//     .sort();
+//
+// shortNames.forEach((d, i) => {
+//     // make some pixiGraphics (aka containers) objects to hold the cell polygons and name them based on their short names
+//     // these are just empty right now, they only have a name
+//     var c = new PIXI.Graphics();
+//     c.name = d;
+//     c.options = [];
+//     c.options.minZoom = 0  // Needed only to fool the layer tree control and prevent an error from being raised
+//     c.options.maxZoom = 10 // Needed only to fool the layer tree control and prevent an error from being raised
+//     cellContainer_array.push(c)
+// });
 
 function hidePanels(bool){
     if (bool){
