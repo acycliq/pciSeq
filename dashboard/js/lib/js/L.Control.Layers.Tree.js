@@ -108,6 +108,36 @@
             }
         },
 
+        // _checkedIfAdded: function () {
+        //     var inputs = document.querySelectorAll('.leaflet-control-layers-selector');
+        //     for (var i = 0; i < inputs.length; i++) {
+        //         var span = inputs[i].closest('span');
+        //         if (span && span.innerText) {
+        //             var label = span.innerText;
+        //             var input = inputs[i];
+        //             var tempContainer = masterCellContainer.getChildByName(label);
+        //             if (tempContainer && tempContainer.visible) {
+        //                 console.log(label + ': checking box');
+        //                 if (!input.checked) {
+        //                     input.checked = true
+        //                 }
+        //             }
+        //         }
+        //     }
+        // },
+
+
+        _checkAll: function () {
+            var inputs = document.querySelectorAll('.leaflet-control-layers-selector');
+            for (var i = 0; i < inputs.length; i++) {
+                var input = inputs[i];
+                if (!input.checked) {
+                    input.checked = true
+                }
+            }
+        },
+
+
         setBaseTree: function(tree) {
             return this._setTrees(tree);
         },
