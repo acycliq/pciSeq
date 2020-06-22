@@ -350,6 +350,54 @@ function dapi(cfg) {
     };
 
 
+    function tree(data) {
+        // makes the tree object to pass into the tree control as an overlay
+        var mapper = {},
+            root = {
+                label: 'Cell Classes',
+                selectAllCheckbox: 'Un/select all',
+                children: []
+            }
+
+        for (var str of data) {
+            let splits = str.split('.'),
+                label = '';
+
+            splits.reduce(myReducer(label), root)
+        }
+
+        function myReducer(label) {
+            return function (parent, place, i, arr) {
+                if (label)
+                    label += `.${place}`;
+                else
+                    label = place;
+
+                if (!mapper[label]) {
+                    var o = {label: label};
+                    o.collapsed = true;
+                    if (i === arr.length - 1) {
+                        o.layer = masterCellContainer.getChildByName(label);
+                    }
+                    mapper[label] = o;
+                    parent.selectAllCheckbox = true;
+                    parent.children = parent.children || [];
+                    parent.children.push(o)
+                }
+                return mapper[label];
+            }
+        }
+
+        return root
+    }
+
+
+     function treeControl(data) {
+        return L.control.layers.tree({}, tree(data), {position:'topleft'});
+     }
+
+
+
     // add the customised control
     customControl = L.control.custom().addTo(map);
 
@@ -371,6 +419,7 @@ function dapi(cfg) {
     dapiData.createDiv = createDiv;
     dapiData.datatable = datatable;
     dapiData.customControl = customControl;
+    dapiData.treeControl = treeControl;
     return dapiData
 }
 
@@ -417,6 +466,13 @@ function dapiChart(config) {
     cellPolyLayer = drawCellPolygons();
     cellPolyLayer.addTo(map);
     console.log('cellPolyLayer added to the map');
+
+    // Add the control to switch on/off the cell classes
+    if (cellPolyLayer) {
+        var myTreeControl = dapiConfig.treeControl(cellClasses);
+        myTreeControl.addTo(map);
+        myTreeControl._checkAll();
+    }
 
     // draw the spots
     // add_spots(all_geneData, map);
@@ -526,358 +582,4 @@ function dapiChart(config) {
     $('.panelsToggle').hide()
 
 
-
-    var my_Overlay = tree(cellClasses);
-
-
-    function tree(data) {
-        // makes the tree object to pass into the tree control as an overlay
-        var mapper = {},
-            root = {
-                label: 'Cell Classes',
-                selectAllCheckbox: 'Un/select all',
-                children: []
-            }
-
-        for (var str of data) {
-            let splits = str.split('.'),
-                label = '';
-
-            splits.reduce(myReducer(label), root)
-        }
-
-        function myReducer(label) {
-            return function (parent, place, i, arr) {
-                if (label)
-                    label += `.${place}`;
-                else
-                    label = place;
-
-                if (!mapper[label]) {
-                    var o = {label: label};
-                    o.collapsed = true;
-                    if (i === arr.length - 1) {
-                        o.layer = masterCellContainer.getChildByName(label);
-                    }
-                    mapper[label] = o;
-                    parent.selectAllCheckbox = true;
-                    parent.children = parent.children || [];
-                    parent.children.push(o)
-                }
-                return mapper[label];
-            }
-        }
-
-        return root
-    }
-
-
-
-    // var overlaysTree = {
-    //     label: 'Places',
-    //     selectAllCheckbox: 'Un/select all',
-    //     children: [
-    //         {
-    //             label: 'Europe',
-    //             selectAllCheckbox: true,
-    //             children: [
-    //                 {
-    //                     label: 'Europe.UK',
-    //                     selectAllCheckbox: true,
-    //                     children: [
-    //                         {
-    //                             label: 'Europe.UK.London',
-    //                             selectAllCheckbox: true,
-    //                             children: [
-    //                                 {label: 'Europe.UK.London.TrafalgarSq',layer: masterCellContainer.getChildByName('Astro.1')},
-    //                                 {label: 'Europe.UK.London.HydePark',layer: masterCellContainer.getChildByName('Astro.1')},
-    //                                 {label: 'Europe.UK.London.OxfordStreet',layer: masterCellContainer.getChildByName('Astro.1')},
-    //                                 {
-    //                                     label: 'Europe.UK.London.City',
-    //                                     selectAllCheckbox: true,
-    //                                     children: [
-    //                                         {label: 'Europe.UK.London.City.Bank',layer: masterCellContainer.getChildByName('Astro.1')},
-    //                                     ]
-    //                                 },
-    //                             ]
-    //                         },
-    //                         {
-    //                             label: 'Europe.France',
-    //                             selectAllCheckbox: true,
-    //                             children: [
-    //                                 {label: 'Europe.France.Paris',layer: masterCellContainer.getChildByName('Astro.1')},
-    //                                 {label: 'Europe.France.Bordeaux',layer: masterCellContainer.getChildByName('Astro.1')},
-    //                             ]
-    //                         },
-    //                     ]
-    //
-    //                 }
-    //             ]
-    //
-    //         }
-    //     ]
-    // };
-
-    var overlaysTree = {
-        label: 'Cell Classes',
-        selectAllCheckbox: 'Un/select all',
-        children: [
-            {
-                label: 'Astro',
-                selectAllCheckbox: true,
-                children: [
-                    {label: 'Astro.1', layer: masterCellContainer.getChildByName('Astro.1')},
-                    {label: 'Astro.2', layer: masterCellContainer.getChildByName('Astro.2')},
-                    {label: 'Astro.3', layer: masterCellContainer.getChildByName('Astro.3')},
-                    {label: 'Astro.4', layer: masterCellContainer.getChildByName('Astro.4')},
-                    {label: 'Astro.5', layer: masterCellContainer.getChildByName('Astro.5')},
-                ]
-            },
-            {
-                label: 'Pvalb',
-                selectAllCheckbox: true,
-                children: [
-                    {
-                        label: 'Pvalb.C1ql1',
-                        selectAllCheckbox: true,
-                        children: [
-                            {label: 'Pvalb.C1ql1.Cpne5', layer: masterCellContainer.getChildByName('Pvalb.C1ql1.Cpne5')},
-                            {label: 'Pvalb.C1ql1.Npy', layer:  masterCellContainer.getChildByName('Pvalb.C1ql1.Npy')},
-                            {label: 'Pvalb.C1ql1.Pvalb', layer:  masterCellContainer.getChildByName('Pvalb.C1ql1.Pvalb')},
-                        ]
-                    },
-                    {
-                        label: 'Pvalb.Tac1',
-                        selectAllCheckbox: true,
-                        children: [
-                            {label: 'Pvalb.Tac1.Nr4a2', layer: masterCellContainer.getChildByName('Pvalb.C1ql1.Cpne5')},
-                            {label: 'Pvalb.Tac1.Syt2', layer:  masterCellContainer.getChildByName('Pvalb.C1ql1.Npy')},
-                            {label: 'Pvalb.Tac1.Akr1c18', layer:  masterCellContainer.getChildByName('Pvalb.C1ql1.Pvalb')},
-                            {label: 'Pvalb.Tac1.Sst', layer:  masterCellContainer.getChildByName('Pvalb.C1ql1.Sst')},
-                        ]
-                    },
-                ]
-            },
-            {
-                label: 'Cacna2d1',
-                selectAllCheckbox: true,
-                children: [
-                    {
-                        label: 'Cacna2d1.Lhx6',
-                        selectAllCheckbox: true,
-                        children: [
-                            {label: 'Cacna2d1.Lhx6.Reln', layer: masterCellContainer.getChildByName('Cacna2d1.Lhx6.Reln')},
-                            {label: 'Cacna2d1.Lhx6.Vwa5a', layer:  masterCellContainer.getChildByName('Cacna2d1.Lhx6.Vwa5a')},
-                        ]
-                    },
-                    {
-                        label: 'Cacna2d1.Ndnf',
-                        selectAllCheckbox: true,
-                        children: [
-                            {label: 'Cacna2d1.Ndnf.Cxcl14', layer: masterCellContainer.getChildByName('Cacna2d1.Ndnf.Cxcl14')},
-                            {label: 'Cacna2d1.Ndnf.Npy', layer:  masterCellContainer.getChildByName('Cacna2d1.Ndnf.Npy')},
-                            {label: 'Cacna2d1.Ndnf.Rgs10', layer:  masterCellContainer.getChildByName('Cacna2d1.Ndnf.Rgs10')},
-                        ]
-                    },
-                ]
-            },
-            {
-                label: 'Calb2',
-                selectAllCheckbox: true,
-                children: [
-                    {label: 'Calb2.Cryab', layer: masterCellContainer.getChildByName('Calb2.Cryab')},
-                    {
-                        label: 'Calb2.Cntnap5a',
-                        selectAllCheckbox: true,
-                        children: [
-                            {label: 'Calb2.Cntnap5a.Igfbp6', layer: masterCellContainer.getChildByName('Calb2.Cntnap5a.Igfbp6')},
-                            {label: 'Calb2.Cntnap5a.Rspo3', layer:  masterCellContainer.getChildByName('Calb2.Cntnap5a.Rspo3')},
-                            {label: 'Calb2.Cntnap5a.Vip', layer:  masterCellContainer.getChildByName('Calb2.Cntnap5a.Vip')},
-                        ]
-                    },
-                    {
-                        label: 'Calb2.Vip',
-                        selectAllCheckbox: true,
-                        children: [
-                            {label: 'Calb2.Vip.Gpd1', layer: masterCellContainer.getChildByName('Calb2.Vip.Gpd1')},
-                            {label: 'Calb2.Vip.Igfbp4', layer:  masterCellContainer.getChildByName('Calb2.Vip.Igfbp4')},
-                            {label: 'Calb2.Vip.Nos1', layer:  masterCellContainer.getChildByName('Calb2.Vip.Nos1')},
-                        ]
-                    },
-                ]
-            },
-            {
-                label: 'Cck',
-                selectAllCheckbox: true,
-                children: [
-                    {label: 'Cck.Calca', layer: masterCellContainer.getChildByName('Cck.Calca')},
-                    {label: 'Cck.Lypd1', layer: masterCellContainer.getChildByName('Cck.Lypd1')},
-                    {label: 'Cck.Sema5a', layer: masterCellContainer.getChildByName('Cck.Sema5a')},
-                    {
-                        label: 'Cck.Cxcl14',
-                        selectAllCheckbox: true,
-                        children: [
-                            {label: 'Cck.Cxcl14.Slc17a8', layer: masterCellContainer.getChildByName('Cck.Cxcl14.Slc17a8')},
-                            {label: 'Cck.Cxcl14.Vip', layer:  masterCellContainer.getChildByName('Cck.Cxcl14.Vip')},
-                            {
-                                label: 'Cck.Cxcl14.Calb1',
-                                selectAllCheckbox: true,
-                                children: [
-                                    {label: 'Cck.Cxcl14.Calb1.Igfbp5', layer: masterCellContainer.getChildByName('Cck.Cxcl14.Calb1.Igfbp5')},
-                                    {label: 'Cck.Cxcl14.Calb1.Kctd12', layer:  masterCellContainer.getChildByName('Cck.Cxcl14.Calb1.Kctd12')},
-                                    {label: 'Cck.Cxcl14.Calb1.Tac2', layer:  masterCellContainer.getChildByName('Cck.Cxcl14.Calb1.Tac2')},
-                                    {label: 'Cck.Cxcl14.Calb1.Tnfaip8l3', layer:  masterCellContainer.getChildByName('Cck.Cxcl14.Calb1.Tnfaip8l3')},
-                                ]
-                            }
-                        ]
-                    },
-                    {
-                        label: 'Calb2.Vip',
-                        selectAllCheckbox: true,
-                        children: [
-                            {label: 'Calb2.Vip.Gpd1', layer: masterCellContainer.getChildByName('Calb2.Vip.Gpd1')},
-                            {label: 'Calb2.Vip.Igfbp4', layer:  masterCellContainer.getChildByName('Calb2.Vip.Igfbp4')},
-                            {label: 'Calb2.Vip.Nos1', layer:  masterCellContainer.getChildByName('Calb2.Vip.Nos1')},
-                        ]
-                    },
-                    {
-                        label: 'Calb2.Lmo1',
-                        selectAllCheckbox: true,
-                        children: [
-                            {label: 'Cck.Lmo1.Npy', layer:  masterCellContainer.getChildByName('Cck.Lmo1.Npy')},
-                            {label: 'Cck.Lmo1.Vip.Crh', layer:  masterCellContainer.getChildByName('Cck.Lmo1.Vip.Crh')},
-                            {label: 'Cck.Lmo1.Vip.Fam19a2', layer:  masterCellContainer.getChildByName('Cck.Lmo1.Vip.Fam19a2')},
-                            {label: 'Cck.Lmo1.Vip.Tac2', layer:  masterCellContainer.getChildByName('Cck.Lmo1.Vip.Tac2')},
-                        ]
-                    },
-                ]
-            },
-            {
-                label: 'Choroid', layer: masterCellContainer.getChildByName('Choroid'),
-            },
-            {
-                label: 'Endo', layer: masterCellContainer.getChildByName('Endo')
-            },
-            {
-                label: 'Eryth',
-                selectAllCheckbox: true,
-                children: [
-                    {label: 'Eryth.1', layer: masterCellContainer.getChildByName('Eryth.1')},
-                    {label: 'Eryth.2', layer: masterCellContainer.getChildByName('Eryth.2')},
-                ]
-            },
-            {
-                label: 'Microglia',
-                selectAllCheckbox: true,
-                children: [
-                    {label: 'Microglia.1', layer: masterCellContainer.getChildByName('Microglia.1')},
-                    {label: 'Microglia.2', layer: masterCellContainer.getChildByName('Microglia.2')},
-                ]
-            },
-            {
-                label: 'Ntng1',
-                selectAllCheckbox: true,
-                children: [
-                    {label: 'Ntng1.Chrm2', layer: masterCellContainer.getChildByName('Ntng1.Chrm2')},
-                    {label: 'Ntng1.Rgs10', layer: masterCellContainer.getChildByName('Ntng1.Rgs10')},
-                    {label: 'Ntng1.Synpr', layer: masterCellContainer.getChildByName('Ntng1.Synpr')},
-                ]
-            },
-            {
-                label: 'Oligo',
-                selectAllCheckbox: true,
-                children: [
-                    {label: 'Oligo.1', layer: masterCellContainer.getChildByName('Oligo.1')},
-                    {label: 'Oligo.2', layer: masterCellContainer.getChildByName('Oligo.2')},
-                    {label: 'Oligo.3', layer: masterCellContainer.getChildByName('Oligo.3')},
-                    {label: 'Oligo.4', layer: masterCellContainer.getChildByName('Oligo.4')},
-                    {label: 'Oligo.5', layer: masterCellContainer.getChildByName('Oligo.5')},
-                ]
-            },
-            {
-                label: 'PC',
-                selectAllCheckbox: true,
-                children: [
-                    {
-                        label: 'PC.CA1',
-                        selectAllCheckbox: true,
-                        children: [
-                            {label: 'PC.CA1.1', layer: masterCellContainer.getChildByName('PC.CA1.1')},
-                            {label: 'PC.CA1.2', layer: masterCellContainer.getChildByName('PC.CA1.2')},
-                            {label: 'PC.CA1.3', layer: masterCellContainer.getChildByName('PC.CA1.3')},
-                        ]
-                    },
-                    {label: 'PC.Other1', layer: masterCellContainer.getChildByName('PC.Other1')},
-                    {label: 'PC.Other2', layer: masterCellContainer.getChildByName('PC.Other2')},
-                ]
-            },
-            {
-                label: 'Sst',
-                selectAllCheckbox: true,
-                children: [
-                    {label: 'Sst.Cryab', layer: masterCellContainer.getChildByName('Sst.Cryab')},
-                    {label: 'Sst.Nos1', layer: masterCellContainer.getChildByName('Sst.Nos1')},
-                    {
-                        label: 'Sst.Erbb4',
-                        selectAllCheckbox: true,
-                        children: [
-                            {label: 'Sst.Erbb4.Crh', layer: masterCellContainer.getChildByName('Sst.Erbb4.Crh')},
-                            {label: 'Sst.Erbb4.Rgs10', layer:  masterCellContainer.getChildByName('Sst.Erbb4.Rgs10')},
-                            {label: 'Sst.Erbb4.Th', layer:  masterCellContainer.getChildByName('Sst.Erbb4.Th')},
-                        ]
-                    },
-                    {
-                        label: 'Sst.Npy',
-                        selectAllCheckbox: true,
-                        children: [
-                            {label: 'Sst.Npy.Cort', layer: masterCellContainer.getChildByName('Sst.Npy.Cort')},
-                            {label: 'Sst.Npy.Mgat4c', layer:  masterCellContainer.getChildByName('Sst.Npy.Mgat4c')},
-                            {label: 'Sst.Npy.Serpine2', layer:  masterCellContainer.getChildByName('Sst.Npy.Serpine2')},
-                            {label: 'Sst.Npy.Zbtb20', layer:  masterCellContainer.getChildByName('Sst.Npy.Zbtb20')},
-                        ]
-                    },
-                    {
-                        label: 'Sst.Pnoc',
-                        selectAllCheckbox: true,
-                        children: [
-                            {label: 'Sst.Pnoc.Pvalb', layer: masterCellContainer.getChildByName('Sst.Pnoc.Pvalb')},
-                            {
-                                label: 'Sst.Pnoc.Calb1',
-                                selectAllCheckbox: true,
-                                children: [
-                                    {label: 'Sst.Pnoc.Calb1.Igfbp5', layer: masterCellContainer.getChildByName('Sst.Pnoc.Calb1.Igfbp5')},
-                                    {label: 'Sst.Pnoc.Calb1.Pvalb', layer:  masterCellContainer.getChildByName('Sst.Pnoc.Calb1.Pvalb')},
-                                ]
-                            }
-                        ]
-                    },
-                ]
-            },
-            {
-                label: 'Vip',
-                selectAllCheckbox: true,
-                children: [
-                    {
-                        label: 'Vip.Crh',
-                        selectAllCheckbox: true,
-                        children: [
-                            {
-                                label: 'Vip.Crh.C1ql1', layer: masterCellContainer.getChildByName('Vip.Crh.C1ql1'),
-                                label: 'Vip.Crh.Pcp4', layer: masterCellContainer.getChildByName('Vip.Crh.Pcp4'),
-                            },
-                        ]
-                    },
-                ]
-            },
-            {
-                label: 'Vsmc', layer: masterCellContainer.getChildByName('Vsmc'),
-            },
-            {
-                label: 'Zero', layer: masterCellContainer.getChildByName('Zero')
-            },
-
-        ]
-    };
-
-    L.control.layers.tree({}, my_Overlay, {position:'topleft'}).addTo(map);
 }
