@@ -10,6 +10,7 @@
 
 .leaflet-layerstree-header input{
     margin-left: 0px;
+    margin-right: 5px;
 }
 
 
@@ -35,7 +36,8 @@
 }
 
 .leaflet-layerstree-children {
-    padding-left: 10px;
+    /*padding-left: 10px;*/
+    padding-left: 15px;
 }
 
 .leaflet-layerstree-children-nopad {
