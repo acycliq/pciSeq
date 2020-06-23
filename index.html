@@ -46,6 +46,9 @@
     <!-- leaflet-pip v1.1.0 -->
     <script src="dashboard/js/lib/js/leaflet-pip.js"></script>
 
+    <!-- leaflet.textpath -->
+    <script src='dashboard/js/lib/js/leaflet.textpath.js'></script>
+
     <!-- topojson -->
     <script src="https://unpkg.com/topojson@3"></script>
 
@@ -66,17 +69,12 @@
     <link rel="stylesheet" href="dashboard/js/lib/css/Leaflet.Coordinates-0.1.3.css"/>
     <script src="dashboard/js/lib/js/Leaflet.Coordinates-0.1.3.src.js"></script>
 
+    <!-- kdbush -->
     <script src="https://unpkg.com/kdbush@3.0.0/kdbush.min.js"></script>
 
+    <!-- mapbox-gl -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v1.10.1/mapbox-gl.js"></script>
 
-    <!-- Leaflet.Control.Layers.Tree -->
-    <link rel="stylesheet" href="dashboard/js/lib/css/L.Control.Layers.Tree.css">
-    <script src="dashboard/js/lib/js/L.Control.Layers.Tree.js"></script>
-
-    <script src="https://api.mapbox.com/mapbox-gl-js/v1.10.1/mapbox-gl.js"></script>
-
-    <script src='dashboard/js/lib/js/leaflet.textpath.js'></script>
 
     <!--    <script src="pixi.min.js"></script>-->
     <!--    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.2.1/pixi.js.map"></script>-->
@@ -84,7 +82,7 @@
     <!--    <script src="L.PixiOverlay.js"></script>-->
 
 
-    <!-- user scripts -->
+    <!-- user js scripts -->
     <script> console.log('reading source files')</script>
     <script src='dashboard/js/config.js'></script>
     <script src='dashboard/js/viewerUtils.js'></script>
@@ -102,11 +100,18 @@
     <script src="dashboard/js/glyphs.js"></script>
     <script src="dashboard/js/glyphConfig.js"></script>
     <script src='dashboard/js/dapi.js'></script>
+    <script src="dashboard/js/lib/js/L.Control.Layers.Tree.js"></script> <!-- Patched Control.Layers.Tree: Must be parsed after dapi.js -->
     <script src='dashboard/js/dummyTree.js'></script>
-
-
-    <link rel='stylesheet' href='dashboard/css/index.css'>
     <script src='dashboard/js/index.js'></script>
+
+    <!-- Leaflet.Control.Layers.Tree -->
+
+
+
+    <!-- user css scripts -->
+    <link rel='stylesheet' href='dashboard/css/index.css'>
+    <link rel="stylesheet" href="dashboard/js/lib/css/L.Control.Layers.Tree.css">
+
     <script> console.log('source files parsed')</script>
 
 </head>
