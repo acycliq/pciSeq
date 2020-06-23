@@ -467,7 +467,7 @@ function dapiChart(config) {
     cellPolyLayer.addTo(map);
     console.log('cellPolyLayer added to the map');
 
-    // Add the control to switch on/off the cell classes
+    // Add the control to switch on/off the cell polygons per class
     if (cellPolyLayer) {
         var myTreeControl = dapiConfig.treeControl(cellClasses);
         myTreeControl.addTo(map);
