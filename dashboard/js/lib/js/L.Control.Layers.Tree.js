@@ -95,7 +95,7 @@
             var tempContainer;
             // var containerName = target.value;
             var containerName = target.labels[0].innerText;
-            if (target.checked) {
+            if (target && target.checked) {
                 tempContainer = cellContainer_array.filter(d => d.name === containerName)[0];
                 // pixiContainer.addChild(tempContainer);
                 tempContainer.visible = true
@@ -107,6 +107,33 @@
                 masterCellRenderer.render(masterCellContainer)
             }
         },
+
+
+        _refresh: function () {
+            //This deserves its own space, it is not a simple function to sit inside the code for this layer control
+            var inputs = this._getAllInputs();
+
+            for (var i = 0; i < inputs.length; i++) {
+                var input = inputs[i];
+                this._contentToggle(input);
+            }
+        },
+
+        _getAllInputs: function () {
+            var out = [];
+            var inputs = document.querySelectorAll('.leaflet-control-layers-selector');
+            for (var i = 0; i < inputs.length; i++) {
+                var input = inputs[i];
+                if (input.closest('span')) {
+                    var label = input.closest('span').innerText;
+                    if (cellClasses.includes(label)){
+                        out.push(input)
+                    }
+                }
+            }
+            return out
+        },
+
 
         // _checkedIfAdded: function () {
         //     var inputs = document.querySelectorAll('.leaflet-control-layers-selector');
@@ -135,6 +162,19 @@
                     input.checked = true
                 }
             }
+        },
+
+
+        _getSelected: function () {
+            var out = [];
+            var inputs = document.querySelectorAll('.leaflet-control-layers-selector');
+            for (var i = 0; i < inputs.length; i++) {
+                var input = inputs[i];
+                if (input.checked && input.closest('span')) {
+                    out.push(input.closest('span').innerText)
+                }
+            }
+            return out
         },
 
 
