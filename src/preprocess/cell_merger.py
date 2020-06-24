@@ -91,12 +91,13 @@ def update_spots(fov, spots):
 
 
 class Stage(object):
-    def __init__(self, fovs_obj):
+    def __init__(self, fovs_obj, cellmaps):
         self._fovs_obj = fovs_obj
         self.my_counter = itertools.count()
         self.merge_register = {}
         self.cell_props = None
         self.spots = None
+        self.cellmaps = cellmaps
 
         # file_list = [self.make_path(d) for d in range(len(self.fovs))]
         # start = time.time()
@@ -138,7 +139,10 @@ class Stage(object):
         return self._fovs_obj.my_config
 
     def load(self, i):
-        label_image = self.load_label_image(i)
+        if self.cellmaps is not None:
+            label_image = coo_matrix(self.cellmaps[i])
+        else:
+            label_image = self.load_label_image(i)
         spots = load_spots(i, self.scaling_factor, self.my_config['MATLAB_SPOTS'])
         return label_image, spots
 
@@ -913,11 +917,11 @@ class Stage(object):
         cell_props['label'] = cell_props.label.fillna(-1).astype(int).astype('str').replace('-1', np.nan)
 
         cells_headers = ['cell_id', 'label', 'fov_id', 'area', 'x', 'y']
-        cell_props[cells_headers].to_csv('expanded_cells.csv', index=False)
+        cell_props[cells_headers].to_csv('expanded_cells_david.csv', index=False)
 
         # 2. save the cell coords
         coords_headers = ['cell_id', 'label', 'coords']
-        cell_props[coords_headers].to_json('cell_coords.json', orient='records')
+        cell_props[coords_headers].to_json('cell_coords_david.json', orient='records')
 
         # 3. save the spots
         spots_df = self.spots.copy()
@@ -929,7 +933,7 @@ class Stage(object):
         spots_df['y_cell'] = spots_df.y_cell.fillna(-1).astype(int).astype('str').replace('-1', np.nan)
 
         spots_headers = ['x_global', 'y_global', 'fov_id', 'label', 'target', 'x_cell', 'y_cell']
-        spots_df[spots_headers].to_csv('spots.csv', index=False)
+        spots_df[spots_headers].to_csv('spots_david.csv', index=False)
         logger.info('Total number of collected spots: %d' % spots_df.shape[0])
 
         # # 3b. Save now the spots seperately for each fov
