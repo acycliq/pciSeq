@@ -1,5 +1,7 @@
 from src.preprocess.fov import Fov
 from src.preprocess.cell_merger import Stage
+from src.preprocess import utils
+import os
 # import data_manager.post as post
 # import data_manager.result_splitter as rs
 import logging
@@ -19,8 +21,10 @@ if __name__ == "__main__":
     fovs_down = config.PREPROCESSOR['FOVS_DOWN']
     cfg = config.PREPROCESSOR
 
+    filepath = os.path.join(config.ROOT_DIR, 'CellMap_left.mat')
+    cellmap_chunks = utils.split_CellMap(filepath, config.PREPROCESSOR['fov_size'])
     fovs = Fov(fovs_across, fovs_down, cfg)
-    stage = Stage(fovs)
+    stage = Stage(fovs, cellmap_chunks)
 
     stage.merge_cells()
     stage.global_labels_par()
