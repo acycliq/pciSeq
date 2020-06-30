@@ -117,26 +117,7 @@ def gammaExpectation(rho, beta):
     :return: Expectetation of a rv X following a Gamma(r,b) distribution with pdf
     f(x;\alpha ,\beta )= \frac{\beta^r}{\Gamma(r)} x^{r-1}e^{-\beta x}
     '''
-
-    # sanity check
-    assert (np.all(rho.coords['cell_id'].data == beta.coords['cell_id'])), 'rho and beta are not aligned'
-    assert (np.all(rho.coords['gene_name'].data == beta.coords['gene_name'])), 'rho and beta are not aligned'
-    r = rho.data[:, :, None]
-    b = beta.data
-    gamma = np.empty(b.shape)
-    ne.evaluate('r/b', out=gamma)
-    out = xr.DataArray(gamma.astype(np.float64),
-                       coords={'cell_id': beta.cell_id.values,
-                               'gene_name': beta.gene_name.values,
-                               'class_name': beta.class_name.values},
-                       dims=['cell_id', 'gene_name', 'class_name']
-                       )
-    del gamma
-    del r
-    del b
-    gc.collect()
-    del gc.garbage[:]
-    return out
+    return rho.astype(np.float16) / beta.astype(np.float16)
 
 
 def logGammaExpectation(rho, beta):
@@ -145,38 +126,7 @@ def logGammaExpectation(rho, beta):
     :param b:
     :return: Expectetation of a rv log(X) where X follows a Gamma(r,b) distribution
     '''
-    # start = time.time()
-    # out = scipy.special.psi(r) - np.log(b)
-    # end = time.time()
-    # print('time in logGammaExpectation:', end - start)
-    # start = time.time()
-
-    # sanity check
-    assert (np.all(rho.coords['cell_id'].data == beta.coords['cell_id'])), 'rho and beta are not aligned'
-    assert (np.all(rho.coords['gene_name'].data == beta.coords['gene_name'])), 'rho and beta are not aligned'
-    r = rho.data[:, :, None]
-    b = beta.data
-    logb = np.empty(b.shape)
-    ne.evaluate("log(b)", out=logb)
-    log_gamma = scipy.special.psi(r) - logb
-
-    out = xr.DataArray(log_gamma.astype(np.float64),
-                       coords={'cell_id': beta.cell_id.values,
-                               'gene_name': beta.gene_name.values,
-                               'class_name': beta.class_name.values},
-                       dims=['cell_id', 'gene_name', 'class_name']
-                       )
-    # end = time.time()
-    # print('time in logGammaExpectation ne:', end - start)
-
-    del logb
-    del log_gamma
-    del r
-    del b
-    gc.collect()
-    del gc.garbage[:]
-
-    return out
+    return scipy.special.psi(rho.astype(np.float16)) - np.log(beta.astype(np.float16))
 
 
 def negBinLoglik(da_x, r, da_p):
@@ -192,17 +142,9 @@ def negBinLoglik(da_x, r, da_p):
     assert (np.all(da_x.coords['cell_id'].data == da_p.coords['cell_id'])), 'gene counts and beta probabilities are not aligned'
     assert (np.all(da_x.coords['gene_name'].data == da_p.coords['gene_name'])), 'gene counts and beta probabilities are not aligned'
 
-    contr = np.zeros(da_p.shape)
-    x = da_x.data[:, :, None]
-    p = da_p.data
-    # start = time.time()
-    # out = x * np.log(p, where=x.astype(bool)) + r * np.log(1-p)
-    # end = time.time()
-    # print('time in negBinLoglik:', end - start)
-    # start = time.time()
-    ne.evaluate("x * log(p) + r * log(1 - p)", out=contr)
-    # end = time.time()
-    # print('time in negBinLoglik - ne:', end - start)
+    x = da_x.data[:, :, None].astype(np.float16)
+    p = da_p.data.astype(np.float16)
+    contr = x * np.log(p, where=x.astype(bool)) + r * np.log(1-p)
 
     out = xr.DataArray(contr,
                        coords={'cell_id': da_p.cell_id.values,
@@ -212,6 +154,7 @@ def negBinLoglik(da_x, r, da_p):
                        )
 
     return out
+
 
 
 def _negBinLoglik(x, r, p):
