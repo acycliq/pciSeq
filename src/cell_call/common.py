@@ -11,8 +11,8 @@ logger = logging.getLogger()
 
 
 def expected_gamma(cells, spots, ds, ini):
-    scaled_mean = cells.ds.area_factor.to_xarray() * ds.mean_expression
-    rho = ini['rSpot'] + cells.geneCount(spots)
+    scaled_mean = cells.ds.area_factor.to_xarray().astype(np.float16) * ds.mean_expression.astype(np.float16)
+    rho = ini['rSpot'] + cells.geneCount(spots).astype(np.float16)
     beta = ini['rSpot'] + scaled_mean
 
     expected_gamma = utils.gammaExpectation(rho, beta)
@@ -36,7 +36,7 @@ def celltype_assignment(cells, spots, prior, ds, cfg):
     '''
 
     gene_gamma = spots.gene_panel.gene_gamma
-    ScaledExp = cells.ds.area_factor.to_xarray() * gene_gamma.to_xarray() * ds.mean_expression + cfg['SpotReg']
+    ScaledExp = cells.ds.area_factor.to_xarray().astype(np.float16) * gene_gamma.to_xarray().astype(np.float16) * ds.mean_expression.astype(np.float16) + cfg['SpotReg']
     pNegBin = ScaledExp / (cfg['rSpot'] + ScaledExp)
     # contr = utils.nb_negBinLoglik(CellGeneCount[:,:,None], ini['rSpot'], pNegBin)
     cgc = cells.geneCount(spots)
