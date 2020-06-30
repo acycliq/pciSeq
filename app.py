@@ -13,7 +13,7 @@ logging.basicConfig(
 )
 
 if __name__ == "__main__":
-    case = 'MOUSE_FULL_CORONAL'  # 'MOUSE' or 'HUMAN'
+    case = 'DAVID'  # 'MOUSE' or 'HUMAN'
 
     my_config = getattr(config, case)
     out_dir = os.path.join(config.ROOT_DIR, 'data', 'cell_call_demo_data',  case, 'cell_type_output')
