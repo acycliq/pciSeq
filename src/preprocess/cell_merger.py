@@ -41,15 +41,38 @@ def get_dir(my_config, fov_id):
     return os.path.join(root_dir, 'fov_' + str(fov_id))
 
 
-def _get_connected_labels(labels):
-    connected_labels = []
-    label_set = set(labels)
-    for label in list(label_set):
-        temp = [i for i, j in enumerate(labels) if j == label]
-        if len(temp) > 1:
-            connected_labels.append(np.array(temp))
+# def _get_connected_labels(labels):
+#     connected_labels = []
+#     label_set = set(labels)
+#     for label in list(label_set):
+#         temp = [i for i, j in enumerate(labels) if j == label]
+#         if len(temp) > 1:
+#             connected_labels.append(np.array(temp))
+#     return np.array(connected_labels)
+#
+#
+# def _get_connected_labels_fast(labels):
+#     positions = {}
+#     for index, label in enumerate(labels):
+#         positions.setdefault(label, []).append(index)
+#     return np.array([np.array(indices) for indices in positions.values() if len(indices) > 1])
 
-    return np.array(connected_labels)
+
+def _get_connected_labels(mylist):
+    '''
+    find which positions in the input list have repeated values
+    Example:
+     If mylist = [0, 4, 4] then it returns [1, 2] because 4 appears twice, at positions 1 and 2 of the input list
+     if mylist = [0,1,2,1,3,4,2,2] then it returns [[1, 3], [2, 6, 7]]
+    :param mylist:
+    :return:
+    '''
+    output = defaultdict(list)
+    # Loop once over mylist, store the indices of all unique elements
+    for i, el in enumerate(mylist):
+        output[el].append(i)
+    return np.array([np.array(d) for d in output.values() if len(d) > 1])
+
 
 
 def load_spots(fov_id, scaling_factor, my_dir):
@@ -94,7 +117,7 @@ class Stage(object):
     def __init__(self, fovs_obj, cellmaps):
         self._fovs_obj = fovs_obj
         self.my_counter = itertools.count()
-        self.merge_register = {}
+        self.merge_register = defaultdict(list) # keeps the new created labels (as keys) and the fovs where these labels appear (as values)
         self.cell_props = None
         self.spots = None
         self.cellmaps = cellmaps
@@ -252,7 +275,8 @@ class Stage(object):
         # _len = np.diff(np.array(fov['fov_range']['x'])) * fov['fov_scaling_factor']
         # _height = np.diff(np.array(fov['fov_range']['y'])) * fov['fov_scaling_factor']
 
-        coo_shape = self.fov_shape + 1
+        # coo_shape = self.fov_shape + 1
+        coo_shape = np.array(fov['label_image'].shape) + 1
         coo = coo_matrix((spots.index.values, (y, x)), shape=coo_shape)
         # Why the +1? starfish includes the boundaries,
         # hence the extra pixel. That sounds like a bug maybe? a tile of size 2000-by-2000 should have a range
@@ -408,24 +432,26 @@ class Stage(object):
         adjc_border = arr[:, -1]
         border = img.toarray()[:, 0]
 
-        dlist = self.connect_labels(adjc_border, border)
+        logger.info('length of adjc_border: %d' % adjc_border.shape[0])
+        logger.info('length of adjc_border: %d' % border.shape[0])
+        matched_labels = self.connect_labels(adjc_border, border)
         temp_a = self.fovs[adjc_fov['fov_id']]['label_image'].copy()
         temp_b = self.fovs[fov['fov_id']]['label_image'].copy()
 
         # maxab = max(temp_a.data.max(), temp_b.data.max())
         # my_list = list(range(maxab, maxab + len(border)))
-        for d in dlist:
+        for d in matched_labels:
             new_label = self._new_label(d)
             for x in d['a']:
                 temp_a.data[temp_a.data == x] = new_label
-                self.update_register(adjc_fov['fov_id'], new_label)
-                logger.info('fov_%d: label %d ---> label %d' % (adjc_fov['fov_id'], x, new_label))
+                self.update_register(adjc_fov['fov_id'], new_label, x)
+                # logger.info('fov_%d: label %d ---> label %d' % (adjc_fov['fov_id'], x, new_label))
                 # sleep(0.1)
 
             for x in d['b']:
                 temp_b.data[temp_b.data == x] = new_label
-                self.update_register(fov['fov_id'], new_label)
-                logger.info('fov_%d: label %d ---> label %d' % (fov['fov_id'], x, new_label))
+                self.update_register(fov['fov_id'], new_label, x)
+                # logger.info('fov_%d: label %d ---> label %d' % (fov['fov_id'], x, new_label))
                 # sleep(0.1)
 
         # print('fov_id: (%d, %d), %s' % (adjc_fov['fov_id'], fov['fov_id'], dlist))
@@ -454,6 +480,17 @@ class Stage(object):
 
     def connect_labels(self, par_a, par_b):
         '''
+        compares two list-like input objects of the same size and returns the elements in ''par_a''
+        and ''par_b'' which are non-zero and have the same index position in both inputs
+        Example connect_labels([0,0,0,2,2,2,4,7], [0,2,2,2,2,2,2,9]) returns
+            [
+                {'a': [2, 4], 'b': [2]},
+                {'a': [7],    'b': [9]}
+             ]
+        which means that from the first arg the values 2 and 4 meet (have the same position in the array)
+        with the value of 2 from the second arg.
+        Also value 7 from the first arg has the same position with value 9 in the second arg. They are the
+        last elements in both lists
         :param a: list
         :param b: list
         :return:
@@ -461,7 +498,7 @@ class Stage(object):
 
         assert len(par_a) == len(par_b), "inputs to the function should have the same length"
 
-        a, b, rmap_a, rmap_b = self._shift_labels(par_a, par_b)
+        a, b, lookup_label_a, lookup_label_b = self._shift_labels(par_a, par_b)
         assert len(a) == len(b), "a and b do not have the same length"
         assert len(a) == len(par_a)
         assert len(b) == len(par_b)
@@ -490,8 +527,8 @@ class Stage(object):
             _aa = []
             _bb = []
             for _list in connected_labels:
-                _a = [rmap_a[d] for d in _list if d in a]
-                _b = [rmap_b[d] for d in _list if d in b]
+                _a = [lookup_label_a[d] for d in _list if d in a]
+                _b = [lookup_label_b[d] for d in _list if d in b]
 
                 connected_dict.append({'a': _a, 'b': _b})
         else:
@@ -504,8 +541,16 @@ class Stage(object):
     def _shift_labels(self, a, b):
         # New labels must be negative
         #
-        # Shifts both a and b so that they are both positive
+        # Shifts the non-zero elements of a and b so that both lists a and b have values >= 0
         # then shifts a only if a and b have common elements so that they do not intersect
+        # example: _shift_labels([2,1], [20,10]) gives:
+        #           (array([2, 1]), array([20, 10]), {2: 2, 1: 1}, {20: 20, 10: 10})
+        # nothing really changes since the input data are well formed, hence no shift of any kind has to be taken
+        # For _shift_labels([-2,-1], [2,1]) then the output is
+        #           (array([1, 2]), array([5, 4]), {1: -2, 2: -1}, {5: 2, 4: 1})
+        # because [-2, -1] has be be shifted by 3 to become positive: [1, 2]. The same shift is also applied
+        # to the second list, [2, 1], which becomes [5, 4]
+        #
         a = np.array(a)
         b = np.array(b)
 
@@ -561,8 +606,7 @@ class Stage(object):
         props_df = pd.DataFrame(props_arr, columns=['label', 'fov_id', 'area', 'x_local', 'y_local'])
 
         # stick the df to the dict
-        fov[
-            'image_objects'] = props_df  # <--- Not sure If I should do this or just return the df and add the dictionary filed at the calliing function
+        fov['image_objects'] = props_df  # <--- Not sure If I should do this or just return the df and add the dictionary filed at the calliing function
         return fov
 
     def global_labels_par(self):
@@ -592,6 +636,13 @@ class Stage(object):
             labels = np.unique(data[data > 0])
             label_map = {d: self.label_generator() for d in labels}
             fov['label_image'].data = np.array([label_map[d] if d > 0 else d for d in data])
+            logger.info('fov: %d: label map is: %s' % (fov['fov_id'], label_map))
+
+            clipped_cell_labels = {k: v for k, v in self.merge_register.items() if fov['fov_id'] in v}.keys()
+            assert np.all([d in fov['label_image'].data for d in clipped_cell_labels]), \
+                "A label that the cell register says should exist in the fov %d doesnt seem to be verified by the label_image" % \
+                fov['fov_id']
+
             fov['label_image'].data = -1 * fov['label_image'].data
             if np.any(fov['label_image'].data):
                 logger.info('fov:%d, Global labels are set.' % fov['fov_id'])
@@ -603,11 +654,21 @@ class Stage(object):
         # finally flip the sign on the dict
         self.flip_sign()
 
+
     def global_labels_helper(self, fov):
+        logger.info('fod_id is: %d' % fov['fov_id'])
         data = fov['label_image'].data
         labels = np.unique(data[data > 0])
         label_map = {d: self.label_generator() for d in labels}
         fov['label_image'].data = np.array([label_map[d] if d > 0 else d for d in data])
+
+        # Sanity check. merge register keeps the cells that are clipped, the cells that span over more than a single fov
+        # Get the labels from the merge register for this particular fov
+        clipped_cell_labels = {k: v for k, v in self.merge_register.items() if fov['fov_id'] in v}.keys()
+        assert np.all([d in fov['label_image'].data for d in clipped_cell_labels]), \
+            "A label that the cell register says should exist in the fov %d doesnt seem to be verified by the label_image" % fov['fov_id']
+
+        # Flip now the sign of the labels
         fov['label_image'].data = -1 * fov['label_image'].data
         if np.any(fov['label_image'].data):
             logger.info('fov:%d, Global labels are set.' % fov['fov_id'])
@@ -615,6 +676,7 @@ class Stage(object):
             logger.info('fov:%d empty, nothing to do here' % fov['fov_id'])
 
         self.image_objects(fov)
+
         return True
 
     def flip_sign(self):
@@ -635,13 +697,28 @@ class Stage(object):
         else:
             logger.info('Merge register empty')
 
-    def update_register(self, fov_id, label):
+    def update_register(self, fov_id, label, old_label):
+        self.merge_register[label].append(fov_id)
+        self.merge_register[label] = sorted(list(set(self.merge_register[label])))
+
+        logger.info('fov_%d: label %d ---> label %d' % (fov_id, old_label, label))
+        if (old_label != label) and (old_label < 0):
+            self.replace_label(old_label, label)
+
+
+    def replace_label(self, old_label, label):
+        # replace the register
         _dict = self.merge_register
-        if label in _dict.keys():
-            if fov_id not in _dict[label]:
-                _dict[label].append(fov_id)
-        else:
-            _dict[label] = [fov_id]
+        for fov in _dict[old_label]:
+            if fov not in _dict[label]:
+                _dict[label].append(fov)
+            mask = self.fovs[fov]['label_image'].data == old_label
+            self.fovs[fov]['label_image'].data[mask] = label
+            logger.info('fov: %d: replaced labels in "label_image" that were equal to %d with %d' % (fov, old_label, label))
+
+        logger.info('Dropped key, value pair: (%d, %s) from the merge_register' % (old_label, _dict[old_label]))
+        _dict.pop(old_label)
+
 
     def _padded(self, data):
         dims = max([d.shape for d in data])
@@ -685,14 +762,19 @@ class Stage(object):
             else:
                 label_image = None  # you shouldnt get here. Since we merge cells we need at least two fovs
 
+            # sanity check
+            coo_mat = set(coo_matrix(label_image).data)
+            assert np.all([label in coo_mat for label in labels]), 'a label that should exist in the collated label_image seem to be missing'
+
             props = skmeas.regionprops(label_image.astype(np.int32))
-            ps = list(filter(lambda d: d.label in labels, props))
-            for i, p in enumerate(ps):
+            clipped_cells = list(filter(lambda d: d.label in labels, props))
+            # unclipped_cells = list(filter(lambda d: d.label not in labels, props))
+            for i, p in enumerate(clipped_cells):
                 centroid_fov_id, centroid_coords = self.locate_fov(p.centroid, fov_ids)
 
                 logger.info('label %d spans across fov_ids %s' % (p.label, fov_ids))
-                if (p.label == 1450):
-                    stop_here = 1
+                # if (p.label == 1450):
+                #     stop_here = 1
                 # logger.info('label %d centroid is (x,y): %s, area: %4.2f' % (p.label, p.centroid[::-1], p.area))
                 # logger.info('label %d centroid local coords are (x, y): %s ' % (p.label, centroid_coords[::-1]))
                 # logger.info('label %d centroid falls within the fov with id: %d' % (p.label, centroid_fov_id))
@@ -753,16 +835,22 @@ class Stage(object):
         dup_vals = list(set(img_obj[img_obj.duplicated('label')].label.values))
         # np.setdiff1d(np.array(self.cell_props['label']), dup_vals) # <--  WHY I HAVE THAT?
 
-        non_merged = img_obj.drop_duplicates('label', keep=False)
+        unclipped_labels = list(set(img_obj.label.values) - set(merged_props_dict['label']))
+        unclipped_cells = img_obj.iloc[np.isin(img_obj.label.values, unclipped_labels), :]
+
+        # sanity check. Cannot have duplicate labels. If a label is duplicate then the cell is clipped, hence it should have been captured by
+        # 'merged_props_dict'
+        assert unclipped_cells[unclipped_cells.duplicated('label')].empty, "Dataframe 'unclipped_img_obj' contains dublicate labels."
+
+        # unclipped_cells = img_obj.drop_duplicates('label', keep=False)
         merged = pd.DataFrame(merged_props_dict)
 
-        df_1 = non_merged.merge(pd.DataFrame(self.fovs)[['fov_id', 'fov_offset_x', 'fov_offset_y']], how='left',
-                                on='fov_id')
-        df_2 = merged.merge(pd.DataFrame(self.fovs)[['fov_id', 'fov_offset_x', 'fov_offset_y']], how='left',
-                            on='fov_id')
+        df_1 = unclipped_cells.merge(pd.DataFrame(self.fovs)[['fov_id', 'fov_offset_x', 'fov_offset_y']], how='left', on='fov_id')
+        df_1['is_clipped'] = False
+        df_2 = merged.merge(pd.DataFrame(self.fovs)[['fov_id', 'fov_offset_x', 'fov_offset_y']], how='left', on='fov_id')
+        df_2['is_clipped'] = True
 
-        cell_props = pd.concat([df_1.reset_index(drop=True), df_2.reset_index(drop=True)], axis=0).reset_index(
-            drop=True)
+        cell_props = pd.concat([df_1.reset_index(drop=True), df_2.reset_index(drop=True)], axis=0).reset_index(drop=True)
         cell_props['x'] = cell_props.x_local + cell_props.fov_offset_x
         cell_props['y'] = cell_props.y_local + cell_props.fov_offset_y
 
@@ -794,7 +882,7 @@ class Stage(object):
         # The array cell_props is the correct place for such lookups.
 
         # Find now the outline of the cells
-        _cell_boundaries = self.cell_boundaries()
+        _cell_boundaries = self.cell_boundaries(cell_props)
         out = cell_props.merge(_cell_boundaries, how='left', on=['label'])
 
         return out
@@ -953,7 +1041,7 @@ class Stage(object):
         #     df = df[['x_global', 'y_global', 'fov_id', 'gene_id', 'label', 'target', 'x_cell', 'y_cell']]
         #     df.to_csv(full_path, index=False)
 
-    def cell_boundaries(self):
+    def cell_boundaries(self, cell_props):
         '''
         calculate the outlines of the cells
         :return:
@@ -962,17 +1050,21 @@ class Stage(object):
         # loop over the self.cell_props
         res_list = []
         for fov in self.fovs:
-            df = self._obj_outline(fov)
-            res_list.append(df)
-            # # label_image = fov['label_image']
+            if np.any(fov['label_image'].data):
+                df = self._obj_outline(fov, cell_props)
+                res_list.append(df)
+            else:
+                logger.info('fov:%d empty, No cells to draw boundaries were found' % fov['fov_id'])
+                # # label_image = fov['label_image']
         _df = pd.concat(res_list).astype({"label": int})
 
         # check if the cell spans across more than one fov
-        dict_keys = np.array(list(self.merge_register.keys()))
-        idx = self.my_remap(_df.label.values, dict_keys).mask
-        df_1 = _df[idx]  # <--- Dataframe the keeps boundaries of the cells which are not clipped by the fov
-        temp = _df[~idx]
-        in_multiple_fovs = sorted(list(set(temp.label.values)))
+        # dict_keys = np.array(list(self.merge_register.keys()))
+        # idx = self.my_remap(_df.label.values, dict_keys).mask
+        # df_1 = _df[idx]  # <--- Dataframe the keeps boundaries of the cells which are not clipped by the fov
+        df_1 = _df.iloc[np.isin(_df.label, cell_props[~cell_props.is_clipped].label)]  # <--- Dataframe the keeps boundaries of the cells which are not clipped by the fov
+
+        in_multiple_fovs = sorted(cell_props[cell_props.is_clipped].label.values)
         logger.info('There are %d cells whose boundaries span across multiple fovs' % len(in_multiple_fovs))
         # _list = []
         # logger.info('Single Thread starts')
@@ -1003,8 +1095,18 @@ class Stage(object):
         res['coords'] = _coords
         logger.info('Coords sorted counter clockwise')
 
-        assert set(_df.label.values) == set(res.label.values)
+        set_diff = set(cell_props.label) - set(res.label.values)
+        if set_diff:
+            unresolved_labels = pd.DataFrame({'label': list(set_diff), 'coords': np.nan * np.ones(len(set_diff))});
+            res = pd.concat([res, unresolved_labels])
+
+
+        # assert set(_df.label.values) == set(res.label.values)
+        assert res.shape[0] == cell_props.shape[0]
+        assert np.all(sorted(res.label) == sorted(cell_props.label))
+        assert np.unique(res.label).size == res.shape[0], 'Array cannot have duplicates'
         return res.sort_values(['label'], ascending=[True])
+
 
     def collate_borders_par(self, in_multiple_fovs):
         n = max(1, cpu_count() - 1)
@@ -1030,19 +1132,55 @@ class Stage(object):
         offset_y = min([self.fovs[d]['fov_offset_y'] for d in fov_ids])
         return offset_x, offset_y
 
-    def _obj_outline(self, fov):
+    def _obj_outline(self, fov, cell_props):
         label_image = fov['label_image'].toarray()
         offset_x = fov['fov_offset_x']
         offset_y = fov['fov_offset_y']
         df = self._obj_outline_helper(label_image.copy(), offset_x, offset_y)
 
-        if np.any(fov['label_image'].data):
-            set_diff = set(fov['label_image'].data) - set(df.label.values)
-            if set_diff:
-                logger.info('Couldnt derive the boundaries for cells with label: %s' % list(set_diff))
+        # Filter now the df and keep only the labels that also exist in cell_props for that fov and are
+        # not clipped.
+        # Also, If a label exists in cell_props (filtered as now explained) and not in df then raise
+        # a warning that the cell has not outline
+        mask = (cell_props.fov_id == fov['fov_id']) & (~cell_props.is_clipped)
+        cell_props_masked = cell_props[mask]
+        df_masked = df.iloc[np.isin(df.label, cell_props_masked.label)]
+
+        set_diff = set(cell_props_masked.label.values) - set(df_masked.label)
+        loop_depth = 3
+        df_list = []
+        df_list.append(df)
+
+        recurse_depth = 1
+        while (set_diff and recurse_depth < 5):
+            logger.info('Doing another pass because these nested cells were found %s', set_diff)
+            logger.info('Pass Num: %d' % recurse_depth)
+            df_2 = self._obj_outline_helper(label_image.copy(), offset_x, offset_y, set_diff)
+            df_list.append(df_2)
+            df = pd.concat(df_list).astype({"label": int})
+            df_masked = df.iloc[np.isin(df.label, cell_props_masked.label)]
+            set_diff = set(cell_props_masked.label.values) - set(df_masked.label)
+            recurse_depth = recurse_depth + 1
+
+
+        if set_diff:
+            logger.info('Couldnt derive the boundaries for cells with label: %s' % list(set_diff))
+
         return df
 
-    def _obj_outline_helper(self, label_image, offset_x, offset_y):
+
+        # if np.any(fov['label_image'].data):
+        #     set_diff = set(fov['label_image'].data) - set(df.label.values)
+        #     if set_diff:
+        #         logger.info('Couldnt derive the boundaries for cells with label: %s' % list(set_diff))
+
+
+
+
+    def _obj_outline_helper(self, label_image, offset_x, offset_y, keep_list=None):
+        if keep_list:
+            for label in set(label_image.flatten()) - set(keep_list):
+                label_image[label_image == label] = 0
         mask = ndimage.binary_erosion(label_image)
         label_image[mask] = 0
         c = coo_matrix(label_image)
@@ -1056,8 +1194,8 @@ class Stage(object):
         else:
             logger.info('array empty')
             my_df = pd.DataFrame()
-
         return my_df
+
 
     def poly_vertices(self, my_list):
         '''
@@ -1129,6 +1267,6 @@ if __name__ == "__main__":
     stage.spots = pd.concat(res_list).astype({"label": int})
 
     # Save now the data on the filesystem
-    stage.writer()
+    # stage.writer()
 
     print('Done!')
