@@ -226,7 +226,7 @@ class Stage(object):
 
             if np.any(df.index.duplicated()):
                 logger.warning('Found %d duplicated. Investigate!' % df.index.duplicated().sum())
-                assert 1 == 2
+                ## that actually means that the same spot (ie read/dot) exists at two different locations at the same time
 
             df = df[~df.index.duplicated()]
             spots['label'] = df.label
