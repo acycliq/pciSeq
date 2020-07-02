@@ -71,7 +71,7 @@ DAVID = {
     'max_iter': 100,
 
     # Inputs to the cell calling algorithm
-    'scRNAseq': os.path.join(ROOT_DIR, 'data', 'cell_call_demo_data', 'mouse_full_coronal', 'cell_type_input', 'scRNAseq.csv.gz'),
+    'scRNAseq': os.path.join(ROOT_DIR, 'data', 'cell_call_demo_data', 'David', 'scRNAseq.csv.gz'),
     'saFile': os.path.join(ROOT_DIR, 'data', 'cell_call_demo_data', 'David', 'spots.csv'),  # Spot attributes, contains x,y coordinates for the spots and their gene names
     'expanded_cells':  os.path.join(ROOT_DIR, 'data', 'cell_call_demo_data', 'David', 'cells.csv'),
     'exclude_genes': [], # Write here the genes you want to exclude from the cell calling algorithm

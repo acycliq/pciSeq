@@ -1,4 +1,7 @@
 function drawPoly(color, alpha, project, mycontainer) {
+    if(isNaN(color)){
+        console.log('Oh!')
+    }
     // mycontainer is now an empty pixiraphics object, it has only a name, the shortnened cell type name.
     return function (poly) {
         var shape = new PIXI.Polygon(poly[0].map(function (point) {
