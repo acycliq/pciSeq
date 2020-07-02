@@ -350,8 +350,57 @@ function dapi(cfg) {
     };
 
 
+    function tree(data) {
+        // makes the tree object to pass into the tree control as an overlay
+        var mapper = {},
+            root = {
+                label: 'Cell Classes',
+                selectAllCheckbox: 'Un/select all',
+                children: []
+            }
+
+        for (var str of data) {
+            let splits = str.split('.'),
+                label = '';
+
+            splits.reduce(myReducer(label), root)
+        }
+
+        function myReducer(label) {
+            return function (parent, place, i, arr) {
+                if (label)
+                    label += `.${place}`;
+                else
+                    label = place;
+
+                if (!mapper[label]) {
+                    var o = {label: label};
+                    o.collapsed = true;
+                    if (i === arr.length - 1) {
+                        o.layer = cellContainer_array.filter(d=> d.name === label)[0]
+                        // o.layer = masterCellContainer.getChildByName(label);
+                    }
+                    mapper[label] = o;
+                    parent.selectAllCheckbox = true;
+                    parent.children = parent.children || [];
+                    parent.children.push(o)
+                }
+                return mapper[label];
+            }
+        }
+
+        return root
+    }
+
+
+     function treeControl(data) {
+        return L.control.layers.tree({}, tree(data), {position:'topright'});
+     }
+
+
+
     // add the customised control
-    customControl = L.control.custom().addTo(map);
+    // customControl = L.control.custom().addTo(map);
 
     var dapiData = {};
     dapiData.map = map;
@@ -370,7 +419,8 @@ function dapi(cfg) {
     dapiData.toggleMapControl = toggleMapControl;
     dapiData.createDiv = createDiv;
     dapiData.datatable = datatable;
-    dapiData.customControl = customControl;
+    // dapiData.customControl = customControl;
+    dapiData.treeControl = treeControl;
     return dapiData
 }
 
@@ -401,10 +451,29 @@ function dapiChart(config) {
     $('#hideDapiAndPanels').show();
     console.log('check boxes added');
 
+    cellClasses = [...new Set(cellData.map(d => d.topClass))].sort();
+    cellClasses.forEach((d, i) => {
+        // make some pixiGraphics (aka containers) objects to hold the cell polygons and name them based on their short names
+        // these are just empty right now, they only have a name
+        var c = new PIXI.Graphics();
+        c.name = d;
+        c.options = [];
+        c.options.minZoom = 0;  // Needed only to fool the layer tree control and prevent an error from being raised
+        c.options.maxZoom = 10; // Needed only to fool the layer tree control and prevent an error from being raised
+        cellContainer_array.push(c)
+    });
+
+    // that needs to be created before we do the cell polygons (Should do that in a better way, maybe inside drawCellPolugons?)
+    // Add the control to switch on/off the cell polygons per class
+    myTreeControl = dapiConfig.treeControl(cellClasses);
+    myTreeControl.addTo(map);
+    myTreeControl._checkAll();
+
     // 1. draw the cell polygons
     cellPolyLayer = drawCellPolygons();
     cellPolyLayer.addTo(map);
     console.log('cellPolyLayer added to the map');
+
 
     // draw the spots
     // add_spots(all_geneData, map);
@@ -512,4 +581,6 @@ function dapiChart(config) {
     $('.leaflet-bottom.leaflet-left').hide();
     $('.leaflet-bottom.leaflet-right').hide();
     $('.panelsToggle').hide()
+
+
 }
