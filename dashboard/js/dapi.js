@@ -360,7 +360,7 @@ function dapi(cfg) {
             }
 
         for (var str of data) {
-            let splits = str.split('.'),
+            let splits = str.match(/[a-zA-Z]+|[0-9]+/g), //str.split('.'),
                 label = '';
 
             splits.reduce(myReducer(label), root)
@@ -369,7 +369,7 @@ function dapi(cfg) {
         function myReducer(label) {
             return function (parent, place, i, arr) {
                 if (label)
-                    label += `.${place}`;
+                    label +=  `${place}`;// `.${place}`;
                 else
                     label = place;
 
