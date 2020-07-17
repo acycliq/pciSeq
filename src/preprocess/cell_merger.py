@@ -1005,11 +1005,11 @@ class Stage(object):
         cell_props['label'] = cell_props.label.fillna(-1).astype(int).astype('str').replace('-1', np.nan)
 
         cells_headers = ['cell_id', 'label', 'fov_id', 'area', 'x', 'y']
-        cell_props[cells_headers].to_csv('expanded_cells_david.csv', index=False)
+        cell_props[cells_headers].to_csv('expanded_cells_david_2.csv', index=False)
 
         # 2. save the cell coords
         coords_headers = ['cell_id', 'label', 'coords']
-        cell_props[coords_headers].to_json('cell_coords_david.json', orient='records')
+        cell_props[coords_headers].to_json('cell_coords_david_2.json', orient='records')
 
         # 3. save the spots
         spots_df = self.spots.copy()
@@ -1021,7 +1021,7 @@ class Stage(object):
         spots_df['y_cell'] = spots_df.y_cell.fillna(-1).astype(int).astype('str').replace('-1', np.nan)
 
         spots_headers = ['x_global', 'y_global', 'fov_id', 'label', 'target', 'x_cell', 'y_cell']
-        spots_df[spots_headers].to_csv('spots_david.csv', index=False)
+        spots_df[spots_headers].to_csv('spots_david_2.csv', index=False)
         logger.info('Total number of collected spots: %d' % spots_df.shape[0])
 
         # # 3b. Save now the spots seperately for each fov
@@ -1051,7 +1051,8 @@ class Stage(object):
         res_list = []
         for fov in self.fovs:
             if np.any(fov['label_image'].data):
-                df = self._obj_outline(fov, cell_props)
+                # df = self._obj_outline(fov, cell_props)
+                df = self._obj_outline_fix(fov, cell_props)
                 res_list.append(df)
             else:
                 logger.info('fov:%d empty, No cells to draw boundaries were found' % fov['fov_id'])
@@ -1152,7 +1153,7 @@ class Stage(object):
         df_list.append(df)
 
         recurse_depth = 1
-        while (set_diff and recurse_depth < 5):
+        while (set_diff and recurse_depth < 10):
             logger.info('Doing another pass because these nested cells were found %s', set_diff)
             logger.info('Pass Num: %d' % recurse_depth)
             df_2 = self._obj_outline_helper(label_image.copy(), offset_x, offset_y, set_diff)
@@ -1173,6 +1174,40 @@ class Stage(object):
         #     set_diff = set(fov['label_image'].data) - set(df.label.values)
         #     if set_diff:
         #         logger.info('Couldnt derive the boundaries for cells with label: %s' % list(set_diff))
+
+    def _obj_outline_fix(self, fov, cell_props):
+        logger.info('Getting cell boundaries for cells in fov: %d' % fov['fov_id'])
+        label_image = fov['label_image'].toarray()
+        offset_x = fov['fov_offset_x']
+        offset_y = fov['fov_offset_y']
+        clipped_cells = cell_props[cell_props.is_clipped].label.values
+        res_list = []
+        coo = coo_matrix(label_image)
+        labels = np.unique(coo.data)
+        for label in sorted(set(labels) - set(clipped_cells)):
+            # print('label: %d' % label)
+            c = coo.copy()
+            c.data[c.data != label] = 0
+            c = c.toarray()
+            mask = ndimage.binary_erosion(c)
+            c[mask] = 0
+            c = coo_matrix(c)
+
+            c_col = c.col.astype(int) + int(offset_x)
+            c_row = c.row.astype(int) + int(offset_y)
+            if c.data.size > 0:
+                df = pd.DataFrame({'coords': list(zip(c_col, c_row)), 'label': c.data})
+                df = df.groupby('label')['coords'].apply(lambda group_series: group_series.tolist()).reset_index()
+                df = df.astype({"label": int})
+            else:
+                df = pd.DataFrame()
+            res_list.append(df)
+
+        if res_list:
+            out = pd.concat(res_list).astype({"label": int})
+        else:
+            out = pd.DataFrame()
+        return out
 
 
 
