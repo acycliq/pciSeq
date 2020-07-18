@@ -1051,8 +1051,8 @@ class Stage(object):
         res_list = []
         for fov in self.fovs:
             if np.any(fov['label_image'].data):
-                # df = self._obj_outline(fov, cell_props)
-                df = self._obj_outline_fix(fov, cell_props)
+                # df = self._obj_outline(fov, cell_props)    # some borders are derived properly? Need to find out why
+                df = self._obj_outline_fix(fov, cell_props)  # works well but is it painfully slow!
                 res_list.append(df)
             else:
                 logger.info('fov:%d empty, No cells to draw boundaries were found' % fov['fov_id'])
