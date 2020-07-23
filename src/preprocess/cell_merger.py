@@ -965,58 +965,30 @@ class Stage(object):
         res_list = []
         for fov in self.fovs:
             if np.any(fov['label_image'].data):
-                # df = self._obj_outline(fov, cell_props)    # some borders are derived properly? Need to find out why
-                # df = self._obj_outline_fix(fov, cell_props)  # works well but is it painfully slow! AVOID BY ALL MEANS UNLESS YOU WANNA LEAVE IT RUNNING OVERNIGHT
-                df = self._obj_outline_aotherfix(fov, cell_props)
+                df = self.obj_outline(fov, cell_props)
                 res_list.append(df)
             else:
                 logger.info('fov:%d empty, No cells to draw boundaries were found' % fov['fov_id'])
-                # # label_image = fov['label_image']
         _df = pd.concat(res_list).astype({"label": int})
 
-        # check if the cell spans across more than one fov
-        # dict_keys = np.array(list(self.merge_register.keys()))
-        # idx = self.my_remap(_df.label.values, dict_keys).mask
-        # df_1 = _df[idx]  # <--- Dataframe the keeps boundaries of the cells which are not clipped by the fov
-        df_1 = _df.iloc[np.isin(_df.label, cell_props[~cell_props.is_clipped].label)]  # <--- Dataframe the keeps boundaries of the cells which are not clipped by the fov
+        # make a Dataframe to keep boundaries of the cells which are not clipped by the fov
+        df_1 = _df.iloc[np.isin(_df.label, cell_props[~cell_props.is_clipped].label)]
 
+        # get the labels of the clipped cells
         in_multiple_fovs = sorted(cell_props[cell_props.is_clipped].label.values)
         logger.info('There are %d cells whose boundaries span across multiple fovs' % len(in_multiple_fovs))
-        # _list = []
-        # logger.info('Single Thread starts')
-        # for label in in_multiple_fovs:
-        #     logger.info('label: %d. Finding the cell boundaries' % label)
-        #     _d = self.merge_register
-        #     label_image = self.collate_arrays(_d[label])
-        #     offset_x, offset_y = self.find_offset(_d[label])
-        #     out = self._obj_outline_helper(label_image, offset_x, offset_y)
-        #     # keep only the outline relevant to the label that spans across several fovs
-        #     out = out[out.label == label]
-        #     _list.append(out)
-        # df_2 = pd.concat(_list).astype({"label": int})
-        # logger.info('Single Thread ends')
-        # logger.info('Multi Thread starts')
+
+        # find the boundaries of the clipped cells
         _list = self.collate_borders_par(in_multiple_fovs)
         df_2 = pd.DataFrame(_list).astype({"label": int})
-        # logger.info('Multi Thread ends')
-        res = pd.concat([df_1, df_2])
 
-        # 21-07-2020 contours calc'd from findContours are already ccw and without redundant points
-        # # sort now the coords countrerclockwise
-        # _coords = res.coords.map(self.sort_ccw)
-        #
-        # # remove now redundant coordinates
-        # _coords = _coords.map(self.poly_vertices)
-        #
-        # # replace now the coords column with the clean one
-        # res['coords'] = _coords
-        # logger.info('Coords sorted counter clockwise')
+        # Both clipped and unclipped in on dataframe
+        res = pd.concat([df_1, df_2])
 
         set_diff = set(cell_props.label) - set(res.label.values)
         if set_diff:
             unresolved_labels = pd.DataFrame({'label': list(set_diff), 'coords': np.nan * np.ones(len(set_diff))});
             res = pd.concat([res, unresolved_labels])
-
 
         # assert set(_df.label.values) == set(res.label.values)
         assert res.shape[0] == cell_props.shape[0]
@@ -1038,10 +1010,6 @@ class Stage(object):
         logger.info('label: %d. Finding the cell boundaries' % label)
         label_image = self.collate_arrays(self.merge_register[label])
         offset_x, offset_y = self.find_offset(self.merge_register[label])
-        # out = self._obj_outline_helper(label_image, offset_x, offset_y)
-        # # out = extract_borders(label_image, offset_x, offset_y, set())
-        # # keep only the outline relevant to the label that spans across several fovs
-        # out = out[out.label == label]
         out['coords'] = get_label_contours(label_image, label, offset_x, offset_y)
         out['label'] = label
         return out
@@ -1053,84 +1021,44 @@ class Stage(object):
         offset_y = min([self.fovs[d]['fov_offset_y'] for d in fov_ids])
         return offset_x, offset_y
 
-    def _obj_outline(self, fov, cell_props):
-        label_image = fov['label_image'].toarray()
-        offset_x = fov['fov_offset_x']
-        offset_y = fov['fov_offset_y']
-        df = self._obj_outline_helper(label_image.copy(), offset_x, offset_y)
-
-        # Filter now the df and keep only the labels that also exist in cell_props for that fov and are
-        # not clipped.
-        # Also, If a label exists in cell_props (filtered as now explained) and not in df then raise
-        # a warning that the cell has not outline
-        mask = (cell_props.fov_id == fov['fov_id']) & (~cell_props.is_clipped)
-        cell_props_masked = cell_props[mask]
-        df_masked = df.iloc[np.isin(df.label, cell_props_masked.label)]
-
-        set_diff = set(cell_props_masked.label.values) - set(df_masked.label)
-        loop_depth = 3
-        df_list = []
-        df_list.append(df)
-
-        recurse_depth = 1
-        while (set_diff and recurse_depth < 10):
-            logger.info('Doing another pass because these nested cells were found %s', set_diff)
-            logger.info('Pass Num: %d' % recurse_depth)
-            df_2 = self._obj_outline_helper(label_image.copy(), offset_x, offset_y, set_diff)
-            df_list.append(df_2)
-            df = pd.concat(df_list).astype({"label": int})
-            df_masked = df.iloc[np.isin(df.label, cell_props_masked.label)]
-            set_diff = set(cell_props_masked.label.values) - set(df_masked.label)
-            recurse_depth = recurse_depth + 1
-
-
-        if set_diff:
-            logger.info('Couldnt derive the boundaries for cells with label: %s' % list(set_diff))
-
-        return df
-
-
-        # if np.any(fov['label_image'].data):
-        #     set_diff = set(fov['label_image'].data) - set(df.label.values)
-        #     if set_diff:
-        #         logger.info('Couldnt derive the boundaries for cells with label: %s' % list(set_diff))
-
-    def _obj_outline_fix(self, fov, cell_props):
-        logger.info('Getting cell boundaries for cells in fov: %d' % fov['fov_id'])
-        label_image = fov['label_image'].toarray()
-        offset_x = fov['fov_offset_x']
-        offset_y = fov['fov_offset_y']
-        clipped_cells = cell_props[cell_props.is_clipped].label.values
-        res_list = []
-        coo = coo_matrix(label_image)
-        labels = np.unique(coo.data)
-        for label in sorted(set(labels) - set(clipped_cells)):
-            # print('label: %d' % label)
-            c = coo.copy()
-            c.data[c.data != label] = 0
-            c = c.toarray()
-            mask = ndimage.binary_erosion(c)
-            c[mask] = 0
-            c = coo_matrix(c)
-
-            c_col = c.col.astype(int) + int(offset_x)
-            c_row = c.row.astype(int) + int(offset_y)
-            if c.data.size > 0:
-                df = pd.DataFrame({'coords': list(zip(c_col, c_row)), 'label': c.data})
-                df = df.groupby('label')['coords'].apply(lambda group_series: group_series.tolist()).reset_index()
-                df = df.astype({"label": int})
-            else:
-                df = pd.DataFrame()
-            res_list.append(df)
-
-        if res_list:
-            out = pd.concat(res_list).astype({"label": int})
-        else:
-            out = pd.DataFrame()
-        return out
+    # def obj_outline(self, fov, cell_props):
+    #     label_image = fov['label_image'].toarray()
+    #     offset_x = fov['fov_offset_x']
+    #     offset_y = fov['fov_offset_y']
+    #     df = self._obj_outline_helper(label_image.copy(), offset_x, offset_y)
+    #
+    #     # Filter now the df and keep only the labels that also exist in cell_props for that fov and are
+    #     # not clipped.
+    #     # Also, If a label exists in cell_props (filtered as now explained) and not in df then raise
+    #     # a warning that the cell has not outline
+    #     mask = (cell_props.fov_id == fov['fov_id']) & (~cell_props.is_clipped)
+    #     cell_props_masked = cell_props[mask]
+    #     df_masked = df.iloc[np.isin(df.label, cell_props_masked.label)]
+    #
+    #     set_diff = set(cell_props_masked.label.values) - set(df_masked.label)
+    #     loop_depth = 3
+    #     df_list = []
+    #     df_list.append(df)
+    #
+    #     recurse_depth = 1
+    #     while (set_diff and recurse_depth < 10):
+    #         logger.info('Doing another pass because these nested cells were found %s', set_diff)
+    #         logger.info('Pass Num: %d' % recurse_depth)
+    #         df_2 = self._obj_outline_helper(label_image.copy(), offset_x, offset_y, set_diff)
+    #         df_list.append(df_2)
+    #         df = pd.concat(df_list).astype({"label": int})
+    #         df_masked = df.iloc[np.isin(df.label, cell_props_masked.label)]
+    #         set_diff = set(cell_props_masked.label.values) - set(df_masked.label)
+    #         recurse_depth = recurse_depth + 1
+    #
+    #
+    #     if set_diff:
+    #         logger.info('Couldnt derive the boundaries for cells with label: %s' % list(set_diff))
+    #
+    #     return df
 
 
-    def _obj_outline_aotherfix(self, fov, cell_props):
+    def obj_outline(self, fov, cell_props):
         logger.info('Getting cell boundaries for cells in fov: %d' % fov['fov_id'])
         label_image = fov['label_image'].toarray()
         offset_x = fov['fov_offset_x']
@@ -1141,26 +1069,24 @@ class Stage(object):
         return df
 
 
-
-
-    def _obj_outline_helper(self, label_image, offset_x, offset_y, keep_list=None):
-        if keep_list:
-            for label in set(label_image.flatten()) - set(keep_list):
-                label_image[label_image == label] = 0
-        mask = ndimage.binary_erosion(label_image)
-        label_image[mask] = 0
-        c = coo_matrix(label_image)
-        # transform to global coords
-        c_col = c.col.astype(int) + int(offset_x)
-        c_row = c.row.astype(int) + int(offset_y)
-        if c.data.size > 0:
-            my_df = pd.DataFrame({'coords': list(zip(c_col, c_row)), 'label': c.data})
-            my_df = my_df.groupby('label')['coords'].apply(lambda group_series: group_series.tolist()).reset_index()
-            my_df = my_df.astype({"label": int})
-        else:
-            logger.info('array empty')
-            my_df = pd.DataFrame()
-        return my_df
+    # def _obj_outline_helper(self, label_image, offset_x, offset_y, keep_list=None):
+    #     if keep_list:
+    #         for label in set(label_image.flatten()) - set(keep_list):
+    #             label_image[label_image == label] = 0
+    #     mask = ndimage.binary_erosion(label_image)
+    #     label_image[mask] = 0
+    #     c = coo_matrix(label_image)
+    #     # transform to global coords
+    #     c_col = c.col.astype(int) + int(offset_x)
+    #     c_row = c.row.astype(int) + int(offset_y)
+    #     if c.data.size > 0:
+    #         my_df = pd.DataFrame({'coords': list(zip(c_col, c_row)), 'label': c.data})
+    #         my_df = my_df.groupby('label')['coords'].apply(lambda group_series: group_series.tolist()).reset_index()
+    #         my_df = my_df.astype({"label": int})
+    #     else:
+    #         logger.info('array empty')
+    #         my_df = pd.DataFrame()
+    #     return my_df
 
 
     def poly_vertices(self, my_list):
