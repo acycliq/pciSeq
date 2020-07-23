@@ -43,23 +43,6 @@ def get_dir(my_config, fov_id):
     return os.path.join(root_dir, 'fov_' + str(fov_id))
 
 
-# def _get_connected_labels(labels):
-#     connected_labels = []
-#     label_set = set(labels)
-#     for label in list(label_set):
-#         temp = [i for i, j in enumerate(labels) if j == label]
-#         if len(temp) > 1:
-#             connected_labels.append(np.array(temp))
-#     return np.array(connected_labels)
-#
-#
-# def _get_connected_labels_fast(labels):
-#     positions = {}
-#     for index, label in enumerate(labels):
-#         positions.setdefault(label, []).append(index)
-#     return np.array([np.array(indices) for indices in positions.values() if len(indices) > 1])
-
-
 def _get_connected_labels(mylist):
     '''
     find which positions in the input list have repeated values
