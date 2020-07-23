@@ -2,6 +2,7 @@ import config
 import h5py
 import numpy as np
 import os
+from scipy.io import loadmat
 import logging
 import time
 
@@ -30,6 +31,9 @@ def load_mat(filepath):
     logger.info('***** Returning the transpose of the input Matlab array *******')
     return arrays['CellMap'].T
 
+def load_mat_2(filepath):
+    x = loadmat(filepath)
+    return x['CellMap']
 
 def blockfy(a, p, q):
     '''
