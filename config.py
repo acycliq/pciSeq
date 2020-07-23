@@ -77,6 +77,3 @@ DAVID = {
     'exclude_genes': [], # Write here the genes you want to exclude from the cell calling algorithm
     'drop_nan': False,  # That is only a temp solution. I will be removing that when everything is set correctly, Well remove it now!!
 }
-
-
-"D:\Home\Dimitris\OneDrive - University College London\Data\David\Midbrain Sequencing Data\data\cell_call_demo_data\David\cells_david.csv"
