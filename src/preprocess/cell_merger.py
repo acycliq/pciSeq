@@ -938,22 +938,6 @@ class Stage(object):
         spots_df[spots_headers].to_csv('spots_david_2.csv', index=False)
         logger.info('Total number of collected spots: %d' % spots_df.shape[0])
 
-        # # 3b. Save now the spots seperately for each fov
-        # for fov in self.fovs:
-        #     fov_id = fov['fov_id']
-        #     fov_dir = get_dir(self.my_config, fov_id)
-        #     full_path = os.path.join(fov_dir, 'spots', 'spots_fov_' + str(fov_id) + '.csv')
-        #
-        #     if not os.path.exists(os.path.dirname(full_path)):
-        #         os.makedirs(os.path.dirname(full_path))
-        #     df = fov['spots']
-        #     df['target'] = df.Gene
-        #     df['x_global'] = df.x
-        #     df['y_global'] = df.y
-        #     df['fov_id'] = df.fov_id
-        #     # target, x_global, y_global, Expt, label, x_cell, y_cell
-        #     df = df[['x_global', 'y_global', 'fov_id', 'gene_id', 'label', 'target', 'x_cell', 'y_cell']]
-        #     df.to_csv(full_path, index=False)
 
     def cell_boundaries(self, cell_props):
         '''
@@ -982,7 +966,7 @@ class Stage(object):
         _list = self.collate_borders_par(in_multiple_fovs)
         df_2 = pd.DataFrame(_list).astype({"label": int})
 
-        # Both clipped and unclipped in on dataframe
+        # Both clipped and unclipped in a dataframe
         res = pd.concat([df_1, df_2])
 
         set_diff = set(cell_props.label) - set(res.label.values)
@@ -1021,43 +1005,6 @@ class Stage(object):
         offset_y = min([self.fovs[d]['fov_offset_y'] for d in fov_ids])
         return offset_x, offset_y
 
-    # def obj_outline(self, fov, cell_props):
-    #     label_image = fov['label_image'].toarray()
-    #     offset_x = fov['fov_offset_x']
-    #     offset_y = fov['fov_offset_y']
-    #     df = self._obj_outline_helper(label_image.copy(), offset_x, offset_y)
-    #
-    #     # Filter now the df and keep only the labels that also exist in cell_props for that fov and are
-    #     # not clipped.
-    #     # Also, If a label exists in cell_props (filtered as now explained) and not in df then raise
-    #     # a warning that the cell has not outline
-    #     mask = (cell_props.fov_id == fov['fov_id']) & (~cell_props.is_clipped)
-    #     cell_props_masked = cell_props[mask]
-    #     df_masked = df.iloc[np.isin(df.label, cell_props_masked.label)]
-    #
-    #     set_diff = set(cell_props_masked.label.values) - set(df_masked.label)
-    #     loop_depth = 3
-    #     df_list = []
-    #     df_list.append(df)
-    #
-    #     recurse_depth = 1
-    #     while (set_diff and recurse_depth < 10):
-    #         logger.info('Doing another pass because these nested cells were found %s', set_diff)
-    #         logger.info('Pass Num: %d' % recurse_depth)
-    #         df_2 = self._obj_outline_helper(label_image.copy(), offset_x, offset_y, set_diff)
-    #         df_list.append(df_2)
-    #         df = pd.concat(df_list).astype({"label": int})
-    #         df_masked = df.iloc[np.isin(df.label, cell_props_masked.label)]
-    #         set_diff = set(cell_props_masked.label.values) - set(df_masked.label)
-    #         recurse_depth = recurse_depth + 1
-    #
-    #
-    #     if set_diff:
-    #         logger.info('Couldnt derive the boundaries for cells with label: %s' % list(set_diff))
-    #
-    #     return df
-
-
     def obj_outline(self, fov, cell_props):
         logger.info('Getting cell boundaries for cells in fov: %d' % fov['fov_id'])
         label_image = fov['label_image'].toarray()
@@ -1067,27 +1014,6 @@ class Stage(object):
 
         df = extract_borders_par(label_image, offset_x, offset_y, clipped_cells)
         return df
-
-
-    # def _obj_outline_helper(self, label_image, offset_x, offset_y, keep_list=None):
-    #     if keep_list:
-    #         for label in set(label_image.flatten()) - set(keep_list):
-    #             label_image[label_image == label] = 0
-    #     mask = ndimage.binary_erosion(label_image)
-    #     label_image[mask] = 0
-    #     c = coo_matrix(label_image)
-    #     # transform to global coords
-    #     c_col = c.col.astype(int) + int(offset_x)
-    #     c_row = c.row.astype(int) + int(offset_y)
-    #     if c.data.size > 0:
-    #         my_df = pd.DataFrame({'coords': list(zip(c_col, c_row)), 'label': c.data})
-    #         my_df = my_df.groupby('label')['coords'].apply(lambda group_series: group_series.tolist()).reset_index()
-    #         my_df = my_df.astype({"label": int})
-    #     else:
-    #         logger.info('array empty')
-    #         my_df = pd.DataFrame()
-    #     return my_df
-
 
     def poly_vertices(self, my_list):
         '''
