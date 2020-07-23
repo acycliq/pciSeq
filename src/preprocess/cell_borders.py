@@ -1,3 +1,7 @@
+'''
+Functions for extracting the boundaries of the cells
+'''
+
 import cv2
 import pandas as pd
 import numpy as np
@@ -17,19 +21,8 @@ def extract_borders(label_image, offset_x, offset_y, clipped_labels):
         y = label_image == label
         y = y * 255
         y = y.astype('uint8')
-        # contours, hierarchy = cv2.findContours(y, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contours, hierarchy = cv2.findContours(y, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE, offset=(offset_x, offset_y))
         contours = np.squeeze(contours)
-
-        # cont_ext, hier = cv2.findContours(y, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        # cont_ext = np.squeeze(cont_ext)
-        # print('label: %d' % label)
-        # assert np.all(contours == cont_ext)
-        # if label == 28827:
-        #     print('oh')
-        # np.all(contours == cont_ext)
-
-        # contours = contours + [offset_x, offset_y]
         out[label] = contours.tolist()
     out = pd.DataFrame([out]).T
     out = out.reset_index()
@@ -72,19 +65,26 @@ def wrapper_helper(argsin, results):
         label_image = argsin[0]
         offset_x = argsin[1]
         offset_y = argsin[2]
-        img = label_image == label
-        img = img * 255
-        img = img.astype('uint8')
-        contours, hierarchy = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE, offset=(offset_x, offset_y))
-        # contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        contours = np.squeeze(contours)
-        # print('label: %d' % label)
-        # print('contours %s' % contours)
-        # if contours.shape[0] == 3:
-        #     print('oh!')
-        # contours = contours + [offset_x, offset_y]
-        results[label] = contours.tolist()
+        contours = get_label_contours(label_image, label, offset_x, offset_y)
+        results[label] = contours
     return inner_fun
+
+
+def get_label_contours(label_image, label, offset_x, offset_y):
+    '''
+    reads a label_image and gets the boundaries of the cell labeled by ''label''
+    :param label_image:
+    :param label:
+    :param offset_x:
+    :param offset_y:
+    :return:
+    '''
+    img = label_image == label
+    img = img * 255
+    img = img.astype('uint8')
+    contours, hierarchy = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE, offset=(offset_x, offset_y))
+    contours = np.squeeze(contours)
+    return contours.tolist()
 
 
 def outline_fix(label_image):
