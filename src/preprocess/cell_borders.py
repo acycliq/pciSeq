@@ -80,9 +80,9 @@ def wrapper_helper(argsin, results):
         contours = np.squeeze(contours)
         # print('label: %d' % label)
         # print('contours %s' % contours)
-        if contours.shape[0] == 3:
-            print('oh!')
-        contours = contours + [offset_x, offset_y]
+        # if contours.shape[0] == 3:
+        #     print('oh!')
+        # contours = contours + [offset_x, offset_y]
         results[label] = contours.tolist()
     return inner_fun
 
