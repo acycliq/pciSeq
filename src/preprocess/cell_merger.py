@@ -17,7 +17,7 @@ from src.preprocess.fov import Fov
 from multiprocessing import Pool as ProcessPool
 from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import cpu_count
-from src.preprocess.cell_borders import extract_borders_par
+from src.preprocess.cell_borders import extract_borders_par, get_label_contours
 from src.preprocess.cell_borders import extract_borders
 import logging
 import time
@@ -833,23 +833,8 @@ class Stage(object):
     def update_label_image(self, fov, label_map):
         _x = fov['label_image'].data
         _y = label_map[:, 0]
-
-        # logger.info('idx1 start')
-        # idx1 = np.where(_x[:, None] == _y[None, :])[1]
-        # logger.info('idx1 end')
-        #
-        # logger.info('idx2 start')
-        # idx2 = [i for d in _x for i, el in enumerate(_y) if el == d]
-        # logger.info('idx2 end')
-
-        # logger.info('idx3 start')
         idx = self.my_remap(_x, _y)
-        # logger.info('idx3 end')
-
-        # assert np.all(idx1 == idx2)
-        # assert np.all(idx1 == idx3)
         return label_map[idx, 1]
-        # print('hello')
 
     def my_remap(self, x, y):
         index = np.argsort(y)
@@ -876,9 +861,6 @@ class Stage(object):
         coord_row = centroid[0] % self.fov_shape[0]  # <-- I think I should be dividing by fov_shape[1] instead
         coord_col = centroid[1] % self.fov_shape[1]  # <-- I think I should be dividing by fov_shape[0] instead
 
-        # coords = {}
-        # coords['x'] = coord_row
-        # coords['y'] = coord_col
         return fov_id, (coord_row, coord_col)
 
     def in_fov(self, centroid, fov):
@@ -913,7 +895,6 @@ class Stage(object):
 
     def fov_topo(self, d):
         a = np.arange(self.fovs_down * self.fovs_across).reshape((self.fovs_down, self.fovs_across))
-        # a = np.arange(20).reshape(4, 5)
         mask = np.isin(a, d)
         return np.where(mask, a, np.nan)[mask.any(axis=1)][:, mask.any(axis=0)]
 
@@ -1016,7 +997,7 @@ class Stage(object):
         # logger.info('Single Thread ends')
         # logger.info('Multi Thread starts')
         _list = self.collate_borders_par(in_multiple_fovs)
-        df_2 = pd.concat(_list).astype({"label": int})
+        df_2 = pd.DataFrame(_list).astype({"label": int})
         # logger.info('Multi Thread ends')
         res = pd.concat([df_1, df_2])
 
@@ -1053,13 +1034,16 @@ class Stage(object):
         return results
 
     def collate_borders_helper(self, label):
+        out = {}
         logger.info('label: %d. Finding the cell boundaries' % label)
         label_image = self.collate_arrays(self.merge_register[label])
         offset_x, offset_y = self.find_offset(self.merge_register[label])
-        out = self._obj_outline_helper(label_image, offset_x, offset_y)
-        # out = extract_borders(label_image, offset_x, offset_y, set())
-        # keep only the outline relevant to the label that spans across several fovs
-        out = out[out.label == label]
+        # out = self._obj_outline_helper(label_image, offset_x, offset_y)
+        # # out = extract_borders(label_image, offset_x, offset_y, set())
+        # # keep only the outline relevant to the label that spans across several fovs
+        # out = out[out.label == label]
+        out['coords'] = get_label_contours(label_image, label, offset_x, offset_y)
+        out['label'] = label
         return out
 
     def find_offset(self, fov_ids):
