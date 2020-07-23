@@ -17,6 +17,8 @@ from src.preprocess.fov import Fov
 from multiprocessing import Pool as ProcessPool
 from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import cpu_count
+from src.preprocess.cell_borders import extract_borders_par
+from src.preprocess.cell_borders import extract_borders
 import logging
 import time
 
@@ -122,20 +124,10 @@ class Stage(object):
         self.spots = None
         self.cellmaps = cellmaps
 
-        # file_list = [self.make_path(d) for d in range(len(self.fovs))]
-        # start = time.time()
-        # for i, d in enumerate(self._fovs_obj.fovs[:20]):
-        #     d['label_image_orig'] = self.load_label_image(i)
-        #     d['spots_orig'] = load_spots(i, self.scaling_factor, self.my_config['MATLAB_SPOTS'])
-        # logger.info('Finished Single thread in %s secs' % (time.time()-start))
-
-        start = time.time()
         res = self.my_multithread(list(range(len(self._fovs_obj.fovs))))
         for i, d in enumerate(self._fovs_obj.fovs):
             d['label_image'] = res[i][0]
             d['spots'] = res[i][1]
-        logger.info('Finished Multi thread in %s secs' % (time.time() - start))
-        print('after multithread')
 
     @property
     def fovs(self):
@@ -239,16 +231,6 @@ class Stage(object):
         # spots = fov['spots']
         cells = self.cell_props[['label', 'x', 'y']].rename(columns={'x': 'x_cell', 'y': 'y_cell'})
         out = spots.merge(cells, how='left', on=['label'])
-        # img_obj = fov['image_objects']
-        # img_obj = unlocalise_coords(img_obj, block)
-        # img_obj['x_cell'] = img_obj.x
-        # img_obj['y_cell'] = img_obj.y
-        # img_obj = img_obj.drop(columns=['x', 'y'])
-        #
-        # # img_obj.index = img_obj.index.astype('Int64')
-        # # spots['label'] = spots.label.astype('Int64')
-        # spots = spots.merge(img_obj, left_on='label', right_index=True, how='left')
-
         out['label'] = out.label.astype('Int64')
         return out
 
@@ -295,16 +277,6 @@ class Stage(object):
         out.append(([10, 20], [10, 20], 1.0, np.array([11, 11])))
         return out[f]
 
-    # def global_coords(self, coords):
-    #     x_range = coords[0]
-    #     y_range = coords[1]
-    #     k = coords[2]
-    #     x_global = [d * k for d in x_range]
-    #     y_global = [d * k for d in y_range]
-    #     return x_global, y_global, k
-
-    # def get_dir(cfg, fov_id):
-    #     return os.path.join(cfg, 'fov_' + str(fov_id))
 
     def get_tile_coords(self, fov):
         '''
@@ -773,11 +745,6 @@ class Stage(object):
                 centroid_fov_id, centroid_coords = self.locate_fov(p.centroid, fov_ids)
 
                 logger.info('label %d spans across fov_ids %s' % (p.label, fov_ids))
-                # if (p.label == 1450):
-                #     stop_here = 1
-                # logger.info('label %d centroid is (x,y): %s, area: %4.2f' % (p.label, p.centroid[::-1], p.area))
-                # logger.info('label %d centroid local coords are (x, y): %s ' % (p.label, centroid_coords[::-1]))
-                # logger.info('label %d centroid falls within the fov with id: %d' % (p.label, centroid_fov_id))
 
                 # # sanity check
                 # filtered_fovs = list(filter(lambda d: d['fov_id'] in fov_ids, self.fovs))
@@ -796,40 +763,6 @@ class Stage(object):
                 merged_props_dict = pd.DataFrame(merged_props_dict).sort_values(by=['label']).to_dict(orient='list')
                 logger.info('merged_props_dict ends')
 
-        # # first, do the merge cells
-        # # check the register to see which cells are merged
-        # merged_props_dict = {'label': [], 'fov_id': [], 'area': [], 'x_local': [], 'y_local': []}
-        # for t in self.merge_register.items():
-        #     label = t[0]
-        #     fov_ids = sorted(t[1])
-        #
-        #     logger.info('calculating centroid and area for the merged cell with label %d' % label)
-        #     if len(fov_ids) > 1:
-        #         label_image = self.collate_arrays(fov_ids)
-        #     else:
-        #         label_image = None  # you shouldnt get here. Since we merge cells we need at least two fovs
-        #
-        #     props = skmeas.regionprops(label_image.astype(np.int32))
-        #     p = [d for d in props if d.label == label][0]
-        #     centroid_fov_id, centroid_coords = self.locate_fov(p.centroid, fov_ids)
-        #
-        #     logger.info('label %d spans across fov_ids %s' % (p.label, fov_ids))
-        #     # logger.info('label %d centroid is (x,y): %s, area: %4.2f' % (p.label, p.centroid[::-1], p.area))
-        #     # logger.info('label %d centroid local coords are (x, y): %s ' % (p.label, centroid_coords[::-1]))
-        #     # logger.info('label %d centroid falls within the fov with id: %d' % (p.label, centroid_fov_id))
-        #
-        #     # sanity check
-        #     filtered_fovs = list(filter(lambda d: d['fov_id'] in fov_ids, self.fovs))
-        #     mask = [d['image_objects'].label == label for d in filtered_fovs]
-        #     total_area = sum([d['image_objects'].area[mask[i]].values[0] for i, d in enumerate(filtered_fovs)])
-        #     # logger.info('total sum for the sanity check is: %d' % total_area)
-        #     assert int(total_area) == int(p.area)
-        #
-        #     merged_props_dict['label'].append(p.label)
-        #     merged_props_dict['fov_id'].append(centroid_fov_id)
-        #     merged_props_dict['area'].append(p.area)
-        #     merged_props_dict['x_local'].append(centroid_coords[1])
-        #     merged_props_dict['y_local'].append(centroid_coords[0])
 
         img_obj = pd.concat([d['image_objects'] for d in self.fovs])
         dup_vals = list(set(img_obj[img_obj.duplicated('label')].label.values))
@@ -1052,7 +985,8 @@ class Stage(object):
         for fov in self.fovs:
             if np.any(fov['label_image'].data):
                 # df = self._obj_outline(fov, cell_props)    # some borders are derived properly? Need to find out why
-                df = self._obj_outline_fix(fov, cell_props)  # works well but is it painfully slow!
+                # df = self._obj_outline_fix(fov, cell_props)  # works well but is it painfully slow! AVOID BY ALL MEANS UNLESS YOU WANNA LEAVE IT RUNNING OVERNIGHT
+                df = self._obj_outline_aotherfix(fov, cell_props)
                 res_list.append(df)
             else:
                 logger.info('fov:%d empty, No cells to draw boundaries were found' % fov['fov_id'])
@@ -1086,15 +1020,16 @@ class Stage(object):
         # logger.info('Multi Thread ends')
         res = pd.concat([df_1, df_2])
 
-        # sort now the coords countrerclockwise
-        _coords = res.coords.map(self.sort_ccw)
-
-        # remove now redundant coordinates
-        _coords = _coords.map(self.poly_vertices)
-
-        # replace now the coords column with the clean one
-        res['coords'] = _coords
-        logger.info('Coords sorted counter clockwise')
+        # 21-07-2020 contours calc'd from findContours are already ccw and without redundant points
+        # # sort now the coords countrerclockwise
+        # _coords = res.coords.map(self.sort_ccw)
+        #
+        # # remove now redundant coordinates
+        # _coords = _coords.map(self.poly_vertices)
+        #
+        # # replace now the coords column with the clean one
+        # res['coords'] = _coords
+        # logger.info('Coords sorted counter clockwise')
 
         set_diff = set(cell_props.label) - set(res.label.values)
         if set_diff:
@@ -1122,6 +1057,7 @@ class Stage(object):
         label_image = self.collate_arrays(self.merge_register[label])
         offset_x, offset_y = self.find_offset(self.merge_register[label])
         out = self._obj_outline_helper(label_image, offset_x, offset_y)
+        # out = extract_borders(label_image, offset_x, offset_y, set())
         # keep only the outline relevant to the label that spans across several fovs
         out = out[out.label == label]
         return out
@@ -1208,6 +1144,17 @@ class Stage(object):
         else:
             out = pd.DataFrame()
         return out
+
+
+    def _obj_outline_aotherfix(self, fov, cell_props):
+        logger.info('Getting cell boundaries for cells in fov: %d' % fov['fov_id'])
+        label_image = fov['label_image'].toarray()
+        offset_x = fov['fov_offset_x']
+        offset_y = fov['fov_offset_y']
+        clipped_cells = cell_props[cell_props.is_clipped].label.values
+
+        df = extract_borders_par(label_image, offset_x, offset_y, clipped_cells)
+        return df
 
 
 
