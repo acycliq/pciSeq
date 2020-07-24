@@ -660,7 +660,7 @@ class Stage(object):
             for i, p in enumerate(clipped_cells):
                 centroid_fov_id, centroid_coords = self.locate_fov(p.centroid, fov_ids)
 
-                logger.info('label %d spans across fov_ids %s' % (p.label, fov_ids))
+                logger.info('cell with label %d is clipped by fov_ids %s' % (p.label, fov_ids))
 
                 # # sanity check
                 # filtered_fovs = list(filter(lambda d: d['fov_id'] in fov_ids, self.fovs))
