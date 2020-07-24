@@ -252,55 +252,6 @@ class Stage(object):
         out = coo_matrix(coo_arr[:-1, :-1])  # why the -1? See comment right above
         return out
 
-    def get_tile_coords_fake(self, f):
-        out = []
-        out.append(([0, 10], [0, 10], 1.0, np.array([11, 11])))
-        out.append(([10, 20], [0, 10], 1.0, np.array([11, 11])))
-        out.append(([0, 10], [10, 20], 1.0, np.array([11, 11])))
-        out.append(([10, 20], [10, 20], 1.0, np.array([11, 11])))
-        return out[f]
-
-
-    def get_tile_coords(self, fov):
-        '''
-        calc the tile coordinates and the scaling factor of the tile coordinates. Multiply by the scaling factor
-        to get the actual global pixel coordinates. For example if:
-
-            xc = [650.0, 975.0]
-            yc = [0.0, 325.0]
-            scaling_factor = 6.153846153846154
-
-            then the pixel coordinates are
-            xc = [4000.0, 6000.0]
-            yc = [0.0, 2000.0]
-
-        :param fov:
-        :return:
-        '''
-
-        nuclei_dir = r"https://raw.githubusercontent.com/acycliq/starfish_ISS_h_brain_03/master/main_files/"
-        jsn = f"nuclei-fov_{int(fov):03d}.json"
-
-        request = urllib.request.Request(urllib.parse.urljoin(nuclei_dir, jsn))
-        base64string = base64.b64encode(bytes('%s:%s' % (credentials.USER, credentials.TOKEN), 'ascii'))
-        request.add_header("Authorization", "Basic %s" % base64string.decode('utf-8'))
-        with urllib.request.urlopen(request) as result:
-            logger.info('loading..')
-            data = json.loads(result.read().decode())
-            logger.info('loaded..')
-            # data = json.load(result) # i think that also works, dont know whats best!
-            xc = data['tiles'][0]['coordinates']['xc']
-            yc = data['tiles'][0]['coordinates']['yc']
-            default_tile_shape = np.array(data['default_tile_shape'])
-            tile_shape = np.array(data['tiles'][0]['tile_shape'])
-            scale_x = data['default_tile_shape'][0] / np.diff(data['tiles'][0]['coordinates']['xc'])[0]
-            scale_y = data['default_tile_shape'][1] / np.diff(data['tiles'][0]['coordinates']['yc'])[0]
-            assert (scale_y == scale_x)
-            assert (np.all(default_tile_shape == tile_shape))
-            scaling_factor = scale_x
-
-        return xc, yc, scaling_factor, tile_shape
-
     def load_label_image(self, fov_id):
         '''
         Reads a label_image and returns a dataframe with the objects found on it.
@@ -308,29 +259,19 @@ class Stage(object):
         :param fov:
         :return:
         '''
-        # fov = self.fovs[fov_id]
-        # fov_id = fov['fov_id']
         label_img = self.read_from_disk(fov_id)
         return coo_matrix(label_img)
 
     def read_from_disk(self, fov_id):
         full_path = self.make_path(fov_id)
-        # print('reading %s' % full_path)
         out = np.genfromtxt(full_path, delimiter=',')
         logger.info('reading %s', full_path)
         return out
 
     def make_path(self, fov_id):
-        # header_flag is None is no header exist
-        # x could be 'label_image'
         fov_dir = get_dir(self.my_config, fov_id)
         full_path = os.path.join(fov_dir, 'label_image', 'label_image_fov_' + str(fov_id) + '.csv')
         return full_path
-
-        # fov_id_str = 'fov_%d' % n
-        # fName_str = 'label_image_fov_%d.csv' % n
-        # path_str = os.path.join('.', 'demo_data', 'human_full', 'fovs', fov_id_str, 'raw', 'label_image', fName_str)
-        # return path_str
 
     def adjacent_fov(self, fov_id):
         if fov_id % self.fovs_across != 0:
@@ -342,7 +283,6 @@ class Stage(object):
             up = fov_id - self.fovs_across
         else:
             up = None
-
         return {'left': left, 'up': up}
 
     def merge_cells(self):
@@ -393,23 +333,17 @@ class Stage(object):
         temp_a = self.fovs[adjc_fov['fov_id']]['label_image'].copy()
         temp_b = self.fovs[fov['fov_id']]['label_image'].copy()
 
-        # maxab = max(temp_a.data.max(), temp_b.data.max())
-        # my_list = list(range(maxab, maxab + len(border)))
         for d in matched_labels:
             new_label = self._new_label(d)
             for x in d['a']:
                 temp_a.data[temp_a.data == x] = new_label
                 self.update_register(adjc_fov['fov_id'], new_label, x)
                 # logger.info('fov_%d: label %d ---> label %d' % (adjc_fov['fov_id'], x, new_label))
-                # sleep(0.1)
 
             for x in d['b']:
                 temp_b.data[temp_b.data == x] = new_label
                 self.update_register(fov['fov_id'], new_label, x)
                 # logger.info('fov_%d: label %d ---> label %d' % (fov['fov_id'], x, new_label))
-                # sleep(0.1)
-
-        # print('fov_id: (%d, %d), %s' % (adjc_fov['fov_id'], fov['fov_id'], dlist))
         return temp_a, temp_b
 
     def _new_label(self, d):
@@ -566,7 +500,6 @@ class Stage(object):
 
     def global_labels_par(self):
         results = self._global_labels_par()
-
         # finally flip the sign on the dict
         self.flip_sign()
         return results
@@ -711,7 +644,7 @@ class Stage(object):
             labels = tt[1]
             fov_ids = sorted(tt[0])
 
-            logger.info('calculating centroid and area for the merged cell with label %s' % labels)
+            logger.info('calculating centroid and area for the merged cells with labels %s' % labels)
             if len(fov_ids) > 1:
                 label_image = self.collate_arrays(fov_ids)
             else:
@@ -744,7 +677,7 @@ class Stage(object):
 
                 # sort the dict by the label
                 merged_props_dict = pd.DataFrame(merged_props_dict).sort_values(by=['label']).to_dict(orient='list')
-                logger.info('merged_props_dict ends')
+                # logger.info('merged_props_dict ends')
 
 
         img_obj = pd.concat([d['image_objects'] for d in self.fovs])
@@ -777,6 +710,7 @@ class Stage(object):
 
         global_label = np.arange(cell_props.shape[0]) + 1
         label_map = np.column_stack((cell_props.label.values, global_label))
+        cell_props['label'] = global_label
         cell_props['label'] = global_label
 
         logger.info('')
