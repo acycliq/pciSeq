@@ -6,7 +6,7 @@
 // Variables in the global scope
 var cellBoundaries,
     cellData,
-    all_geneData = [],
+    all_geneData,
     spotsIndex, //spatial index
     dapiConfig,
     polygonsOverlay,
@@ -40,7 +40,7 @@ var cellBoundaries,
 
 
 localStorage.clear();
-console.log('Local storage cleared')
+console.log('Local storage cleared');
 
 
 // this will be watching if something has been saved to local storage. If yes then it
@@ -161,7 +161,7 @@ function hidePanels(bool){
 
 
 function run() {
-    console.log('app starts')
+    console.log('app starts');
     configSettings = config().get('default');
     var workPackage = [];
     for (var i = 0; i < configSettings.num_jsons; i++) {
@@ -174,32 +174,31 @@ function run() {
 }
 
 
-
-function onCellsLoaded(cfg) {
-    var data_1 = [],
-        // all_geneData = [],
-        data_3 = [];
-    return (err, ...args) => {
-        console.log('loading data')
-        args.forEach((d, i) => {
-            i === 0 ? data_1 = d : // the cell boundaries are in position 0 of the args array
-                i % 2 === 0 ? data_3 = [...data_3, ...d] : // even positions in the args array hold the cell data
-                    all_geneData = [...all_geneData, ...d] // odd positions in the args array hold the gene data
-        });
-        [cellBoundaries, cellData] = postLoad([data_1, data_3]);
-        console.log('loading data finished');
-        console.log('num of genes loaded: ' + all_geneData.length);
-        console.log('num of cells loaded: ' + cellData.length);
-
-
-        //finaly make a spatial index on the spots. We will need that to filter them if/when needed
-        console.log('Creating the index');
-        spotsIndex = new KDBush(all_geneData, p => p.x, p => p.y, 64, Int32Array);
-
-        // do now the chart
-        dapiChart(cfg);
-    }
-}
+// function onCellsLoaded(cfg) {
+//     var data_1 = [],
+//         // all_geneData = [],
+//         data_3 = [];
+//     return (err, ...args) => {
+//         console.log('loading data')
+//         args.forEach((d, i) => {
+//             i === 0 ? data_1 = d : // the cell boundaries are in position 0 of the args array
+//                 i % 2 === 0 ? data_3 = [...data_3, ...d] : // even positions in the args array hold the cell data
+//                     all_geneData = [...all_geneData, ...d] // odd positions in the args array hold the gene data
+//         });
+//         [cellBoundaries, cellData] = postLoad([data_1, data_3]);
+//         console.log('loading data finished');
+//         console.log('num of genes loaded: ' + all_geneData.length);
+//         console.log('num of cells loaded: ' + cellData.length);
+//
+//
+//         //finaly make a spatial index on the spots. We will need that to filter them if/when needed
+//         console.log('Creating the index');
+//         spotsIndex = new KDBush(all_geneData, p => p.x, p => p.y, 64, Int32Array);
+//
+//         // do now the chart
+//         dapiChart(cfg);
+//     }
+// }
 
 function postLoad(arr) {
     //Do some basic post-processing/cleaning
