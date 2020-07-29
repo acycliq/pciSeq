@@ -143,35 +143,24 @@ function hidePanels(bool){
     console.log('Info and donut panels: hidden= ' + bool)
 }
 
-// // Do now the same, make an array and populate it with empty PIXI.ParticleContainers. Later these particle Containers
-// // will hold the markers/spots for each gene
-// var geneNames = glyphSettings().map(d => d.gene).sort();
-// geneNames.forEach((d, i) => {
-//     var n = all_geneData.map(el => { el.Gene=== d}).length;
-//     var c = new PIXI.ParticleContainer(n, {vertices: true});
-//     c.name = d;
-//     geneContainer_array.push(c)
-// });
 
-// run();
+// function run() {
+//     console.log('app starts')
+//     configSettings = config().get('default');
+//     var boundariesjson = configSettings.cellBoundaries;
+//     // var celljson = configSettings.cellData; // is this still needed? I dont think so...
+//
+//     var q = d3.queue();
+//     q = q.defer(d3.json, boundariesjson);
+//     for (var i = 0; i < configSettings.num_jsons; i++) {
+//         q = q.defer(d3.json, configSettings.spot_json(i));
+//         q = q.defer(d3.json, configSettings.cell_json(i));
+//     }
+//     q.await(onCellsLoaded(configSettings));
+// }
+
 
 function run() {
-    console.log('app starts')
-    configSettings = config().get('default');
-    var boundariesjson = configSettings.cellBoundaries;
-    // var celljson = configSettings.cellData; // is this still needed? I dont think so...
-
-    var q = d3.queue();
-    q = q.defer(d3.json, boundariesjson);
-    for (var i = 0; i < configSettings.num_jsons; i++) {
-        q = q.defer(d3.json, configSettings.spot_json(i));
-        q = q.defer(d3.json, configSettings.cell_json(i));
-    }
-    q.await(onCellsLoaded(configSettings));
-
-}
-
-function run_2() {
     console.log('app starts')
     configSettings = config().get('default');
     var workPackage = [];
@@ -182,7 +171,6 @@ function run_2() {
     }
 
     data_loader(workPackage);
-
 }
 
 
