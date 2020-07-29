@@ -171,6 +171,21 @@ function run() {
 
 }
 
+function run_2() {
+    console.log('app starts')
+    configSettings = config().get('default');
+    var workPackage = [];
+    for (var i = 0; i < configSettings.num_jsons; i++) {
+        workPackage = workPackage.concat(configSettings.gene_tsv(i));
+        workPackage = workPackage.concat(configSettings.cell_tsv(i));
+        workPackage = workPackage.concat(configSettings.cellCoords_tsv(i));
+    }
+
+    data_loader(workPackage);
+
+}
+
+
 
 function onCellsLoaded(cfg) {
     var data_1 = [],
@@ -223,8 +238,9 @@ function postLoad(arr) {
         d.agg = agg[i];
     });
 
-    // make sure the array is sorted by Cell_Num
-    _cellData.sort(function(a,b){return a.Cell_Num-b.Cell_Num});
+    // make sure the arrays are sorted by Cell_Num
+    _cellData = _cellData.sort(function(a,b){return a.Cell_Num-b.Cell_Num});
+    _cellBoundaries = _cellBoundaries.sort(function(a,b){return a.Cell_Num-b.Cell_Num});
 
     return [_cellBoundaries, _cellData]
 }

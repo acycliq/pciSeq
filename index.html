@@ -75,6 +75,9 @@
     <!-- mapbox-gl -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v1.10.1/mapbox-gl.js"></script>
 
+    <!-- progressbar -->
+    <script src="https://rawgit.com/kimmobrunfeldt/progressbar.js/1.0.0/dist/progressbar.js"></script>
+
 
     <!--    <script src="pixi.min.js"></script>-->
     <!--    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.2.1/pixi.js.map"></script>-->
@@ -85,6 +88,7 @@
     <!-- user js scripts -->
     <script> console.log('reading source files')</script>
     <script src='dashboard/js/config.js'></script>
+    <script src='dashboard/js/dataLoader.js'></script>
     <script src='dashboard/js/viewerUtils.js'></script>
     <script src='dashboard/js/customControl.js'></script>
 <!--    <script src='dashboard/js/fov_boundaries.js'></script>-->
@@ -106,8 +110,6 @@
 
     <!-- Leaflet.Control.Layers.Tree -->
 
-
-
     <!-- user css scripts -->
     <link rel='stylesheet' href='dashboard/css/index.css'>
     <link rel="stylesheet" href="dashboard/js/lib/css/L.Control.Layers.Tree.css">
@@ -122,16 +124,25 @@
     <span style="margin-top: 5px;">Hardware acceleration is enable</span>
 </div>
 
-<!--<div id="preloader">-->
+
+
+<!--<div id="preloader" class="a" style="font-size:32px;text-align:center;">-->
+<!--    <h1>Prototype viewer for high throughput in situ transcriptomics.</h1>-->
+<!--  <p>Data can take a moment to load, please be patient </p>-->
+<!--    <div class="b">Please set your browser to use hardware acceleration. <br>-->
+<!--        Tested on Chrome under Windows, cannot yet guarantee operation on other browsers </div>-->
 <!--    <div id="status"></div>-->
 <!--</div>-->
 
-<div id="preloader" class="a" style="font-size:32px;text-align:center;">
-    <h1>Prototype viewer for high throughput in situ transcriptomics.</h1>
-  <p>Data can take a moment to load, please be patient </p>
-    <div class="b">Please set your browser to use hardware acceleration. <br>
-        Tested on Chrome under Windows, cannot yet guarantee operation on other browsers </div>
-    <div id="status"></div>
+
+<div id="chart-container">
+    <div id="chart"></div>
+    <div class="loading">
+        <div id="container"></div>
+        <div id="loading" class="loading"><span>loading...</span></div>
+        <div id="loading_perc" class="loading"><span>loading...</span></div>
+        <div id="done" class="loading"><span></span></div>
+    </div>
 </div>
 
 <div id="mymap" style="height: 100%; width: 100%;">
@@ -175,7 +186,7 @@
 
 
 <script>
-    document.addEventListener("DOMContentLoaded", run(), false);
+    document.addEventListener("DOMContentLoaded", run_2(), false);
 </script>
 
 
