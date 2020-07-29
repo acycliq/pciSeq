@@ -368,8 +368,10 @@ function dapi(cfg) {
 
         function myReducer(label) {
             return function (parent, place, i, arr) {
-                if (label)
-                    label +=  `${place}`;// `.${place}`;
+                if (label) {
+                    var sep = configSettings.class_name_separator;
+                    label += sep + `${place}`; // `.${place}`;
+                }
                 else
                     label = place;
 
@@ -479,7 +481,7 @@ function dapiChart(config) {
     // add_spots(all_geneData, map);
 
     // draw the spots (particle Containers approach)
-    add_spots_patched(all_geneData, map);
+    // add_spots_patched(all_geneData, map);
 
 
     function moveend(config) {
