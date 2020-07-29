@@ -12,7 +12,8 @@ function config() {
             gene_tsv: function(d){ return './dashboard/img/tsv/geneData_split/' + 'geneData_' + d + '.tsv'},
             cell_tsv: function(d){ return './dashboard/img/tsv/cellData_split/' + 'cellData_' + d + '.tsv'},
             cellCoords_tsv: function(d){ return './dashboard/img/tsv/cellCoords_split/' + 'cellCoords_' + d + '.tsv'},
-            num_jsons: 4 // number of json splits
+            num_tsvs: 4, // number of tsv splits
+            class_name_separator: '' //The delimiter in the class name string, eg if name is Astro.1, then use the dot as a separator, if Astro1 then use an empty string. It is used in a menu/control to show the class names nested under its broader name
         }, // 1
     ];
     var out = d3.map(ini, function (d) {
