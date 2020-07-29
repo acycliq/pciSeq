@@ -1,9 +1,10 @@
 function json_parse(d) {
     if (d === '\r') {
+        // Add the reasoning for this ASAP cause I will forget it in a month's time
         return null
     }
     try {
-        return JSON.parse(d.replace(/'/g, '"')) //JSON.parse(d)
+        return JSON.parse(d.replace(/'/g, '"'))
     } catch {
         return d
     }
