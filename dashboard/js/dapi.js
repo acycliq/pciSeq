@@ -481,7 +481,7 @@ function dapiChart(config) {
     // add_spots(all_geneData, map);
 
     // draw the spots (particle Containers approach)
-    // add_spots_patched(all_geneData, map);
+    add_spots_patched(all_geneData, map);
 
 
     function moveend(config) {
