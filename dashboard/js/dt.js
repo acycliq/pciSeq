@@ -62,7 +62,7 @@ function renderDataTable(d) {
     function getTotal(table){
         var total = table.column(1).data().reduce(function (a,b) {return a+b}, 0)
         $(table.column(1).footer()).html('Total: ' +total )
-        console.log('Total number of gene counts: ' + total )
+        // console.log('Total number of gene counts: ' + total )
 
         return total
     }
