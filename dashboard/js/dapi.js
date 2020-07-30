@@ -434,6 +434,7 @@ function dapiChart(config) {
         console.log('Map is ready')
     });
     map.on('moveend', moveend(config));
+    map.on('movestart', movestart);
     map.on('zoomanim', zoomanim_end);
     map.on('zoomend', zoomanim_end); // attach zooanim_end to both zoomanim and zoomend
 
@@ -487,6 +488,11 @@ function dapiChart(config) {
     function moveend(config) {
         console.log('Triggering moveend callback');
 
+        if (masterCellContainer){
+            console.log('setting cell container to true')
+            masterCellContainer.children.map(d => d.visible = true)
+        }
+
         // if zoom >= 7 then render the glyphs too
         return function (evt) {
             if (map.getZoom() >= zoomSwitch) {
@@ -513,6 +519,12 @@ function dapiChart(config) {
             console.log('exiting moveend callback');
             console.log('')
         };
+    }
+
+    function movestart(evt){
+        console.log('map was moved.')
+        console.log('setting cell container to false');
+        masterCellContainer.children.map(d => d.visible = false)
     }
 
     function zoomanim_end(){
