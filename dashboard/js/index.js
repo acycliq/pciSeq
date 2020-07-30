@@ -164,7 +164,7 @@ function run() {
     console.log('app starts');
     configSettings = config().get('default');
     var workPackage = [];
-    for (var i = 0; i < configSettings.num_jsons; i++) {
+    for (var i = 0; i < configSettings.num_tsvs; i++) {
         workPackage = workPackage.concat(configSettings.gene_tsv(i));
         workPackage = workPackage.concat(configSettings.cell_tsv(i));
         workPackage = workPackage.concat(configSettings.cellCoords_tsv(i));
