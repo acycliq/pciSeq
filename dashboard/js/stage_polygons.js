@@ -60,7 +60,7 @@ function renderPolygons(data) {
 
     return function (utils) {
         console.log('you passed in ' + data.features.length + ' data points')
-        var container = utils.getContainer();  // That has to be pointing to the same object as the global var 'pixiContainer'
+        var container = utils.getContainer();  // That has to be pointing to the same object as the global var 'pixiContainer' (hmm, masterCellContainer I probably mean! Not pixiContainer)
         masterCellRenderer = utils.getRenderer();   // Assign this to the global variable 'masterCellRenderer'
         var gl = masterCellRenderer.gl;
         var project = utils.latLngToLayerPoint;
