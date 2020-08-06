@@ -116,6 +116,8 @@ onmessage = async function (event) {
                         // console.log('File num: ' + i)
                         var len = my_response.headers.get('content-length')
                         perc[i] = totalBytes[i]/my_response.headers.get('content-length');
+                        console.log('i: ' + i)
+                        console.log('content-length: ' + my_response.headers.get('content-length'))
                         postMessage({i, items, url: my_response.url, byteStats: [totalBytes[i], perc[i], len, +value.byteLength] });
 
                         controller.enqueue(value);

@@ -51,7 +51,7 @@ function data_loader(workPackage) {
                     // if you stream the file for the very first time, add it to the filePartName dict
                     // and update the filePartSize dict with its size.
                     this.filePartName[key] = this.filePartName[key].concat([filename]);
-                    var fSize = +event.data.byteStats[2];
+                    var fSize = +event.data.byteStats[2]; // THIS IS THE LENGTH
                     this.filePartSize[key] = this.filePartSize[key].concat([fSize]);
                 }
                 var totalSize = +this.get_filesize(key);
