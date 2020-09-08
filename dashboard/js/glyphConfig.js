@@ -119,7 +119,7 @@ function glyphSettings()
         {gene: 'Generic',       taxonomy: 'generic',     glyphSymbol: 'o',  glyphName: 'circle'},
 
         ];
-
+    
     return out
 }
 

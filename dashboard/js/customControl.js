@@ -90,7 +90,7 @@ L.Control.Custom = L.Control.Layers.extend({
     },
 
     _getAllInputs: function () {
-        return document.querySelectorAll('input.leaflet-customcontrol-layers-selector' +
+        return document.querySelectorAll('input.leaflet-control-layers-selector' +
             ':not([name="control_radio"])');
     },
 
@@ -101,7 +101,7 @@ L.Control.Custom = L.Control.Layers.extend({
             var div = L.DomUtil.create('div', 'leaflet-control-layers-overlays', elements[0]);
             var cb = document.createElement('input');
             cb.type = 'checkbox';
-            cb.className = 'leaflet-customcontrol-layers-selector';
+            cb.className = 'leaflet-control-layers-selector';
             cb.defaultChecked = 'checked';
             cb.value = containerName;
             cb.name = 'control_checkbox';

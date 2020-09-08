@@ -57,7 +57,7 @@ function renderPolygons(data) {
 
     return function (utils) {
         console.log('you passed in ' + data.features.length + ' data points')
-        var container = utils.getContainer();  // That has to be pointing to the same object as the global var 'pixiContainer' (hmm, masterCellContainer I probably mean! Not pixiContainer)
+        var container = utils.getContainer();  // That has to be pointing to the same object as the global var 'pixiContainer'
         masterCellRenderer = utils.getRenderer();   // Assign this to the global variable 'masterCellRenderer'
         var gl = masterCellRenderer.gl;
         var project = utils.latLngToLayerPoint;
@@ -71,9 +71,9 @@ function renderPolygons(data) {
         // be attached to pixiRenderer and then you can add pixiRenderer as an overlay to the leaflet map
         cellContainer_array.forEach(d => {
             container.addChild(d)
-            // dapiConfig.customControl._addButton(d.name) // update the layer control on the map
+            dapiConfig.customControl._addButton(d.name) // update the layer control on the map
         });
-        // dapiConfig.customControl._isEnabled = false; //prevents the control from adding new elements
+        dapiConfig.customControl._isEnabled = false; //prevents the control from adding new elements
 
         if (firstDraw) {
             if ( (masterCellRenderer.type === PIXI.RENDERER_TYPE.WEBGL) && (mapboxgl.supported({failIfMajorPerformanceCaveat: true})) ){
@@ -96,7 +96,7 @@ function renderPolygons(data) {
                 bounds = L.bounds(feature.geometry.coordinates[0]);
                 if (feature.geometry.type === 'Polygon') {
                     // 1. find the shortname of the most probable cell-type for this particular cell
-                    var cName = feature.properties.topClass;
+                    var cName = truncateStr(feature.properties.topClass);
 
                     // 2. grab the relevant pixiGraphics object
                     var cont = cellContainer_array.filter(d => d.name === cName)[0];
@@ -163,7 +163,7 @@ function renderPolygons(data) {
 
                 mouseTarget = findFeature(e.latlng);
                     // isChecked =
-                if (mouseTarget && myTreeControl._getSelected().includes(mouseTarget.properties.topClass)) {
+                if (mouseTarget && dapiConfig.customControl._getSelected().includes(truncateStr(mouseTarget.properties.topClass))) {
                     lastVisited = mouseTarget.properties.cell_id; // <-- lastVisited the same as cellWatch, right? Why not just use cellWatch then?
 
                     // 1. First draw/highlight the cell boundaries
@@ -327,8 +327,7 @@ function renderPolygons(data) {
         firstDraw = false;
         // change the opacity depending on the zoom level
         cellContainer_array.filter(d => d.alpha = alphaScale(zoom));
-        // dapiConfig.customControl._refresh() // That renders the chart again, but It has to be put somewhere more prominent!
-        myTreeControl._refresh()
+        dapiConfig.customControl._refresh() // That renders the chart again, but It has to be put somewhere more prominent!
         // pixiRenderer.render(pixiContainer);
     }
 }

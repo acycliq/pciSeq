@@ -171,7 +171,7 @@ function add_spots(all_geneData, map) {
                 if (lambda > 1) lambda = 1;
                 lambda = lambda * (0.4 + lambda * (2.2 + lambda * -1.6));
                 markerSprites.forEach(function (markerSprite) {
-                    var targetScale = zoom <= zoomSwitch ? scaleRamp(zoom) : 1 / (2 * utils.getScale(event.zoom));
+                    var targetScale = zoom <= 7 ? scaleRamp(zoom) : 1 / (2 * utils.getScale(event.zoom));
                     markerSprite.scale.set(targetScale);
                 });
                 masterMarkerRenderer.render(container);
@@ -182,7 +182,7 @@ function add_spots(all_geneData, map) {
 
             if (firstDraw || prevZoom !== zoom) {
                 markerSprites.forEach(function (markerSprite) {
-                    var targetScale = zoom <= zoomSwitch ? scaleRamp(zoom) : 1 / (2 * utils.getScale(event.zoom));
+                    var targetScale = zoom <= 7 ? scaleRamp(zoom) : 1 / (2 * utils.getScale(event.zoom));
                     markerSprite.scale.set(targetScale);
                 });
             }
