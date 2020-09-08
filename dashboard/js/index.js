@@ -6,7 +6,7 @@
 // Variables in the global scope
 var cellBoundaries,
     cellData,
-    all_geneData,
+    all_geneData = [],
     spotsIndex, //spatial index
     dapiConfig,
     polygonsOverlay,
@@ -34,13 +34,11 @@ var cellBoundaries,
     legend_added = false, //used to make sure the listener is attached only once
     pinnedControls = false,
     hiddenControls = false,
-    myTreeControl,
-    cellClasses,
-    zoomSwitch = 7; // determines when the glyphs will start showing up
+    zoomSwitch = 6; // determines when the glyphs will start showing up
 
 
 localStorage.clear();
-console.log('Local storage cleared');
+console.log('Local storage cleared')
 
 
 // this will be watching if something has been saved to local storage. If yes then it
@@ -87,7 +85,7 @@ function legendControl() {
     if (!legend_added) {
         legendLink.addEventListener(`click`, () => {
             // Opens the page and stores the opened window instance
-            legendWindow = window.open(`./dashboard/my_datatable.html`); // <--- THAT NEEDS TO BE EXPOSED TO THE USER. MOVE I INSIDE config.js MAYBE
+            legendWindow = window.open(`./dashboard/my_datatable.html`); // <--- THATS NEEDS TO BE EXPOSED TO THE USER. MOVE I INSIDE config.js MAYBE
         });
     }
     legend_added = true;
@@ -108,26 +106,23 @@ function closeLegend() {
     }
 }
 
-// function truncateStr(strIn){
-//     var n = 5; //DO NOT CHECK THIS IN. REVERT BACK TO n = 2
-//     return myUtils().fw_stripper(strIn, n);
-// }
-//
-// var shortNames = d3.map(classColorsCodes(), d => truncateStr(d.className))
-//     .keys()
-//     .filter(d => d != "Other")
-//     .sort();
-//
-// shortNames.forEach((d, i) => {
-//     // make some pixiGraphics (aka containers) objects to hold the cell polygons and name them based on their short names
-//     // these are just empty right now, they only have a name
-//     var c = new PIXI.Graphics();
-//     c.name = d;
-//     c.options = [];
-//     c.options.minZoom = 0  // Needed only to fool the layer tree control and prevent an error from being raised
-//     c.options.maxZoom = 10 // Needed only to fool the layer tree control and prevent an error from being raised
-//     cellContainer_array.push(c)
-// });
+function truncateStr(strIn){
+    var n = 2;
+    return myUtils().fw_stripper(strIn, n);
+}
+
+var shortNames = d3.map(classColorsCodes(), d => truncateStr(d.className))
+    .keys()
+    .filter(d => d != "Other")
+    .sort();
+
+shortNames.forEach((d, i) => {
+    // make some pixiGraphics (aka containers) objects to hold the cell polygons and name them based on their short names
+    // these are just empty right now, they only have a name
+    var c = new PIXI.Graphics();
+    c.name = d;
+    cellContainer_array.push(c)
+});
 
 function hidePanels(bool){
     if (bool){
@@ -143,60 +138,59 @@ function hidePanels(bool){
     console.log('Info and donut panels: hidden= ' + bool)
 }
 
+// // Do now the same, make an array and populate it with empty PIXI.ParticleContainers. Later these particle Containers
+// // will hold the markers/spots for each gene
+// var geneNames = glyphSettings().map(d => d.gene).sort();
+// geneNames.forEach((d, i) => {
+//     var n = all_geneData.map(el => { el.Gene=== d}).length;
+//     var c = new PIXI.ParticleContainer(n, {vertices: true});
+//     c.name = d;
+//     geneContainer_array.push(c)
+// });
+run();
+
 function run() {
-    console.log('app starts');
+    console.log('app starts')
     configSettings = config().get('default');
+    var boundariesjson = configSettings.cellBoundaries;
+    // var celljson = configSettings.cellData; // is this still needed? I dont think so...
 
-    fetcher([configSettings.cellData, configSettings.geneData, configSettings.cellCoords]).then(
-        result => make_package(result),
-        error => alert(error) // doesn't run
-    );
+    var q = d3.queue();
+    q = q.defer(d3.json, boundariesjson);
+    for (var i = 0; i < configSettings.num_jsons; i++) {
+        q = q.defer(d3.json, configSettings.spot_json(i));
+        q = q.defer(d3.json, configSettings.cell_json(i));
+    }
+    q.await(onCellsLoaded(configSettings));
+
 }
 
-const fetcher = (filenames) => {
-    return Promise.all(
-        filenames.map(d => fetch(d).then(res => res.json()))
-    )
-};
 
-function make_package(result) {
-    var workPackage = result.reduce((a, b) => a.concat(b), []);
-    workPackage.forEach(d => d.root_name = d.name.split('_')[0]);
-    workPackage.forEach(d => d.bytes_streamed = 0); //will keep how many bytes have been streamed
-    workPackage.forEach(d => d.data = []);          //will keep the actual data from the flatfiles
-    workPackage.forEach(d => d.data_length = 0);    //will keep the number of points that have been fetched
-    // workPackage = d3.map(workPackage, d => d.name.split('.')[0]);
-    // workPackage = workPackage.map(d => [d.name, d.download_url, d.size]);
-    data_loader(workPackage);
+function onCellsLoaded(cfg) {
+    var data_1 = [],
+        // all_geneData = [],
+        data_3 = [];
+    return (err, ...args) => {
+        console.log('loading data')
+        args.forEach((d, i) => {
+            i === 0 ? data_1 = d : // the cell boundaries are in position 0 of the args array
+                i % 2 === 0 ? data_3 = [...data_3, ...d] : // even positions in the args array hold the cell data
+                    all_geneData = [...all_geneData, ...d] // odd positions in the args array hold the gene data
+        });
+        [cellBoundaries, cellData] = postLoad([data_1, data_3]);
+        console.log('loading data finished');
+        console.log('num of genes loaded: ' + all_geneData.length);
+        console.log('num of cells loaded: ' + cellData.length);
 
-    console.log(result)
+
+        //finaly make a spatial index on the spots. We will need that to filter them if/when needed
+        console.log('Creating the index');
+        spotsIndex = new KDBush(all_geneData, p => p.x, p => p.y, 64, Int32Array);
+
+        // do now the chart
+        dapiChart(cfg);
+    }
 }
-
-// function onCellsLoaded(cfg) {
-//     var data_1 = [],
-//         // all_geneData = [],
-//         data_3 = [];
-//     return (err, ...args) => {
-//         console.log('loading data')
-//         args.forEach((d, i) => {
-//             i === 0 ? data_1 = d : // the cell boundaries are in position 0 of the args array
-//                 i % 2 === 0 ? data_3 = [...data_3, ...d] : // even positions in the args array hold the cell data
-//                     all_geneData = [...all_geneData, ...d] // odd positions in the args array hold the gene data
-//         });
-//         [cellBoundaries, cellData] = postLoad([data_1, data_3]);
-//         console.log('loading data finished');
-//         console.log('num of genes loaded: ' + all_geneData.length);
-//         console.log('num of cells loaded: ' + cellData.length);
-//
-//
-//         //finaly make a spatial index on the spots. We will need that to filter them if/when needed
-//         console.log('Creating the index');
-//         spotsIndex = new KDBush(all_geneData, p => p.x, p => p.y, 64, Int32Array);
-//
-//         // do now the chart
-//         dapiChart(cfg);
-//     }
-// }
 
 function postLoad(arr) {
     //Do some basic post-processing/cleaning
@@ -223,9 +217,8 @@ function postLoad(arr) {
         d.agg = agg[i];
     });
 
-    // make sure the arrays are sorted by Cell_Num
-    _cellData = _cellData.sort(function(a,b){return a.Cell_Num-b.Cell_Num});
-    _cellBoundaries = _cellBoundaries.sort(function(a,b){return a.Cell_Num-b.Cell_Num});
+    // make sure the array is sorted by Cell_Num
+    _cellData.sort(function(a,b){return a.Cell_Num-b.Cell_Num});
 
     return [_cellBoundaries, _cellData]
 }
