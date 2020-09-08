@@ -34,8 +34,8 @@
     <!-- leaflet-pip v1.1.0 -->
     <script src="dashboard/js/lib/js/leaflet-pip.js"></script>
 
-    <!-- leaflet.textpath -->
-    <script src='dashboard/js/lib/js/leaflet.textpath.js'></script>
+<!--    &lt;!&ndash; leaflet.textpath &ndash;&gt;-->
+<!--    <script src='dashboard/js/lib/js/leaflet.textpath.js'></script>-->
 
     <!-- topojson -->
     <script src="https://unpkg.com/topojson@3"></script>
@@ -63,12 +63,17 @@
     <!-- mapbox-gl -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v1.10.1/mapbox-gl.js"></script>
 
-    <!-- progressbar -->
-    <script src="https://rawgit.com/kimmobrunfeldt/progressbar.js/1.0.0/dist/progressbar.js"></script>
+    <!-- leaflet.textpath -->
+    <!--  Not sure what is happening here. Is this getting overriden if I move it to another line, higher up. -->
+    <!--  No errors are being raised, it just looks as if the browser hasnt parsed it!-->
+    <script src='dashboard/js/lib/js/leaflet.textpath.js'></script>
 
-    <!-- Loading bar -->
-    <link rel="stylesheet" href="dashboard/js/lib/css/loading-bar.css">
-    <script src="dashboard/js/lib/js/loading-bar.js"></script>
+<!--    &lt;!&ndash; progressbar &ndash;&gt;-->
+<!--    <script src="https://rawgit.com/kimmobrunfeldt/progressbar.js/1.0.0/dist/progressbar.js"></script>-->
+
+<!--    &lt;!&ndash; Loading bar &ndash;&gt;-->
+<!--    <link rel="stylesheet" href="dashboard/js/lib/css/loading-bar.css">-->
+<!--    <script src="dashboard/js/lib/js/loading-bar.js"></script>-->
 
     <!-- user js scripts -->
     <script> console.log('reading source files')</script>
@@ -89,13 +94,12 @@
     <script src="dashboard/js/glyphs.js"></script>
     <script src="dashboard/js/glyphConfig.js"></script>
     <script src='dashboard/js/dapi.js'></script>
-    <script src="dashboard/js/lib/js/L.Control.Layers.Tree.js"></script> <!-- Patched Control.Layers.Tree: Must be parsed after dapi.js -->
-<!--    <script src='dashboard/js/dummyTree.js'></script>-->
-    <script src='dashboard/js/index.js'></script>
-
-    <!-- user css scripts -->
-    <link rel='stylesheet' href='dashboard/css/index.css'>
     <link rel="stylesheet" href="dashboard/js/lib/css/L.Control.Layers.Tree.css">
+    <script src="dashboard/js/lib/js/L.Control.Layers.Tree.js"></script> <!-- Patched Control.Layers.Tree: Must be parsed after dapi.js -->
+    <link rel="stylesheet" href="dashboard/css/progress.css">
+    <script src='dashboard/js/progress.js'></script>
+    <link rel='stylesheet' href='dashboard/css/index.css'>
+    <script src='dashboard/js/index.js'></script>
 
     <script> console.log('source files parsed')</script>
 
@@ -118,13 +122,96 @@
 <!--</div>-->
 
 
-<div id="chart-container">
-    <div id="chart"></div>
+<div id="stats-container" class="stack-top">
+<!--    <div id="chart"></div>-->
     <div class="loading">
         <div id="container"></div>
         <div id="loading" class="loading"><span>loading...</span></div>
         <div id="loading_perc" class="loading"><span>loading...</span></div>
+        <div id="loading_mb" class="loading"><span>loading...</span></div>
         <div id="done" class="loading"><span></span></div>
+    </div>
+</div>
+
+<div class="container-fluid aligned-middle stack-top" id="preloader">
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="col-sm-4">
+                <div class="row">
+                    <div id="specificChart" class="donut-size">
+                        <div class="pie-wrapper">
+                        <span class="label">
+                            <span class="num">0</span><span class="smaller">%</span>
+                        </span>
+                            <div class="pie">
+                                <div class="left-side half-circle"></div>
+                                <div class="right-side half-circle"></div>
+                            </div>
+                            <div class="shadow"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="text-center">
+                        <p>Num of boundaries: <span id="datapoints" class="meter">0</span></p>
+                        <p>Size: <span id="mb" class="meter">0MB</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-4">
+                <div class="row">
+                    <div id="specificChart2" class="donut-size">
+                        <div class="pie-wrapper">
+                        <span class="label">
+                            <span class="num">0</span><span class="smaller">%</span>
+                        </span>
+                            <div class="pie">
+                                <div class="left-side half-circle"></div>
+                                <div class="right-side half-circle"></div>
+                            </div>
+                            <div class="shadow"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="text-center">
+                        <p>Num of cells: <span id="datapoints2" class="meter">0</span></p>
+                        <p>Size: <span id="mb2" class="meter">0MB</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-4">
+                <div class="row">
+                    <div id="specificChart3" class="donut-size">
+                        <div class="pie-wrapper">
+                        <span class="label">
+                            <span class="num">0</span><span class="smaller">%</span>
+                        </span>
+                            <div class="pie">
+                                <div class="left-side half-circle"></div>
+                                <div class="right-side half-circle"></div>
+                            </div>
+                            <div class="shadow"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="text-center">
+                        <p>Num of spots: <span id="datapoints3" class="meter">0</span></p>
+                        <p>Size: <span id="mb3" class="meter">0MB</span></p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-sm-12" id="wait_chart">
+            Building the chart. Please wait...
+        </div>
+        <script>$('#wait_chart').hide()</script>
     </div>
 </div>
 
@@ -161,45 +248,12 @@
 
 <script>
     function removePreloader() {
-        $('#status').delay(350).fadeOut('slow'); // will first fade out the loading animation
+        $('#stats-container').delay(350).fadeOut('slow'); // will first fade out the loading animation
+        $('#stats-container').hide()
         $('#preloader').delay(350).fadeOut('slow'); // will fade out the white DIV that covers the website.
+        $('#preloader').hide();
         $('body').delay(350).css({'overflow': 'visible'});
     }
-</script>
-
-<script>
-    var bar = new ProgressBar.Circle(container, {
-        color: '#aaa',
-        // This has to be the same size as the maximum width to
-        // prevent clipping
-        strokeWidth: 4,
-        trailWidth: 1,
-        easing: 'easeInOut',
-        duration: 1400,
-        text: {
-            autoStyleContainer: false
-        },
-        style: {
-            color: '#ff0000',
-        },
-        from: {color: '#aaa', width: 1},
-        to: {color: '#333', width: 4},
-        // Set default step function for all animate calls
-        step: function (state, circle) {
-            circle.path.setAttribute('stroke', state.color);
-            circle.path.setAttribute('stroke-width', state.width);
-
-            var value = Math.round(circle.value() * 100);
-            if (value === 0) {
-                circle.setText('');
-            } else {
-                circle.setText(value);
-            }
-
-        }
-    });
-    bar.text.style.fontFamily = '"Raleway", Helvetica, sans-serif';
-    bar.text.style.fontSize = '2rem';
 </script>
 
 

@@ -24,7 +24,7 @@ function dapi(cfg) {
     map = L.map('mymap', {
         crs: L.CRS.MySimple,
         attributionControl: false,
-    }).setView([img[1], img[0] / 2], 2);
+    }).setView([img[1], img[0] / 2], 8);
     L.tileLayer(tiles, {
         minZoom: 0,
         maxZoom: 10
@@ -433,8 +433,8 @@ function dapiChart(config) {
     map.whenReady(d => {
         console.log('Map is ready')
     });
-    map.on('moveend', moveend(config));
-    map.on('movestart', movestart);
+    map.on('moveend', moveend(config)); // Show the polygons when move has ended
+    map.on('movestart', movestart); // Hide the polygons when you are about to move the chart. Thats a trick to make the chart look lighter when the number pf polygons is toooo large
     map.on('zoomanim', zoomanim_end);
     map.on('zoomend', zoomanim_end); // attach zooanim_end to both zoomanim and zoomend
 
