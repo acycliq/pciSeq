@@ -350,8 +350,67 @@ function dapi(cfg) {
     };
 
 
+    function tree(data) {
+        // makes the tree object to pass into the tree control as an overlay
+        var mapper = {},
+            root = {
+                label: 'Cell Classes',
+                selectAllCheckbox: 'Un/select all',
+                children: []
+            };
+
+        for (var str of data) {
+            var sep = configSettings.class_name_separator,
+                splits,
+                label = '';
+            // let splits = str.match(/[a-zA-Z]+|[0-9]+/g), //str.split('.'),
+            if (sep === '') {
+                console.log('Assuming that class name is a string followed by a number, like Astro1, Astro2 etc');
+                splits = str.match(/[a-zA-Z]+|[0-9]+/g) //str.split('.'),
+            }
+            else {
+                splits = str.split(sep)
+            };
+            splits.reduce(myReducer(label), root)
+        }
+
+        function myReducer(label) {
+            return function (parent, place, i, arr) {
+                if (label) {
+                    var sep = configSettings.class_name_separator;
+                    label += sep + `${place}`; // `.${place}`;
+                }
+                else
+                    label = place;
+
+                if (!mapper[label]) {
+                    var o = {label: label};
+                    o.collapsed = true;
+                    if (i === arr.length - 1) {
+                        o.layer = cellContainer_array.filter(d=> d.name === label)[0]
+                        // o.layer = masterCellContainer.getChildByName(label);
+                    }
+                    mapper[label] = o;
+                    parent.selectAllCheckbox = true;
+                    parent.children = parent.children || [];
+                    parent.children.push(o)
+                }
+                return mapper[label];
+            }
+        }
+
+        return root
+    }
+
+
+     function treeControl(data) {
+        return L.control.layers.tree({}, tree(data), {position:'topright'});
+     }
+
+
+
     // add the customised control
-    customControl = L.control.custom().addTo(map);
+    // customControl = L.control.custom().addTo(map);
 
     var dapiData = {};
     dapiData.map = map;
@@ -370,7 +429,8 @@ function dapi(cfg) {
     dapiData.toggleMapControl = toggleMapControl;
     dapiData.createDiv = createDiv;
     dapiData.datatable = datatable;
-    dapiData.customControl = customControl;
+    // dapiData.customControl = customControl;
+    dapiData.treeControl = treeControl;
     return dapiData
 }
 
@@ -381,7 +441,10 @@ function dapiChart(config) {
     map.whenReady(d => {
         console.log('Map is ready')
     });
-    map.on('moveend', moveend(config));
+    map.on('moveend', moveend(config)); // Show the polygons when move has ended
+    map.on('movestart', movestart); // Hide the polygons when you are about to move the chart. Thats a trick to make the chart look lighter when the number pf polygons is toooo large
+    map.on('zoomanim', zoomanim_end);
+    map.on('zoomend', zoomanim_end); // attach zooanim_end to both zoomanim and zoomend
 
     // Now add the info control  to map...
     dapiConfig.info.addTo(map);
@@ -399,10 +462,29 @@ function dapiChart(config) {
     $('#hideDapiAndPanels').show();
     console.log('check boxes added');
 
+    cellClasses = [...new Set(cellData.map(d => d.topClass))].sort();
+    cellClasses.forEach((d, i) => {
+        // make some pixiGraphics (aka containers) objects to hold the cell polygons and name them based on their short names
+        // these are just empty right now, they only have a name
+        var c = new PIXI.Graphics();
+        c.name = d;
+        c.options = [];
+        c.options.minZoom = 0;  // Needed only to fool the layer tree control and prevent an error from being raised
+        c.options.maxZoom = 10; // Needed only to fool the layer tree control and prevent an error from being raised
+        cellContainer_array.push(c)
+    });
+
+    // that needs to be created before we do the cell polygons (Should do that in a better way, maybe inside drawCellPolugons?)
+    // Add the control to switch on/off the cell polygons per class
+    myTreeControl = dapiConfig.treeControl(cellClasses);
+    myTreeControl.addTo(map);
+    myTreeControl._checkAll();
+
     // 1. draw the cell polygons
     cellPolyLayer = drawCellPolygons();
     cellPolyLayer.addTo(map);
     console.log('cellPolyLayer added to the map');
+
 
     // draw the spots
     // add_spots(all_geneData, map);
@@ -414,15 +496,13 @@ function dapiChart(config) {
     function moveend(config) {
         console.log('Triggering moveend callback');
 
-        // // 1. draw the cell polygons
-        // cellPolyLayer = drawCellPolygons();
-        // cellPolyLayer.addTo(map);
-        // console.log('cellPolyLayer added to the map')
+        if (masterCellContainer){
+            console.log('setting cell container to true')
+            masterCellContainer.children.map(d => d.visible = true)
+        }
 
-
-        // 2. if zoom >= 7 then render the glyphs too
+        // if zoom >= 7 then render the glyphs too
         return function (evt) {
-
             if (map.getZoom() >= zoomSwitch) {
                 // hide the markers drawn by pixi
                 geneContainer_array.map(d => d.visible = false);
@@ -432,7 +512,7 @@ function dapiChart(config) {
                 refresh();
 
             } else {
-                dapiConfig.removeLayer(geneLayers)
+                dapiConfig.removeLayer(geneLayers);
                 // closeLegend()
                 // localStorage.clear();
 
@@ -447,6 +527,17 @@ function dapiChart(config) {
             console.log('exiting moveend callback');
             console.log('')
         };
+    }
+
+    function movestart(evt){
+        console.log('map was moved.')
+        console.log('setting cell container to false');
+        masterCellContainer.children.map(d => d.visible = false)
+    }
+
+    function zoomanim_end(){
+        // make sure dapi remains hidden when you change zoom levels and the 'Hide Dapi' checkbox is checked
+        dapiConfig.toggleMapControl.update( document.getElementById('dapiToggle').checked );
     }
 
 
@@ -512,4 +603,6 @@ function dapiChart(config) {
     $('.leaflet-bottom.leaflet-left').hide();
     $('.leaflet-bottom.leaflet-right').hide();
     $('.panelsToggle').hide()
+
+
 }
