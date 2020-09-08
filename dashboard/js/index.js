@@ -87,7 +87,7 @@ function legendControl() {
     if (!legend_added) {
         legendLink.addEventListener(`click`, () => {
             // Opens the page and stores the opened window instance
-            legendWindow = window.open(`./dashboard/my_datatable.html`); // <--- THATS NEEDS TO BE EXPOSED TO THE USER. MOVE I INSIDE config.js MAYBE
+            legendWindow = window.open(`./dashboard/my_datatable.html`); // <--- THAT NEEDS TO BE EXPOSED TO THE USER. MOVE I INSIDE config.js MAYBE
         });
     }
     legend_added = true;
@@ -143,36 +143,34 @@ function hidePanels(bool){
     console.log('Info and donut panels: hidden= ' + bool)
 }
 
-
-// function run() {
-//     console.log('app starts')
-//     configSettings = config().get('default');
-//     var boundariesjson = configSettings.cellBoundaries;
-//     // var celljson = configSettings.cellData; // is this still needed? I dont think so...
-//
-//     var q = d3.queue();
-//     q = q.defer(d3.json, boundariesjson);
-//     for (var i = 0; i < configSettings.num_jsons; i++) {
-//         q = q.defer(d3.json, configSettings.spot_json(i));
-//         q = q.defer(d3.json, configSettings.cell_json(i));
-//     }
-//     q.await(onCellsLoaded(configSettings));
-// }
-
-
 function run() {
     console.log('app starts');
     configSettings = config().get('default');
-    var workPackage = [];
-    for (var i = 0; i < configSettings.num_tsvs; i++) {
-        workPackage = workPackage.concat(configSettings.gene_tsv(i));
-        workPackage = workPackage.concat(configSettings.cell_tsv(i));
-        workPackage = workPackage.concat(configSettings.cellCoords_tsv(i));
-    }
 
-    data_loader(workPackage);
+    fetcher([configSettings.cellData, configSettings.geneData, configSettings.cellCoords]).then(
+        result => make_package(result),
+        error => alert(error) // doesn't run
+    );
 }
 
+const fetcher = (filenames) => {
+    return Promise.all(
+        filenames.map(d => fetch(d).then(res => res.json()))
+    )
+};
+
+function make_package(result) {
+    var workPackage = result.reduce((a, b) => a.concat(b), []);
+    workPackage.forEach(d => d.root_name = d.name.split('_')[0]);
+    workPackage.forEach(d => d.bytes_streamed = 0); //will keep how many bytes have been streamed
+    workPackage.forEach(d => d.data = []);          //will keep the actual data from the flatfiles
+    workPackage.forEach(d => d.data_length = 0);    //will keep the number of points that have been fetched
+    // workPackage = d3.map(workPackage, d => d.name.split('.')[0]);
+    // workPackage = workPackage.map(d => [d.name, d.download_url, d.size]);
+    data_loader(workPackage);
+
+    console.log(result)
+}
 
 // function onCellsLoaded(cfg) {
 //     var data_1 = [],

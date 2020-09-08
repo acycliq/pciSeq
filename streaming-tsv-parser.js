@@ -62,7 +62,9 @@ const tsvChunkedParser = () => {
 };
 
 
-const fetchExternalData = (filenames) => {
+const fetchExternalData = (data) => {
+    // the input data is actually the workpackage
+    var filenames = data.map(d => d.download_url);
     return Promise.all(
         // filenames.forEach(d => d.map(el => fetch(el)))
         filenames.map(d => fetch(d))
@@ -77,7 +79,7 @@ onmessage = async function (event) {
     var perc = Array(event.data.length).fill(0);
 
     const tsvParser = [];
-    for (var i=0; i<event.data.length; i++){
+    for (var i=0; i< event.data.length; i++){
         // make an array where each element is a **NEW** instance of the parser
         tsvParser.push(tsvChunkedParser())
     }
@@ -104,7 +106,7 @@ onmessage = async function (event) {
                     const read = async () => {
                         const {done, value} = await reader.read();
                         if (done) {
-                            console.log('ok, im done')
+                            console.log('ok, ' + i + ' is done')
                             controller.close();
                             return;
                         }
@@ -114,11 +116,9 @@ onmessage = async function (event) {
 
                         totalBytes[i] += value.byteLength;
                         // console.log('File num: ' + i)
-                        var len = my_response.headers.get('content-length')
-                        perc[i] = totalBytes[i]/my_response.headers.get('content-length');
-                        console.log('i: ' + i)
-                        console.log('content-length: ' + my_response.headers.get('content-length'))
-                        postMessage({i, items, url: my_response.url, byteStats: [totalBytes[i], perc[i], len, +value.byteLength] });
+                        // var len = my_response.headers.get('content-length')
+                        // perc[i] = totalBytes[i]/my_response.headers.get('content-length');
+                        postMessage({i, items, url: my_response.url, bytes_streamed: +value.byteLength});
 
                         controller.enqueue(value);
                         read();

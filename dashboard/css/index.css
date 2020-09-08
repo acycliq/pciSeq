@@ -9,17 +9,17 @@ html {
     overflow-y: hidden;
 }
 
-#preloader {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #000000;
-    /* change if the mask should have another color then white */
-    z-index: 1100;
-    /* makes sure it stays on top */
-}
+/*#preloader {*/
+/*    position: fixed;*/
+/*    top: 0;*/
+/*    left: 0;*/
+/*    right: 0;*/
+/*    bottom: 0;*/
+/*    background-color: #000000;*/
+/*    !* change if the mask should have another color then white *!*/
+/*    z-index: 1100;*/
+/*    !* makes sure it stays on top *!*/
+/*}*/
 
 #status {
     width: 200px;
@@ -464,35 +464,35 @@ div.a {
 }
 
 
-#chart-container > div {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    right: 0;
-    left: 0;
-    text-align: middle;
-    vertical-align: middle;
-}
+/*#chart-container > div {*/
+/*    position: absolute;*/
+/*    top: 0;*/
+/*    bottom: 0;*/
+/*    right: 0;*/
+/*    left: 0;*/
+/*    text-align: middle;*/
+/*    vertical-align: middle;*/
+/*}*/
 
-.loading {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    /*background-color: rgba(125, 185, 222, 1.0);*/
-    /*background-color: rgba(250, 214, 137, 1.0);*/
-    background-color: rgba(252, 250, 242, 1.0);
-}
+/*.loading {*/
+/*    display: flex;*/
+/*    flex-direction: column;*/
+/*    justify-content: center;*/
+/*    align-items: center;*/
+/*    !*background-color: rgba(125, 185, 222, 1.0);*!*/
+/*    !*background-color: rgba(250, 214, 137, 1.0);*!*/
+/*    background-color: rgba(252, 250, 242, 1.0);*/
+/*}*/
 
-.loading span {
-    flex: 1;
-    text-align: center;
-    font-size: 3em;
-}
+/*.loading span {*/
+/*    flex: 1;*/
+/*    text-align: center;*/
+/*    font-size: 3em;*/
+/*}*/
 
-#container {
-    margin: 20px;
-    width: 200px;
-    height: 200px;
-    position: relative;
-}
+/*#container {*/
+/*    margin: 20px;*/
+/*    width: 200px;*/
+/*    height: 200px;*/
+/*    position: relative;*/
+/*}*/
