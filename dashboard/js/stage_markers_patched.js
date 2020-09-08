@@ -1,10 +1,6 @@
 function add_spots_patched(all_geneData, map) {
-
-    function markerColor(geneName) {
-        var colorCode = glyphColor(glyphSettings().filter(d => d.gene === geneName)[0].taxonomy);
-        var out = myUtils().string2hex(colorCode);
-        return out
-    }
+    // this is used to simulate leaflet zoom animation timing:
+	var easing = BezierEasing(0, 0, 0.25, 1);
 
     function generateCircleTexture(color, radius, renderer) {
         const gfx = new PIXI.Graphics();
@@ -44,69 +40,61 @@ function add_spots_patched(all_geneData, map) {
                     z === 3 ? 0.125 :
                         z === 4 ? 0.125 :
                             z === 5 ? 0.125 :
-                                z === 6 ? 0.0625 :
+                                z === 6 ? 0.0625 : // every time you zoom in, leaflet scales up by 2. Divide here by 2 to keep the marker the same as in zoom level 5
                                     z === 7 ? 0.03125 : 1
     }
 
 
-    var markersLength = all_geneData.length;
+    var pixiLayer = (function () {
+        masterMarkerContainer = new PIXI.Graphics();
 
-    loader.load(function (loader, resources) {
-        var textures = [resources.plane.texture, resources.circle.texture, resources.bicycle.texture];
-        // var texture = textures[1];
-        // var texture = generateCircleTexture(5)
+        // group by gene name
+        var data = groupBy(all_geneData, 'Gene');
 
-        var pixiLayer = (function () {
-            var zoomChangeTs = null;
-            masterMarkerContainer = new PIXI.Graphics();
+        // get all the gene names
+        var geneNames = Object.keys(data).sort();
 
-            // group by gene name
-            var data = groupBy(all_geneData, 'Gene');
+        // populate an array with empty particle containers. One for each gene
+        geneNames.forEach(gene => {
+            var n = data[gene].length;
+            var pc = new PIXI.particles.ParticleContainer(n, {vertices: true});
+            pc.anchor = {x: 0.5, y: 0.5};
+            pc.x = 0;
+            pc.y = 0;
+            pc.name = gene;
+            masterMarkerContainer.addChild(pc);
+            geneContainer_array.push(pc) // I think I can get rid of this. I can access the pc via masterMarkerContainer.getChildByName
+        });
 
-            // get all the gene names
-            var geneNames = Object.keys(data).sort();
+        // pixiContainer.addChild(innerContainer);
+        var doubleBuffering = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        var initialScale;
+        var firstDraw = true;
+        var prevZoom;
+        return L.pixiOverlay(function (utils, event) {
+            var zoom = utils.getMap().getZoom();
+            var container = utils.getContainer();
+            masterMarkerRenderer = utils.getRenderer();
+            var project = utils.latLngToLayerPoint;
+            var getScale = utils.getScale;
+            var invScale = 1 / getScale();
 
-            // populate an array with empty particle containers. One for each gene
+
             geneNames.forEach(gene => {
-                var n = data[gene].length;
-                var pc = new PIXI.particles.ParticleContainer(n, {vertices: true});
-                pc.anchor = {x: 0.5, y: 0.5};
-                pc.x = 0;
-                pc.y = 0;
-                pc.name = gene;
-                masterMarkerContainer.addChild(pc);
-                geneContainer_array.push(pc)
+                var my_color = markerColor(gene);
+                var texture = generateCircleTexture(my_color, 16, masterMarkerRenderer);
+                var pc = geneContainer_array.filter(d => d.name === gene)[0];
+                pc.texture = texture;
+                pc.baseTexture = texture.baseTexture;
             })
 
-            // var dummy_gene = 'Sst'
             // var innerContainer = geneContainer_array.filter(d => d.name === dummy_gene)[0];
-
-            // pixiContainer.addChild(innerContainer);
-            var doubleBuffering = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-            var initialScale;
-            return L.pixiOverlay(function (utils, event) {
-                var zoom = utils.getMap().getZoom();
-                var container = utils.getContainer();
-               masterMarkerRenderer = utils.getRenderer();
-                var project = utils.latLngToLayerPoint;
-                var getScale = utils.getScale;
-                var invScale = 1 / getScale();
-
-
-                geneNames.forEach(gene => {
-                    var my_color = markerColor(gene);
-                    var texture = generateCircleTexture(my_color, 16, masterMarkerRenderer)
-                    var pc = geneContainer_array.filter(d => d.name === gene)[0];
-                    pc.texture = texture;
-                    pc.baseTexture = texture.baseTexture;
-                })
-
-                // var innerContainer = geneContainer_array.filter(d => d.name === dummy_gene)[0];
+            if (firstDraw) {
                 if (event.type === 'add') {
 
                     initialScale = invScale / 8;
                     initialScale = 0.125;
-                    var targetScale = zoom <= 7 ? scaleRamp(zoom) : 1 / (2 * utils.getScale(event.zoom));
+                    var targetScale = zoom <= zoomSwitch ? scaleRamp(zoom) : 1;
                     for (var i = 0; i < geneNames.length; i++) {
                         var gene = geneNames[i];
                         var innerContainer = geneContainer_array.filter(d => d.name === gene)[0];
@@ -125,36 +113,29 @@ function add_spots_patched(all_geneData, map) {
                         }
                     }
                 }
+            }
 
-                masterMarkerRenderer.render(masterMarkerContainer);
-            }, masterMarkerContainer, {
-                doubleBuffering: true,
-                destroyInteractionManager: true
-            }); // L.pixiOverlay closes
-        })();
+            if (prevZoom !== zoom) {
+                // console.log('zoom: From ' + prevZoom + ' to ' + zoom);
+                geneNames.forEach(gene => {
+                    var innerContainer = masterMarkerContainer.getChildByName(gene);
+                    innerContainer.localScale = scaleRamp(zoom)
+                })
+            }
+            firstDraw = false;
+            prevZoom = zoom;
 
-        pixiLayer.addTo(map);
 
-        // var ticker = new PIXI.ticker.Ticker();
-        // ticker.add(function (delta) {
-        //     pixiLayer.redraw({type: 'redraw', delta: delta});
-        // });
-        // map.on('zoomstart', function () {
-        //     ticker.start();
-        // });
-        // map.on('zoomend', function () {
-        //     ticker.stop();
-        // });
-        // map.on('zoomanim', pixiLayer.redraw, pixiLayer);
+            masterMarkerRenderer.render(masterMarkerContainer);
+        }, masterMarkerContainer, {
+            doubleBuffering: true,
+            destroyInteractionManager: true
+        }); // L.pixiOverlay closes
+    })();
 
-        removePreloader();
-    });
+    pixiLayer.addTo(map);
+
+    // All done, hide the preloader now.
+    removePreloader();
+
 };
-
-
-// myMarkersContainer = masterMarkerContainer.getChildByName('myMarkers');
-// myMarkersContainer.visible = false
-// masterMarkerRenderer.render(masterMarkerContainer)
-
-
-// [...new Set(all_geneData.map(d => d.Gene))].sort()
