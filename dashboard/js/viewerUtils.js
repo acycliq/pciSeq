@@ -8,15 +8,7 @@ function myUtils() {
         for (var i = 0; i < data.length; ++i) {
             var c = data[i].coords,
                 temp = [];
-            // if (data[i].cell_id === 737) {
-            //     console.log('stop')
-            // }
             if (c) {
-                // That needs some attention. It leaves an open bug
-                // if c is null (ie a cell doesnt have boundary coords for some reason) then
-                // the geometry g which will be attached to data[i] will be the previous point's (ie data[i-1]) geometry,
-                // I am turning a blind eye cause I dont have too many such cells (in fact all cells should have boundaries)
-                // but it is a bug!
                 for (var j = 0; j < c.length; ++j) {
                     var x = c[j][0],
                         y = c[j][1];
