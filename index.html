@@ -248,10 +248,10 @@
 
 <script>
     function removePreloader() {
-        $('#stats-container').delay(350).fadeOut('slow'); // will first fade out the loading animation
+        // $('#stats-container').delay(350).fadeOut('slow'); // will first fade out the loading animation
         $('#stats-container').hide()
-        $('#preloader').delay(350).fadeOut('slow'); // will fade out the white DIV that covers the website.
-        $('#preloader').hide();
+        $('#preloader').delay(350).fadeOut(250); // will fade out the white DIV that covers the website.
+        // $('#preloader').hide();
         $('body').delay(350).css({'overflow': 'visible'});
     }
 </script>
