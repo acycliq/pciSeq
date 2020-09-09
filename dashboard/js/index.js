@@ -59,7 +59,13 @@ var storageMonitor = function () {
 
             // 2
             var x = masterMarkerContainer.getChildByName(d);
-            x.visible = false
+            if (x){
+                x.visible = false
+            }
+            else{
+                console.log("Gene: " + d + " doesn't exist in the data")
+            }
+
         });
 
 
@@ -70,7 +76,11 @@ var storageMonitor = function () {
             // 2
             if  (map.getZoom() < zoomSwitch){
                 var x = masterMarkerContainer.getChildByName(d);
-                x.visible = true
+                if (x) {
+                    x.visible = true
+                } else {
+                    console.log("Gene: " + d + " doesn't exist in the data")
+                }
             }
         });
 
