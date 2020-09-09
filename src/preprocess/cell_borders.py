@@ -1,6 +1,4 @@
-'''
-Functions for extracting the boundaries of the cells
-'''
+""" Functions for extracting the boundaries of the cells """
 
 import cv2
 import pandas as pd
@@ -12,9 +10,11 @@ from multiprocessing import cpu_count
 import time
 
 def extract_borders(label_image, offset_x, offset_y, clipped_labels):
-    '''
-    extracts the borders of the objects from the label_image
-    '''
+    """
+    same as ''extract_borders_par'' but without parallelism
+    :param label_image:
+    :return:
+    """
     labels = sorted(set(label_image.flatten()) - {0} - set(clipped_labels))
     out = {}
     for label in labels:
@@ -31,11 +31,19 @@ def extract_borders(label_image, offset_x, offset_y, clipped_labels):
 
 
 def extract_borders_par(label_image, offset_x, offset_y, clipped_labels):
-    '''
-    same as ''extract_borders'' but with parallelism
-    :param label_image:
-    :return:
-    '''
+    """ Extracts the borders of the objects from the label_image
+
+    :param label_image: a 2-d array, the same size as the image, where the value at position (i,j) denotes the label of
+                        the object that corresponds at pixel position (i, j) of the image. If a pixel is on the background
+                        then the label is zero
+    :param offset_x: The x-coordinate of the top left corner of the image
+    :param offset_y: The y-coordinate of the top left corner of the image
+    :param clipped_labels: a list containing the labels of the cells that will be excluded from border extraction
+    :return: A dataframe with columns '''label''' and '''coords'''. Column '''label''' contains the label of the cell
+            and column '''coords''' contains a list of pairs describing the coordinates of the cell boundaries/contours.
+            Each such pair is a list.
+    """
+
     labels = sorted(set(label_image.flatten()) - {0} - set(clipped_labels))
     out = extract_borders_helper([label_image, offset_x, offset_y], labels)
     out = pd.DataFrame([out]).T
