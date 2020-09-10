@@ -1,6 +1,7 @@
 function data_loader(workPackage) {
-    var data = [];
-    var previous_avg = 0;
+    var data = [],
+        agg_data,
+        previous_avg = 0;
     var average = list => list.reduce((prev, curr) => prev + curr) / list.length;
     workPackage = workPackage.sort((a,b) =>  a.size-b.size); //order by size (hemmm...doest really matter, does it?? Everything happens in parallel)
 
@@ -43,9 +44,6 @@ function data_loader(workPackage) {
         return innerHtml
     }
 
-
-    var my_flag = 0;
-    var agg_data;
     function setupWorker() {
         // create a web worker that streams the chart data
         worker = new Worker("./streaming-tsv-parser.js");
@@ -73,9 +71,6 @@ function data_loader(workPackage) {
             redraw(agg_data);
         };
     }
-
-    setupWorker();
-    worker.postMessage(workPackage);
 
     function redraw(data) {
         // console.log(data[0])
@@ -118,7 +113,6 @@ function data_loader(workPackage) {
 
             previous_avg = avg;
         }
-
     }
 
     function onDataLoaded(data) {
@@ -142,4 +136,7 @@ function data_loader(workPackage) {
         dapiChart(configSettings);
 
     }
+
+    setupWorker();
+    worker.postMessage(workPackage);
 }
