@@ -47,13 +47,12 @@ def splitter_n(filepath, n):
     filename_ext = os.path.basename(filepath)
     [filename, ext] = filename_ext.split('.')
 
-    TARGET_FILE = filepath
     OUT_DIR = os.path.join(os.path.splitext(filepath)[0] + '_split')
 
     if ext == 'json':
-        df = pd.read_json(TARGET_FILE)
+        df = pd.read_json(filepath)
     elif ext == 'tsv':
-        df = pd.read_csv(TARGET_FILE, sep='\t')
+        df = pd.read_csv(filepath, sep='\t')
     else:
         df = None
 
