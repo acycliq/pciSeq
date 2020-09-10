@@ -2,7 +2,7 @@ function data_loader(workPackage) {
     var data = [];
     var previous_avg = 0;
     var average = list => list.reduce((prev, curr) => prev + curr) / list.length;
-    workPackage = workPackage.sort((a,b) =>  a.size-b.size); //order by size, smaller files will be streamed first
+    workPackage = workPackage.sort((a,b) =>  a.size-b.size); //order by size (hemmm...doest really matter, does it?? Everything happens in parallel)
 
     function aggregate_stats(workPackage){
         out = [];
@@ -51,12 +51,7 @@ function data_loader(workPackage) {
         worker = new Worker("./streaming-tsv-parser.js");
         worker.onmessage = function (event) {
             if (event.data.finished) {
-                // console.log(data)
-                // document.getElementById("done").innerHTML = "<span>Drawing the chart. Please wait... </span>";
                 console.log(agg_data);
-                console.log('cannot call redraw');
-                console.log('my flag:' + my_flag);
-                my_flag = my_flag + 1
                 data = aggregate_data(workPackage);
                 onDataLoaded(data);
                 // redraw(stats);
@@ -66,15 +61,13 @@ function data_loader(workPackage) {
             workPackage[i].bytes_streamed += event.data.bytes_streamed;
             workPackage[i].data = workPackage[i].data.concat(event.data.items);
             workPackage[i].data_length += event.data.items.length;
-            // I think thats not really good. I have a massive array, data, in two locations, inside the workpackage and
-            // in the return value of aggregate_stats
-            if (i === 0) {
-                // console.log('i: ' + i)
-                // console.log('bytes_streamed: ' + workPackage[i].bytes_streamed)
-                // console.log('size: ' + workPackage[i].size)
-                // console.log('data length: ' + workPackage[i].data.length)
-                // console.log('')
-            }
+            // if (i === 0) {
+            //     console.log('i: ' + i)
+            //     console.log('bytes_streamed: ' + workPackage[i].bytes_streamed)
+            //     console.log('size: ' + workPackage[i].size)
+            //     console.log('data length: ' + workPackage[i].data.length)
+            //     console.log('')
+            // }
             agg_data = aggregate_stats(workPackage);
 
             redraw(agg_data);
@@ -98,11 +91,8 @@ function data_loader(workPackage) {
         document.getElementById("loading_mb").innerHTML = innerHtml;
 
 
-
-        // var perc_array = Object.values(perc);
-        // var min_perc = Math.min(...perc_array);
-        var avg = average(data.map(d => d.progress))
-        var avg_mb = average(data.map(d => (d.bytes_streamed/(1024*1024)).toFixed() ))
+        var avg = average(data.map(d => d.progress));
+        var avg_mb = average(data.map(d => (d.bytes_streamed/(1024*1024)).toFixed() ));
         var progress_1 = data[0].progress,
             progress_2 = data[1].progress;
             progress_3 = data[2].progress;
@@ -112,7 +102,7 @@ function data_loader(workPackage) {
             if (avg > 0.99){
                 $('#wait_chart').show();
             }
-            // refresh the progress bar animation, incrementally, every 2%
+            // refresh the progress animation
             updateDonutChart('#specificChart', progress_1*100, true);
             var mb_1 = (data[0].bytes_streamed/(1024*1024)).toFixed();
             $('#mb').html(mb_1 + 'MB');
@@ -126,9 +116,7 @@ function data_loader(workPackage) {
             $('#mb3').html((data[2].bytes_streamed/(1024*1024)).toFixed() + 'MB');
             $('#datapoints3').html(d3.format(",")(data[2].data_length));
 
-            // bar.animate(average(perc_array) / 100); // Number from 0.0 to 1.0
             previous_avg = avg;
-
         }
 
     }
