@@ -106,7 +106,9 @@ function renderPolygons(data) {
 
                     // 3, now that you have the correct pixiGraphics object, draw the polygon.
                     // In this manner each pixiGraphics object will hold polygons that have the same shortname
-                    drawPoly(color, alpha, project, cont)(feature.geometry.coordinates);
+                    if (cName !== "Zero"){
+                        drawPoly(color, alpha, project, cont)(feature.geometry.coordinates);
+                    }
                     // drawCellOutline(color, alpha, project, cont, feature.geometry.coordinates);
 
                 } else if (feature.geometry.type === 'MultiPolygon') {
