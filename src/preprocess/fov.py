@@ -20,7 +20,7 @@ class Fov:
     def __init__(self, fovs_across, fovs_down, cfg):
         self.fovs_across = fovs_across
         self.fovs_down = fovs_down
-        self.my_config = cfg
+        self.config = cfg
         self.fovs = []
         self.scaling_factor = 1
         self.fov_shape = None
@@ -77,7 +77,7 @@ class Fov:
         :return:
         '''
         fovs_across = self.fovs_across
-        fov_size = self.my_config['fov_size']
+        fov_size = self.config['fov_size']
 
         # find how far right you are:
         x = fov_id % fovs_across
@@ -100,7 +100,7 @@ class Fov:
         :return:
         '''
         x, y = self.get_fov_origin(fov_id)
-        fov_size = self.my_config['fov_size']
+        fov_size = self.config['fov_size']
 
         x_range = [x, x + fov_size]
         y_range = [y, y + fov_size]
@@ -109,7 +109,7 @@ class Fov:
 
 
     def get_dir(self, fov_id):
-        return os.path.join(self.my_config['FOV_ROOT'], 'fov_' + str(fov_id))
+        return os.path.join(self.config['FOV_ROOT'], 'fov_' + str(fov_id))
 
 
 if __name__ == "__main__":
