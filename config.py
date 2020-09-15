@@ -6,9 +6,7 @@ print(ROOT_DIR)
 
 
 PREPROCESSOR = {
-    'MATLAB_SPOTS': os.path.join(ROOT_DIR, 'data', 'from_Matlab', 'split', 'spots'),
-    'FOV_ROOT': os.path.join(ROOT_DIR, 'data', 'fov'),
-    'fov_size': 2000,   # implies that each fov is square with side length 2000px
+    'fov_shape': [2000, 2000], # implies that each fov has length 2000px and height 2000px
     'FOVS_ACROSS': 11,
     'FOVS_DOWN': 14,
 
