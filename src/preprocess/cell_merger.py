@@ -99,7 +99,7 @@ def update_spots(fov, spots):
 
 
 class Stage(object):
-    def __init__(self, fovs_obj, cellmaps):
+    def __init__(self, fovs_obj, spots_all, cellmaps):
         self._fovs_obj = fovs_obj
         self.my_counter = itertools.count()
         self.merge_register = defaultdict(list) # keeps the new created labels (as keys) and the fovs where these labels appear (as values)
@@ -107,10 +107,11 @@ class Stage(object):
         self.spots = None
         self.cellmaps = cellmaps
 
-        res = self.my_multithread(list(range(len(self._fovs_obj.fovs))))
+        # res = self.my_multithread(list(range(len(self._fovs_obj.fovs))))
         for i, d in enumerate(self._fovs_obj.fovs):
-            d['label_image'] = res[i][0]
-            d['spots'] = res[i][1]
+            d['label_image'] = self.fov_label_image(i)
+            d['spots'] = self.fov_spots(spots_all, i)
+
 
     @property
     def fovs(self):
@@ -143,6 +144,34 @@ class Stage(object):
             label_image = self.load_label_image(i)
         spots = load_spots(i, self.scaling_factor, self.my_config['MATLAB_SPOTS'])
         return label_image, spots
+
+    def fov_label_image(self, i):
+        if self.cellmaps is not None:
+            label_image = coo_matrix(self.cellmaps[i])
+        else:
+            label_image = self.load_label_image(i)
+        return label_image
+
+    def fov_spots(self, data, i):
+        x_range = self.fovs[i]['fov_range']['x']
+        y_range = self.fovs[i]['fov_range']['y']
+        mask = (data.x.values >= x_range[0]) & \
+               (data.x.values < x_range[1]) & \
+               (data.y.values >= y_range[0]) & \
+               (data.y.values < y_range[1])
+        df = data[mask].dropna()
+
+        df = df[['Gene', 'x', 'y']]
+        df = df[~df.duplicated()]
+        gene_name, idx = np.unique(df.Gene.values, return_inverse=True)
+        df['gene_id'] = idx  # this is effectively the gene id
+
+        df['x'] = df.x * self.scaling_factor
+        df['y'] = df.y * self.scaling_factor
+        df = df.sort_values(['x', 'y'], ascending=[True, True]) \
+            .reset_index(drop=True)  # <-- DO NOT FORGET TO RESET THE INDEX
+
+        return df
 
     def my_multithread(self, ids):
         n = max(1, cpu_count() - 1)
