@@ -21,18 +21,18 @@ class Fov:
         self.fovs_across = fovs_across
         self.fovs_down = fovs_down
         self.config = cfg
-        self.fovs = []
+        self.fovs, self.fov_shape = self.populate_fovs(fovs_across * fovs_down)
         self.scaling_factor = 1
-        self.fov_shape = None
-        self.pool = None
+        # self.fov_shape = None
+        # self.pool = None
         start = time.time()
-        self.fov_dict_par(fovs_across * fovs_down)
+        # self.fov_dict_par(fovs_across * fovs_down)
         print('Finished parallel in %s' % (time.time() - start))
 
     def setThreadPool(self, n):
         self.pool = ThreadPool(n)
 
-    def fov_dict_par(self, fovs_num):
+    def populate_fovs(self, fovs_num):
         logger.info('loading specs for each fov..')
         pool = ThreadPool(14)
         results = pool.map(self._helper, range(fovs_num))
@@ -40,13 +40,19 @@ class Fov:
         pool.join()
         logger.info('Fov specs loaded!')
 
-        self.fovs = [d[0] if d[0]['fov_id']==i else 1/0 for i, d in enumerate(results)]
+        fov_attr = []
+        for i, d in enumerate(results):
+            assert i == d[0]['fov_id'], 'data are not aligned'
+            fov_attr.append(d[0])
+
+        # self.fovs = [d[0] if d[0]['fov_id']==i else 1/0 for i, d in enumerate(results)]
         _fov_shape_x = [d[1] for d in results]
         _fov_shape_y = [d[2] for d in results]
 
         assert len(set(_fov_shape_x)) == 1
         assert len(set(_fov_shape_y)) == 1
-        self.fov_shape = np.array([_fov_shape_x[0], _fov_shape_y[0]]).astype(np.int32)
+        fov_shape = np.array([_fov_shape_x[0], _fov_shape_y[0]]).astype(np.int32)
+        return fov_attr, fov_shape
 
     def _helper(self, f):
         coords = self.get_fov_coords(f)
