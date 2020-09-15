@@ -111,7 +111,7 @@ class Stage(object):
         self.fovs_down = fovs_obj.fovs_down
         self.fov_shape = fovs_obj.fov_shape
         self.scaling_factor = fovs_obj.scaling_factor
-        self.my_config = fovs_obj.my_config
+        self.config = fovs_obj.config
         for i, d in enumerate(self._fovs_obj.fovs):
             d['label_image'] = self.fov_label_image(i)
             d['spots'] = self.fov_spots(spots_all, i)
