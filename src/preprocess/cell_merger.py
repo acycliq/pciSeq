@@ -59,45 +59,6 @@ def _get_connected_labels(mylist):
     return np.array([np.array(d) for d in output.values() if len(d) > 1])
 
 
-
-def load_spots(fov_id, scaling_factor, my_dir):
-    '''
-    :param fov: array of the fov_ids that the block consists of
-    :return:
-    '''
-    # fov_id = fov['fov_id']
-    # my_dir = self.my_config['STARFISH_SPOTS']  # That has be kept in a more tidy manner. It is a bit of a mess!
-
-    # fov_csv = [f"fov_{int(fov_id):03d}.csv"]
-    fov_csv = ['spots_%d.csv' % fov_id]
-    filename = [os.path.join(my_dir, f) for f in os.listdir(my_dir) if f in fov_csv]
-
-    if filename:
-        f = filename[0]
-    else:
-        f = None
-
-    logger.info('reading: %s' % f)
-    spots = pd.read_csv(f).dropna()
-
-    spots = spots[['Gene', 'x', 'y']]
-    spots = spots[~spots.duplicated()]
-    gene_name, idx = np.unique(spots.Gene.values, return_inverse=True)
-    spots['gene_id'] = idx  # this is effectively the gene id
-
-    spots['x'] = spots.x * scaling_factor
-    spots['y'] = spots.y * scaling_factor
-    spots = spots.sort_values(['x', 'y'], ascending=[True, True]) \
-        .reset_index(drop=True)  # <-- DO NOT FORGET TO RESET THE INDEX
-
-    return spots
-
-
-def update_spots(fov, spots):
-    fov['spots'] = spots
-    return fov
-
-
 class Stage(object):
     def __init__(self, fovs_obj, spots_all, cellmaps):
         self._fovs_obj = fovs_obj
@@ -111,7 +72,6 @@ class Stage(object):
         self.fovs_down = fovs_obj.fovs_down
         self.fov_shape = fovs_obj.fov_shape
         self.scaling_factor = fovs_obj.scaling_factor
-        self.config = fovs_obj.config
         for i, d in enumerate(self._fovs_obj.fovs):
             d['label_image'] = self.fov_label_image(i)
             d['spots'] = self.fov_spots(spots_all, i)
@@ -807,7 +767,6 @@ class Stage(object):
         return np.where(mask, a, np.nan)[mask.any(axis=1)][:, mask.any(axis=0)]
 
     def assign_cell_id(self):
-        # finally save the cell props to a csv file
         # Need to add the cell_id. This should be made redundant. The label can be used instead.
         cell_id = self.cell_props.label - 1
         cell_id[cell_id < 0] = np.nan
