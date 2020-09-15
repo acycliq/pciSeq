@@ -106,6 +106,13 @@ class Stage(object):
         self.cell_props = None
         self.spots = None
         self.cellmaps = cellmaps
+        self.fovs = fovs_obj.fovs
+        self.fovs_across = fovs_obj.fovs_across
+        self.fovs_down = fovs_obj.fovs_down
+        self.fov_shape = fovs_obj.fov_shape
+        self.scaling_factor = fovs_obj.scaling_factor
+        self.my_config = fovs_obj.my_config
+
 
         # res = self.my_multithread(list(range(len(self._fovs_obj.fovs))))
         for i, d in enumerate(self._fovs_obj.fovs):
@@ -113,29 +120,29 @@ class Stage(object):
             d['spots'] = self.fov_spots(spots_all, i)
 
 
-    @property
-    def fovs(self):
-        return self._fovs_obj.fovs
-
-    @property
-    def fovs_across(self):
-        return self._fovs_obj.fovs_across
-
-    @property
-    def fovs_down(self):
-        return self._fovs_obj.fovs_down
-
-    @property
-    def fov_shape(self):
-        return self._fovs_obj.fov_shape
-
-    @property
-    def scaling_factor(self):
-        return self._fovs_obj.scaling_factor
-
-    @property
-    def my_config(self):
-        return self._fovs_obj.my_config
+    # @property
+    # def fovs(self):
+    #     return self._fovs_obj.fovs
+    #
+    # @property
+    # def fovs_across(self):
+    #     return self._fovs_obj.fovs_across
+    #
+    # @property
+    # def fovs_down(self):
+    #     return self._fovs_obj.fovs_down
+    #
+    # @property
+    # def fov_shape(self):
+    #     return self._fovs_obj.fov_shape
+    #
+    # @property
+    # def scaling_factor(self):
+    #     return self._fovs_obj.scaling_factor
+    #
+    # @property
+    # def my_config(self):
+    #     return self._fovs_obj.my_config
 
     def load(self, i):
         if self.cellmaps is not None:
