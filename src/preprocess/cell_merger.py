@@ -112,45 +112,9 @@ class Stage(object):
         self.fov_shape = fovs_obj.fov_shape
         self.scaling_factor = fovs_obj.scaling_factor
         self.my_config = fovs_obj.my_config
-
-
-        # res = self.my_multithread(list(range(len(self._fovs_obj.fovs))))
         for i, d in enumerate(self._fovs_obj.fovs):
             d['label_image'] = self.fov_label_image(i)
             d['spots'] = self.fov_spots(spots_all, i)
-
-
-    # @property
-    # def fovs(self):
-    #     return self._fovs_obj.fovs
-    #
-    # @property
-    # def fovs_across(self):
-    #     return self._fovs_obj.fovs_across
-    #
-    # @property
-    # def fovs_down(self):
-    #     return self._fovs_obj.fovs_down
-    #
-    # @property
-    # def fov_shape(self):
-    #     return self._fovs_obj.fov_shape
-    #
-    # @property
-    # def scaling_factor(self):
-    #     return self._fovs_obj.scaling_factor
-    #
-    # @property
-    # def my_config(self):
-    #     return self._fovs_obj.my_config
-
-    def load(self, i):
-        if self.cellmaps is not None:
-            label_image = coo_matrix(self.cellmaps[i])
-        else:
-            label_image = self.load_label_image(i)
-        spots = load_spots(i, self.scaling_factor, self.my_config['MATLAB_SPOTS'])
-        return label_image, spots
 
     def fov_label_image(self, i):
         if self.cellmaps is not None:
@@ -177,16 +141,7 @@ class Stage(object):
         df['y'] = df.y * self.scaling_factor
         df = df.sort_values(['x', 'y'], ascending=[True, True]) \
             .reset_index(drop=True)  # <-- DO NOT FORGET TO RESET THE INDEX
-
         return df
-
-    def my_multithread(self, ids):
-        n = max(1, cpu_count() - 1)
-        pool = ProcessPool(n)
-        results = pool.map(self.load, ids)
-        pool.close()
-        pool.join()
-        return results
 
     def assign_spot_parent(self):
         res_list = []
