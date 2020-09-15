@@ -26,8 +26,8 @@ if __name__ == "__main__":
     cfg = config.PREPROCESSOR
 
     filepath = os.path.join(config.ROOT_DIR, 'CellMap_left.mat')
-    cellmap_chunks = utils.split_CellMap(filepath, config.PREPROCESSOR['fov_size'])
-    fovs = Fov(fovs_across, fovs_down, cfg)
+    cellmap_chunks = utils.split_CellMap(filepath, config.PREPROCESSOR['fov_shape'][0], config.PREPROCESSOR['fov_shape'][1])
+    fovs = Fov(cfg)
     stage = Stage(fovs, spots_all, cellmap_chunks)
 
     stage.merge_cells()

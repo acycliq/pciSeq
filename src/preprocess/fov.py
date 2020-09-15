@@ -16,22 +16,31 @@ logging.basicConfig(
 logger = logging.getLogger()
 # logger.disabled = True
 
+
 class Fov:
-    def __init__(self, fovs_across, fovs_down, cfg):
-        self.fovs_across = fovs_across
-        self.fovs_down = fovs_down
-        self.config = cfg
-        self.fovs, self.fov_shape = self.populate_fovs(fovs_across * fovs_down)
+    '''
+    The Fov object contains the fovs
+
+    Parameters
+    ----------
+    fovs_across: int
+        The number of fovs of the image along the x-axis
+    fovs_down: int
+        The number of fovs of the image along the y-axis
+    cfg:
+    '''
+    def __init__(self, cfg):
+        self.fovs_across = cfg['FOVS_ACROSS']
+        self.fovs_down = cfg['FOVS_DOWN']
+        self.fov_shape = cfg['fov_shape']
+        self.fovs = self.populate_fovs(self.fovs_across * self.fovs_down)
         self.scaling_factor = 1
         start = time.time()
         print('Finished parallel in %s' % (time.time() - start))
 
-    def setThreadPool(self, n):
-        self.pool = ThreadPool(n)
-
     def populate_fovs(self, fovs_num):
         logger.info('loading specs for each fov..')
-        pool = ThreadPool(14)
+        pool = ThreadPool(14) # get the number of threads 14 programmatically, get rid of magic numbers
         results = pool.map(self._helper, range(fovs_num))
         pool.close()
         pool.join()
@@ -42,34 +51,24 @@ class Fov:
             assert i == d[0]['fov_id'], 'data are not aligned'
             fov_attr.append(d[0])
 
-        _fov_shape_x = [d[1] for d in results]
-        _fov_shape_y = [d[2] for d in results]
+        shape_x = np.unique([d[1] for d in results])
+        shape_y = np.unique([d[2] for d in results])
 
-        assert len(set(_fov_shape_x)) == 1, 'All fovs should have the same x-length'
-        assert len(set(_fov_shape_y)) == 1, 'All fovs should have the same y-length'
-        fov_shape = np.array([_fov_shape_x[0], _fov_shape_y[0]]).astype(np.int32)
-        return fov_attr, fov_shape
+        assert len(shape_x) == 1, 'All fovs should have the same x-length'
+        assert len(shape_y) == 1, 'All fovs should have the same y-length'
+        assert [shape_x[0], shape_y[0]] == self.fov_shape, 'Shape is wrong'
+        return fov_attr
 
     def _helper(self, f):
         coords = self.get_fov_coords(f)
-        # coords = self.global_coords(coords)
         temp = {'fov_id': f,
                 'fov_range': {'x': coords[0], 'y': coords[1]},
                 'fov_offset_x': coords[0][0],
                 'fov_offset_y': coords[1][0],
                 'fov_scaling_factor': 1,
-                'fov_dir': self.get_dir(f),
                 '_label_image_outlines': None,
                 }
         return temp, coords[0][1] - coords[0][0], coords[1][1] - coords[1][0]
-
-    def global_coords(self, coords):
-        x_range = coords[0]
-        y_range = coords[1]
-        k = coords[2]
-        x_global = [d * k for d in x_range]
-        y_global = [d * k for d in y_range]
-        return x_global, y_global, k
 
     def get_fov_origin(self, fov_id):
         '''
@@ -79,15 +78,16 @@ class Fov:
         :return:
         '''
         fovs_across = self.fovs_across
-        fov_size = self.config['fov_size']
+        x_size = self.fov_shape[0]
+        y_size = self.fov_shape[1]
 
         # find how far right you are:
         x = fov_id % fovs_across
 
         # find how far down you are:
         y = fov_id // fovs_across
-        x0 = fov_size * x
-        y0 = fov_size * y
+        x0 = x_size * x
+        y0 = y_size * y
         return x0, y0
 
     def get_fov_coords(self, fov_id):
@@ -99,16 +99,13 @@ class Fov:
         :return:
         '''
         x, y = self.get_fov_origin(fov_id)
-        fov_size = self.config['fov_size']
+        x_size = self.fov_shape[0]
+        y_size = self.fov_shape[1]
 
-        x_range = [x, x + fov_size]
-        y_range = [y, y + fov_size]
+        x_range = [x, x + x_size]
+        y_range = [y, y + y_size]
 
         return x_range, y_range
-
-
-    def get_dir(self, fov_id):
-        return os.path.join(self.config['FOV_ROOT'], 'fov_' + str(fov_id))
 
 
 if __name__ == "__main__":
