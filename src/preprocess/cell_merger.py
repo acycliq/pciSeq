@@ -61,7 +61,7 @@ def _get_connected_labels(mylist):
 
 class Stage(object):
     def __init__(self, fovs_obj, spots_all, cellmaps):
-        self._fovs_obj = fovs_obj
+        # self._fovs_obj = fovs_obj
         self.my_counter = itertools.count()
         self.merge_register = defaultdict(list) # keeps the new created labels (as keys) and the fovs where these labels appear (as values)
         self.cell_props = None
@@ -72,7 +72,7 @@ class Stage(object):
         self.fovs_down = fovs_obj.fovs_down
         self.fov_shape = fovs_obj.fov_shape
         self.scaling_factor = fovs_obj.scaling_factor
-        for i, d in enumerate(self._fovs_obj.fovs):
+        for i, d in enumerate(self.fovs):
             d['label_image'] = self.fov_label_image(i)
             d['spots'] = self.fov_spots(spots_all, i)
 
