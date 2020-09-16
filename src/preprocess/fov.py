@@ -23,10 +23,6 @@ class Fov:
 
     Parameters
     ----------
-    fovs_across: int
-        The number of fovs of the image along the x-axis
-    fovs_down: int
-        The number of fovs of the image along the y-axis
     cfg: dict
         dictionary with key/value pairs:
             fovs_across: (int) How many fovs the full image has from left to right
@@ -40,7 +36,7 @@ class Fov:
         self.fovs_down = cfg['fovs_down']
         self.fov_shape = cfg['fov_shape']
         self.fovs = self.populate_fovs(self.fovs_across * self.fovs_down)
-        self.scaling_factor = 1
+        self.scaling_factor = 1  # This will be removed
         start = time.time()
         print('Finished parallel in %s' % (time.time() - start))
 
