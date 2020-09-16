@@ -27,21 +27,43 @@ class Fov:
         The number of fovs of the image along the x-axis
     fovs_down: int
         The number of fovs of the image along the y-axis
-    cfg:
+    cfg: dict
+        dictionary with key/value pairs:
+            fovs_across: (int) How many fovs the full image has from left to right
+            fovs_down: (int) How many fovs the full image has from top to bottom
+            fov_shape: (list) list-like of length 2 describing the size in px of the fov.
+                        It is assumed that all fovs have the same shape. If fov_shape = [1000, 2000]
+                        then it is implied that the x side of the fov is 1000px long and the y-side 2000px
     '''
     def __init__(self, cfg):
-        self.fovs_across = cfg['FOVS_ACROSS']
-        self.fovs_down = cfg['FOVS_DOWN']
+        self.fovs_across = cfg['fovs_across']
+        self.fovs_down = cfg['fovs_down']
         self.fov_shape = cfg['fov_shape']
         self.fovs = self.populate_fovs(self.fovs_across * self.fovs_down)
         self.scaling_factor = 1
         start = time.time()
         print('Finished parallel in %s' % (time.time() - start))
 
-    def populate_fovs(self, fovs_num):
+    def populate_fovs(self, fovs_counts):
+        """
+        Populates the fovs. Each fov is a dict with key/value pairs:
+            fov_id: (int) The id of the fov
+            fov_range: a list of coordinates [[x_min, x_max], [y_min, y_max]] of the x-side and y-side of the fov
+            fov_offset_x: (int) the x-coordinate of the top left corner of the fov
+            fov_offset_y: (int) the y-coordinate of the top left corner of the fov
+
+        Parameters
+        ----------
+        fovs_counts: (int) The counts of fovs in the image
+
+        Returns
+        -------
+        a list of fovs
+        """
+
         logger.info('loading specs for each fov..')
         pool = ThreadPool(14) # get the number of threads 14 programmatically, get rid of magic numbers
-        results = pool.map(self._helper, range(fovs_num))
+        results = pool.map(self._helper, range(fovs_counts))
         pool.close()
         pool.join()
         logger.info('Fov specs loaded!')
@@ -66,17 +88,22 @@ class Fov:
                 'fov_offset_x': coords[0][0],
                 'fov_offset_y': coords[1][0],
                 'fov_scaling_factor': 1,
-                '_label_image_outlines': None,
+                # '_label_image_outlines': None,
                 }
         return temp, coords[0][1] - coords[0][0], coords[1][1] - coords[1][0]
 
     def get_fov_origin(self, fov_id):
-        '''
+        """
         return the coordinates of the top left corner of a tile given its id
 
-        :param fov_id:
-        :return:
-        '''
+        Parameters
+        ----------
+        fov_id: ths id of the fov
+
+        Returns
+        -------
+        the coordinates of the top left corner
+        """
         fovs_across = self.fovs_across
         x_size = self.fov_shape[0]
         y_size = self.fov_shape[1]
@@ -91,13 +118,13 @@ class Fov:
         return x0, y0
 
     def get_fov_coords(self, fov_id):
-        '''
+        """
         return the range of the x and y sides of the fov given the fov id.
         The ranges are in global coordinates
 
         :param fov_id:
         :return:
-        '''
+        """
         x, y = self.get_fov_origin(fov_id)
         x_size = self.fov_shape[0]
         y_size = self.fov_shape[1]

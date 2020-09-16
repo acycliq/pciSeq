@@ -6,11 +6,13 @@ print(ROOT_DIR)
 
 
 PREPROCESSOR = {
-    'fov_shape': [2000, 2000], # implies that each fov has length 2000px and height 2000px
-    'FOVS_ACROSS': 11,
-    'FOVS_DOWN': 14,
+    'fov_shape': [2000, 2000],  # implies that each fov has length 2000px and height 2000px
+    'fovs_across': 11,
+    'fovs_down': 14,
+    'spots_full': os.path.join(ROOT_DIR, 'data', 'from_Matlab', 'SpotGlobal.csv'),
+    'cellmap_full': os.path.join(ROOT_DIR, 'CellMap_left.mat'),
 
-    # Output. Save here the results from the algorithm (I should move that somewhere else...)
+     # Output. Save here the results from the algorithm (I should move that somewhere else...)
     'CELL_TYPED_GENES': os.path.join(ROOT_DIR, 'data', 'cell_call_demo_data', 'mouse_full_coronal', 'cell_type_output', 'geneData.json'),
     'CELL_TYPED_CELLS': os.path.join(ROOT_DIR, 'data', 'cell_call_demo_data', 'mouse_full_coronal', 'cell_type_output', 'cellData.json'),
 }
