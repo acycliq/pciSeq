@@ -26,7 +26,7 @@ if __name__ == "__main__":
     stage = Stage(fovs, spots_full, cellmap_chunks)
 
     stage.merge_cells()
-    stage.global_labels_par()
+    stage.global_labels()
     stage.cell_props = stage.calc_props()
     stage.cell_props['cell_id'] = stage.assign_cell_id()
 
