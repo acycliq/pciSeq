@@ -4,6 +4,7 @@ import base64
 import json
 import os
 from multiprocessing.dummy import Pool as ThreadPool
+from multiprocessing import cpu_count
 import config
 import logging
 import time
@@ -58,7 +59,8 @@ class Fov:
         """
 
         logger.info('loading specs for each fov..')
-        pool = ThreadPool(14) # get the number of threads 14 programmatically, get rid of magic numbers
+        n = max(1, cpu_count() - 1)
+        pool = ThreadPool(n)
         results = pool.map(self._helper, range(fovs_counts))
         pool.close()
         pool.join()
