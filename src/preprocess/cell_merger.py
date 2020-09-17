@@ -61,9 +61,44 @@ def _get_connected_labels(mylist):
 
 class Stage(object):
     def __init__(self, fovs_obj, spots_all, cellmaps):
-        # self._fovs_obj = fovs_obj
+        """
+        The Stage object contains the tools to tell if a spot falls within the cell soma (and which cell that is),
+        merge cells that span over many fovs and also label these cells with a unique id
+
+        Parameters
+        ----------
+        fovs_obj: an object of type Fov
+        spots_all: a dataframe with columns ['Gene', 'x', 'y']. It contains all the spots. Column ```Gene``` is the gene name
+                    and columns '''x''', '''y''' contain the x,y coordinated of the cell centroid respectively.
+        cellmaps: a list containing the ```label_image''' arrays for each fov. A '''label_image''' is an array where the non-zero
+                    values denote the label of the physical object (ie cell) that correspond to that specific location. Zero means
+                    that the corresponding pixel falls on the background
+
+        Attributes
+        ----------
+        my_counter: int
+            counter that is called internally while new labels to the cells
+        merge_register: dict
+            dictionary that keeps the newly created labels (as keys) and the fovs where these labels appear (as values)
+        cell_props: dataframe
+            keeps some useful cell properties
+        fovs: list
+            Each element of the list is an oject of type FOV
+        fovs_across: int
+            number of fovs along the x-axis
+        fovs_down: int
+            number of fovs along the y-axis
+        fov_shape: list
+            list with 2 elements denoting the length of the x-side and y-side of the fov. All fovs are assumed to be of the
+            same shape
+
+
+        Note: '''label_image''' is typically obtained via cell segmentation. The '''cellmaps''' list contains the output
+                after cell-segmenting each fov that composes our big dapi image we performed the experiment on
+
+        """
         self.my_counter = itertools.count()
-        self.merge_register = defaultdict(list) # keeps the new created labels (as keys) and the fovs where these labels appear (as values)
+        self.merge_register = defaultdict(list)
         self.cell_props = None
         self.spots = None
         self.cellmaps = cellmaps
@@ -72,18 +107,31 @@ class Stage(object):
         self.fovs_down = fovs_obj.fovs_down
         self.fov_shape = fovs_obj.fov_shape
         self.scaling_factor = fovs_obj.scaling_factor
+        self.compose_dict(spots_all)
+
+    def compose_dict(self, spots_all):
+        """
+        Mutates in-place the fov object by adding two more key/value pairs
+
+        Parameters
+        ----------
+        spots_all: dataframe
+            Contains all the spots (Gene names and x,y coords) for the full image
+        """
         for i, d in enumerate(self.fovs):
-            d['label_image'] = self.fov_label_image(i)
-            d['spots'] = self.fov_spots(spots_all, i)
+            d['label_image'] = self.fov_label_image(i)  # label_image for the i-th fov
+            d['spots'] = self.fov_spots(spots_all, i)   # spots for the i-th fov
 
     def fov_label_image(self, i):
+        """ label_image for the i-th fov """
         if self.cellmaps is not None:
             label_image = coo_matrix(self.cellmaps[i])
         else:
-            label_image = self.load_label_image(i)
+            raise ValueError('cellmaps is not defined')
         return label_image
 
     def fov_spots(self, data, i):
+        """ spots for the i-th fov """
         x_range = self.fovs[i]['fov_range']['x']
         y_range = self.fovs[i]['fov_range']['y']
         mask = (data.x.values >= x_range[0]) & \
@@ -203,27 +251,6 @@ class Stage(object):
         out = coo_matrix(coo_arr[:-1, :-1])  # why the -1? See comment right above
         return out
 
-    def load_label_image(self, fov_id):
-        '''
-        Reads a label_image and returns a dataframe with the objects found on it.
-        The array has index the label and columns: fov_id, area and the cell centroids x, y
-        :param fov:
-        :return:
-        '''
-        label_img = self.read_from_disk(fov_id)
-        return coo_matrix(label_img)
-
-    def read_from_disk(self, fov_id):
-        full_path = self.make_path(fov_id)
-        out = np.genfromtxt(full_path, delimiter=',')
-        logger.info('reading %s', full_path)
-        return out
-
-    def make_path(self, fov_id):
-        fov_dir = get_dir(self.my_config, fov_id)
-        full_path = os.path.join(fov_dir, 'label_image', 'label_image_fov_' + str(fov_id) + '.csv')
-        return full_path
-
     def adjacent_fov(self, fov_id):
         if fov_id % self.fovs_across != 0:
             left = fov_id - 1
@@ -237,6 +264,7 @@ class Stage(object):
         return {'left': left, 'up': up}
 
     def merge_cells(self):
+        """  Merge cells clipped by two or more fovs. """
         for fov in self.fovs:
             logger.info('\n')
             logger.info('Doing fov %i' % fov['fov_id'])
@@ -245,6 +273,22 @@ class Stage(object):
         logger.info('\n')
 
     def merge(self, fov):
+        """
+        Does most of the heavy lifting for cell merging. Mutates in-place the label_image arrays of three fovs.
+        If fov has fov_id = i then the mutated label_images are for the fovs with:
+            fov_id = i
+            fov_id = i + 1 (the neighbouring fov at the right)
+            fov_id = i - #fovs_across (the neighbouring fov at the top)
+        Parameters
+        ----------
+        fov: an instance of the class Fov
+
+        Notes
+        -----
+        Is is assumed that each fov is big enough (relative to the cells) so that there is no cell bigger in size that a fov.
+        For example, the most complicated case will be a cell clipped by four fovs forming a 2x2 setup with the cell centroid close
+        at the intersection of the four fovs
+        """
         fov_id = fov['fov_id']
         adj_img = self.adjacent_fov(fov_id)
 
@@ -267,6 +311,25 @@ class Stage(object):
             fov['label_image'] = coo_b
 
     def dissolve_borders(self, adjc_fov, fov, transpose=False):
+        """
+        Compares the label_image arrays from two neighbouring (one next another) fovs. If the last column of the
+        label_image at the left and the first column of the one at the right have non-zero values at the same location
+        then the labels at these locations are assigned a new and common label
+        Parameters
+        ----------
+        adjc_fov: an instance of the class Fov
+            The neighbouring fov. Could be the neighbour from the right, or from above
+        fov: an instance of the class Fov
+            the current fov
+        transpose: bool. Optional
+            if adjc_fov is the neighbour from the top, then set this to True. Default is False
+
+
+        Returns
+        -------
+        temp_a, temp_b: tuple
+            A tuple of two label_image arrays that correspond to the adjacent and the current fov respectively
+        """
         if transpose:
             adjc_img = adjc_fov['label_image'].transpose()
             img = fov['label_image'].transpose()
@@ -449,13 +512,13 @@ class Stage(object):
         fov['image_objects'] = props_df  # <--- Not sure If I should do this or just return the df and add the dictionary filed at the calliing function
         return fov
 
-    def global_labels_par(self):
-        results = self._global_labels_par()
+    def global_labels(self):
+        results = self.global_labels_par()
         # finally flip the sign on the dict
         self.flip_sign()
         return results
 
-    def _global_labels_par(self):
+    def global_labels_par(self):
         n = max(1, cpu_count() - 1)
         pool = ThreadPool(n)
         results = pool.map(self.global_labels_helper, self.fovs)
@@ -464,34 +527,35 @@ class Stage(object):
 
         return results
 
-    def global_labels(self):
-        '''
-        Same as "global_labels_par()" but without parallelism
-        :return:
-        '''
-        for fov in self.fovs:
-            # logger.info('fov:%d, Setting global labels' % fov['fov_id'])
-            data = fov['label_image'].data
-            labels = np.unique(data[data > 0])
-            label_map = {d: self.label_generator() for d in labels}
-            fov['label_image'].data = np.array([label_map[d] if d > 0 else d for d in data])
-            logger.info('fov: %d: label map is: %s' % (fov['fov_id'], label_map))
-
-            clipped_cell_labels = {k: v for k, v in self.merge_register.items() if fov['fov_id'] in v}.keys()
-            assert np.all([d in fov['label_image'].data for d in clipped_cell_labels]), \
-                "A label that the cell register says should exist in the fov %d doesnt seem to be verified by the label_image" % \
-                fov['fov_id']
-
-            fov['label_image'].data = -1 * fov['label_image'].data
-            if np.any(fov['label_image'].data):
-                logger.info('fov:%d, Global labels are set.' % fov['fov_id'])
-            else:
-                logger.info('fov:%d empty, nothing to do here' % fov['fov_id'])
-
-            self.image_objects(fov)
-
-        # finally flip the sign on the dict
-        self.flip_sign()
+    # def global_labels(self):
+    #     '''
+    #     DEPRECATED: Replaced the function that uses parallelism
+    #     Same as "global_labels_par()" but without parallelism
+    #     :return:
+    #     '''
+    #     for fov in self.fovs:
+    #         # logger.info('fov:%d, Setting global labels' % fov['fov_id'])
+    #         data = fov['label_image'].data
+    #         labels = np.unique(data[data > 0])
+    #         label_map = {d: self.label_generator() for d in labels}
+    #         fov['label_image'].data = np.array([label_map[d] if d > 0 else d for d in data])
+    #         logger.info('fov: %d: label map is: %s' % (fov['fov_id'], label_map))
+    #
+    #         clipped_cell_labels = {k: v for k, v in self.merge_register.items() if fov['fov_id'] in v}.keys()
+    #         assert np.all([d in fov['label_image'].data for d in clipped_cell_labels]), \
+    #             "A label that the cell register says should exist in the fov %d doesnt seem to be verified by the label_image" % \
+    #             fov['fov_id']
+    #
+    #         fov['label_image'].data = -1 * fov['label_image'].data
+    #         if np.any(fov['label_image'].data):
+    #             logger.info('fov:%d, Global labels are set.' % fov['fov_id'])
+    #         else:
+    #             logger.info('fov:%d empty, nothing to do here' % fov['fov_id'])
+    #
+    #         self.image_objects(fov)
+    #
+    #     # finally flip the sign on the dict
+    #     self.flip_sign()
 
 
     def global_labels_helper(self, fov):
