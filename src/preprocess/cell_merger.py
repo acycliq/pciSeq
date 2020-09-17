@@ -218,7 +218,8 @@ class Stage(object):
 
     def localise_coords(self, spots, fov):
         '''
-        convert spots to local
+        convert spots coords to local coords
+        (lacal means the origin is the top left corner of the fov not of the full image)
         :param spots:
         :return:
         '''
@@ -494,12 +495,10 @@ class Stage(object):
         return a, b, rmap_a, rmap_b
 
     def image_objects(self, fov):
-        '''
+        """
         Reads a label_image and returns a dataframe with the objects found on it.
         The array has index the label and columns: fov_id, area and the cell centroids x, y
-        :param fov:
-        :return:
-        '''
+        """
         fov_id = fov['fov_id']
         label_image = fov['label_image'].toarray().astype(np.int32)
 
@@ -513,10 +512,12 @@ class Stage(object):
         return fov
 
     def global_labels(self):
-        results = self.global_labels_par()
-        # finally flip the sign on the dict
+        """ Assign new labels to the cells. I will also create a new key '''image_objects''' in the fov dict
+        with value a dataframe that keeps the label, fov_id, area, and centroid (local) coords of the cells
+        """
+        self.global_labels_par()
+        # Need also to flip the sign of the labels in the merge_register dict
         self.flip_sign()
-        return results
 
     def global_labels_par(self):
         n = max(1, cpu_count() - 1)
@@ -561,15 +562,20 @@ class Stage(object):
     def global_labels_helper(self, fov):
         logger.info('fod_id is: %d' % fov['fov_id'])
         data = fov['label_image'].data
+
+        # Get the positive labels. Negative means the cell is clipped, hence it has been
+        # given a new label (negative valued)
         labels = np.unique(data[data > 0])
         label_map = {d: self.label_generator() for d in labels}
         fov['label_image'].data = np.array([label_map[d] if d > 0 else d for d in data])
 
-        # Sanity check. merge register keeps the cells that are clipped, the cells that span over more than a single fov
+        # Sanity check. merge register keeps the cells that are clipped, the cells that span
+        # over more than a single fov
         # Get the labels from the merge register for this particular fov
         clipped_cell_labels = {k: v for k, v in self.merge_register.items() if fov['fov_id'] in v}.keys()
         assert np.all([d in fov['label_image'].data for d in clipped_cell_labels]), \
-            "A label that the cell register says should exist in the fov %d doesnt seem to be verified by the label_image" % fov['fov_id']
+            "A label that the cell register says should exist in the fov %d doesnt seem to be verified by the " \
+            "label_image" % fov['fov_id']
 
         # Flip now the sign of the labels
         fov['label_image'].data = -1 * fov['label_image'].data
@@ -578,16 +584,17 @@ class Stage(object):
         else:
             logger.info('fov:%d empty, nothing to do here' % fov['fov_id'])
 
+        # Finally, get area, centroid coords and label of the cells you find on the fov
         self.image_objects(fov)
-
         return True
 
     def flip_sign(self):
         # need to flip the sign of the keys in the merge_register dict
         # Maybe I should add some sanity checks here.
-        # For example I can do the flipping inside the loop of the calling function and while you loop get the keys (ie the labels)
-        # for the particular fov and then flip the label sign (if it negative because it may have been flipped already if the label
-        # exists in more that one fov
+        # For example I can do the flipping inside the loop of the calling function and while
+        # you loop get the keys (ie the labels) for the particular fov and then flip the label
+        # sign (if it negative because it may have been flipped already if the label exists in
+        # more that one fov
 
         if bool(self.merge_register):
             my_keys = list(self.merge_register.keys())
@@ -607,7 +614,6 @@ class Stage(object):
         logger.info('fov_%d: label %d ---> label %d' % (fov_id, old_label, label))
         if (old_label != label) and (old_label < 0):
             self.replace_label(old_label, label)
-
 
     def replace_label(self, old_label, label):
         # replace the register
@@ -636,14 +642,15 @@ class Stage(object):
         return out
 
     def calc_props(self):
-        '''
-        Reads a label_image and returns a dataframe with the objects found on it.
-        The array has index the label and columns: fov_id, area and the cell centroids x, y
-        :param fov:
-        :return:
-        '''
+        """ For the clipped cells, collate together all the necessary label_image arrays so that the cell is
+        not clipped anymore. Then read that mosaic of arrays and get cell centroid, area and other properties.
+        For the unclipped cells these properties are kept in image_objects.
+        Combine all (clipped and unclipped) and make a single dataframe with columns: 'label', 'fov_id', 'area',
+        'x_local', 'y_local', 'fov_offset_x', 'fov_offset_y', 'is_clipped', 'x', 'y', 'coords'.
+        It also assigns a unique global label to the cells. The last column with label 'coords' keeps the
+        coordinates of the cell boundary
+        """
 
-        logger.info('merged_props_dict2 starts')
         # make a dict where each key is a list of fovs and each value is a list of labels. The latter
         # holds the labels whose corresponding objects as these were identified by the cell segmentation
         # extend outside one single fov and span across the fovs kept in the corresponding key of the dict
@@ -831,7 +838,9 @@ class Stage(object):
         return np.where(mask, a, np.nan)[mask.any(axis=1)][:, mask.any(axis=0)]
 
     def assign_cell_id(self):
-        # Need to add the cell_id. This should be made redundant. The label can be used instead.
+        """ Add an extra column to be used as cell id
+        This should be made redundant. The label can be used instead.
+        """
         cell_id = self.cell_props.label - 1
         cell_id[cell_id < 0] = np.nan
         return cell_id
