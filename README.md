@@ -6,7 +6,7 @@ A pipeline to cell type and visualise iss data. (This writeup is not finished)
 
 ![](screencast.gif)
 
-## HOW TO
+## How to
 There are three stages involved:
 - Preprocessing 
 - Cell typing
@@ -20,16 +20,25 @@ We need as an input the ```label_image``` array of the full image and the text f
 A ```label_image``` is an array the same size as the dapi image. Its values represent the label of the real life object (biological cell) which is shown at the corresponding location
 of the dapi image. If an element of the  ```label_image``` array is zero, then the corresponding pixel is on the background. Herein the terms ```cellmap``` and ```label_image``` are
 used interchangeably, with the latter being the most common in the image segmentation community.
+
 This stage breaks up the ```label_image``` into smaller same-sized chunks/tiles/fov going from the top-left corner of the Dapi to the right and then top to bottom (see image below:)
 ![](preprocessing_1.jpg)
 
-```javascript
-Settings dictionary with keys:
-    'fov_shape':
-    'fovs_across'
-    'fovs_down': 
-    'spots_full': 
-    'cellmap_full':
+To start preprocessing you need to define a dictionary as follows:
+
+```
+PREPROCESSOR: `dict`
+    dictionary with keys:
+    ``"fov_shape``"
+        list of length 2. The two items of the list represent the size in pixels of the x-side and y-side of the fov respectively
+    ``"fovs_across``" 
+        Number of fovs along the x-axis (covering the full length of the x-side of the image) (int)
+    ``"fovs_down``":
+        Number of fovs along the y-axis (covering the full length of the y-side of the image) (int)
+    ``"spots_full``"
+        the full path to the csv with all the spots. Headees should be  ``"Gene``", ``"x``" and ``"y``" 
+    ``"cellmap_full``"
+        the full path to the label_image of the dapi
 ```
 
 ## Cell typing
