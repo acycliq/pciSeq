@@ -12,7 +12,7 @@ There are three stages involved:
 - [Cell typing](#Cell-typing) 
 - [Visualisation](#The-viewer) 
 
-The preprocessing stage prepares the data for the cell typing step which, when finished generates the flatfiles to be fed into the viewer.
+The preprocessing stage prepares the data for the cell typing step which, when finished generates the flatfiles to be fed into the viewer. 
 
 ## Preprocessing
 The main purpose is to tell whether a spot falls within a cell soma and if that happens, which cell it is.
@@ -23,11 +23,6 @@ used interchangeably, with the latter being the most common in the image segment
 
 This stage breaks up the ```label_image``` into smaller same-sized chunks/tiles/fov going from the top-left corner of the Dapi to the right and then top to bottom (see image below:)
 ![](preprocessing_1.jpg)
-#### Notes
- - the total length of the all fovs arranged next to another (either vertically or horizontally) can exceed the size of the corresponding side in the image
-as shown in the image above. The dapi image has ```width=27352px``` and ```height=20268px``` and we set ```fovs_across=14``` and ```fovs_across=11``` totalling to 
-```28000px``` and ```22000px```, assuming that each fov is square with side length ```2000px```.
-- The fov doesnt have to be square. It doesnt even to be equal to the actual fov of the microscope
 
 #### Configuration:
 To start preprocessing you need to create a ```PREPROCESSOR``` dictionary in [config.py](./config.py)  defined as follows:
@@ -46,6 +41,12 @@ PREPROCESSOR: 'dict'
         the path to the label_image of the dapi
 ```
 
+#### Notes
+ - the total length of the all fovs arranged next to another (either vertically or horizontally) can exceed the size of the corresponding side in the image
+as shown in the image above. The dapi image has ```width=27352px``` and ```height=20268px``` and we set ```fovs_across=14``` and ```fovs_across=11``` totalling to 
+```28000px``` and ```22000px```, assuming that each fov is square with side length ```2000px```.
+- The fov doesnt have to be square. It doesnt even to be equal to the actual fov of the microscope
+
 
 
 ## Cell typing
@@ -55,6 +56,8 @@ The viewer is a javascript web application running on the client side. Main tool
 - [Leaflet](http://leafletjs.com) on a canvas renderer
 - [Leaflet](http://leafletjs.com) on a WebGL renderer (due to the sublime [PixiOverlay](https://github.com/manubb/Leaflet.PixiOverlay) class)
 - [D3.js](https://d3js.org/)
+
+![](config.js.jpg)
 
 ## References 
 <a id="1">[1]</a> 
