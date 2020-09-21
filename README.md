@@ -24,23 +24,27 @@ used interchangeably, with the latter being the most common in the image segment
 This stage breaks up the ```label_image``` into smaller same-sized chunks/tiles/fov going from the top-left corner of the Dapi to the right and then top to bottom (see image below:)
 ![](preprocessing_1.jpg)
 
-### File to edit: [config.py](./config.py)
+#### File to edit: [config.py](./config.py)
 
 To start preprocessing you need to create a ```PREPROCESSOR``` dictionary in [config.py](./config.py)  defined as follows:
 ```
-PREPROCESSOR: `dict`
+PREPROCESSOR: 'dict'
     dictionary with keys:
-    `fov_shape`
+    'fov_shape':
         list of length 2. The two items of the list represent the size in pixels of the x-side and y-side of the fov respectively
-    `fovs_across` 
+    'fovs_across': 
         Number of fovs along the x-axis (covering the full length of the x-side of the image) (int)
-    `fovs_down`:
+    'fovs_down':
         Number of fovs along the y-axis (covering the full length of the y-side of the image) (int)
-    `spots_full`
+    'spots_full':
         the full path to the csv with all the spots. Headees should be  ``"Gene``", ``"x``" and ``"y``" 
-    `cellmap_full`
+    'cellmap_full':
         the full path to the label_image of the dapi
 ```
+Note that the total length of the all fovs arranged next to another (either vertically or horizontally) can exceed the size of the corresponding side in the image
+as shown in the image above. The image has ```width=27352px``` and ```height=20268``` and we set ```fovs_across=14``` and ```fovs_across=11``` totalling to 
+```28000px``` and ```22000px```, assuming that each fov is square with side length ```2000px```.
+
 
 ## Cell typing
 
