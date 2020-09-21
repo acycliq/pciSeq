@@ -23,9 +23,13 @@ used interchangeably, with the latter being the most common in the image segment
 
 This stage breaks up the ```label_image``` into smaller same-sized chunks/tiles/fov going from the top-left corner of the Dapi to the right and then top to bottom (see image below:)
 ![](preprocessing_1.jpg)
+### Notes
+ - the total length of the all fovs arranged next to another (either vertically or horizontally) can exceed the size of the corresponding side in the image
+as shown in the image above. The dapi image has ```width=27352px``` and ```height=20268``` and we set ```fovs_across=14``` and ```fovs_across=11``` totalling to 
+```28000px``` and ```22000px```, assuming that each fov is square with side length ```2000px```.
+- The fov doesnt have to be square. It doesnt even to be equal to the actual fov of the microscope
 
-#### File to edit: [config.py](./config.py)
-
+### Configuration:
 To start preprocessing you need to create a ```PREPROCESSOR``` dictionary in [config.py](./config.py)  defined as follows:
 ```
 PREPROCESSOR: 'dict'
@@ -37,19 +41,17 @@ PREPROCESSOR: 'dict'
     'fovs_down':
         Number of fovs along the y-axis (covering the full length of the y-side of the image) (int)
     'spots_full':
-        the full path to the csv with all the spots. Headees should be  ``"Gene``", ``"x``" and ``"y``" 
+        the full path to the csv with all the spots. Headers should be  'Gene', 'x' and 'y' 
     'cellmap_full':
         the full path to the label_image of the dapi
 ```
-Note that the total length of the all fovs arranged next to another (either vertically or horizontally) can exceed the size of the corresponding side in the image
-as shown in the image above. The image has ```width=27352px``` and ```height=20268``` and we set ```fovs_across=14``` and ```fovs_across=11``` totalling to 
-```28000px``` and ```22000px```, assuming that each fov is square with side length ```2000px```.
+
 
 
 ## Cell typing
 
 ## The viewer 
-The viewer is a javascript web application running on the client side. Main technologies used are 
+The viewer is a javascript web application running on the client side. Main tools used are 
 - [Leaflet](http://leafletjs.com) on a canvas renderer
 - [Leaflet](http://leafletjs.com) on a WebGL renderer (due to the sublime [PixiOverlay](https://github.com/manubb/Leaflet.PixiOverlay) class)
 - [D3.js](https://d3js.org/)
