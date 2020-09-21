@@ -2,7 +2,7 @@
 Probabilistic Cell typing by In situ Sequencing
 ==============================================
 
-A pipeline to cell type and visualise iss data. (This writeup is not finished)
+A pipeline to cell type and visualise iss data. It implements the cell calling algorithm described in [[Qian, X., et al. Nature Methods (2019)]](#1) (This writeup is not finished)
 
 ![](screencast.gif)
 
@@ -24,20 +24,21 @@ used interchangeably, with the latter being the most common in the image segment
 This stage breaks up the ```label_image``` into smaller same-sized chunks/tiles/fov going from the top-left corner of the Dapi to the right and then top to bottom (see image below:)
 ![](preprocessing_1.jpg)
 
-To start preprocessing you need to define a dictionary as follows:
+### File to edit: [config.py](./config.py)
 
+To start preprocessing you need to create a ```PREPROCESSOR``` dictionary in [config.py](./config.py)  defined as follows:
 ```
 PREPROCESSOR: `dict`
     dictionary with keys:
-    ``"fov_shape``"
+    `fov_shape`
         list of length 2. The two items of the list represent the size in pixels of the x-side and y-side of the fov respectively
-    ``"fovs_across``" 
+    `fovs_across` 
         Number of fovs along the x-axis (covering the full length of the x-side of the image) (int)
-    ``"fovs_down``":
+    `fovs_down`:
         Number of fovs along the y-axis (covering the full length of the y-side of the image) (int)
-    ``"spots_full``"
+    `spots_full`
         the full path to the csv with all the spots. Headees should be  ``"Gene``", ``"x``" and ``"y``" 
-    ``"cellmap_full``"
+    `cellmap_full`
         the full path to the label_image of the dapi
 ```
 
@@ -48,6 +49,11 @@ The viewer is a javascript web application running on the client side. Main tech
 - [Leaflet](http://leafletjs.com) on a canvas renderer
 - [Leaflet](http://leafletjs.com) on a WebGL renderer (due to the sublime [PixiOverlay](https://github.com/manubb/Leaflet.PixiOverlay) class)
 - [D3.js](https://d3js.org/)
+
+## References 
+<a id="1">[1]</a> 
+Qian, X., et al. (2019). Probabilistic cell typing enables fine mapping of closely related cell types in situ. Nat
+Methods 17, 101 – 106.
 
 ## Contact
 [DN](mailto:dimitris.nicoloutsopolos@gmail.com) 
