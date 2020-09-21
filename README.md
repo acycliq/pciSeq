@@ -8,9 +8,9 @@ A pipeline to cell type and visualise iss data. It implements the cell calling a
 
 ## How to
 There are three stages involved:
-- Preprocessing 
-- Cell typing
-- Visualisation
+- [Preprocessing](#Preprocessing) 
+- [Cell typing](#Cell typing) 
+- [Visualisation](#The viewer) 
 
 The preprocessing stage prepares the data for the cell typing step which, when finished generates the flatfiles to be fed into the viewer.
 
@@ -25,7 +25,7 @@ This stage breaks up the ```label_image``` into smaller same-sized chunks/tiles/
 ![](preprocessing_1.jpg)
 ### Notes
  - the total length of the all fovs arranged next to another (either vertically or horizontally) can exceed the size of the corresponding side in the image
-as shown in the image above. The dapi image has ```width=27352px``` and ```height=20268``` and we set ```fovs_across=14``` and ```fovs_across=11``` totalling to 
+as shown in the image above. The dapi image has ```width=27352px``` and ```height=20268px``` and we set ```fovs_across=14``` and ```fovs_across=11``` totalling to 
 ```28000px``` and ```22000px```, assuming that each fov is square with side length ```2000px```.
 - The fov doesnt have to be square. It doesnt even to be equal to the actual fov of the microscope
 
@@ -41,9 +41,9 @@ PREPROCESSOR: 'dict'
     'fovs_down':
         Number of fovs along the y-axis (covering the full length of the y-side of the image) (int)
     'spots_full':
-        the full path to the csv with all the spots. Headers should be  'Gene', 'x' and 'y' 
+        the path to the csv with all the spots. Headers should be  'Gene', 'x' and 'y' 
     'cellmap_full':
-        the full path to the label_image of the dapi
+        the path to the label_image of the dapi
 ```
 
 
