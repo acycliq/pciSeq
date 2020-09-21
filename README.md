@@ -57,7 +57,7 @@ The viewer is a javascript web application running on the client side. Main tool
 - [Leaflet](http://leafletjs.com) on a WebGL renderer (due to the sublime [PixiOverlay](https://github.com/manubb/Leaflet.PixiOverlay) class)
 - [D3.js](https://d3js.org/)
 
-<img src="config.js.jpg" alt="drawing" width="1100"/>
+![](config.js.jpg)
 
 ## References 
 <a id="1">[1]</a> 
