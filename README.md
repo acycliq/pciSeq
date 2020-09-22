@@ -51,7 +51,7 @@ as shown in the image above. The dapi image has ```width=27352px``` and ```heigh
 
 ## Cell typing
 
-## The viewer 
+## Visualisation
 The viewer is a javascript web application running on the client side. Main tools used are 
 - [Leaflet](http://leafletjs.com) on a canvas renderer
 - [Leaflet](http://leafletjs.com) on a WebGL renderer (due to the sublime [PixiOverlay](https://github.com/manubb/Leaflet.PixiOverlay) class)
@@ -80,7 +80,9 @@ For a full coronal slice from a mouse brain 10 zoom levels should be enough. A s
 #### Configuration:
 To run the viewer you need to 
 - Do the map. Use  the function `tile_maker` from the [stage_image.py](./stage_image.py) module
-- Pass the correct settings in [config.js](./dashboard/js/config.js)  ![](config.js.jpg)
+- Pass the correct settings in [config.js](./dashboard/js/config.js). The file contains the following javascript object ![](config.js.jpg).
+
+More specifically the properties areL
 ```
 @property name: The name of the dataset. Do not change this
 @property roi:  The size of the dapi image in the form {"x0": x_min, "x1": x_max, "y0": y_min, "y1": y_max}
