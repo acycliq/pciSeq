@@ -59,6 +59,8 @@ The viewer is a javascript web application running on the client side. Main tool
 
 ![](config.js.jpg)
 
+![](tiling.jpg)
+
 ## References 
 <a id="1">[1]</a> 
 Qian, X., et al. (2019). Probabilistic cell typing enables fine mapping of closely related cell types in situ. Nat
