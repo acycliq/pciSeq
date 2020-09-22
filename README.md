@@ -79,6 +79,7 @@ For a full coronal slice from a mouse brain 10 zoom levels should be enough. A s
 
 #### Configuration:
 To run the viewer you need to 
+
     - Do the map. Use  the function `tile_maker` from the [stage_image.py](./stage_image.py) module
     - Pass the correct settings in the configuration file. ![](config.js.jpg)
     
