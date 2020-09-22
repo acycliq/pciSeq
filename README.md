@@ -10,7 +10,7 @@ A pipeline to cell type and visualise iss data. It implements the cell calling a
 There are three stages involved:
 - [Preprocessing](#Preprocessing) 
 - [Cell typing](#Cell-typing) 
-- [Visualisation](#The-viewer) 
+- [Visualisation](#The-viewer)  ([Demo](https://acycliq.github.io/full_coronal_section/))
 
 The preprocessing stage prepares the data for the cell typing step which, when finished generates the flatfiles to be fed into the viewer. 
 
@@ -82,13 +82,13 @@ To run the viewer you need to
 - Do the map. Use  the function `tile_maker` from the [stage_image.py](./stage_image.py) module
 - Pass the correct settings in [config.js](./dashboard/js/config.js). The file contains the following javascript object ![](config.js.jpg).
 
-More specifically the properties areL
+More specifically the properties are:
 ```
 @property name: The name of the dataset. Do not change this
 @property roi:  The size of the dapi image in the form {"x0": x_min, "x1": x_max, "y0": y_min, "y1": y_max}
 @property imageSize: the size of the map at zoom level = 10. If for example the dapi image is 23352px-by-20268px 
-                 to serve 10 zoom levels the x-side of the map has to be 262144px long. To keep 
-                 proportionality, the y-size turns out to be 194250px
+                 to serve 10 zoom levels the x-side of the map has to be 262144px long. To keep proportionality
+                 the y-size turns out to be 194250px
 @property tiles: the path to the map tiles. This is composed by the folder path string followed by the postfix
                  '/{z}/{y}/{x}.jpg'. (assumes that map tiles are jpgs)
 @property cellData: URL of the location that keeps the cellData.tsv files. It should be in the form: 
