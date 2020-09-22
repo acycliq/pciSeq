@@ -56,7 +56,8 @@ The viewer is a javascript web application running on the client side. Main tool
 - [Leaflet](http://leafletjs.com) on a canvas renderer
 - [Leaflet](http://leafletjs.com) on a WebGL renderer (due to the sublime [PixiOverlay](https://github.com/manubb/Leaflet.PixiOverlay) class)
 - [D3.js](https://d3js.org/)
-It implements a [tiled web map](https://en.wikipedia.org/wiki/Tiled_web_map), a very popular technology in map services like GoogleMaps and GIS. 
+
+It implements a [tiled web map](https://en.wikipedia.org/wiki/Tiled_web_map), a very popular technology in GIS and map services like GoogleMaps. 
 The backround image is prerendered at different zoom levels and then cut into tiles. The browser, given the zoom level we want to display, fetches all the necessary tiles,
 and lays them on the screen in such a manner that they compose a seamless bigger image. 
 
@@ -69,12 +70,19 @@ The general rule is:
 
 <img src="https://render.githubusercontent.com/render/math?math=length (px) = width (px) = 256 * 2^{zoom} ">
 
-The table below lists the map size for the first 12 levels
+The table below lists the map size for the first 10 levels
 ![](map_sizes.jpg)
 
 For a full coronal slice from a mouse brain 10 zoom levels should be enough. A smaller slice, like hippocampus, would need about 6 or 7 zoom levels. 
 
-![](config.js.jpg)
+
+
+#### Configuration:
+To run the viewer you need to 
+    - Do the map. Use  the function `tile_maker` from the [stage_image.py](./stage_image.py) module
+    - Pass the correct settings in the configuration file. ![](config.js.jpg)
+    
+    
 
 
 ## References 
