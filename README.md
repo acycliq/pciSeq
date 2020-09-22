@@ -13,6 +13,7 @@ There are three stages involved:
 - [Visualisation](#The-viewer)  ([Demo](https://acycliq.github.io/full_coronal_section/))
 
 The preprocessing stage prepares the data for the cell typing step which, when finished generates the flatfiles to be fed into the viewer. 
+The animated screenshot above is taken from this ([demo](https://acycliq.github.io/full_coronal_section/))
 
 ## Preprocessing
 The main purpose is to tell whether a spot falls within a cell soma and if that happens, which cell it is.
