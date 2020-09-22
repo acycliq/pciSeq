@@ -25,7 +25,7 @@ used interchangeably, with the latter being the most common in the image segment
 This stage breaks up the ```label_image``` into smaller same-sized chunks/tiles/fov going from the top-left corner of the Dapi to the right and then top to bottom (see image below:)
 ![](preprocessing_1.jpg)
 
-#### Configuration:
+### Configuration:
 To start preprocessing you need to create a ```PREPROCESSOR``` dictionary in [config.py](./config.py)  defined as follows:
 ```
 PREPROCESSOR: 'dict'
@@ -42,7 +42,7 @@ PREPROCESSOR: 'dict'
         the path to the label_image of the dapi
 ```
 
-#### Notes
+### Notes
  - the total length of the all fovs arranged next to another (either vertically or horizontally) can exceed the size of the corresponding side in the image
 as shown in the image above. The dapi image has ```width=27352px``` and ```height=20268px``` and we set ```fovs_across=14``` and ```fovs_across=11``` totalling to 
 ```28000px``` and ```22000px```, assuming that each fov is square with side length ```2000px```.
@@ -78,7 +78,7 @@ For a full coronal slice from a mouse brain 10 zoom levels should be enough. A s
 
 
 
-#### Configuration:
+### Configuration:
 To run the viewer you need to 
 - Do the map. Use  the function `tile_maker` from the [stage_image.py](./stage_image.py) module
 - Pass the correct settings in [config.js](./dashboard/js/config.js). The file contains the following javascript object ![](config.js.jpg).
