@@ -59,7 +59,7 @@ The viewer is a javascript web application running on the client side. Main tool
 
 ![](config.js.jpg)
 
-![](tiling.jpg)
+![](tiling_2.jpg)
 
 ## References 
 <a id="1">[1]</a> 
