@@ -63,10 +63,11 @@ and lays them on the screen in such a manner that they compose a seamless bigger
 At the smallest zoom level, the whole background image fits entirely in a small single square with side length 256 pixels. Increasing zoom level by 1 doubles the map dimensions,
 hence we now need 4 tiles to cover the whole image as shown in the fig below 
 ![](tiling_3.jpg)
-
-For a full coronal slice from a mouse brain 10 zoom levels should be enough. A smaller slice, like hippocampus, would need about 6 or 7 zoom levels. 
+The general rule is: 
+<img src="https://render.githubusercontent.com/render/math?math=length (px) = width (px) = 256 * 2^{zoom} ">
 The table below lists the map size for the first 12 levels
 ![](map_sizes.jpg)
+For a full coronal slice from a mouse brain 10 zoom levels should be enough. A smaller slice, like hippocampus, would need about 6 or 7 zoom levels. 
 
 ![](config.js.jpg)
 
