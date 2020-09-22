@@ -66,6 +66,7 @@ hence we now need 4 tiles to cover the whole image as shown in the fig below
 ![](tiling_3.jpg)
 
 The general rule is: 
+
 <img src="https://render.githubusercontent.com/render/math?math=length (px) = width (px) = 256 * 2^{zoom} ">
 
 The table below lists the map size for the first 12 levels
