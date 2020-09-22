@@ -83,19 +83,19 @@ To run the viewer you need to
 - Pass the correct settings in [config.js](./dashboard/js/config.js)  ![](config.js.jpg)
 ```
 @property name: The name of the dataset. Do not change this
-@property roi: The size of the dapi image in the form {"x0": x_min, "x1": x_max, "y0": y_min, "y1": y_max}
+@property roi:  The size of the dapi image in the form {"x0": x_min, "x1": x_max, "y0": y_min, "y1": y_max}
 @property imageSize: the size of the map at zoom level = 10. If for example the dapi image is 23352px-by-20268px 
-                     to serve 10 zoom levels the x-side of the map has to be 262144px long. To keep 
-                     proportionality, the y-size turns out to be 194250px
+                 to serve 10 zoom levels the x-side of the map has to be 262144px long. To keep 
+                 proportionality, the y-size turns out to be 194250px
 @property tiles: the path to the map tiles. This is composed by the folder path string followed by the postfix
-                     '/{z}/{y}/{x}.jpg'. (assumes that map tiles are jpgs)
-@property cellData URL of the location that keeps the cellData.tsv files. It should be in the form: 
-                     'https://api.github.com/repos/:owner/:repo/contents/:path?ref=branch_name',
-@property geneData URL of the location that keeps the geneData.tsv files. Same provisions as above apply here too.
-@property cellCoords URL of the location that keeps the cellCoords.tsv files. Same provisions as above apply here too.
-@property class_name_separator. If the class name follows a pattern like 'superClass.subClass.subSubClass' then 
-                    classes can hierecicly get nested together and collectively switched on/off by a control at the 
-                    top right of the map:
+                 '/{z}/{y}/{x}.jpg'. (assumes that map tiles are jpgs)
+@property cellData: URL of the location that keeps the cellData.tsv files. It should be in the form: 
+                 'https://api.github.com/repos/:owner/:repo/contents/:path?ref=branch_name',
+@property geneData: URL of the location that keeps the geneData.tsv files. Same provisions as above apply here too.
+@property cellCoords: URL of the location that keeps the cellCoords.tsv files. Same provisions as above apply here too.
+@property class_name_separator: If the class name follows a pattern like 'superClass.subClass.subSubClass' then 
+                  classes can hierecicly get nested together and collectively switched on/off by a control at the 
+                  top right of the map:
 ```
     
     
