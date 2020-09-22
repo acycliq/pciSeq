@@ -81,7 +81,7 @@ For a full coronal slice from a mouse brain 10 zoom levels should be enough. A s
 #### Configuration:
 To run the viewer you need to 
 - Do the map. Use  the function `tile_maker` from the [stage_image.py](./stage_image.py) module
-- Pass the correct settings in [config.js](./dashboard/js/config.js). The file contains the following javascript object ![](config.js.jpg).
+- Pass the correct settings in [config.js](./dashboard/js/config.js). The file contains the following javascript object ![](config.js_2.jpg).
 
 More specifically the properties are:
 ```
@@ -111,6 +111,3 @@ Methods 17, 101 – 106.
 
 ## Contact
 [DN](mailto:dimitris.nicoloutsopolos@gmail.com) 
-
-https://acycliq.github.io/full_coronal_section/
-
