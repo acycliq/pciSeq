@@ -100,7 +100,13 @@ More specifically the properties are:
                   classes can hierecicly get nested together and collectively switched on/off by a control at the 
                   top right of the map:
 ```
-    
+- Configure the glyphs by editing [glyphConfig.js](./dashboard/js/glyphConfig.js). The colour is controlled by the `grlyphColor` function
+at the bottom of the file which maps each `taxonomy` to a color. `taxonomy` serves a very loose grouping that brings together genes that bradly speaking tend 
+to coexist in a cell type. Hence by assigning the same colour to these genes, it will be easier for the user guess the cell types by eye balling the map and 
+patterns arising from similarly coloured spots. If you think this is not possible or useful for your own dataset, that you will have to use for `taxonony` 
+something appropriate for your data or even just replace the `taxonomy` values with the gene names. In this case effectively you wll be assigning a colour directly.
+to a gene. Note however that 9 glyphs are avaliable. If you need more you will have to design them yourself. The glyphs shapes are declared in 
+[glyphPaths.js](./dashboard/js/glyphPaths.js)
     
 
 
