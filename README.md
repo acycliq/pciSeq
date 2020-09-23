@@ -77,7 +77,6 @@ The table below lists the map size for the first 10 levels
 For a full coronal slice from a mouse brain 10 zoom levels should be enough. A smaller slice, like hippocampus, would need about 6 or 7 zoom levels. 
 
 
-
 ### Configuration:
 To run the viewer you need to 
 - Do the map. Use  the function `tile_maker` from the [stage_image.py](./stage_image.py) module
@@ -85,7 +84,6 @@ To run the viewer you need to
 
 More specifically the properties are:
 ```
-@property name: The name of the dataset. Do not change this
 @property roi:  The size of the dapi image in the form {"x0": x_min, "x1": x_max, "y0": y_min, "y1": y_max}
 @property imageSize: the size of the map at zoom level = 10. If for example the dapi image is 23352px-by-20268px 
                  to serve 10 zoom levels the x-side of the map has to be 262144px long. To keep proportionality
