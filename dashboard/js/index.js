@@ -98,6 +98,8 @@ function legendControl() {
         legendLink.addEventListener(`click`, () => {
             // Opens the page and stores the opened window instance
             legendWindow = window.open(`./dashboard/my_datatable.html`); // <--- THAT NEEDS TO BE EXPOSED TO THE USER. MOVE I INSIDE config.js MAYBE
+            // legendWindow = window.open('./dashboard/my_datatable.html', '_blank','toolbar=yes');
+
         });
     }
     legend_added = true;
