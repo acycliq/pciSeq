@@ -157,7 +157,7 @@ function hidePanels(bool){
 
 function run() {
     console.log('app starts');
-    configSettings = config().get('default');
+    configSettings = config();
 
     fetcher([configSettings.cellData, configSettings.geneData, configSettings.cellCoords]).then(
         result => make_package(result),
