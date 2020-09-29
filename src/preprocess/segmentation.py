@@ -10,6 +10,10 @@ from scipy.ndimage import label, generate_binary_structure
 from scipy.sparse import coo_matrix
 from src.preprocess.imimposemin import imimposemin
 from skimage.color import label2rgb
+from skimage.util import img_as_ubyte
+from skimage.morphology import erosion
+from skimage.morphology import disk
+import math
 from matplotlib import pyplot as plt
 
 
@@ -20,6 +24,8 @@ DapiMinSep = 7
 DapiMargin = 10
 MinCellArea = 200
 
+# https://stackoverflow.com/questions/52725553/difference-between-the-functions-im2uint8-in-matlab-and-bytescale-in-pyth
+
 def imadjust(img):
     upper = np.percentile(img, 99)
     lower = np.percentile(img, 1)
@@ -27,12 +33,76 @@ def imadjust(img):
     np.clip(out, 0, 255, out) # in-place clipping
     return np.around(out)
 
+
+def imadjust2(img, lims):
+    lims = lims.flatten()
+    img2 = np.copy(img)
+    lowIn = lims[0]
+    highIn = lims[1]
+    lowOut = 0
+    highOut = 1
+    gamma = 1
+    lut = adjustWithLUT(img2, lowIn, highIn, lowOut, highOut, gamma)
+    return lut[img2].astype(np.uint8)
+
+
+def adjustWithLUT(img,lowIn,highIn,lowOut,highOut,gamma):
+    lutLength = 256 # assumes uint8
+    lut = np.linspace(0, 1, lutLength)
+    lut = adjustArray(lut, lowIn, highIn, lowOut, highOut, gamma)
+    lut = _img_as_ubyte(lut)
+    return lut
+
+
+def _img_as_ubyte(x):
+    out = np.zeros(x.shape)
+    out[x==0.3] = 77
+    out[x!=0.3] = img_as_ubyte(x)[x!=0.3]
+    return out
+
+def adjustArray(img, lIn, hIn, lOut, hOut, g):
+
+    # %make sure img is in the range [lIn;hIn]
+    img = np.maximum(lIn, np.minimum(hIn, img));
+
+    out = ((img - lIn) / (hIn - lIn)) ** g
+    out = out ** (hOut - lOut) + lOut
+    return out
+
+
+
+def stretchlim(img):
+    nbins = 255
+    tol_low = 0.01
+    tol_high = 0.99
+    sz = np.shape(img)
+    if len(sz) == 2:
+        img = img[:, :, None]
+        sz = np.shape(img)
+
+    p = sz[2]
+    ilowhigh = np.zeros([2, p])
+    for i in range(0,p):
+        hist,bins = np.histogram(img[:, :, i].ravel(), nbins+1, [0, nbins])
+        cdf = np.cumsum(hist) / sum(hist)
+        ilow = np.argmax(cdf > tol_low)
+        ihigh = np.argmax(cdf >= tol_high)
+        if ilow == ihigh:
+            ilowhigh[:, i] = np.array([1, nbins])
+        else:
+            ilowhigh[:, i] = np.array([ilow, ihigh])
+
+    lims = ilowhigh / nbins
+    return lims
+
+
 def disk(n):
     struct = np.zeros((2 * n + 1, 2 * n + 1))
     x, y = np.indices((2 * n + 1, 2 * n + 1))
     mask = (x - n)**2 + (y - n)**2 <= n**2
     struct[mask] = 1
     return struct.astype(np.uint8)
+
 
 def imregionalmax(image, ksize=3):
   """Similar to matlab's imregionalmax"""
@@ -46,12 +116,14 @@ def imregionalmax(image, ksize=3):
 # morphology.erosion(image, selem)
 
 Dapi = cv2.imread(r"C:\Users\skgtdni\Downloads\block_18.tif", cv2.IMREAD_GRAYSCALE)
-
-Dapi = imadjust(Dapi)
+lims = stretchlim(Dapi)
+# Dapi = imadjust(Dapi)
+Dapi = imadjust2(Dapi, lims)
 ThresVal = np.percentile(Dapi[Dapi>0], DapiThresh)
 kernel = disk(2)
 # image = cv2.erode(Dapi>ThresVal), kernel)
-bwDapi = ndimage.binary_erosion(Dapi>ThresVal, structure=disk(2)).astype(int)
+# bwDapi = ndimage.binary_erosion(Dapi>ThresVal, structure=disk(2)).astype(int)
+bwDapi = erosion(Dapi>ThresVal, disk(2)).astype(int)
 dist = ndimage.distance_transform_edt(bwDapi)
 dist0 = dist
 dist0[dist<DapiMinSize]=0
@@ -93,8 +165,8 @@ _, res = np.unique(coo_data, return_inverse=True)
 coo.data = res
 
 my_image = cv2.imread(r"C:\Users\skgtdni\Downloads\block_18.tif", cv2.IMREAD_GRAYSCALE)
-# overlay = label2rgb(coo.toarray(), image=my_image, bg_label=0)
-overlay = label2rgb(coo.toarray(), bg_label=0, bg_color=(1,1,1))
+overlay = label2rgb(coo.toarray(), image=my_image, bg_label=0)
+# overlay = label2rgb(coo.toarray(), bg_label=0, bg_color=(1,1,1)) # white background
 # plt.imshow(overlay[:, :, 1], cmap='gray', interpolation='none')
 my_dpi = 72
 fig, ax = plt.subplots(figsize=(6000/my_dpi, 6000/my_dpi), dpi=my_dpi)
@@ -103,7 +175,7 @@ ax.set_axis_off()
 plt.tight_layout()
 plt.show()
 
-fig.savefig('block_18_segmented.tif', dpi=200)
+fig.savefig('block_18_segmented_2.tif', dpi=200)
 
 
 
