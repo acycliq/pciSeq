@@ -3,7 +3,7 @@ from src.cell_call.utils import loadmat
 from src.cell_call.singleCell import geneSet
 import config
 import src.cell_call.common as common
-import starfish as sf
+# import starfish as sf
 import numpy as np
 import pandas as pd
 import src.cell_call.utils as utils
@@ -41,7 +41,7 @@ def varBayes(my_config):
 
     isValid = [True if d not in my_config['exclude_genes'] else False for d in sa_df.target]
     sa_df = sa_df.loc[isValid]
-    sa = sf.core.types.SpotAttributes(sa_df)
+    # sa = sf.core.types.SpotAttributes(sa_df)
 
     # logger.warning('*******************************')
     # logger.warning('** WARNING WARNING WARNING ***')
@@ -52,7 +52,7 @@ def varBayes(my_config):
     # logger.warning('** REMOVE this adjustment in the LIVE CODE ***')
     # logger.warning('*******************************')
 
-    spots = Spots(sa)
+    spots = Spots(sa_df)
     single_cell_data = geneSet(spots, my_config)
     prior = Prior(single_cell_data.coords['class_name'].values)
     spots.init_call(cells, my_config)
