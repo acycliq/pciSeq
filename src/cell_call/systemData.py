@@ -118,8 +118,8 @@ class Genes(object):
 
 
 class Spots(object):
-    def __init__(self, sa):
-        df = sa.data
+    def __init__(self, df):
+        # df = sa.data
         df = df.rename_axis('spot_id').rename(columns={'target': 'gene_name'})
         self.data = df
         self.call = None
