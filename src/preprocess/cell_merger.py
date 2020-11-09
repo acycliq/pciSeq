@@ -53,6 +53,8 @@ class Stage(object):
     def __init__(self, tile_obj, spots_all):
         self.counter = itertools.count()
         self.merge_register = Merge_register(self)
+        self.cell_props = None
+        self.spots = None
         self.tiles = tile_obj.tiles
         self.tiles_across = tile_obj.tiles_across
         self.tiles_down = tile_obj.tiles_down
@@ -109,35 +111,35 @@ class Stage(object):
         return -1 * (next(self.counter) + 1)
 
     def merge_cells(self):
-        """  Merge cells clipped by two or more fovs. """
+        """  Merge cells clipped by two or more tiles. """
         for tile in self.tiles:
             logger.info('\n')
-            logger.info('Doing fov %i' % tile['tile_id'])
+            logger.info('Doing tile %i' % tile['tile_id'])
             self.merge(tile)
         logger.info('Relabelling finished')
         logger.info('\n')
 
     def merge(self, tile):
         """
-        Does most of the heavy lifting for cell merging. Mutates in-place the label_image arrays of three fovs.
-        If fov has fov_id = i then the mutated label_images are for the fovs with:
-            fov_id = i
-            fov_id = i + 1 (the neighbouring fov at the right)
-            fov_id = i - #fovs_across (the neighbouring fov at the top)
+        Does most of the heavy lifting for cell merging. Mutates in-place the label_image arrays of three tiles.
+        If tile has tile_id = i then the mutated label_images are for the tiles with:
+            tile_id = i
+            tile_id = i + 1 (the neighbouring tile at the right)
+            tile_id = i - #tiles_across (the neighbouring tile at the top)
         Parameters
         ----------
-        fov: an instance of the class Fov
+        tile: an instance of the class Fov
 
         Notes
         -----
-        Is is assumed that each fov is big enough (relative to the cells) so that there is no cell bigger in size that a fov.
-        For example, the most complicated case will be a cell clipped by four fovs forming a 2x2 setup with the cell centroid close
-        at the intersection of the four fovs
+        Is is assumed that each tile is big enough (relative to the cells) so that there is no cell bigger in size that a tile.
+        For example, the most complicated case will be a cell clipped by four tiles forming a 2x2 setup with the cell centroid close
+        at the intersection of the four tiles
         """
         tile_id = tile['tile_id']
         adj_img = self.adjacent_tile(tile_id)
 
-        logger.info('fov_%d neighbours: (above, left): (%s, %s)' % (tile_id, adj_img['up'], adj_img['left']))
+        logger.info('tile_%d neighbours: (above, left): (%s, %s)' % (tile_id, adj_img['up'], adj_img['left']))
 
         # Bottom border of the label array above
         if (adj_img['up'] is not None) and np.any(self.tiles[adj_img['up']]['label_image'].data):
@@ -166,23 +168,23 @@ class Stage(object):
 
     def dissolve_borders(self, adjc_tile, tile, transpose=False):
         """
-        Compares the label_image arrays from two neighbouring (one next another) fovs. If the last column of the
+        Compares the label_image arrays from two neighbouring (one next another) tiles. If the last column of the
         label_image at the left and the first column of the one at the right have non-zero values at the same location
         then the labels at these locations are assigned a new and common label
         Parameters
         ----------
-        adjc_fov: an instance of the class Fov
-            The neighbouring fov. Could be the neighbour from the right, or from above
-        fov: an instance of the class Fov
-            the current fov
+        adjc_tile: an instance of the class Fov
+            The neighbouring tile. Could be the neighbour from the right, or from above
+        tile: an instance of the class Fov
+            the current tile
         transpose: bool. Optional
-            if adjc_fov is the neighbour from the top, then set this to True. Default is False
+            if adjc_tile is the neighbour from the top, then set this to True. Default is False
 
 
         Returns
         -------
         temp_a, temp_b: tuple
-            A tuple of two label_image arrays that correspond to the adjacent and the current fov respectively
+            A tuple of two label_image arrays that correspond to the adjacent and the current tile respectively
         """
         if transpose:
             adjc_img = adjc_tile['label_image'].transpose()
@@ -206,12 +208,12 @@ class Stage(object):
             for x in d['a']:
                 temp_a.data[temp_a.data == x] = new_label
                 self.merge_register.update_register(adjc_tile['tile_id'], new_label, x)
-                # logger.info('fov_%d: label %d ---> label %d' % (adjc_fov['fov_id'], x, new_label))
+                # logger.info('tile_%d: label %d ---> label %d' % (adjc_tile['tile_id'], x, new_label))
 
             for x in d['b']:
                 temp_b.data[temp_b.data == x] = new_label
                 self.merge_register.update_register(tile['tile_id'], new_label, x)
-                # logger.info('fov_%d: label %d ---> label %d' % (fov['fov_id'], x, new_label))
+                # logger.info('tile_%d: label %d ---> label %d' % (tile['tile_id'], x, new_label))
         return temp_a, temp_b
 
 
@@ -350,15 +352,15 @@ class Stage(object):
         """ For the clipped cells, collate together all the necessary label_image arrays so that the cell is
         not clipped anymore. Then read that mosaic of arrays and get cell centroid, area and other properties.
         For the unclipped cells these properties are kept in image_objects.
-        Combine all (clipped and unclipped) and make a single dataframe with columns: 'label', 'fov_id', 'area',
-        'x_local', 'y_local', 'fov_offset_x', 'fov_offset_y', 'is_clipped', 'x', 'y', 'coords'.
+        Combine all (clipped and unclipped) and make a single dataframe with columns: 'label', 'tile_id', 'area',
+        'x_local', 'y_local', 'tile_offset_x', 'tile_offset_y', 'is_clipped', 'x', 'y', 'coords'.
         It also assigns a unique global label to the cells. The last column with label 'coords' keeps the
         coordinates of the cell boundary
         """
 
-        # make a dict where each key is a list of fovs and each value is a list of labels. The latter
+        # make a dict where each key is a list of tiles and each value is a list of labels. The latter
         # holds the labels whose corresponding objects as these were identified by the cell segmentation
-        # extend outside one single fov and span across the fovs kept in the corresponding key of the dict
+        # extend outside one single tile and span across the tiles kept in the corresponding key of the dict
         v = defaultdict(list)
         for key, value in sorted(list(self.merge_register.entries.items())):
             if key not in v[tuple(value)]:
@@ -375,7 +377,7 @@ class Stage(object):
             if len(tile_ids) > 1:
                 label_image = self.collate_arrays(tile_ids)
             else:
-                label_image = None  # you shouldnt get here. Since we merge cells we need at least two fovs
+                label_image = None  # you shouldnt get here. Since we merge cells we need at least two tiles
 
             # sanity check
             coo_mat = set(coo_matrix(label_image).data)
@@ -387,12 +389,12 @@ class Stage(object):
             for i, p in enumerate(clipped_cells):
                 centroid_tile_id, centroid_coords = self.locate_tile(p.centroid, tile_ids)
 
-                logger.info('cell with label %d is clipped by fov_ids %s' % (p.label, tile_ids))
+                logger.info('cell with label %d is clipped by tile_ids %s' % (p.label, tile_ids))
 
                 # # sanity check
-                # filtered_fovs = list(filter(lambda d: d['fov_id'] in fov_ids, self.fovs))
-                # mask = [d['image_objects'].label == labels[i] for d in filtered_fovs]
-                # total_area = sum([d['image_objects'].area[mask[i]].values[0] for i, d in enumerate(filtered_fovs)])
+                # filtered_tiles = list(filter(lambda d: d['tile_id'] in tile_ids, self.tiles))
+                # mask = [d['image_objects'].label == labels[i] for d in filtered_tiles]
+                # total_area = sum([d['image_objects'].area[mask[i]].values[0] for i, d in enumerate(filtered_tiles)])
                 # # logger.info('total sum for the sanity check is: %d' % total_area)
                 # assert int(total_area) == int(p.area)
 
@@ -455,7 +457,7 @@ class Stage(object):
         # DO I ALSO NEED TO UPDATE THE IMAGE_OBJECTS FOR EACH FOV??
         # Labels there need to be updated for consistency
         # However in a cell is split in to two parts and exists in two
-        # fovs then x_local and y_local coords show the centroid of the partial shape
+        # tiles then x_local and y_local coords show the centroid of the partial shape
         # The array cell_props is the correct place for such lookups.
 
         # Find now the outline of the cells
@@ -503,18 +505,18 @@ class Stage(object):
         return out
 
     def locate_tile(self, centroid, tile_ids):
-        # first get the fov_id
+        # first get the tile_id
         t = self.tile_topo(tile_ids)
-        row = int(centroid[0] // self.tile_shape[0])  # <-- I think I should be dividing by fov_shape[1] instead
-        col = int(centroid[1] // self.tile_shape[1])  # <-- I think I should be dividing by fov_shape[0] instead
+        row = int(centroid[0] // self.tile_shape[0])  # <-- I think I should be dividing by tile_shape[1] instead
+        col = int(centroid[1] // self.tile_shape[1])  # <-- I think I should be dividing by tile_shape[0] instead
 
         tile_id = t[row, col]
         assert ~np.isnan(tile_id)
         assert tile_id in tile_ids
 
         # calc the local coordinates
-        coord_row = centroid[0] % self.tile_shape[0]  # <-- I think I should be dividing by fov_shape[1] instead
-        coord_col = centroid[1] % self.tile_shape[1]  # <-- I think I should be dividing by fov_shape[0] instead
+        coord_row = centroid[0] % self.tile_shape[0]  # <-- I think I should be dividing by tile_shape[1] instead
+        coord_col = centroid[1] % self.tile_shape[1]  # <-- I think I should be dividing by tile_shape[0] instead
 
         return tile_id, (coord_row, coord_col)
 
@@ -563,12 +565,12 @@ class Stage(object):
                 logger.info('tile:%d empty, No cells to draw boundaries were found' % tile['tile_id'])
         _df = pd.concat(res_list).astype({"label": int})
 
-        # make a Dataframe to keep boundaries of the cells which are not clipped by the fov
+        # make a Dataframe to keep boundaries of the cells which are not clipped by the tile
         df_1 = _df.iloc[np.isin(_df.label, cell_props[~cell_props.is_clipped].label)]
 
         # get the labels of the clipped cells
         in_multiple_tiles = sorted(cell_props[cell_props.is_clipped].label.values)
-        logger.info('There are %d cells whose boundaries span across multiple fovs' % len(in_multiple_tiles))
+        logger.info('There are %d cells whose boundaries span across multiple tiles' % len(in_multiple_tiles))
 
         # find the boundaries of the clipped cells
         _list = self.collate_borders_par(in_multiple_tiles)
@@ -589,10 +591,10 @@ class Stage(object):
         return res.sort_values(['label'], ascending=[True])
 
 
-    def collate_borders_par(self, in_multiple_fovs):
+    def collate_borders_par(self, in_multiple_tiles):
         n = max(1, cpu_count() - 1)
         pool = ThreadPool(16)
-        results = pool.map(self.collate_borders_helper, in_multiple_fovs)
+        results = pool.map(self.collate_borders_helper, in_multiple_tiles)
         pool.close()
         pool.join()
         return results
@@ -642,6 +644,109 @@ class Stage(object):
         cell_id[cell_id < 0] = np.nan
         return cell_id
 
+    def assign_spot_parent(self):
+        res_list = []
+        for i, tile in enumerate(self.tiles):
+            assert i == tile['tile_id'], 'The list is miss-aligned'
+            # Assign the parent cell and its coordinates
+            res = self._assign_spot_parent_helper(tile)
+            tile['spots'] = res
+            res['tile_id'] = tile['tile_id']
+            res_list.append(res)
+        return pd.concat(res_list).astype({"label": int})
+
+    def _assign_spot_parent_helper(self, tile):
+        '''
+        assign the parent cell
+        :return:
+        '''
+
+        # first find the label of the parent cell
+        spots_df = tile['spots']
+        label_image = tile['label_image']
+        spots_temp = self.spot_parent_label(tile, spots_df.copy(), label_image)
+
+        # find now the coordinates of the parent cell
+        out = self.spot_parent_coords(spots_temp.copy())
+        return out
+
+    def spot_parent_label(self, tile, spots, sp_label_image):
+        # spots = tile['spots']
+        if sp_label_image.nnz == 0:
+            # The tile empty, all spots are on the background
+            spots['label'] = 0
+        else:
+            # 1. get the label_image
+            label_image = sp_label_image.toarray()
+
+            # 2. unscaled and local coordinates for the spots (as a sparse array)
+            coo = self.coofy(spots[['x', 'y']].copy(), tile)
+
+            coo_arr = coo.toarray()
+            label_coords = coo_matrix(label_image * coo_arr.astype(bool))
+            spot_id_coords = coo_matrix(label_image.astype(bool) * coo_arr)
+
+            df = pd.DataFrame({'x': label_coords.col,
+                               'y': label_coords.row,
+                               'label': label_coords.data},
+                              index=spot_id_coords.data).astype(int)
+
+            if np.any(df.index.duplicated()):
+                logger.warning('Found %d duplicated. Investigate!' % df.index.duplicated().sum())
+                ## that actually means that the same spot (ie read/dot) exists at two different locations at the same time
+
+            df = df[~df.index.duplicated()]
+            spots['label'] = df.label
+
+            # if nan it means the spot is on the background. Hence set the label = 0
+            spots['label'] = spots.label.fillna(0).astype(int)
+        return spots
+
+    def spot_parent_coords(self, spots):
+        # spots = tile['spots']
+        cells = self.cell_props[['label', 'x', 'y']].rename(columns={'x': 'x_cell', 'y': 'y_cell'})
+        out = spots.merge(cells, how='left', on=['label'])
+        out['label'] = out.label.astype('Int64')
+        return out
+
+
+    def localise_coords(self, spots, tile):
+        '''
+        convert spots coords to local coords
+        (lacal means the origin is the top left corner of the tile not of the full image)
+        :param spots:
+        :return:
+        '''
+        # spots = tile['spots']
+        df = spots[['x', 'y']]
+        x0 = tile['tile_offset_x']
+        y0 = tile['tile_offset_y']
+        origin = np.array([x0, y0])
+        df = df - origin
+        return df.astype(int)
+
+
+    def coofy(self, spots, tile):
+        spots_loc = self.localise_coords(spots, tile)
+        x = spots_loc.x.values.astype(int)
+        y = spots_loc.y.values.astype(int)
+
+        # make a sparse array of size 6000-6000
+        # _len = np.diff(np.array(tile['tile_range']['x'])) * tile['tile_scaling_factor']
+        # _height = np.diff(np.array(tile['tile_range']['y'])) * tile['tile_scaling_factor']
+
+        # coo_shape = self.tile_shape + 1
+        coo_shape = np.array(tile['label_image'].shape) + 1
+        coo = coo_matrix((spots.index.values, (y, x)), shape=coo_shape)
+        # Why the +1? starfish includes the boundaries,
+        # hence the extra pixel. That sounds like a bug maybe? a tile of size 2000-by-2000 should have a range
+        # [0, 1999] going across and [0, 1999] going down
+
+        # ok, that a bit of a mystery!
+        coo_arr = coo.toarray()
+        out = coo_matrix(coo_arr[:-1, :-1])  # why the -1? See comment right above
+        return out
+
     def writer(self):
         '''
         save the data to the flatfile
@@ -667,11 +772,11 @@ class Stage(object):
         spots_df['target'] = spots_df.Gene
         spots_df['x_global'] = spots_df.x
         spots_df['y_global'] = spots_df.y
-        spots_df['fov_id'] = spots_df.fov_id
+        spots_df['tile_id'] = spots_df.tile_id
         spots_df['x_cell'] = spots_df.x_cell.fillna(-1).astype(int).astype('str').replace('-1', np.nan)
         spots_df['y_cell'] = spots_df.y_cell.fillna(-1).astype(int).astype('str').replace('-1', np.nan)
 
-        spots_headers = ['x_global', 'y_global', 'fov_id', 'label', 'target', 'x_cell', 'y_cell']
+        spots_headers = ['x_global', 'y_global', 'tile_id', 'label', 'target', 'x_cell', 'y_cell']
         spots_df[spots_headers].to_csv('spots.csv', index=False)
         logger.info('Total number of collected spots: %d' % spots_df.shape[0])
 
