@@ -6,9 +6,12 @@ print(ROOT_DIR)
 
 
 PREPROCESSOR = {
-    'fov_shape': [2000, 2000],  # implies that each fov has length 2000px and height 2000px
-    'fovs_across': 11,
-    'fovs_down': 14,
+    'img_width': 20268,
+    'img_height': 27352,
+    'tile_size': 2000,
+    # 'fov_shape': [2000, 2000],  # implies that each fov has length 2000px and height 2000px
+    # 'fovs_across': 11,
+    # 'fovs_down': 14,
     'spots_full': os.path.join(ROOT_DIR, 'data', 'from_Matlab', 'SpotGlobal.csv'),
     'cellmap_full': os.path.join(ROOT_DIR, 'CellMap_left.mat'),
 

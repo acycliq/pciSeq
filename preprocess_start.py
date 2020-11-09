@@ -1,6 +1,7 @@
 from src.preprocess.fov import Fov
 from src.preprocess.cell_merger import Stage
 from src.preprocess import utils
+from src.preprocess.tile import Tile
 import os
 import pandas as pd
 # import data_manager.post as post
@@ -19,20 +20,16 @@ logger = logging.getLogger()
 
 if __name__ == "__main__":
     cfg = config.PREPROCESSOR
-    spots_full = pd.read_csv(cfg['spots_full'])
-    cellmap_chunks = utils.split_CellMap(cfg['cellmap_full'], cfg['fov_shape'][0], cfg['fov_shape'][1])
 
-    fovs = Fov(cfg)
-    stage = Stage(fovs, spots_full, cellmap_chunks)
+    spots_full = pd.read_csv(cfg['spots_full'])
+    tiles = Tile(cfg)
+    stage = Stage(tiles, spots_full)
 
     stage.merge_cells()
-    stage.global_labels()
+    stage.post_merge([stage.tiles, stage.merge_register, stage.label_generator])
     stage.cell_props = stage.calc_props()
-    stage.cell_props['cell_id'] = stage.assign_cell_id()
 
-    logger.info('Spot labelling started')
-    stage.spots = stage.assign_spot_parent()
-    logger.info('Spot labelling done')
+    stage.cell_props['cell_id'] = stage.assign_cell_id()
 
     # Save now the data on the filesystem
     stage.writer()
