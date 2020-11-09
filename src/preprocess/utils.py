@@ -3,6 +3,8 @@ import h5py
 import numpy as np
 import os
 from scipy.io import loadmat
+from scipy.sparse import coo_matrix
+from collections import defaultdict
 import logging
 import time
 
@@ -13,6 +15,36 @@ logging.basicConfig(
 
 logger = logging.getLogger()
 # logger.disabled = True
+
+
+
+def _to_csr_matrix(i, j, n):
+    """Using i and j as coo-format coordinates, return csr matrix."""
+    n = int(n)
+    v = np.ones_like(i)
+    mat = coo_matrix((v, (i, j)), shape=(n, n))
+    return mat.tocsr()
+
+
+def get_dir(my_config, tile_id):
+    root_dir = my_config['FOV_ROOT']
+    return os.path.join(root_dir, 'tile_' + str(tile_id))
+
+
+def _get_connected_labels(mylist):
+    '''
+    find which positions in the input list have repeated values
+    Example:
+     If mylist = [0, 4, 4] then it returns [1, 2] because 4 appears twice, at positions 1 and 2 of the input list
+     if mylist = [0,1,2,1,3,4,2,2] then it returns [[1, 3], [2, 6, 7]]
+    :param mylist:
+    :return:
+    '''
+    output = defaultdict(list)
+    # Loop once over mylist, store the indices of all unique elements
+    for i, el in enumerate(mylist):
+        output[el].append(i)
+    return np.array([np.array(d) for d in output.values() if len(d) > 1])
 
 
 def load_mat(filepath):
