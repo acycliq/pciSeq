@@ -31,6 +31,10 @@ if __name__ == "__main__":
 
     stage.cell_props['cell_id'] = stage.assign_cell_id()
 
+    logger.info('Spot labelling started')
+    stage.spots = stage.assign_spot_parent()
+    logger.info('Spot labelling done')
+
     # Save now the data on the filesystem
     stage.writer()
 
