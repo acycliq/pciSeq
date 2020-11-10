@@ -6,6 +6,7 @@ import os
 import pandas as pd
 # import data_manager.post as post
 # import data_manager.result_splitter as rs
+from src.preprocess.spot_label import spot_label
 import logging
 import config
 
@@ -32,7 +33,7 @@ if __name__ == "__main__":
     stage.cell_props['cell_id'] = stage.assign_cell_id()
 
     logger.info('Spot labelling started')
-    stage.spots = stage.assign_spot_parent()
+    stage.spots = spot_label(stage)
     logger.info('Spot labelling done')
 
     # Save now the data on the filesystem
