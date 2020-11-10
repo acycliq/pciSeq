@@ -7,6 +7,7 @@ import pandas as pd
 # import data_manager.post as post
 # import data_manager.result_splitter as rs
 from src.preprocess.spot_label import spot_label
+from src.preprocess.cell_props import calc_props
 import logging
 import config
 
@@ -28,7 +29,7 @@ if __name__ == "__main__":
 
     stage.merge_cells()
     stage.post_merge([stage.tiles, stage.merge_register, stage.label_generator])
-    stage.cell_props = stage.calc_props()
+    stage.cell_props = calc_props(stage)
 
     stage.cell_props['cell_id'] = stage.assign_cell_id()
 
