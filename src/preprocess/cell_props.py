@@ -52,7 +52,7 @@ def calc_props(stage):
         clipped_cells = list(filter(lambda d: d.label in labels, props))
         # unclipped_cells = list(filter(lambda d: d.label not in labels, props))
         for i, p in enumerate(clipped_cells):
-            centroid_tile_id, centroid_coords = stage.locate_tile(p.centroid, tile_ids)
+            centroid_tile_id, centroid_coords = locate_tile(stage, p.centroid, tile_ids)
 
             logger.info('cell with label %d is clipped by tile_ids %s' % (p.label, tile_ids))
 
@@ -109,14 +109,14 @@ def calc_props(stage):
     logger.info('')
     logger.info('updating the labels on label_image to align them with cell_props')
     for tile in stage.tiles:
-        data = stage.update_label_image(tile, label_map)
+        data = update_label_image(tile, label_map)
         tile['label_image'].data = data.astype(np.int64)
 
     logger.info('Done')
 
     # relabel now the key in the merge_register dict to align them
     # with the global labels
-    stage.merge_register = stage._update_dict_keys(label_map)
+    stage.merge_register = _update_dict_keys(stage, label_map)
 
     # DO I ALSO NEED TO UPDATE THE IMAGE_OBJECTS FOR EACH FOV??
     # Labels there need to be updated for consistency
@@ -129,3 +129,51 @@ def calc_props(stage):
     out = cell_props.merge(_cell_boundaries, how='left', on=['label'])
 
     return out
+
+
+def locate_tile(stage, centroid, tile_ids):
+    # first get the tile_id
+    t = stage.tile_topo(tile_ids)
+    row = int(centroid[0] // stage.tile_shape[0])  # <-- I think I should be dividing by tile_shape[1] instead
+    col = int(centroid[1] // stage.tile_shape[1])  # <-- I think I should be dividing by tile_shape[0] instead
+
+    tile_id = t[row, col]
+    assert ~np.isnan(tile_id)
+    assert tile_id in tile_ids
+
+    # calc the local coordinates
+    coord_row = centroid[0] % stage.tile_shape[0]  # <-- I think I should be dividing by tile_shape[1] instead
+    coord_col = centroid[1] % stage.tile_shape[1]  # <-- I think I should be dividing by tile_shape[0] instead
+
+    return tile_id, (coord_row, coord_col)
+
+
+def update_label_image(tile, label_map):
+    _x = tile['label_image'].data
+    _y = label_map[:, 0]
+    idx = _remap(_x, _y)
+    return label_map[idx, 1]
+
+
+def _remap(x, y):
+    index = np.argsort(y)
+    sorted_y = y[index]
+    sorted_index = np.searchsorted(sorted_y, x)
+
+    xindex = np.take(index, sorted_index, mode="clip")
+    mask = y[xindex] != x
+
+    result = np.ma.array(xindex, mask=mask)
+    return result
+
+
+def _update_dict_keys(stage, label_map):
+    # relabel now the key in the merge_register dict to align them
+    # with the global labels
+    dict_keys = np.array(list(stage.merge_register.entries.keys()))
+    keys_mask = _remap(dict_keys, label_map[:, 0])
+    global_keys = label_map[keys_mask, 1]
+    dict_vals = list(stage.merge_register.entries.values())
+    global_dict = dict(zip(global_keys, dict_vals))
+    return global_dict
+
