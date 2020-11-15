@@ -3,6 +3,7 @@ import pandas as pd
 from scipy.sparse import coo_matrix
 import skimage.measure as skmeas
 from collections import defaultdict
+from src.preprocess.cell_borders import cell_boundaries
 import logging
 
 logging.basicConfig(
@@ -125,7 +126,7 @@ def calc_props(stage):
     # The array cell_props is the correct place for such lookups.
 
     # Find now the outline of the cells
-    _cell_boundaries = stage.cell_boundaries(cell_props)
+    _cell_boundaries = cell_boundaries(stage, cell_props)
     out = cell_props.merge(_cell_boundaries, how='left', on=['label'])
 
     return out

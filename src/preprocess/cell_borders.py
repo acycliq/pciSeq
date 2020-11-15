@@ -8,6 +8,69 @@ from scipy.ndimage import binary_erosion
 from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import cpu_count
 import time
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s:%(levelname)s:%(message)s"
+)
+
+logger = logging.getLogger()
+
+
+
+def cell_boundaries(stage, cell_props):
+    '''
+    calculate the outlines of the cells
+    :return:
+    '''
+
+    # loop over the self.cell_props
+    res_list = []
+    for tile in stage.tiles:
+        if np.any(tile['label_image'].data):
+            df = obj_outline(tile, cell_props)
+            res_list.append(df)
+        else:
+            logger.info('tile:%d empty, No cells to draw boundaries were found' % tile['tile_id'])
+    _df = pd.concat(res_list).astype({"label": int})
+
+    # make a Dataframe to keep boundaries of the cells which are not clipped by the tile
+    df_1 = _df.iloc[np.isin(_df.label, cell_props[~cell_props.is_clipped].label)]
+
+    # get the labels of the clipped cells
+    in_multiple_tiles = sorted(cell_props[cell_props.is_clipped].label.values)
+    logger.info('There are %d cells whose boundaries span across multiple tiles' % len(in_multiple_tiles))
+
+    # find the boundaries of the clipped cells
+    _list = stage.collate_borders_par(in_multiple_tiles)
+    df_2 = pd.DataFrame(_list).astype({"label": int})
+
+    # Both clipped and unclipped in a dataframe
+    res = pd.concat([df_1, df_2])
+
+    set_diff = set(cell_props.label) - set(res.label.values)
+    if set_diff:
+        unresolved_labels = pd.DataFrame({'label': list(set_diff), 'coords': np.nan * np.ones(len(set_diff))})
+        res = pd.concat([res, unresolved_labels])
+
+    # assert set(_df.label.values) == set(res.label.values)
+    assert res.shape[0] == cell_props.shape[0]
+    assert np.all(sorted(res.label) == sorted(cell_props.label))
+    assert np.unique(res.label).size == res.shape[0], 'Array cannot have duplicates'
+    return res.sort_values(['label'], ascending=[True])
+
+
+def obj_outline(tile, cell_props):
+    logger.info('Getting cell boundaries for cells in tile: %d' % tile['tile_id'])
+    label_image = tile['label_image'].toarray()
+    offset_x = tile['tile_offset_x']
+    offset_y = tile['tile_offset_y']
+    clipped_cells = cell_props[cell_props.is_clipped].label.values
+
+    df = extract_borders_par(label_image, offset_x, offset_y, clipped_cells)
+    return df
+
 
 def extract_borders(label_image, offset_x, offset_y, clipped_labels):
     """
