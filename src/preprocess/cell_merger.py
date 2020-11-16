@@ -1,11 +1,7 @@
 import numpy as np
-import pandas as pd
 from scipy.sparse.csgraph import connected_components
 import itertools
 from collections import defaultdict
-from multiprocessing.dummy import Pool as ThreadPool
-from multiprocessing import cpu_count
-from src.preprocess.cell_borders import extract_borders_par, get_label_contours
 from src.preprocess.post import Post_merge
 from src.preprocess.utils import _to_csr_matrix, _get_connected_labels
 import logging
@@ -45,7 +41,7 @@ class Merge_register(object):
         logger.info('Dropped key, value pair: (%d, %s) from the merge_register' % (old_label, _dict[old_label]))
         _dict.pop(old_label)
 
-
+# ----------------------------------------------------------------------------------------------------------------------
 
 class Stage(object):
     def __init__(self, tile_obj, spots_all):
@@ -59,11 +55,6 @@ class Stage(object):
         self.tile_shape = tile_obj.tile_shape
         self.scaling_factor = 1  # ti
         self.compose_dict(spots_all)
-        # self._global_labels = None
-
-    # @property
-    # def global_labels(self):
-    #     return self._global_labels
 
     def compose_dict(self, spots_all):
         """
@@ -77,7 +68,6 @@ class Stage(object):
         for i, d in enumerate(self.tiles):
             # d['label_image'] = self.tile_label_image(i)  # label_image for the i-th tile
             d['spots'] = self.tile_spots(spots_all, i)   # spots for the i-th tile
-
 
     def tile_spots(self, data, i):
         """ spots for the i-th tile """
@@ -99,7 +89,6 @@ class Stage(object):
         df = df.sort_values(['x', 'y'], ascending=[True, True]) \
             .reset_index(drop=True)  # <-- DO NOT FORGET TO RESET THE INDEX
         return df
-
 
     def post_merge(self, argin):
         pm = Post_merge(argin[0], argin[1], argin[2])
@@ -214,7 +203,6 @@ class Stage(object):
                 # logger.info('tile_%d: label %d ---> label %d' % (tile['tile_id'], x, new_label))
         return temp_a, temp_b
 
-
     def _new_label(self, d):
         # get a list from the dict values
         _list = [x[0] for x in list(d.values())]
@@ -232,7 +220,6 @@ class Stage(object):
 
         assert out < 0, 'Generated labels should be negative'
         return out
-
 
     def connect_labels(self, par_a, par_b):
         '''
@@ -346,7 +333,6 @@ class Stage(object):
 
         return a, b, rmap_a, rmap_b
 
-
     def collate_arrays(self, d):
         arr = self.tile_topo(d)
         stacked_rows = []
@@ -384,51 +370,12 @@ class Stage(object):
                 out.append(d)
         return out
 
-
-    # def collate_borders_par(self, in_multiple_tiles):
-    #     n = max(1, cpu_count() - 1)
-    #     pool = ThreadPool(16)
-    #     results = pool.map(self.collate_borders_helper, in_multiple_tiles)
-    #     pool.close()
-    #     pool.join()
-    #     return results
-    #
-    # def collate_borders_helper(self, label):
-    #     out = {}
-    #     logger.info('label: %d. Finding the cell boundaries' % label)
-    #     label_image = self.collate_arrays(self.merge_register[label])
-    #     offset_x, offset_y = self.find_offset(self.merge_register[label])
-    #     out['coords'] = get_label_contours(label_image, label, offset_x, offset_y)
-    #     out['label'] = label
-    #
-    #     # ALTERNATIVE:
-    #     # Maybe this is better since it using the same code as the function
-    #     # that calcs non-clipped cells.
-    #     # Needs futher testing, but the code will be something close to this:
-    #     #
-    #     # logger.info('Using chain codes')
-    #     # exclude = set(label_image[label_image != label])
-    #     # temp = extract_borders_dip(label_image, offset_x, offset_y, exclude)
-    #     # logger.info('Cell boundaries (chain codes) found')
-    #     return out
-
     def find_offset(self, tile_ids):
         sanity_check = np.array([self.tiles[d]['tile_id'] == d for d in tile_ids])
         assert np.all(sanity_check)
         offset_x = min([self.tiles[d]['tile_offset_x'] for d in tile_ids])
         offset_y = min([self.tiles[d]['tile_offset_y'] for d in tile_ids])
         return offset_x, offset_y
-
-    # def obj_outline(self, tile, cell_props):
-    #     logger.info('Getting cell boundaries for cells in tile: %d' % tile['tile_id'])
-    #     label_image = tile['label_image'].toarray()
-    #     offset_x = tile['tile_offset_x']
-    #     offset_y = tile['tile_offset_y']
-    #     clipped_cells = cell_props[cell_props.is_clipped].label.values
-    #
-    #     df = extract_borders_par(label_image, offset_x, offset_y, clipped_cells)
-    #     temp_df = extract_borders_par(label_image, offset_x, offset_y, clipped_cells)
-    #     return df
 
     def assign_cell_id(self):
         """ Add an extra column to be used as cell id
