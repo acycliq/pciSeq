@@ -43,8 +43,10 @@ def cell_boundaries(stage, cell_props):
     logger.info('There are %d cells whose boundaries span across multiple tiles' % len(in_multiple_tiles))
 
     # find the boundaries of the clipped cells
-    _list = stage.collate_borders_par(in_multiple_tiles)
-    df_2 = pd.DataFrame(_list).astype({"label": int})
+    _list = collate_borders_par(stage, in_multiple_tiles)
+    df_2 = pd.DataFrame(_list.items(), columns=['label', 'coords'])\
+        .astype({"label": int})
+    # df_2 = pd.DataFrame(_list).astype({"label": int})
 
     # Both clipped and unclipped in a dataframe
     res = pd.concat([df_1, df_2])
@@ -60,6 +62,24 @@ def cell_boundaries(stage, cell_props):
     assert np.unique(res.label).size == res.shape[0], 'Array cannot have duplicates'
     return res.sort_values(['label'], ascending=[True])
 
+
+
+def collate_borders_par(stage, labels):
+    n = max(1, cpu_count() - 1)
+    pool = ThreadPool(16)
+    results = {}
+    pool.map(collate_borders_helper(stage, results), labels)
+    pool.close()
+    pool.join()
+    return results
+
+def collate_borders_helper(stage, results):
+    def inner_fun(label):
+        logger.info('label: %d. Finding the cell boundaries' % label)
+        label_image = stage.collate_arrays(stage.merge_register[label])
+        offset_x, offset_y = stage.find_offset(stage.merge_register[label])
+        results[label] = np.array(get_label_contours(label_image, label, offset_x, offset_y))
+    return inner_fun
 
 def obj_outline(tile, cell_props):
     logger.info('Getting cell boundaries for cells in tile: %d' % tile['tile_id'])
