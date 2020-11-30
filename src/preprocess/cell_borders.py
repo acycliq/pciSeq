@@ -7,6 +7,7 @@ from scipy.sparse import coo_matrix
 from scipy.ndimage import binary_erosion
 from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import cpu_count
+import diplib as dip
 import time
 import logging
 
@@ -88,7 +89,7 @@ def obj_outline(tile, cell_props):
     offset_y = tile['tile_offset_y']
     clipped_cells = cell_props[cell_props.is_clipped].label.values
 
-    df = extract_borders_par(label_image, offset_x, offset_y, clipped_cells)
+    df = extract_borders_dip(label_image.astype(np.uint64), offset_x, offset_y, clipped_cells)
     return df
 
 
@@ -176,6 +177,41 @@ def get_label_contours(label_image, label, offset_x, offset_y):
     contours, hierarchy = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE, offset=(offset_x, offset_y))
     contours = np.squeeze(contours)
     return contours.tolist()
+
+
+def extract_borders_dip(label_image, offset_x, offset_y, clipped_labels):
+    """
+    NOTES: # using Simplify drastically reduces the array that describes the polygon boundaries but you
+             might end up with a slightly different polygon. The difference is only on a very few pixels.
+             I do not know which one reflect the actual boundaries more closely, but using Simplify and
+             reduce the size of the boudaries array is convenient. Also having few different pixels is not
+             crucial, hence I think keeping Simplify makes sense
+    Parameters
+    ----------
+    label_image
+    offset_x
+    offset_y
+    clipped_labels
+
+    Returns
+    -------
+
+    """
+    labels = sorted(set(label_image.flatten()) - {0} - set(clipped_labels))
+    cc = dip.GetImageChainCodes(label_image)  # input must be an unsigned integer type
+    d = {}
+    for c in cc:
+        if c.objectID in labels:
+            # p = np.array(c.Polygon())
+            p = c.Polygon().Simplify()
+            p = p + np.array([offset_x, offset_y])
+            d[np.uint64(c.objectID)] = np.uint64(p).tolist()
+        else:
+            pass
+    df = pd.DataFrame([d]).T
+    df = df.reset_index()
+    df.columns = ['label', 'coords']
+    return df
 
 
 def outline_fix(label_image):
