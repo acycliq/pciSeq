@@ -1,5 +1,9 @@
 """ Functions for extracting the boundaries of the cells """
 
+# WARNING -- WARNING -- WARNING
+# NOTE: 30-Nov-2020: I am using pydip to get the cell boundaries. It is a lot faster but I need to
+# further test this and compare the cell boundaries with the previous way i used to do it
+
 import cv2
 import pandas as pd
 import numpy as np
@@ -205,7 +209,9 @@ def extract_borders_dip(label_image, offset_x, offset_y, clipped_labels):
             # p = np.array(c.Polygon())
             p = c.Polygon().Simplify()
             p = p + np.array([offset_x, offset_y])
-            d[np.uint64(c.objectID)] = np.uint64(p).tolist()
+            p = np.uint64(p).tolist()
+            p.append(p[0])  # append the first pair at the end to close the polygon
+            d[np.uint64(c.objectID)] = p
         else:
             pass
     df = pd.DataFrame([d]).T
