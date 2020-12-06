@@ -2,7 +2,7 @@
 does the cell typing
 '''
 import os
-from src.cell_call.run import varBayes
+from src.cell_call.run import VarBayes
 import logging
 import config
 
@@ -19,7 +19,8 @@ if __name__ == "__main__":
     out_dir = os.path.join(config.ROOT_DIR, 'data', 'cell_call_demo_data',  case, 'cell_type_output')
 
     # 1. run the cell calling algo
-    cellData, geneData = varBayes(my_config)
+    varBayes = VarBayes(my_config)
+    cellData, geneData = varBayes.run()
 
     # 2. save the results
     if not os.path.exists(out_dir):
