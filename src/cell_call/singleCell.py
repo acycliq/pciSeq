@@ -5,103 +5,59 @@ import xarray as xr
 import logging
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
-CONFIG_FILE = dir_path + '/config.yml'
-
-
 logger = logging.getLogger()
 
 
-def _load_geneset(config):
-    '''
+def load_scRNAseq(config):
+    """
     :param config:
     :return:
-    '''
+    """
 
     sc_path = os.path.join(dir_path, config['scRNAseq'])
-    logger.info('Loading geneset from %s' % sc_path)
+    logger.info('Loading single cell data from %s' % sc_path)
+    # Exression table from single cell data can have counts from the same class multiple times (more than once) .
+    # Pandas do not like headers with non-unique names, hence do not use a header
+    # when you read the csv.
+    # Read the csv with no headers  The class name will be the very first row of the dataframe
     df = pd.read_csv(sc_path, header=None, index_col=0, compression='gzip')
 
     # from https://github.com/pandas-dev/pandas/issues/19383
+    # Move now the class name from the top row to the headers of the dataframe
     df = df.rename(columns=df.iloc[0], copy=False).iloc[1:]
 
-    # make a dataframe from the xarray
+    # The dataframe has now gene name as row labels (index) and class names as headers
+    # The values however are still strings. Convert them to uint32
+    df = df.astype(np.float).astype(np.uint32)
+
+    # Some housekeeping. PC.CA2 and PC.CA3 should be renamed if they are in the scRNAseq data
     logger.info('Renaming subclasses PC.CA2 and PC.CA3 to be PC.Other1 and PC.Other2')
     class_name = ['PC.Other1' if x == 'PC.CA2' else x for x in df.columns.values]
     class_name = ['PC.Other2' if x == 'PC.CA3' else x for x in class_name]
 
     df.columns = class_name
-
     df = df.rename_axis("class_name", axis="columns") \
-        .rename_axis('gene_name') \
-        .astype('float64')
-
-    return xr.DataArray(df)
-
-
-def _scloader(config):
-    sc_path = os.path.join(dir_path, config['scRNAseq'])
-    df = pd.read_csv(sc_path, header=0, index_col=0, compression='gzip')\
-        .rename_axis("Class", axis="columns")\
-        .rename_axis('GeneName')\
-        .astype('float64')
+        .rename_axis('gene_name')
     return df
 
 
-
-def _normalise(df):
-    '''
-    removes columns with zero mean (ie all zeros) and then rescales so that
-    total counts remain the same.
-    :param df:
-    :return:
-    '''
-
-    # find the mean for each column
-    col_mean = df.mean(axis=0)
-
-    isZero = col_mean == 0.0
-
-    # remove column if its mean is zero
-    df2 = df.loc[:, ~isZero]
-
-    total = df.sum().sum()
-    total2 = df2.sum().sum()
-
-    # rescale df2 so that the total counts are the same
-    df2 = df2 * total/total2
-
-    # sanity check
-    assert df.sum().sum() == df2.sum().sum()
-
-    return df2
-
-
-def _remove_zero_cells(da):
-    '''
-    Effectivelly what this does is to simply remove zero columns
+def _remove_zero_cells(df):
+    """
+    Removes zero columns (ie if a column is populated by zeros only, then it is removed)
     :param da:
     :return:
-    '''
-    da = da.loc[:, (da != 0).any('gene_name')]
+    """
+    out = df.loc[:, (df != 0).any(axis=0)]
+    return out
 
-    return da
 
-
-def geneSet(spots, config):
+def sc_expression_data(spots, config):
     genes = spots.gene_panel.index.values
-    da = _load_geneset(config)
+    df = load_scRNAseq(config)
+    df = df.loc[genes].rename_axis('gene_name')
 
-    # I should be able to just do: da.loc[genes] but it gives an error
-    # and I dont know why!!
-    # Hence i am doing this funny workaround
-    da = xr.DataArray(da.to_pandas()
-                        .loc[genes]
-                        .rename_axis("class_name", axis="columns")
-                        .rename_axis('gene_name')
-                        )
-
-    # da = _normalise(da)
-    da = _remove_zero_cells(da)
+    df = _remove_zero_cells(df.copy())
+    da = xr.DataArray(df)
 
     # calc the mean expression within each cell type
     mean_expression_da = config['Inefficiency'] * da.groupby('class_name').mean(dim='class_name')
