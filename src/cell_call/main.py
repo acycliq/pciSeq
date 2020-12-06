@@ -1,4 +1,4 @@
-from src.cell_call.systemData import Spots, Cells, Prior
+from src.cell_call.systemData import Spots, Cells, Cell_prior
 from src.cell_call.utils import loadmat
 from src.cell_call.singleCell import sc_expression_data
 import src.cell_call.config as config
@@ -42,7 +42,7 @@ logger.warning('*******************************')
 
 spots = Spots(sa.data)
 single_cell_data = sc_expression_data(spots, config.DEFAULT)
-prior = Prior(single_cell_data.coords['class_name'].values)
+prior = Cell_prior(single_cell_data.coords['class_name'].values)
 spots.init_call(cells, label_image, config.DEFAULT)
 
 
