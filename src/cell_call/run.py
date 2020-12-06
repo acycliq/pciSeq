@@ -1,72 +1,61 @@
 from src.cell_call.systemData import Cells, Spots, Prior
 from src.cell_call.singleCell import sc_expression_data
 import src.cell_call.common as common
-import pandas as pd
 import src.cell_call.utils as utils
 import os
 import logging
-
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger()
 
 
-def varBayes(my_config):
-    saFile = os.path.join(dir_path, my_config['saFile'])
-    cells = Cells(my_config)
+class VarBayes:
+    def __init__(self, config):
+        self.config = config
+        self.cells = Cells(self.config)
+        self.spots = Spots(self.config)
+        self.single_cell_data = sc_expression_data(self.spots, self.config)
 
-    logger.info('********* Getting spot attributes from %s **********', saFile)
-    sa_df = pd.read_csv(saFile)
-    if my_config['drop_nan']:
-        sa_df = sa_df.dropna()  ##  CAREFUL HERE  CAREFUL HERE  CAREFUL HERE  CAREFUL HERE
-        logger.info('**** I HAVE REMOVED NaNs ***** I HAVE REMOVED NaNs ***** I HAVE REMOVED NaNs****')
+    def run(self):
+        class_names = self.single_cell_data.coords['class_name'].values
+        prior = Prior(class_names)
+        self.spots.init_call(self.cells, self.config)
 
-    sa_df = sa_df.rename(columns={'x_global': 'x', 'y_global': 'y'})
+        p0 = None
+        iss_df = None
+        gene_df = None
+        for i in range(self.config['max_iter']):
+            # 1. calc expected gamma
+            logger.info('calc expected gamma')
+            egamma, elgamma = common.expected_gamma(self.cells, self.spots, self.single_cell_data, self.config)
 
-    # remove a gene if it is on the exclude list
-    gene_mask = [True if d not in my_config['exclude_genes'] else False for d in sa_df.target]
-    sa_df = sa_df.loc[gene_mask]
+            # 2 assign cells to cell types
+            logger.info('cell to cell type')
+            common.celltype_assignment(self.cells, self.spots, prior, self.single_cell_data, self.config)
 
-    spots = Spots(sa_df)
-    single_cell_data = sc_expression_data(spots, my_config)
-    prior = Prior(single_cell_data.coords['class_name'].values)
-    spots.init_call(cells, my_config)
+            # 3 assign spots to cells
+            logger.info('spot to cell')
+            common.call_spots(self.spots, self.cells, self.single_cell_data, prior, elgamma, self.config)
 
-    p0 = None
-    iss_df = None
-    gene_df = None
-    for i in range(my_config['max_iter']):
-        # 1. calc expected gamma
-        logger.info('calc expected gamma')
-        egamma, elgamma = common.expected_gamma(cells, spots, single_cell_data, my_config)
+            # 4 update eta
+            logger.info('update gamma')
+            common.updateGamma(self.cells, self.spots, self.single_cell_data, egamma, self.config)
 
-        # 2 call cells
-        logger.info('cell to cell type')
-        common.celltype_assignment(cells, spots, prior, single_cell_data, my_config)
+            converged, delta = utils.isConverged(self.spots, p0, self.config['CellCallTolerance'])
+            logger.info('Iteration %d, mean prob change %f' % (i, delta))
 
-        # 3 call spots
-        logger.info('spot to cell')
-        common.call_spots(spots, cells, single_cell_data, prior, elgamma, my_config)
+            # replace p0 with the latest probabilities
+            p0 = self.spots.call.cell_prob.values
 
-        # 4 update eta
-        logger.info('update gamma')
-        common.updateGamma(cells, spots, single_cell_data, egamma, my_config)
+            if converged:
+                # cells.iss_summary(spots)
+                # spots.summary()
+                iss_df, gene_df = common.collect_data(self.cells, self.spots)
+                print("Success!!")
+                break
 
-        converged, delta = utils.isConverged(spots, p0, my_config['CellCallTolerance'])
-        logger.info('Iteration %d, mean prob change %f' % (i, delta))
-
-        # replace p0 with the latest probabilities
-        p0 = spots.call.cell_prob.values
-
-        if converged:
-            # cells.iss_summary(spots)
-            # spots.summary()
-            iss_df, gene_df = common.collect_data(cells, spots)
-            print("Success!!")
-            break
-
-    return iss_df, gene_df
+        return iss_df, gene_df
 
 
-logger.info('Done')
+
 
