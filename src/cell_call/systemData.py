@@ -21,18 +21,18 @@ class Cells(object):
     # Get rid of the properties where not necessary!!
     def __init__(self, config):
         self.config = config
-        self.ds = read_image_objects(self.config)
+        self.cell_props = read_image_objects(self.config)
         self.classProb = None
 
     @property
     def yx_coords(self):
-        coords = [d for d in zip(self.ds.y.values, self.ds.x.values) if not np.isnan(d).any()]
+        coords = [d for d in zip(self.cell_props.y.values, self.cell_props.x.values) if not np.isnan(d).any()]
         return np.array(coords)
 
     @property
     def cell_id(self):
-        mask = ~np.isnan(self.ds.y.values) & ~np.isnan(self.ds.x.values)
-        return self.ds.cell_id.values[mask]
+        mask = ~np.isnan(self.cell_props.y.values) & ~np.isnan(self.cell_props.x.values)
+        return self.cell_props.cell_id.values[mask]
 
     def nn(self):
         n = self.config['nNeighbors'] + 1
@@ -52,7 +52,7 @@ class Cells(object):
         nG = spots.gene_panel.shape[0]
         # cell_id = self.cell_id
         # _id = np.append(cell_id, cell_id.max()+1)
-        _id = self.ds.index.tolist()
+        _id = self.cell_props.index.tolist()
         nN = spots.call.neighbors.shape[1]
         CellGeneCount = np.zeros([nC, nG])
 
@@ -72,7 +72,7 @@ class Cells(object):
         return CellGeneCount
 
     def geneCountsPerKlass(self, single_cell_data, egamma, ini):
-        temp = self.classProb * self.ds.area_factor.to_xarray() * egamma
+        temp = self.classProb * self.cell_props.area_factor.to_xarray() * egamma
         temp = temp.sum(dim='cell_id')
         ClassTotPredicted = temp * (single_cell_data.mean_expression + ini['SpotReg'])
         TotPredicted = ClassTotPredicted.drop('Zero', dim='class_name').sum(dim='class_name')
@@ -181,7 +181,7 @@ class Spots(object):
 
     def loglik(self, cells, cfg):
         # meanCellRadius = cells.ds.mean_radius
-        mcr = np.mean(np.sqrt(cells.ds.area / np.pi)) * 0.5 # This is the meanCellRadius
+        mcr = np.mean(np.sqrt(cells.cell_props.area / np.pi)) * 0.5 # This is the meanCellRadius
 
         # Assume a bivariate normal and calc the likelihood
         # mcr = meanCellRadius.data
@@ -301,17 +301,17 @@ def read_image_objects(config):
     CellAreaFactor = nom / denom
     areaFactor = CellAreaFactor
 
-    num_cells = len(img_obj.cell_id)
-    af = xr.DataArray(areaFactor, dims='cell_id', coords={'cell_id': np.arange(num_cells + 1)})
-    rr = xr.DataArray(relCellRadius, dims='cell_id', coords={'cell_id': np.arange(num_cells + 1)})
-    x = xr.DataArray(img_obj.x.values, dims='cell_id', coords={'cell_id': np.arange(num_cells)})
-    y = xr.DataArray(img_obj.y.values, dims='cell_id', coords={'cell_id': np.arange(num_cells)})
+    # num_cells = len(img_obj.cell_id)
+    # af = xr.DataArray(areaFactor, dims='cell_id', coords={'cell_id': np.arange(num_cells + 1)})
+    # rr = xr.DataArray(relCellRadius, dims='cell_id', coords={'cell_id': np.arange(num_cells + 1)})
+    # x = xr.DataArray(img_obj.x.values, dims='cell_id', coords={'cell_id': np.arange(num_cells)})
+    # y = xr.DataArray(img_obj.y.values, dims='cell_id', coords={'cell_id': np.arange(num_cells)})
 
-    ds = xr.Dataset({'area_factor': af,
-                        'rel_radius': rr,
-                        'mean_radius': meanCellRadius,
-                        'x': x,
-                        'y': y})
+    # ds = xr.Dataset({'area_factor': af,
+    #                     'rel_radius': rr,
+    #                     'mean_radius': meanCellRadius,
+    #                     'x': x,
+    #                     'y': y})
     out = pd.DataFrame({'area_factor': areaFactor,
                         'rel_radius': relCellRadius,
                         'area': np.append(img_obj.area, np.nan),

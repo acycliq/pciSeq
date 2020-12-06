@@ -11,7 +11,7 @@ logger = logging.getLogger()
 
 
 def expected_gamma(cells, spots, ds, ini):
-    scaled_mean = cells.ds.area_factor.to_xarray() * ds.mean_expression
+    scaled_mean = cells.cell_props.area_factor.to_xarray() * ds.mean_expression
     rho = ini['rSpot'] + cells.geneCount(spots)
     beta = ini['rSpot'] + scaled_mean
 
@@ -36,7 +36,7 @@ def celltype_assignment(cells, spots, prior, ds, cfg):
     '''
 
     gene_gamma = spots.gene_panel.gene_gamma
-    ScaledExp = cells.ds.area_factor.to_xarray() * gene_gamma.to_xarray() * ds.mean_expression + cfg['SpotReg']
+    ScaledExp = cells.cell_props.area_factor.to_xarray() * gene_gamma.to_xarray() * ds.mean_expression + cfg['SpotReg']
     pNegBin = ScaledExp / (cfg['rSpot'] + ScaledExp)
     # contr = utils.nb_negBinLoglik(CellGeneCount[:,:,None], ini['rSpot'], pNegBin)
     cgc = cells.geneCount(spots)
@@ -109,7 +109,7 @@ def updateGamma(cells, spots, single_cell_data, egamma, ini):
 
 
 def geneCountsPerKlass(cells, single_cell_data, egamma, ini):
-    temp = cells.classProb * cells.ds.area_factor * egamma
+    temp = cells.classProb * cells.cell_props.area_factor * egamma
     temp = temp.sum(dim='cell_id')
     ClassTotPredicted = temp * (single_cell_data.mean_expression + ini['SpotReg'])
     TotPredicted = ClassTotPredicted.drop('Zero', dim='class_name').sum(dim='class_name')
@@ -122,9 +122,9 @@ def iss_summary(cells, spots):
     :param spots:
     :return:
     '''
-    x = cells.ds.x.values
-    y = cells.ds.y.values
-    cell_id = cells.ds.index.tolist()
+    x = cells.cell_props.x.values
+    y = cells.cell_props.y.values
+    cell_id = cells.cell_props.index.tolist()
 
     gene_count = cells.geneCount(spots)
     class_prob = cells.classProb
@@ -143,9 +143,9 @@ def iss_summary(cells, spots):
     class_name_list = [class_names[isProb_nonZero[n]] for n in range(N)]
     prob_list = [class_prob.values[n, isProb_nonZero[n]] for n in range(N)]
 
-    iss_df = pd.DataFrame({'Cell_Num': cells.ds.index.tolist(),
-                            'X': cells.ds.x.values,
-                            'Y': cells.ds.y.values,
+    iss_df = pd.DataFrame({'Cell_Num': cells.cell_props.index.tolist(),
+                            'X': cells.cell_props.x.values,
+                            'Y': cells.cell_props.y.values,
                             'Genenames': name_list,
                             'CellGeneCount': count_list,
                             'ClassName': class_name_list,
