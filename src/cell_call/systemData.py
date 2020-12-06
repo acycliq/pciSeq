@@ -118,15 +118,33 @@ class Genes(object):
 
 
 class Spots(object):
-    def __init__(self, df):
+    def __init__(self, config):
+        self.config = config
         # df = sa.data
-        df = df.rename_axis('spot_id').rename(columns={'target': 'gene_name'})
-        self.data = df
+        self.data = self.read()
+        # df = df.rename_axis('spot_id').rename(columns={'target': 'gene_name'})
+
         self.call = None
         self._genes = Genes(self)
         self.data['gene_id'] = self._genes.ispot
         self.gene_panel = self._genes.panel
         # self.yxCoords = self.data[['y', 'x']].values
+
+    def read(self):
+        saFile = os.path.join(dir_path, self.config['saFile'])
+
+        logger.info('********* Getting spot attributes from %s **********', saFile)
+        sa_df = pd.read_csv(saFile)
+        if self.config['drop_nan']:
+            sa_df = sa_df.dropna()  ##  CAREFUL HERE  CAREFUL HERE  CAREFUL HERE  CAREFUL HERE
+            logger.info('**** I HAVE REMOVED NaNs ***** I HAVE REMOVED NaNs ***** I HAVE REMOVED NaNs****')
+
+        sa_df = sa_df.rename(columns={'x_global': 'x', 'y_global': 'y'})
+
+        # remove a gene if it is on the exclude list
+        gene_mask = [True if d not in self.config['exclude_genes'] else False for d in sa_df.target]
+        sa_df = sa_df.loc[gene_mask]
+        return sa_df.rename_axis('spot_id').rename(columns={'target': 'gene_name'})
 
     def _neighborCells(self, cells):
         # this needs some clean up.
