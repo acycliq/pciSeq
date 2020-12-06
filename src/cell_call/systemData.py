@@ -79,7 +79,7 @@ class Cells(object):
         return TotPredicted
 
 
-class Prior(object):
+class Cell_prior(object):
     def __init__(self, cell_type):
         # list(dict.fromkeys(cell_type_name))
         self.name = cell_type

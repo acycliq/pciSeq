@@ -1,4 +1,4 @@
-from src.cell_call.systemData import Cells, Spots, Prior
+from src.cell_call.systemData import Cells, Spots, Cell_prior
 from src.cell_call.singleCell import sc_expression_data
 import src.cell_call.common as common
 import src.cell_call.utils as utils
@@ -15,10 +15,10 @@ class VarBayes:
         self.cells = Cells(self.config)
         self.spots = Spots(self.config)
         self.single_cell_data = sc_expression_data(self.spots, self.config)
+        class_names = self.single_cell_data.coords['class_name'].values
+        self.cell_prior = Cell_prior(class_names)
 
     def run(self):
-        class_names = self.single_cell_data.coords['class_name'].values
-        prior = Prior(class_names)
         self.spots.init_call(self.cells, self.config)
 
         p0 = None
@@ -31,11 +31,11 @@ class VarBayes:
 
             # 2 assign cells to cell types
             logger.info('cell to cell type')
-            common.celltype_assignment(self.cells, self.spots, prior, self.single_cell_data, self.config)
+            common.celltype_assignment(self.cells, self.spots, self.cell_prior, self.single_cell_data, self.config)
 
             # 3 assign spots to cells
             logger.info('spot to cell')
-            common.call_spots(self.spots, self.cells, self.single_cell_data, prior, elgamma, self.config)
+            common.call_spots(self.spots, self.cells, self.single_cell_data, self.cell_prior, elgamma, self.config)
 
             # 4 update eta
             logger.info('update gamma')
