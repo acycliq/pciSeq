@@ -1,6 +1,6 @@
 from src.cell_call.systemData import Spots, Cells, Prior
 from src.cell_call.utils import loadmat
-from src.cell_call.singleCell import geneSet
+from src.cell_call.singleCell import sc_expression_data
 import src.cell_call.config as config
 import src.cell_call.common as common
 import starfish as sf
@@ -41,7 +41,7 @@ logger.warning('** REMOVE this adjustment in the LIVE CODE ***')
 logger.warning('*******************************')
 
 spots = Spots(sa.data)
-single_cell_data = geneSet(spots, config.DEFAULT)
+single_cell_data = sc_expression_data(spots, config.DEFAULT)
 prior = Prior(single_cell_data.coords['class_name'].values)
 spots.init_call(cells, label_image, config.DEFAULT)
 
