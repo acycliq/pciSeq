@@ -1,8 +1,8 @@
-'''
+"""
 does the cell typing
-'''
+"""
 import os
-from src.cell_call.run import VarBayes
+from src.cell_call.main import VarBayes
 import logging
 import config
 
