@@ -15,11 +15,11 @@ logging.basicConfig(
 if __name__ == "__main__":
     case = 'MOUSE'  # 'MOUSE' or 'HUMAN'
 
-    my_config = getattr(config, case)
+    ini = getattr(config, case)
     out_dir = os.path.join(config.ROOT_DIR, 'data', 'cell_call_demo_data',  case, 'cell_type_output')
 
     # 1. run the cell calling algo
-    varBayes = VarBayes(my_config)
+    varBayes = VarBayes(ini)
     cellData, geneData = varBayes.run()
 
     # 2. save the results
