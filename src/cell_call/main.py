@@ -99,7 +99,7 @@ class VarBayes:
         cgc = self.cells.geneCount(self.spots)
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
         wCellClass = np.sum(contr, axis=1) + self.cell_prior.logvalue
-        pCellClass = xr.apply_ufunc(utils.softmax_nolan, wCellClass, 1, 1)
+        pCellClass = xr.apply_ufunc(utils.softmax, wCellClass, 1, 1)
 
         # self.cells.classProb = pCellClass
         logger.info('Cell 0 is classified as %s with prob %4.8f' % (
@@ -127,17 +127,19 @@ class VarBayes:
             cp = self.cells.classProb.sel({'cell_id': sn}).data
 
             # multiply and sum over cells
-            term_1 = (expected_spot_counts * cp).sum(axis=1)
+            # term_1 = (expected_spot_counts * cp).sum(axis=1)
+            term_1 = np.einsum('ij,ij -> i', expected_spot_counts, cp)
 
             # logger.info('genes.spotNo should be something line spots.geneNo instead!!')
-            # expectedLog = elgamma.data[spots.call.neighbors[:, n], spots.data.gene_id]
-            expectedLog = utils.bi2(self.elgamma.data, [nS, nK], sn[:, None], self.spots.data.gene_id.values[:, None])
-            term_2 = np.sum(cp * expectedLog, axis=1)
+            expectedLog = self.elgamma.data[self.spots.call.neighbors[:, n].data, self.spots.data.gene_id]
+            # expectedLog = utils.bi2(self.elgamma.data, [nS, nK], sn[:, None], self.spots.data.gene_id.values[:, None])
+
+            term_2 = np.einsum('ij,ij -> i', cp, expectedLog)  # same as np.sum(cp * expectedLog, axis=1) but bit faster
             aSpotCell[:, n] = term_1 + term_2
         wSpotCell = aSpotCell + self.spots.loglik(self.cells, self.config)
 
         # update the prob a spot belongs to a neighboring cell
-        pSpotNeighb = utils.softmax2(wSpotCell)
+        pSpotNeighb = utils.softmax(wSpotCell, axis=1)
         self.spots.call.cell_prob.data = pSpotNeighb
         logger.info('spot ---> cell probabilities updated')
 

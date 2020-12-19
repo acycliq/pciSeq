@@ -74,6 +74,8 @@ class Cells(object):
     def geneCountsPerKlass(self, single_cell_data, egamma, ini):
         temp = self.classProb * self.cell_props.area_factor.to_xarray() * egamma
         temp = temp.sum(dim='cell_id')
+        # if you want to calc temp with einsum:
+        # temp = np.einsum('ck, c, cgk -> kg', self.classProb, self.cell_props.area_factor.to_xarray(), egamma)
         ClassTotPredicted = temp * (single_cell_data.mean_expression + ini['SpotReg'])
         TotPredicted = ClassTotPredicted.drop('Zero', dim='class_name').sum(dim='class_name')
         return TotPredicted
@@ -219,90 +221,19 @@ class Spots(object):
         :param spots:
         :return:
         '''
+
+        # for each spot get the ids of the 3 nearest cells
         spotNeighbours = self.call.neighbors.loc[:, [0, 1, 2]].values
+
+        # get the corresponding probabilities
         neighbourProb = self.call.cell_prob.loc[:, [0, 1, 2]].values
+
+        # prob that a spot belongs to a zero expressing cell
         pSpotZero = np.sum(neighbourProb * pCellZero[spotNeighbours], axis=1)
+
+        # aggregate per gene id
         TotPredictedZ = np.bincount(geneNo, pSpotZero)
         return TotPredictedZ
-
-
-def _parse(label_image, config):
-    '''
-    ********************** FUNCTION DEPRECATED                        **********************
-    ********************** FUNCTION IS REPLACED BY read_image_objects **********************
-    ********************** FUNCTION TO BE DELETED SOON                **********************
-    Read image and calc some statistics
-    :return:
-    '''
-
-    roi = config['roi']
-    xRange = roi["x1"] - roi["x0"]
-    yRange = roi["y1"] - roi["y0"]
-    roiSize = np.array([yRange, xRange]) + 1
-
-    # sanity check
-    assert np.all(label_image.shape == roiSize), 'Image is %d by %d but the ROI implies %d by %d' % (label_image.shape[1], label_image.shape[0], xRange, yRange)
-
-    x0 = roi["x0"]
-    y0 = roi["y0"]
-
-    rp = regionprops(label_image)
-    cellYX = np.array([x.centroid for x in rp]) + np.array([y0, x0])
-
-    # logger.info(' Shifting the centroids of the cells one pixel on each dimension')
-    # cellYX = cellYX + 1.0
-
-    cellArea0 = np.array([x.area for x in rp])
-    meanCellRadius = np.mean(np.sqrt(cellArea0 / np.pi)) * 0.5;
-
-    relCellRadius = np.sqrt(cellArea0 / np.pi) / meanCellRadius
-
-    # append 1 for the misreads
-    relCellRadius = np.append(relCellRadius, 1)
-
-    nom = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(config['InsideCellBonus'])) + np.exp(config['InsideCellBonus'])
-    denom = np.exp(-0.5) * (1 - np.exp(config['InsideCellBonus'])) + np.exp(config['InsideCellBonus'])
-    CellAreaFactor = nom / denom
-    areaFactor = CellAreaFactor
-
-    num_cells = cellYX.shape[0]
-    af = xr.DataArray(areaFactor,    dims='cell_id', coords={'cell_id': np.arange(num_cells + 1)})
-    rr = xr.DataArray(relCellRadius, dims='cell_id', coords={'cell_id': np.arange(num_cells + 1)})
-    x = xr.DataArray(cellYX[:, 1],   dims='cell_id', coords={'cell_id': np.arange(num_cells)})
-    y = xr.DataArray(cellYX[:, 0],   dims='cell_id', coords={'cell_id': np.arange(num_cells)})
-
-    expanded_cells = pd.DataFrame({
-                                'cell_id': range(cellYX.shape[0]),
-                                'fov_id': 0,
-                                'area': cellArea0,
-                                'x': cellYX[:, 1],
-                                'y': cellYX[:, 0]}
-    )
-
-    ds = xr.Dataset({'area_factor': af,
-                        'rel_radius': rr,
-                        'mean_radius': meanCellRadius,
-                        'x': x,
-                        'y': y})
-
-    # sanity check
-    assert ds.x.shape[0] == num_cells + 1 & ds.y.shape[0] == num_cells + 1, 'Dataset should have one extra (dummy) cell'
-    assert np.isnan(ds.x[-1].values) & np.isnan(ds.y[-1].values), 'Last cell is a dummy cell, assigned to misreads. Should have nan coordinates!'
-
-    # stats = xr.DataArray(temp,
-    #              coords={'cell_id': np.arange(temp.shape[0]),
-    #                      'columns': ['area_factor', 'rel_radius'],
-    #                      'mean_radius': meanCellRadius},
-    #              dims=['cell_id', 'columns'])
-
-    # da = pd.DataFrame(cellYX, columns=['y', 'x']).to_xarray()
-
-    da = xr.DataArray(cellYX,
-                         coords={'cell_id': np.arange(cellYX.shape[0]),
-                                 'columns': ['y', 'x']},
-                         dims=['cell_id', 'columns'])
-
-    return ds
 
 
 def read_image_objects(config):

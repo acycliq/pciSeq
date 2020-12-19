@@ -178,6 +178,18 @@ def logGammaExpectation(rho, beta):
 
     return out
 
+def _log_gamma(x, y, rho, beta):
+    def inner(rho, beta):
+        r = rho.data[x, y, None]
+        b = beta.data[x, y, :]
+        logb = np.empty(b.shape)
+        ne.evaluate("log(b)", out=logb)
+        log_gamma = scipy.special.psi(r) - logb
+        return log_gamma
+    return inner
+
+
+
 
 def negBinLoglik(da_x, r, da_p):
     '''
@@ -279,7 +291,7 @@ def softmax2(x):
     return np.exp(x) / np.sum(np.exp(x), axis=1)[:, None]
 
 
-def softmax_nolan(X, theta = 1.0, axis = None):
+def softmax(X, theta = 1.0, axis = None):
     """
     From https://nolanbconaway.github.io/blog/2017/softmax-numpy
     Compute the softmax of each element along an axis of X.
