@@ -1,15 +1,10 @@
 import numpy as np
-from src.preprocess.utils import load_mat, split_CellMap
-import urllib.request
-import base64
-import json
+from src.preprocess.utils import load_mat, split_CellMap, split_label_img
 from scipy.sparse import coo_matrix
-import os
 from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import cpu_count
 import config
 import logging
-import time
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,7 +16,8 @@ logger = logging.getLogger()
 class Tile:
     def __init__(self, cfg):
         self.cfg = cfg
-        self._cellmap_chunks = split_CellMap(cfg['cellmap_full'], cfg['tile_size'], cfg['tile_size'])
+        # self._cellmap_chunks = split_CellMap(cfg['cellmap_full'], cfg['tile_size'], cfg['tile_size'])
+        self._cellmap_chunks = split_label_img(cfg['cellmap_full'], cfg['tile_size'], cfg['tile_size'])
         self.tiles_across = -(-cfg['img_width'] // cfg['tile_size'])
         self.tiles_down = -(-cfg['img_height'] // cfg['tile_size'])
         self.tile_shape = [cfg['tile_size'], cfg['tile_size']]
