@@ -32,18 +32,18 @@ def get_dir(my_config, tile_id):
     return os.path.join(root_dir, 'tile_' + str(tile_id))
 
 
-def _get_connected_labels(mylist):
+def _get_connected_labels(lst):
     '''
     find which positions in the input list have repeated values
     Example:
-     If mylist = [0, 4, 4] then it returns [1, 2] because 4 appears twice, at positions 1 and 2 of the input list
-     if mylist = [0,1,2,1,3,4,2,2] then it returns [[1, 3], [2, 6, 7]]
-    :param mylist:
+     If lst = [0, 4, 4] then it returns [1, 2] because 4 appears twice, at positions 1 and 2 of the input list
+     if lst = [0,1,2,1,3,4,2,2] then it returns [[1, 3], [2, 6, 7]]
+    :param lst:
     :return:
     '''
     output = defaultdict(list)
-    # Loop once over mylist, store the indices of all unique elements
-    for i, el in enumerate(mylist):
+    # Loop once over lst, store the indices of all unique elements
+    for i, el in enumerate(lst):
         output[el].append(i)
     return np.array([np.array(d) for d in output.values() if len(d) > 1])
 
@@ -118,6 +118,26 @@ def split_CellMap(filepath, p, q=None):
     out = blockfy(cellmap, p, q)
     return out
 
+
+def split_label_img(filepath, p, q=None):
+    """
+    Splits the label_image into smaller chunks(tiles) of size p-by-q
+    Parameters
+    ----------
+    filepath: Path to the npy file (the output of the cell segmentation)
+    p: width in pixels of the tile
+    q: height in pixels of the tile
+
+    Note: keep p = q. Code has not been tested for p != q
+
+    Returns
+    -------
+    """
+    if q is None:
+        q = p
+    label_img = np.load(filepath)
+    out = blockfy(label_img, p, q)
+    return out
 
 if __name__ == "__main__":
     p = q = 2000
