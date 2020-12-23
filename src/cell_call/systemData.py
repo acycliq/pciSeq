@@ -1,13 +1,19 @@
 import numpy as np
 import pandas as pd
 import xarray as xr
+from skimage.measure import regionprops
 from sklearn.neighbors import NearestNeighbors
+import src.cell_call.utils as utils
 import os
+import config
 import numpy_groupies as npg
 import time
 import logging
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
+CONFIG_FILE = dir_path + '/config.yml'
+
+
 logger = logging.getLogger()
 
 
@@ -74,21 +80,13 @@ class Cells(object):
         TotPredicted = ClassTotPredicted.drop('Zero', dim='class_name').sum(dim='class_name')
         return TotPredicted
 
-    def geneCountsPerKlass_v2(self, single_cell_data, ini, rho, beta):
-        temp = np.einsum('ck, c, cg, cgk -> gk', self.classProb.data, self.cell_props.area_factor.values, rho, 1/beta)
-        ClassTotPredicted = np.einsum('gk, gk -> gk', temp, single_cell_data.mean_expression + ini['SpotReg'])
-        TotPredicted = np.einsum('gk->g', ClassTotPredicted[:, :-1])  # last class is Zero class. Exclude it from the sum
-        # ClassTotPredicted = temp * (single_cell_data.mean_expression + ini['SpotReg'])
-        # TotPredicted = ClassTotPredicted.drop('Zero', dim='class_name').sum(dim='class_name')
-        return TotPredicted
-
 
 class Cell_prior(object):
     def __init__(self, cell_type):
         # list(dict.fromkeys(cell_type_name))
         self.name = cell_type
         self.nK = self.name.shape[0]
-        # Check this....maybe you should divide by K-1
+        # Check this....maybe you should divide my K-1
         self.value = np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
         self.logvalue = np.log(self.value)
 
