@@ -110,6 +110,11 @@ def label_spot(a, idx):
     return out
 
 
+def gammaExpectation_einsum(rho, beta):
+    b = 1/beta
+    return np.einsum('cg, cgk -> cgk', rho, b)
+
+
 def gammaExpectation(rho, beta):
     '''
     :param r:
