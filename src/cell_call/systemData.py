@@ -1,19 +1,13 @@
 import numpy as np
 import pandas as pd
 import xarray as xr
-from skimage.measure import regionprops
 from sklearn.neighbors import NearestNeighbors
-import src.cell_call.utils as utils
 import os
-import config
 import numpy_groupies as npg
 import time
 import logging
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
-CONFIG_FILE = dir_path + '/config.yml'
-
-
 logger = logging.getLogger()
 
 
@@ -80,13 +74,21 @@ class Cells(object):
         TotPredicted = ClassTotPredicted.drop('Zero', dim='class_name').sum(dim='class_name')
         return TotPredicted
 
+    def geneCountsPerKlass_v2(self, single_cell_data, ini, rho, beta):
+        temp = np.einsum('ck, c, cg, cgk -> gk', self.classProb.data, self.cell_props.area_factor.values, rho, 1/beta)
+        ClassTotPredicted = np.einsum('gk, gk -> gk', temp, single_cell_data.mean_expression + ini['SpotReg'])
+        TotPredicted = np.einsum('gk->g', ClassTotPredicted[:, :-1])  # last class is Zero class. Exclude it from the sum
+        # ClassTotPredicted = temp * (single_cell_data.mean_expression + ini['SpotReg'])
+        # TotPredicted = ClassTotPredicted.drop('Zero', dim='class_name').sum(dim='class_name')
+        return TotPredicted
+
 
 class Cell_prior(object):
     def __init__(self, cell_type):
         # list(dict.fromkeys(cell_type_name))
         self.name = cell_type
         self.nK = self.name.shape[0]
-        # Check this....maybe you should divide my K-1
+        # Check this....maybe you should divide by K-1
         self.value = np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
         self.logvalue = np.log(self.value)
 
@@ -250,17 +252,6 @@ def read_image_objects(config):
     CellAreaFactor = nom / denom
     areaFactor = CellAreaFactor
 
-    # num_cells = len(img_obj.cell_id)
-    # af = xr.DataArray(areaFactor, dims='cell_id', coords={'cell_id': np.arange(num_cells + 1)})
-    # rr = xr.DataArray(relCellRadius, dims='cell_id', coords={'cell_id': np.arange(num_cells + 1)})
-    # x = xr.DataArray(img_obj.x.values, dims='cell_id', coords={'cell_id': np.arange(num_cells)})
-    # y = xr.DataArray(img_obj.y.values, dims='cell_id', coords={'cell_id': np.arange(num_cells)})
-
-    # ds = xr.Dataset({'area_factor': af,
-    #                     'rel_radius': rr,
-    #                     'mean_radius': meanCellRadius,
-    #                     'x': x,
-    #                     'y': y})
     out = pd.DataFrame({'area_factor': areaFactor,
                         'rel_radius': relCellRadius,
                         'area': np.append(img_obj.area, np.nan),
