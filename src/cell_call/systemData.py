@@ -132,20 +132,20 @@ class Spots(object):
         # self.yxCoords = self.data[['y', 'x']].values
 
     def read(self):
-        saFile = os.path.join(dir_path, self.config['saFile'])
+        spotsFile = os.path.join(dir_path, self.config['spotsFile'])
 
-        logger.info('********* Getting spot attributes from %s **********', saFile)
-        sa_df = pd.read_csv(saFile)
-        if self.config['drop_nan']:
-            sa_df = sa_df.dropna()  ##  CAREFUL HERE  CAREFUL HERE  CAREFUL HERE  CAREFUL HERE
+        logger.info('********* Getting spot attributes from %s **********', spotsFile)
+        spots_df = pd.read_csv(spotsFile)
+        if 'drop_nan' in self.config.keys() and self.config['drop_nan']:
+            spots_df = spots_df.dropna()  ##  CAREFUL HERE  CAREFUL HERE  CAREFUL HERE  CAREFUL HERE
             logger.info('**** I HAVE REMOVED NaNs ***** I HAVE REMOVED NaNs ***** I HAVE REMOVED NaNs****')
 
-        sa_df = sa_df.rename(columns={'x_global': 'x', 'y_global': 'y'})
+        spots_df = spots_df.rename(columns={'x_global': 'x', 'y_global': 'y'})
 
         # remove a gene if it is on the exclude list
-        gene_mask = [True if d not in self.config['exclude_genes'] else False for d in sa_df.target]
-        sa_df = sa_df.loc[gene_mask]
-        return sa_df.rename_axis('spot_id').rename(columns={'target': 'gene_name'})
+        gene_mask = [True if d not in self.config['exclude_genes'] else False for d in spots_df.target]
+        spots_df = spots_df.loc[gene_mask]
+        return spots_df.rename_axis('spot_id').rename(columns={'target': 'gene_name'})
 
     def _neighborCells(self, cells):
         # this needs some clean up.
@@ -160,55 +160,36 @@ class Spots(object):
         # number of cells (which so-far should always be unallocated)
         neighbors[:, -1] = numCells
 
-        out = pd.DataFrame(neighbors,
-                           index=spotYX.index)\
-            .rename_axis("neighbour_id", axis="columns")
-        return out
+        return neighbors
 
     def _cellProb(self, neighbors, cfg):
         nS = self.data.shape[0]
         nN = cfg['nNeighbors'] + 1
         SpotInCell = self.data.label
-        assert (np.all(SpotInCell.index == neighbors.index))
+        # assert (np.all(SpotInCell.index == neighbors.index))
 
         # sanity check (this actually needs to be rewritten)
         mask = np.greater(SpotInCell, 0, where=~np.isnan(SpotInCell))
-        sanity_check = neighbors.loc[mask, 0] + 1 == SpotInCell[mask]
+        sanity_check = neighbors[mask, 0] + 1 == SpotInCell[mask]
         assert ~any(sanity_check), "a spot is in a cell not closest neighbor!"
 
         pSpotNeighb = np.zeros([nS, nN])
-        pSpotNeighb[neighbors.values + 1 == SpotInCell.values[:, None]] = 1
+        pSpotNeighb[neighbors + 1 == SpotInCell.values[:, None]] = 1  # neighbors is 0-based whereas SpotInCell 1-based
         pSpotNeighb[SpotInCell == 0, -1] = 1
 
-        out = pd.DataFrame(pSpotNeighb,
-                           index=neighbors.index,
-                           columns=neighbors.columns)
-
         ## Add a couple of checks here
-        return out
+        return pSpotNeighb
 
     def init_call(self, cells, config):
-        neighbors = self._neighborCells(cells)
-        my_ds = self._cellProb(neighbors, config)
-
-        out = xr.Dataset({'cell_prob': my_ds, 'neighbors': neighbors})
-
-        assert np.all(out.cell_prob.spot_id.data == out.neighbors.spot_id.data)
-        assert np.all(out.cell_prob.neighbour_id.data == out.neighbors.neighbour_id.data)
-
-        self.cell_prob = my_ds.values
-        self.adj_cell_id = neighbors.values
-        self.adj_cell_prob = my_ds.values
-        # self.call = out
+        self.adj_cell_id = self._neighborCells(cells)
+        self.adj_cell_prob = self._cellProb(self.adj_cell_id, config)
 
     def loglik(self, cells, cfg):
         # meanCellRadius = cells.ds.mean_radius
         area = cells.cell_props['area'][:-1]
         mcr = np.mean(np.sqrt(area / np.pi)) * 0.5  # This is the meanCellRadius
-        # mcr = np.mean(np.sqrt(cells.cell_props['area'] / np.pi)) * 0.5 # This is the meanCellRadius
 
         # Assume a bivariate normal and calc the likelihood
-        # mcr = meanCellRadius.data
         D = -self.Dist ** 2 / (2 * mcr ** 2) - np.log(2 * np.pi * mcr ** 2)
 
         # last column (nN-closest) keeps the misreads,
