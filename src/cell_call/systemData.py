@@ -4,6 +4,7 @@ import xarray as xr
 from sklearn.neighbors import NearestNeighbors
 import os
 import numpy_groupies as npg
+from src.cell_call.utils import read_image_objects
 import time
 import logging
 
@@ -239,28 +240,5 @@ class Spots(object):
         return TotPredictedZ
 
 
-def read_image_objects(config):
-    img_obj = pd.read_csv(config['expanded_cells'])
-
-    meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
-    relCellRadius = np.sqrt(img_obj.area / np.pi) / meanCellRadius
-
-    # append 1 for the misreads
-    relCellRadius = np.append(relCellRadius, 1)
-
-    nom = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(config['InsideCellBonus'])) + np.exp(config['InsideCellBonus'])
-    denom = np.exp(-0.5) * (1 - np.exp(config['InsideCellBonus'])) + np.exp(config['InsideCellBonus'])
-    CellAreaFactor = nom / denom
-    areaFactor = CellAreaFactor
-
-    out = {}
-    out['area_factor'] = areaFactor
-    out['rel_radius'] = relCellRadius
-    out['area'] = np.append(img_obj.area, np.nan)
-    out['x'] = np.append(img_obj.x.values, np.nan)
-    out['y'] = np.append(img_obj.y.values, np.nan)
-    out['cell_id'] = np.append(img_obj.cell_id.values, img_obj.cell_id.shape[0]+1)
-    # Last cell is a dummy cell, a su that will be used to get all the misreads
-    return out
 
 
