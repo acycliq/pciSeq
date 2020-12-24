@@ -27,10 +27,10 @@ if __name__ == "__main__":
         os.makedirs(out_dir)
 
     cellData.to_json(os.path.join(out_dir, 'cellData.json'), orient='records')
-    logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.json')))
+    logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData_check.json')))
 
     geneData.to_json(os.path.join(out_dir, 'geneData.json'), orient='records')
-    logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.json')))
+    logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData_check.json')))
 
 
     print('Done')
