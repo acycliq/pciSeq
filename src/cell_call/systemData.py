@@ -1,19 +1,13 @@
 import numpy as np
 import pandas as pd
 import xarray as xr
-from skimage.measure import regionprops
 from sklearn.neighbors import NearestNeighbors
-import src.cell_call.utils as utils
 import os
-import config
 import numpy_groupies as npg
 import time
 import logging
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
-CONFIG_FILE = dir_path + '/config.yml'
-
-
 logger = logging.getLogger()
 
 
@@ -22,22 +16,24 @@ class Cells(object):
     def __init__(self, config):
         self.config = config
         self.cell_props = read_image_objects(self.config)
+        self.num_cells = len(self.cell_props['cell_id'])
         self.classProb = None
+        self.className = None
 
     @property
     def yx_coords(self):
-        coords = [d for d in zip(self.cell_props.y.values, self.cell_props.x.values) if not np.isnan(d).any()]
+        coords = [d for d in zip(self.cell_props['y'], self.cell_props['x']) if not np.isnan(d).any()]
         return np.array(coords)
 
-    @property
-    def cell_id(self):
-        mask = ~np.isnan(self.cell_props.y.values) & ~np.isnan(self.cell_props.x.values)
-        return self.cell_props.cell_id.values[mask]
+    # @property
+    # def cell_id(self):
+    #     mask = ~np.isnan(self.cell_props.y) & ~np.isnan(self.cell_props.x)
+    #     return self.cell_props.cell_id[mask]
 
     def nn(self):
         n = self.config['nNeighbors'] + 1
         # for each spot find the closest cell (in fact the top nN-closest cells...)
-        nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(self.yx_coords.data)
+        nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(self.yx_coords)
         return nbrs
 
     def geneCount(self, spots):
@@ -48,34 +44,34 @@ class Cells(object):
         :return:
         '''
         start = time.time()
-        nC = self.yx_coords.shape[0] + 1
+        nC = self.num_cells
         nG = spots.gene_panel.shape[0]
         # cell_id = self.cell_id
         # _id = np.append(cell_id, cell_id.max()+1)
-        _id = self.cell_props.index.tolist()
-        nN = spots.call.neighbors.shape[1]
+        # _id = self.cell_props['cell_id']
+        nN = self.config['nNeighbors'] + 1
         CellGeneCount = np.zeros([nC, nG])
 
         name = spots.gene_panel.index.values
         ispot = spots.data.gene_id.values
         for n in range(nN - 1):
-            c = spots.call.neighbors.loc[:, n].values
+            c = spots.adj_cell_id[:, n]
             # c = spots.neighboring_cells['id'].sel(neighbor=n).values
             group_idx = np.vstack((c[None, :], ispot[None, :]))
-            a = spots.call.cell_prob.loc[:, n]
+            a = spots.adj_cell_prob[:, n]
             accumarray = npg.aggregate(group_idx, a, func="sum", size=(nC, nG))
             CellGeneCount = CellGeneCount + accumarray
         end = time.time()
         print('time in geneCount: ', end - start)
-        CellGeneCount = xr.DataArray(CellGeneCount, coords=[_id, name], dims=['cell_id', 'gene_name'])
+        # CellGeneCount = xr.DataArray(CellGeneCount, coords=[_id, name], dims=['cell_id', 'gene_name'])
         # self.CellGeneCount = CellGeneCount
         return CellGeneCount
 
     def geneCountsPerKlass(self, single_cell_data, egamma, ini):
-        temp = self.classProb * self.cell_props.area_factor.to_xarray() * egamma
-        temp = temp.sum(dim='cell_id')
+        # temp = self.classProb * self.cell_props.area_factor.to_xarray() * egamma
+        # temp = temp.sum(dim='cell_id')
         # if you want to calc temp with einsum:
-        # temp = np.einsum('ck, c, cgk -> kg', self.classProb, self.cell_props.area_factor.to_xarray(), egamma)
+        temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.cell_props['area_factor'], egamma)
         ClassTotPredicted = temp * (single_cell_data.mean_expression + ini['SpotReg'])
         TotPredicted = ClassTotPredicted.drop('Zero', dim='class_name').sum(dim='class_name')
         return TotPredicted
@@ -127,6 +123,8 @@ class Spots(object):
         # df = df.rename_axis('spot_id').rename(columns={'target': 'gene_name'})
 
         self.call = None
+        self.adj_cell_prob = None
+        self.adj_cell_id = None
         self._genes = Genes(self)
         self.data['gene_id'] = self._genes.ispot
         self.gene_panel = self._genes.panel
@@ -151,7 +149,7 @@ class Spots(object):
     def _neighborCells(self, cells):
         # this needs some clean up.
         spotYX = self.data[['y', 'x']]
-        numCells = len(cells.yx_coords)
+        numCells = cells.num_cells
 
         # for each spot find the closest cell (in fact the top nN-closest cells...)
         nbrs = cells.nn()
@@ -197,11 +195,16 @@ class Spots(object):
         assert np.all(out.cell_prob.spot_id.data == out.neighbors.spot_id.data)
         assert np.all(out.cell_prob.neighbour_id.data == out.neighbors.neighbour_id.data)
 
-        self.call = out
+        self.cell_prob = my_ds.values
+        self.adj_cell_id = neighbors.values
+        self.adj_cell_prob = my_ds.values
+        # self.call = out
 
     def loglik(self, cells, cfg):
         # meanCellRadius = cells.ds.mean_radius
-        mcr = np.mean(np.sqrt(cells.cell_props.area / np.pi)) * 0.5 # This is the meanCellRadius
+        area = cells.cell_props['area'][:-1]
+        mcr = np.mean(np.sqrt(area / np.pi)) * 0.5  # This is the meanCellRadius
+        # mcr = np.mean(np.sqrt(cells.cell_props['area'] / np.pi)) * 0.5 # This is the meanCellRadius
 
         # Assume a bivariate normal and calc the likelihood
         # mcr = meanCellRadius.data
@@ -223,10 +226,10 @@ class Spots(object):
         '''
 
         # for each spot get the ids of the 3 nearest cells
-        spotNeighbours = self.call.neighbors.loc[:, [0, 1, 2]].values
+        spotNeighbours = self.adj_cell_id[:, :-1]
 
         # get the corresponding probabilities
-        neighbourProb = self.call.cell_prob.loc[:, [0, 1, 2]].values
+        neighbourProb = self.adj_cell_prob[:, :-1]
 
         # prob that a spot belongs to a zero expressing cell
         pSpotZero = np.sum(neighbourProb * pCellZero[spotNeighbours], axis=1)
@@ -250,14 +253,14 @@ def read_image_objects(config):
     CellAreaFactor = nom / denom
     areaFactor = CellAreaFactor
 
-    out = pd.DataFrame({'area_factor': areaFactor,
-                        'rel_radius': relCellRadius,
-                        'area': np.append(img_obj.area, np.nan),
-                        # 'mean_radius': meanCellRadius,
-                        'x': np.append(img_obj.x.values, np.nan),
-                        'y': np.append(img_obj.y.values, np.nan),
-                        'cell_id': np.append(img_obj.cell_id.values, img_obj.cell_id.shape[0]+1)})\
-        .set_index('cell_id')
+    out = {}
+    out['area_factor'] = areaFactor
+    out['rel_radius'] = relCellRadius
+    out['area'] = np.append(img_obj.area, np.nan)
+    out['x'] = np.append(img_obj.x.values, np.nan)
+    out['y'] = np.append(img_obj.y.values, np.nan)
+    out['cell_id'] = np.append(img_obj.cell_id.values, img_obj.cell_id.shape[0]+1)
+    # Last cell is a dummy cell, a su that will be used to get all the misreads
     return out
 
 

@@ -20,6 +20,7 @@ class VarBayes:
         self.single_cell_data = sc_expression_data(self.spots, self.config)
         class_names = self.single_cell_data.coords['class_name'].values
         self.cell_prior = Cell_prior(class_names)
+        self.cells.className = class_names
 
         self.egamma = None
         self.elgamma = None
@@ -52,7 +53,7 @@ class VarBayes:
             logger.info('Iteration %d, mean prob change %f' % (i, delta))
 
             # replace p0 with the latest probabilities
-            p0 = self.spots.call.cell_prob.values
+            p0 = self.spots.adj_cell_prob
 
             if converged:
                 # cells.iss_summary(spots)
@@ -68,7 +69,7 @@ class VarBayes:
         spots = self.spots
         sc = self.single_cell_data
         cfg = self.config
-        scaled_mean = cells.cell_props.area_factor.to_xarray() * sc.mean_expression
+        scaled_mean = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], sc.mean_expression)
         rho = cfg['rSpot'] + cells.geneCount(spots)
         beta = cfg['rSpot'] + scaled_mean
 
@@ -94,23 +95,23 @@ class VarBayes:
 
         gene_gamma = self.spots.gene_panel.gene_gamma
         sc = self.single_cell_data
-        ScaledExp = self.cells.cell_props.area_factor.to_xarray() * gene_gamma.to_xarray() * sc.mean_expression + self.config['SpotReg']
+        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], gene_gamma, sc.mean_expression) + self.config['SpotReg']
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount(self.spots)
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
         wCellClass = np.sum(contr, axis=1) + self.cell_prior.logvalue
-        pCellClass = xr.apply_ufunc(utils.softmax, wCellClass, 1, 1)
+        pCellClass = utils.softmax(wCellClass, axis=1)
 
         # self.cells.classProb = pCellClass
         logger.info('Cell 0 is classified as %s with prob %4.8f' % (
             self.cell_prior.name[np.argmax(wCellClass[0, :])], pCellClass[0, np.argmax(wCellClass[0, :])]))
-        logger.info('cell ---> klass probabilities updated')
+        logger.info('cell ---> cell class probabilities updated')
         return pCellClass
 
     # -------------------------------------------------------------------- #
     def call_spots(self):
         # spot to cell assignment
-        nN = self.spots.call.neighbors.shape[1]
+        nN = self.config['nNeighbors'] + 1
         nS = self.spots.data.gene_name.shape[0]
         nK = self.cell_prior.nK
         aSpotCell = np.zeros([nS, nN])
@@ -121,17 +122,18 @@ class VarBayes:
             self.single_cell_data['log_mean_expression'].sel({'gene_name': spots_name})
 
             # get the spots' nth-closest cell
-            sn = self.spots.call.neighbors.loc[:, n].values
+            sn = self.spots.adj_cell_id[:, n]
 
             # get the respective cell type probabilities
-            cp = self.cells.classProb.sel({'cell_id': sn}).data
+            # cp = self.cells.classProb.sel({'cell_id': sn}).data
+            cp = self.cells.classProb[sn]
 
             # multiply and sum over cells
             # term_1 = (expected_spot_counts * cp).sum(axis=1)
-            term_1 = np.einsum('ij,ij -> i', expected_spot_counts, cp)
+            term_1 = np.einsum('ij, ij -> i', expected_spot_counts, cp)
 
             # logger.info('genes.spotNo should be something line spots.geneNo instead!!')
-            expectedLog = self.elgamma.data[self.spots.call.neighbors[:, n].data, self.spots.data.gene_id]
+            expectedLog = self.elgamma[self.spots.adj_cell_id[:, n], self.spots.data.gene_id]
             # expectedLog = utils.bi2(self.elgamma.data, [nS, nK], sn[:, None], self.spots.data.gene_id.values[:, None])
 
             term_2 = np.einsum('ij,ij -> i', cp, expectedLog)  # same as np.sum(cp * expectedLog, axis=1) but bit faster
@@ -140,17 +142,18 @@ class VarBayes:
 
         # update the prob a spot belongs to a neighboring cell
         pSpotNeighb = utils.softmax(wSpotCell, axis=1)
-        self.spots.call.cell_prob.data = pSpotNeighb
+        self.spots.adj_cell_prob = pSpotNeighb
         logger.info('spot ---> cell probabilities updated')
 
     # -------------------------------------------------------------------- #
     def update_eta(self):
         # Maybe I should rename that to eta (not gamma). In the paper the symbol is eta
-        TotPredictedZ = self.spots.TotPredictedZ(self.spots.data.gene_id.values, self.cells.classProb.sel({'class_name': 'Zero'}).data)
+        zero_prob = self.cells.classProb[:, -1] # probability a cell being a zero expressing cell
+        TotPredictedZ = self.spots.TotPredictedZ(self.spots.data.gene_id.values, zero_prob)
 
         TotPredicted = self.cells.geneCountsPerKlass(self.single_cell_data, self.egamma, self.config)
 
-        TotPredictedB = np.bincount(self.spots.data.gene_id.values, self.spots.call.cell_prob.loc[:, 3].data)
+        TotPredictedB = np.bincount(self.spots.data.gene_id.values, self.spots.adj_cell_prob[:, -1].data)
 
         nom = self.config['rGene'] + self.spots.gene_panel.total_spots - TotPredictedB - TotPredictedZ
         denom = self.config['rGene'] + TotPredicted

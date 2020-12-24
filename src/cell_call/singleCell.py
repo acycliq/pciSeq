@@ -20,7 +20,7 @@ def load_scRNAseq(config):
     # Pandas do not like headers with non-unique names, hence do not use a header
     # when you read the csv.
     # Read the csv with no headers  The class name will be the very first row of the dataframe
-    df = pd.read_csv(sc_path, header=None, index_col=0, compression='gzip')
+    df = pd.read_csv(sc_path, header=None, index_col=0, compression='gzip', dtype=object)
 
     # from https://github.com/pandas-dev/pandas/issues/19383
     # Move now the class name from the top row to the headers of the dataframe
