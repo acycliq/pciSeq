@@ -1,5 +1,5 @@
 import numpy as np
-from src.cell_call.systemData import Cells, Spots, Cell_prior
+from src.cell_call.dataTypes import Cells, Spots, Cell_prior
 from src.cell_call.singleCell import sc_expression_data
 import src.cell_call.common as common
 import src.cell_call.utils as utils
