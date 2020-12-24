@@ -50,7 +50,7 @@ def celltype_assignment(cells, spots, prior, ds, cfg):
     cells.classProb = pCellClass
     logger.info('Cell 0 is classified as %s with prob %4.8f' % (
         prior.name[np.argmax(wCellClass[0, :])], pCellClass[0, np.argmax(wCellClass[0, :])]))
-    logger.info('cell ---> klass probabilities updated')
+    logger.info('cell ---> cell class probabilities updated')
     return pCellClass
 
 
@@ -122,30 +122,30 @@ def iss_summary(cells, spots):
     :param spots:
     :return:
     '''
-    x = cells.cell_props.x.values
-    y = cells.cell_props.y.values
-    cell_id = cells.cell_props.index.tolist()
+    x = cells.cell_props['x']
+    y = cells.cell_props['y']
+    cell_id = cells.cell_props['cell_id']
 
     gene_count = cells.geneCount(spots)
     class_prob = cells.classProb
-    gene_names = gene_count.gene_name.values
-    class_names = class_prob.class_name.values
+    gene_names = spots.gene_panel.index.values
+    class_names = cells.className
 
     tol = 0.001
 
     logger.info('starting collecting data ...')
     N = len(cell_id)
-    isCount_nonZero = [gene_count.values[n, :] > tol for n in range(N)]
+    isCount_nonZero = [gene_count[n, :] > tol for n in range(N)]
     name_list = [gene_names[isCount_nonZero[n]] for n in range(N)]
-    count_list = [gene_count[n, isCount_nonZero[n]].values for n in range(N)]
+    count_list = [gene_count[n, isCount_nonZero[n]] for n in range(N)]
 
-    isProb_nonZero = [class_prob.values[n, :] > tol for n in range(N)]
+    isProb_nonZero = [class_prob[n, :] > tol for n in range(N)]
     class_name_list = [class_names[isProb_nonZero[n]] for n in range(N)]
-    prob_list = [class_prob.values[n, isProb_nonZero[n]] for n in range(N)]
+    prob_list = [class_prob[n, isProb_nonZero[n]] for n in range(N)]
 
-    iss_df = pd.DataFrame({'Cell_Num': cells.cell_props.index.tolist(),
-                            'X': cells.cell_props.x.values,
-                            'Y': cells.cell_props.y.values,
+    iss_df = pd.DataFrame({'Cell_Num': cells.cell_props['cell_id'],
+                            'X': cells.cell_props['x'],
+                            'Y': cells.cell_props['y'],
                             'Genenames': name_list,
                             'CellGeneCount': count_list,
                             'ClassName': class_name_list,
@@ -175,8 +175,8 @@ def summary(spots):
 
     num_rows = spots.data.shape[0]
 
-    cell_prob = spots.call.cell_prob.values
-    neighbors = spots.call.neighbors.values
+    cell_prob = spots.adj_cell_prob
+    neighbors = spots.adj_cell_id
     p = [cell_prob[i, :] for i in range(num_rows)]
     nbrs = [neighbors[i, :] for i in range(num_rows)]
     max_nbrs = [neighbors[i, idx] for i in range(num_rows) for idx in [np.argmax(cell_prob[i, :])]]
