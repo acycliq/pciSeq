@@ -1,5 +1,4 @@
 import numpy as np
-import xarray as xr
 from src.cell_call.systemData import Cells, Spots, Cell_prior
 from src.cell_call.singleCell import sc_expression_data
 import src.cell_call.common as common
@@ -43,9 +42,9 @@ class VarBayes:
 
             # 3 assign spots to cells
             logger.info('spot to cell')
-            self.call_spots()
+            self.assign_spots()
 
-            # 4 update eta
+            # 4 update gene efficiency
             logger.info('update gamma')
             self.update_eta()
 
@@ -109,7 +108,7 @@ class VarBayes:
         return pCellClass
 
     # -------------------------------------------------------------------- #
-    def call_spots(self):
+    def assign_spots(self):
         # spot to cell assignment
         nN = self.config['nNeighbors'] + 1
         nS = self.spots.data.gene_name.shape[0]
