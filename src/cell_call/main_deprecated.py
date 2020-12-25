@@ -1,4 +1,4 @@
-from src.cell_call.dataTypes import Spots, Cells, Cell_prior
+from src.cell_call.datatypes import Spots, Cells, Cell_prior
 from src.cell_call.utils import loadmat
 from src.cell_call.singleCell import sc_expression_data
 import src.cell_call.config as config
