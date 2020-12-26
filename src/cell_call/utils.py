@@ -69,9 +69,8 @@ def gammaExpectation(rho, beta):
 
 def logGammaExpectation(rho, beta):
     r = rho[:, :, None]
-    b = beta
-    logb = np.empty(b.shape)
-    ne.evaluate("log(b)", out=logb)
+    logb = np.empty(beta.shape)
+    ne.evaluate("log(beta)", out=logb)
     return scipy.special.psi(r) - logb
 
 
