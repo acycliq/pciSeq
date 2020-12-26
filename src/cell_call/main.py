@@ -1,7 +1,7 @@
 import numpy as np
 from src.cell_call.datatypes import Cells, Spots, Genes
 from src.cell_call.singleCell import sc_expression_data
-import src.cell_call.summary as common
+from src.cell_call.summary import collect_data
 import src.cell_call.utils as utils
 import gc
 import os
@@ -56,9 +56,7 @@ class VarBayes:
             p0 = self.spots.adj_cell_prob
 
             if converged:
-                # cells.iss_summary(spots)
-                # spots.summary()
-                iss_df, gene_df = common.collect_data(self.cells, self.spots, self.genes)
+                iss_df, gene_df = collect_data(self.cells, self.spots, self.genes)
                 print("Success!!")
                 break
         return iss_df, gene_df
