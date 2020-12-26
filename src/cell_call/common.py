@@ -116,7 +116,7 @@ def geneCountsPerKlass(cells, single_cell_data, egamma, ini):
     return TotPredicted
 
 
-def iss_summary(cells, spots):
+def iss_summary(cells, spots, genes):
     '''
     returns a datafram summarising the main feaures of each cell, ie gene counts and cell types
     :param spots:
@@ -128,7 +128,7 @@ def iss_summary(cells, spots):
 
     gene_count = cells.geneCount(spots)
     class_prob = cells.classProb
-    gene_names = spots.gene_panel.index.values
+    gene_names = genes.gene_names
     class_names = cells.className
 
     tol = 0.001
@@ -182,7 +182,7 @@ def summary(spots):
     max_nbrs = [neighbors[i, idx] for i in range(num_rows) for idx in [np.argmax(cell_prob[i, :])]]
 
     out = pd.DataFrame({'Gene': spots.data.gene_name,
-                        'Expt': spots.data.gene_id,
+                        'Expt': spots.gene_id,
                         'x': spots.data.x,
                         'y': spots.data.y,
                         'neighbour': max_nbrs,
@@ -192,13 +192,13 @@ def summary(spots):
     return out
 
 
-def collect_data(cells, spots):
+def collect_data(cells, spots, genes):
     '''
     Collects data for the viewer
     :param cells:
     :param spots:
     :return:
     '''
-    iss_df = iss_summary(cells, spots)
+    iss_df = iss_summary(cells, spots, genes)
     gene_df = summary(spots)
     return iss_df, gene_df

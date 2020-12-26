@@ -60,7 +60,7 @@ for i in range(100):
     # 4 update gamma
     common.updateGamma(cells, spots, single_cell_data, egamma, config.DEFAULT)
 
-    converged, delta = utils.isConverged(spots, p0, config.DEFAULT['CellCallTolerance'])
+    converged, delta = utils.hasConverged(spots, p0, config.DEFAULT['CellCallTolerance'])
     logger.info('Iteration %d, mean prob change %f' % (i, delta))
 
     # replace p0 with the latest probabilities
