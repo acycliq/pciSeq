@@ -19,7 +19,6 @@ PREPROCESSOR = {
 
 
 MOUSE = {
-    'CellCallMaxIter': 100,
     'CellCallTolerance': 0.02,
     'Inefficiency': 0.2,
     'InsideCellBonus': 2,
