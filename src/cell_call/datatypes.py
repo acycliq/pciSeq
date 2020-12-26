@@ -46,19 +46,19 @@ class Cells(object):
         '''
         start = time.time()
         nC = self.num_cells
-        nG = spots.gene_panel.shape[0]
+        nG = len(spots.unique_gene_names)
         # cell_id = self.cell_id
         # _id = np.append(cell_id, cell_id.max()+1)
         # _id = self.cell_props['cell_id']
         nN = self.config['nNeighbors'] + 1
         CellGeneCount = np.zeros([nC, nG])
 
-        name = spots.gene_panel.index.values
-        ispot = spots.data.gene_id.values
+        # name = spots.gene_panel.index.values
+        spot_id = spots.gene_id
         for n in range(nN - 1):
             c = spots.adj_cell_id[:, n]
             # c = spots.neighboring_cells['id'].sel(neighbor=n).values
-            group_idx = np.vstack((c[None, :], ispot[None, :]))
+            group_idx = np.vstack((c[None, :], spot_id[None, :]))
             a = spots.adj_cell_prob[:, n]
             accumarray = npg.aggregate(group_idx, a, func="sum", size=(nC, nG))
             CellGeneCount = CellGeneCount + accumarray
@@ -90,26 +90,24 @@ class Cell_prior(object):
 
 class Genes(object):
     def __init__(self, spots):
-        [gn, ispot, total_spots] = np.unique(spots.data.gene_name.values, return_inverse=True, return_counts=True)
-        # self.panel = xr.Dataset({'gene_gamma': xr.DataArray(np.ones(gn.shape), coords=[('gene_name', gn)]),
-        #                          'total_spots': xr.DataArray(total_spots, [('gene_name', gn)]),
-        #                          },)
-        self.panel = pd.DataFrame({'gene_name': gn,
-                                   'gene_gamma': 1,  # initial value for gamma is 1
-                                   'total_spots': total_spots
-                                   })\
-            .set_index('gene_name')
-        self.ispot = ispot
+        # [gn, spot_id, total_spots] = np.unique(spots.data.gene_name.values, return_inverse=True, return_counts=True)
+        self.gamma = np.ones(len(spots.unique_gene_names))
+        self.gene_names = spots.unique_gene_names
+
+
+        # self.panel = pd.DataFrame({'gene_name': gn,
+        #                            'gene_gamma': 1,  # initial value for gamma is 1
+        #                            'total_spots': total_spots
+        #                            })\
+        #     .set_index('gene_name')
+        # # self.spot_id = spot_id
 
     def update_gamma(self, cells, spots, single_cell_data, egamma, ini):
-        nK = single_cell_data.class_name.shape[0]
-
-        # pSpotZero = spots.zeroKlassProb(klasses, cells)
-        TotPredictedZ = spots.TotPredictedZ(self.panel.ispot.data,
+        TotPredictedZ = spots.TotPredictedZ(self.panel.spot_id.data,
                                                 cells.classProb.sel({'class_name': 'Zero'}).data)
 
         TotPredicted = cells.geneCountsPerKlass(single_cell_data, egamma, ini)
-        TotPredictedB = np.bincount(spots.geneUniv.ispot.data, spots.neighboring_cells['prob'][:, -1])
+        TotPredictedB = np.bincount(spots.geneUniv.spot_id.data, spots.neighboring_cells['prob'][:, -1])
 
         nom = ini['rGene'] + spots.geneUniv.total_spots - TotPredictedB - TotPredictedZ
         denom = ini['rGene'] + TotPredicted
@@ -119,17 +117,21 @@ class Genes(object):
 class Spots(object):
     def __init__(self, config):
         self.config = config
-        # df = sa.data
         self.data = self.read()
-        # df = df.rename_axis('spot_id').rename(columns={'target': 'gene_name'})
-
         self.call = None
         self.adj_cell_prob = None
         self.adj_cell_id = None
-        self._genes = Genes(self)
-        self.data['gene_id'] = self._genes.ispot
-        self.gene_panel = self._genes.panel
-        # self.yxCoords = self.data[['y', 'x']].values
+        self.unique_gene_names = None
+        self.gene_id = None
+        self.counts_per_gene = None
+        self._unique_genes()
+        # self._genes = Genes(self)
+        # self.data['gene_id'] = self._genes.spot_id
+        # self.gene_panel = self._genes.panel
+
+    def _unique_genes(self):
+        [self.unique_gene_names, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True, return_counts=True)
+        return self.data.gene_name.values
 
     def read(self):
         spotsFile = os.path.join(dir_path, self.config['spotsFile'])

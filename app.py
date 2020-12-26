@@ -26,10 +26,10 @@ if __name__ == "__main__":
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
-    cellData.to_json(os.path.join(out_dir, 'cellData.json'), orient='records')
+    cellData.to_json(os.path.join(out_dir, 'cellData_check.json'), orient='records')
     logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData_check.json')))
 
-    geneData.to_json(os.path.join(out_dir, 'geneData.json'), orient='records')
+    geneData.to_json(os.path.join(out_dir, 'geneData_check.json'), orient='records')
     logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData_check.json')))
 
 

@@ -1,5 +1,5 @@
 import numpy as np
-from src.cell_call.datatypes import Cells, Spots, Cell_prior
+from src.cell_call.datatypes import Cells, Spots, Genes, Cell_prior
 from src.cell_call.singleCell import sc_expression_data
 import src.cell_call.common as common
 import src.cell_call.utils as utils
@@ -16,7 +16,8 @@ class VarBayes:
         self.config = config
         self.cells = Cells(self.config)
         self.spots = Spots(self.config)
-        self.single_cell_data = sc_expression_data(self.spots, self.config)
+        self.genes = Genes(self.spots)
+        self.single_cell_data = sc_expression_data(self.genes, self.config)
         class_names = self.single_cell_data.coords['class_name'].values
         self.cell_prior = Cell_prior(class_names)
         self.cells.className = class_names
@@ -48,7 +49,7 @@ class VarBayes:
             logger.info('update gamma')
             self.update_eta()
 
-            converged, delta = utils.isConverged(self.spots, p0, self.config['CellCallTolerance'])
+            converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
             logger.info('Iteration %d, mean prob change %f' % (i, delta))
 
             # replace p0 with the latest probabilities
@@ -57,7 +58,7 @@ class VarBayes:
             if converged:
                 # cells.iss_summary(spots)
                 # spots.summary()
-                iss_df, gene_df = common.collect_data(self.cells, self.spots)
+                iss_df, gene_df = common.collect_data(self.cells, self.spots, self.genes)
                 print("Success!!")
                 break
         return iss_df, gene_df
@@ -92,7 +93,7 @@ class VarBayes:
         :return:
         """
 
-        gene_gamma = self.spots.gene_panel.gene_gamma
+        gene_gamma = self.genes.gamma
         sc = self.single_cell_data
         ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], gene_gamma, sc.mean_expression) + self.config['SpotReg']
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
@@ -131,8 +132,8 @@ class VarBayes:
             # term_1 = (expected_spot_counts * cp).sum(axis=1)
             term_1 = np.einsum('ij, ij -> i', expected_spot_counts, cp)
 
-            # logger.info('genes.spotNo should be something line spots.geneNo instead!!')
-            expectedLog = self.elgamma[self.spots.adj_cell_id[:, n], self.spots.data.gene_id]
+            # logger.info('genes.spotNo should be something like spots.geneNo instead!!')
+            expectedLog = self.elgamma[self.spots.adj_cell_id[:, n], self.spots.gene_id]
             # expectedLog = utils.bi2(self.elgamma.data, [nS, nK], sn[:, None], self.spots.data.gene_id.values[:, None])
 
             term_2 = np.einsum('ij,ij -> i', cp, expectedLog)  # same as np.sum(cp * expectedLog, axis=1) but bit faster
@@ -148,18 +149,18 @@ class VarBayes:
     def update_eta(self):
         # Maybe I should rename that to eta (not gamma). In the paper the symbol is eta
         zero_prob = self.cells.classProb[:, -1] # probability a cell being a zero expressing cell
-        TotPredictedZ = self.spots.TotPredictedZ(self.spots.data.gene_id.values, zero_prob)
+        TotPredictedZ = self.spots.TotPredictedZ(self.spots.gene_id, zero_prob)
 
         TotPredicted = self.cells.geneCountsPerKlass(self.single_cell_data, self.egamma, self.config)
 
-        TotPredictedB = np.bincount(self.spots.data.gene_id.values, self.spots.adj_cell_prob[:, -1].data)
+        TotPredictedB = np.bincount(self.spots.gene_id, self.spots.adj_cell_prob[:, -1].data)
 
-        nom = self.config['rGene'] + self.spots.gene_panel.total_spots - TotPredictedB - TotPredictedZ
+        nom = self.config['rGene'] + self.spots.counts_per_gene - TotPredictedB - TotPredictedZ
         denom = self.config['rGene'] + TotPredicted
         res = nom / denom
 
         # Finally, update gene_gamma
-        self.spots.gene_panel.gene_gamma[res.index] = res.values
+        self.genes.gamma = res.values
 
 
 

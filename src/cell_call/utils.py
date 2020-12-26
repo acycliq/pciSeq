@@ -176,7 +176,7 @@ def softmax(X, theta = 1.0, axis = None):
     return p
 
 
-def isConverged(spots, p0, tol):
+def hasConverged(spots, p0, tol):
     p1 = spots.adj_cell_prob
     if p0 is None:
         p0 = np.zeros(p1.shape)
