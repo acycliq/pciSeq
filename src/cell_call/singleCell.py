@@ -51,10 +51,10 @@ def _remove_zero_cells(df):
     return out
 
 
-def sc_expression_data(spots, config):
-    genes = spots.gene_panel.index.values
+def sc_expression_data(genes, config):
+    gene_names = genes.gene_names
     df = load_scRNAseq(config)
-    df = df.loc[genes].rename_axis('gene_name')
+    df = df.loc[gene_names].rename_axis('gene_name')
 
     df = _remove_zero_cells(df.copy())
     da = xr.DataArray(df)
