@@ -1,7 +1,7 @@
 import numpy as np
-from src.cell_call.datatypes import Cells, Spots, Genes, Cell_prior
+from src.cell_call.datatypes import Cells, Spots, Genes
 from src.cell_call.singleCell import sc_expression_data
-import src.cell_call.common as common
+import src.cell_call.summary as common
 import src.cell_call.utils as utils
 import gc
 import os
@@ -19,7 +19,7 @@ class VarBayes:
         self.genes = Genes(self.spots)
         self.single_cell_data = sc_expression_data(self.genes, self.config)
         class_names = self.single_cell_data.coords['class_name'].values
-        self.cell_prior = Cell_prior(class_names)
+        self.cells.log_prior = self.cells.prior(class_names)
         self.cells.className = class_names
 
         self.egamma = None
@@ -99,12 +99,12 @@ class VarBayes:
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount(self.spots)
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
-        wCellClass = np.sum(contr, axis=1) + self.cell_prior.logvalue
+        wCellClass = np.sum(contr, axis=1) + self.cells.log_prior
         pCellClass = utils.softmax(wCellClass, axis=1)
 
         # self.cells.classProb = pCellClass
         logger.info('Cell 0 is classified as %s with prob %4.8f' % (
-            self.cell_prior.name[np.argmax(wCellClass[0, :])], pCellClass[0, np.argmax(wCellClass[0, :])]))
+            self.cells.className[np.argmax(wCellClass[0, :])], pCellClass[0, np.argmax(wCellClass[0, :])]))
         logger.info('cell ---> cell class probabilities updated')
         return pCellClass
 
@@ -113,7 +113,7 @@ class VarBayes:
         # spot to cell assignment
         nN = self.config['nNeighbors'] + 1
         nS = self.spots.data.gene_name.shape[0]
-        nK = self.cell_prior.nK
+        # nK = self.cell_prior.nK
         aSpotCell = np.zeros([nS, nN])
         gn = self.spots.data.gene_name.values
         expected_spot_counts = self.single_cell_data['log_mean_expression'].sel({'gene_name': gn}).data

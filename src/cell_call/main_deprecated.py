@@ -2,7 +2,7 @@ from src.cell_call.datatypes import Spots, Cells, Cell_prior
 from src.cell_call.utils import loadmat
 from src.cell_call.singleCell import sc_expression_data
 import src.cell_call.config as config
-import src.cell_call.common as common
+import src.cell_call.summary as common
 import starfish as sf
 import pandas as pd
 import src.cell_call.utils as utils

@@ -20,6 +20,7 @@ class Cells(object):
         self.num_cells = len(self.cell_props['cell_id'])
         self.classProb = None
         self.className = None
+        self.log_prior = None
 
     @property
     def yx_coords(self):
@@ -30,6 +31,13 @@ class Cells(object):
     # def cell_id(self):
     #     mask = ~np.isnan(self.cell_props.y) & ~np.isnan(self.cell_props.x)
     #     return self.cell_props.cell_id[mask]
+
+    def prior(self, cell_type):
+        name = cell_type
+        nK = name.shape[0]
+        # Check this....maybe you should divide my K-1
+        value = np.append([.5 * np.ones(nK - 1) / nK], 0.5)
+        return np.log(value)
 
     def nn(self):
         n = self.config['nNeighbors'] + 1
@@ -78,29 +86,10 @@ class Cells(object):
         return TotPredicted
 
 
-class Cell_prior(object):
-    def __init__(self, cell_type):
-        # list(dict.fromkeys(cell_type_name))
-        self.name = cell_type
-        self.nK = self.name.shape[0]
-        # Check this....maybe you should divide my K-1
-        self.value = np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
-        self.logvalue = np.log(self.value)
-
-
 class Genes(object):
     def __init__(self, spots):
-        # [gn, spot_id, total_spots] = np.unique(spots.data.gene_name.values, return_inverse=True, return_counts=True)
         self.gamma = np.ones(len(spots.unique_gene_names))
         self.gene_names = spots.unique_gene_names
-
-
-        # self.panel = pd.DataFrame({'gene_name': gn,
-        #                            'gene_gamma': 1,  # initial value for gamma is 1
-        #                            'total_spots': total_spots
-        #                            })\
-        #     .set_index('gene_name')
-        # # self.spot_id = spot_id
 
     def update_gamma(self, cells, spots, single_cell_data, egamma, ini):
         TotPredictedZ = spots.TotPredictedZ(self.panel.spot_id.data,
