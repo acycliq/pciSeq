@@ -19,7 +19,7 @@ class Cells(object):
         self.cell_props = read_image_objects(self.config)
         self.num_cells = len(self.cell_props['cell_id'])
         self.classProb = None
-        self.className = None
+        self.class_names = None
         self.log_prior = None
 
     @property
