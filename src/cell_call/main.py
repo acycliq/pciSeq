@@ -20,7 +20,7 @@ class VarBayes:
         self.single_cell_data = sc_expression_data(self.genes, self.config)
         class_names = self.single_cell_data.coords['class_name'].values
         self.cells.log_prior = self.cells.prior(class_names)
-        self.cells.className = class_names
+        self.cells.class_names = class_names
 
         self.egamma = None
         self.elgamma = None
@@ -102,7 +102,7 @@ class VarBayes:
 
         # self.cells.classProb = pCellClass
         logger.info('Cell 0 is classified as %s with prob %4.8f' % (
-            self.cells.className[np.argmax(wCellClass[0, :])], pCellClass[0, np.argmax(wCellClass[0, :])]))
+            self.cells.class_names[np.argmax(wCellClass[0, :])], pCellClass[0, np.argmax(wCellClass[0, :])]))
         logger.info('cell ---> cell class probabilities updated')
         return pCellClass
 
