@@ -111,7 +111,6 @@ class VarBayes:
         # spot to cell assignment
         nN = self.config['nNeighbors'] + 1
         nS = self.spots.data.gene_name.shape[0]
-        # nK = self.cell_prior.nK
         aSpotCell = np.zeros([nS, nN])
         gn = self.spots.data.gene_name.values
         expected_spot_counts = self.single_cell_data['log_mean_expression'].sel({'gene_name': gn}).data
