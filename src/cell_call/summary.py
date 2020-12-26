@@ -20,7 +20,7 @@ def _iss_summary(cells, spots, genes):
     gene_count = cells.geneCount(spots)
     class_prob = cells.classProb
     gene_names = genes.gene_names
-    class_names = cells.className
+    class_names = cells.class_names
 
     tol = 0.001
 
