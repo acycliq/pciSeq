@@ -5,6 +5,19 @@ ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 print(ROOT_DIR)
 
 
+PREPROCESSOR_MOUSE = {
+    'img_width': 7602,
+    'img_height': 5471,
+    'tile_size': [None, None],  # [width_px, height_px]
+    'spots_full': os.path.join(ROOT_DIR, 'data', 'background_image', 'mouse', 'spots.csv'),
+    'cellmap_full': os.path.join(ROOT_DIR, 'data', 'background_image', 'mouse', 'image_label.npy'),
+
+     # Output. Save here the results from the algorithm (I should move that somewhere else...)
+    'CELL_TYPED_GENES': os.path.join(ROOT_DIR, 'data', 'cell_call_demo_data', 'mouse_full_coronal', 'cell_type_output', 'geneData.json'),
+    'CELL_TYPED_CELLS': os.path.join(ROOT_DIR, 'data', 'cell_call_demo_data', 'mouse_full_coronal', 'cell_type_output', 'cellData.json'),
+}
+
+
 PREPROCESSOR = {
     'img_width': 20268,
     'img_height': 27352,
