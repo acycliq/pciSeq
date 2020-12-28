@@ -97,7 +97,8 @@ class Post_merge:
             my_keys = list(self.merge_register.entries.keys())
             vals = list(self.merge_register.entries.values())
 
-            assert max(my_keys) < 0, 'All keys should be non-zero negative'
+            if my_keys:
+                assert max(my_keys) < 0, 'All keys should be non-zero negative'
             new_keys = [-1 * d for d in my_keys]
 
             self.merge_register.entries = dict(zip(new_keys, vals))
