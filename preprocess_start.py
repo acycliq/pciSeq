@@ -21,7 +21,7 @@ logger = logging.getLogger()
 
 
 if __name__ == "__main__":
-    cfg = config.PREPROCESSOR
+    cfg = config.PREPROCESSOR_MOUSE
 
     spots_full = pd.read_csv(cfg['spots_full'])
     tiles = Tile(cfg)
