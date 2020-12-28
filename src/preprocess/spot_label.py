@@ -104,18 +104,7 @@ def coofy(spots, tile):
     x = spots_loc.x.values.astype(int)
     y = spots_loc.y.values.astype(int)
 
-    # make a sparse array of size 6000-6000
-    # _len = np.diff(np.array(tile['tile_range']['x'])) * tile['tile_scaling_factor']
-    # _height = np.diff(np.array(tile['tile_range']['y'])) * tile['tile_scaling_factor']
-
-    # coo_shape = stage.tile_shape + 1
-    coo_shape = np.array(tile['label_image'].shape) + 1
+    coo_shape = np.array(tile['label_image'].shape)
     coo = coo_matrix((spots.index.values, (y, x)), shape=coo_shape)
-    # Why the +1? starfish includes the boundaries,
-    # hence the extra pixel. That sounds like a bug maybe? a tile of size 2000-by-2000 should have a range
-    # [0, 1999] going across and [0, 1999] going down
 
-    # ok, that a bit of a mystery!
-    coo_arr = coo.toarray()
-    out = coo_matrix(coo_arr[:-1, :-1])  # why the -1? See comment right above
-    return out
+    return coo
