@@ -16,13 +16,43 @@ logger = logging.getLogger()
 class Tile:
     def __init__(self, cfg):
         self.cfg = cfg
+        self.tile_width = cfg['tile_size'][0]
+        self.tile_height = cfg['tile_size'][1]
         # self._cellmap_chunks = split_CellMap(cfg['cellmap_full'], cfg['tile_size'], cfg['tile_size'])
-        self._cellmap_chunks = split_label_img(cfg['cellmap_full'], cfg['tile_size'], cfg['tile_size'])
-        self.tiles_across = -(-cfg['img_width'] // cfg['tile_size'])
-        self.tiles_down = -(-cfg['img_height'] // cfg['tile_size'])
-        self.tile_shape = [cfg['tile_size'], cfg['tile_size']]
+        self._cellmap_chunks = split_label_img(cfg['cellmap_full'], self.tile_height, self.tile_width)
+        self.tiles_across = -(-cfg['img_width'] // self.tile_width)
+        self.tiles_down = -(-cfg['img_height'] // self.tile_height)
+        # self.tile_shape = [cfg['tile_size'], cfg['tile_size']]
         self.tiles = self.populate_tiles(self.tiles_across * self.tiles_down)
         del self._cellmap_chunks
+
+    @property
+    def tile_shape(self):
+        return [self.tile_width, self.tile_height]
+
+    @property
+    def tile_width(self):
+        return self._tile_width
+
+    @tile_width.setter
+    def tile_width(self, x):
+        if x is None:
+            self._tile_width = self.cfg['img_width']
+            logger.info('tile width set to %d' % self.tile_width)
+        else:
+            self._tile_width = x
+
+    @property
+    def tile_height(self):
+        return self._tile_height
+
+    @tile_height.setter
+    def tile_height(self, x):
+        if x is None:
+            self._tile_height = self.cfg['img_height']
+            logger.info('tile height set to %d' % self.tile_height)
+        else:
+            self._tile_height = x
 
     def populate_tiles(self, tiles_counts):
         """
@@ -86,16 +116,16 @@ class Tile:
         the coordinates of the top left corner
         """
         tiles_across = self.tiles_across
-        x_size = self.tile_shape[0]
-        y_size = self.tile_shape[1]
+        width = self.tile_width
+        height = self.tile_height
 
         # find how far right you are:
         x = fov_id % tiles_across
 
         # find how far down you are:
         y = fov_id // tiles_across
-        x0 = x_size * x
-        y0 = y_size * y
+        x0 = width * x
+        y0 = height * y
         return x0, y0
 
     def get_tile_coords(self, fov_id):
@@ -107,11 +137,11 @@ class Tile:
         :return:
         """
         x, y = self.get_tile_origin(fov_id)
-        x_size = self.tile_shape[0]
-        y_size = self.tile_shape[1]
+        width = self.tile_width
+        height = self.tile_height
 
-        x_range = [x, x + x_size]
-        y_range = [y, y + y_size]
+        x_range = [x, x + width]
+        y_range = [y, y + height]
 
         return x_range, y_range
 

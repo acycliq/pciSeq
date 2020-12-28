@@ -1,13 +1,12 @@
 import config
 import h5py
 import numpy as np
-import pandas as pd
 import os
 from scipy.io import loadmat
 from scipy.sparse import coo_matrix
 from collections import defaultdict
 import logging
-import time
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -110,6 +109,53 @@ def blockfy(a, p, q):
     return block_list
 
 
+def tilefy(a, p, q):
+    """
+    Splits array '''a''' into smaller subarrays of size p-by-q
+    Parameters
+    ----------
+    a: Numpy array of size m-by-n
+    p: int
+    q: int
+
+    Returns
+    -------
+    A list of numpy arrays
+
+    Example:
+    a = np.arange(21).reshape(7,3)
+    out = tilefy(a, 4, 2)
+
+    will return
+     [array([[ 0,  1],
+        [ 3,  4],
+        [ 6,  7],
+        [ 9, 10]]),
+     array([[ 2],
+            [ 5],
+            [ 8],
+            [11]]),
+     array([[12, 13],
+            [15, 16],
+            [18, 19]]),
+     array([[14],
+            [17],
+            [20]])]
+
+    """
+    m, n = a.shape
+    ltr = -(-n//q)  # left to right
+    ttb = -(-m//p)  # top to bottom
+    out = []
+    for j in range(ttb):
+        rows = np.arange(p) + j*p
+        for i in range(ltr):
+            cols = np.arange(q) + i*q
+            _slice = a[rows[0]:rows[-1]+1, cols[0]:cols[-1]+1]
+            out.append(_slice.astype(np.int32))
+    return out
+
+
 def split_CellMap(filepath, p, q=None):
     if q is None:
         q = p
@@ -133,10 +179,8 @@ def split_label_img(filepath, p, q=None):
     Returns
     -------
     """
-    if q is None:
-        q = p
     label_img = np.load(filepath)
-    out = blockfy(label_img, p, q)
+    out = tilefy(label_img, p, q)
     return out
 
 if __name__ == "__main__":
