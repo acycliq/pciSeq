@@ -1,8 +1,9 @@
 import numpy as np
-from src.preprocess.utils import load_mat, split_CellMap, split_label_img
+from src.preprocess.utils import split_label_img
 from scipy.sparse import coo_matrix
 from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import cpu_count
+from scipy.sparse import load_npz
 import config
 import logging
 
@@ -16,12 +17,15 @@ logger = logging.getLogger()
 class Tile:
     def __init__(self, cfg):
         self.cfg = cfg
+        self.img_height = load_npz(self.cfg['label_image']).shape[0]
+        self.img_width = load_npz(self.cfg['label_image']).shape[1]
         self.tile_width = cfg['tile_size'][0]
         self.tile_height = cfg['tile_size'][1]
         self._cellmap_chunks = split_label_img(cfg['label_image'], self.tile_height, self.tile_width)
-        self.tiles_across = -(-cfg['img_width'] // self.tile_width)
-        self.tiles_down = -(-cfg['img_height'] // self.tile_height)
+        self.tiles_across = -(-self.img_width // self.tile_width)
+        self.tiles_down = -(-self.img_height // self.tile_height)
         self.tiles = self.populate_tiles(self.tiles_across * self.tiles_down)
+
         del self._cellmap_chunks
 
     @property
@@ -35,7 +39,7 @@ class Tile:
     @tile_width.setter
     def tile_width(self, x):
         if x is None:
-            self._tile_width = self.cfg['img_width']
+            self._tile_width = self.img_width
             logger.info('tile width set to %d' % self.tile_width)
         else:
             self._tile_width = x
@@ -47,7 +51,7 @@ class Tile:
     @tile_height.setter
     def tile_height(self, x):
         if x is None:
-            self._tile_height = self.cfg['img_height']
+            self._tile_height = self.img_height
             logger.info('tile height set to %d' % self.tile_height)
         else:
             self._tile_height = x
