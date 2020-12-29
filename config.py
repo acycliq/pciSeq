@@ -9,7 +9,7 @@ PREPROCESS = {
     'label_image': os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'),
 
     # Optional setting. If this is set, then the label_image will be split into smaller arrays (tiles).
-    # If it is set to [None, None] then the tile dims will be overridden by the image dimensions
+    # If it is set to [None, None] the tile dims will be overridden by the image dimensions
     'tile_size': [None, None],  # [width_px, height_px]
 }
 
