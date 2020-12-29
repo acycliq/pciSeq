@@ -1,18 +1,18 @@
-import numpy as np
-from scipy.sparse.csgraph import connected_components
+import os
+import shutil
+import logging
 import itertools
+import numpy as np
 from collections import defaultdict
 from src.preprocess.post import Post_merge
 from src.preprocess.utils import _to_csr_matrix, _get_connected_labels
-import logging
+from scipy.sparse.csgraph import connected_components
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s:%(levelname)s:%(message)s"
 )
-
 logger = logging.getLogger()
-
 
 
 class Merge_register(object):
@@ -385,11 +385,15 @@ class Stage(object):
         cell_id[cell_id < 0] = np.nan
         return cell_id
 
-    def writer(self):
+    def writer(self, dirpath):
         '''
         save the data to the flatfile
         :return:
         '''
+
+        if os.path.exists(dirpath) and os.path.isdir(dirpath):
+            shutil.rmtree(dirpath)
+        os.mkdir(dirpath)
 
         # 1. save the cell props
         cell_props = self.cell_props.copy()
@@ -399,11 +403,11 @@ class Stage(object):
         cell_props['label'] = cell_props.label.fillna(-1).astype(int).astype('str').replace('-1', np.nan)
 
         cells_headers = ['cell_id', 'label', 'tile_id', 'area', 'x', 'y']
-        cell_props[cells_headers].to_csv('cells.csv', index=False)
+        cell_props[cells_headers].to_csv(os.path.join(dirpath, '_cells.csv'), index=False)
 
         # 2. save the cell coords
         coords_headers = ['cell_id', 'label', 'coords']
-        cell_props[coords_headers].to_json('cell_coords.json', orient='records')
+        cell_props[coords_headers].to_json(os.path.join(dirpath, '_cellCoords.json'), orient='records')
 
         # 3. save the spots
         spots_df = self.spots.copy()
@@ -415,7 +419,7 @@ class Stage(object):
         spots_df['y_cell'] = spots_df.y_cell.fillna(-1).astype(int).astype('str').replace('-1', np.nan)
 
         spots_headers = ['x_global', 'y_global', 'tile_id', 'label', 'target', 'x_cell', 'y_cell']
-        spots_df[spots_headers].to_csv('spots.csv', index=False)
+        spots_df[spots_headers].to_csv(os.path.join(dirpath, '_spots.csv'), index=False)
         logger.info('Total number of collected spots: %d' % spots_df.shape[0])
 
         return cell_props[cells_headers], cell_props[coords_headers], spots_df[spots_headers]

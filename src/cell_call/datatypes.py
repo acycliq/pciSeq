@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import xarray as xr
+import config
 from sklearn.neighbors import NearestNeighbors
 import os
 import numpy_groupies as npg
@@ -123,7 +123,8 @@ class Spots(object):
         return self.data.gene_name.values
 
     def read(self):
-        spotsFile = os.path.join(dir_path, self.config['spotsFile'])
+        tempdir = getattr(config, 'PREPROCESS')['temp']
+        spotsFile = os.path.join(tempdir, '_spots.csv')
 
         logger.info('********* Getting spot attributes from %s **********', spotsFile)
         spots_df = pd.read_csv(spotsFile)
