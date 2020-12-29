@@ -1,6 +1,6 @@
+import pandas as pd
 from src.preprocess.cell_merger import Stage
 from src.preprocess.tile import Tile
-import pandas as pd
 from src.preprocess.spot_label import spot_label
 from src.preprocess.cell_props import calc_props
 import logging
@@ -31,10 +31,11 @@ def run(cfg):
     # Save now the data on the filesystem
     cells_df, cellCoords_df, spots_df = stage.writer()
 
-    print('Done!')
+    return cells_df, cellCoords_df, spots_df
 
 
 if __name__ == "__main__":
     cfg = config.PREPROCESS
     run(cfg)
+    print('Done!')
 
