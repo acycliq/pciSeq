@@ -18,11 +18,9 @@ class Tile:
         self.cfg = cfg
         self.tile_width = cfg['tile_size'][0]
         self.tile_height = cfg['tile_size'][1]
-        # self._cellmap_chunks = split_CellMap(cfg['cellmap_full'], cfg['tile_size'], cfg['tile_size'])
-        self._cellmap_chunks = split_label_img(cfg['cellmap_full'], self.tile_height, self.tile_width)
+        self._cellmap_chunks = split_label_img(cfg['label_image'], self.tile_height, self.tile_width)
         self.tiles_across = -(-cfg['img_width'] // self.tile_width)
         self.tiles_down = -(-cfg['img_height'] // self.tile_height)
-        # self.tile_shape = [cfg['tile_size'], cfg['tile_size']]
         self.tiles = self.populate_tiles(self.tiles_across * self.tiles_down)
         del self._cellmap_chunks
 

@@ -15,15 +15,12 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s:%(levelname)s:%(message)s"
 )
-
 logger = logging.getLogger()
 
-
-
 if __name__ == "__main__":
-    cfg = config.PREPROCESSOR_MOUSE
+    cfg = config.PREPROCESS
 
-    spots_full = pd.read_csv(cfg['spots_full'])
+    spots_full = pd.read_csv(cfg['spots'])
     tiles = Tile(cfg)
     stage = Stage(tiles, spots_full)
 
@@ -39,10 +36,5 @@ if __name__ == "__main__":
 
     # Save now the data on the filesystem
     stage.writer()
-
-    # post.block_boundaries(fovs)
-    # post.feature_collector(fovs, cfg)
-    #
-    # rs.split(stage.fovs, cfg)
 
     print('Done!')
