@@ -16,7 +16,6 @@ dashboard/data/mouse/img/default_98genes/16384px/
 dashboard/data/mouse/img/default/32768px/
 
 
-*.gz
 gsf-save*.*
 *.7z
 *.png
