@@ -19,8 +19,7 @@ dashboard/data/mouse/img/default/32768px/
 *.gz
 gsf-save*.*
 *.7z
-*
-.png
+*.png
 dashboard/img
 
 /data/mouse/ca1/background_image/mouse/background_boundaries.tif
@@ -29,3 +28,4 @@ dashboard/img
 /data/mouse/ca1/background_image/mouse/CellMap.mat
 /data/mouse/ca1/background_image/mouse/Untitled.ipynb
 /data/mouse/ca1/background_image/mouse/Untitled1.ipynb
+/data/mouse/ca1/segmentation/label_image.npy
