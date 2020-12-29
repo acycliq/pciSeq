@@ -1,6 +1,7 @@
 import config
 import h5py
 import numpy as np
+from scipy.sparse import load_npz
 import os
 from scipy.io import loadmat
 from scipy.sparse import coo_matrix
@@ -179,7 +180,7 @@ def split_label_img(filepath, p, q=None):
     Returns
     -------
     """
-    label_img = np.load(filepath)
+    label_img = load_npz(filepath).toarray()
     out = tilefy(label_img, p, q)
     return out
 
