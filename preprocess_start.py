@@ -12,9 +12,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
-if __name__ == "__main__":
-    cfg = config.PREPROCESS
 
+def run(cfg):
     spots_full = pd.read_csv(cfg['spots'])
     tiles = Tile(cfg)
     stage = Stage(tiles, spots_full)
@@ -30,6 +29,12 @@ if __name__ == "__main__":
     logger.info('Spot labelling done')
 
     # Save now the data on the filesystem
-    stage.writer()
+    cells_df, cellCoords_df, spots_df = stage.writer()
 
     print('Done!')
+
+
+if __name__ == "__main__":
+    cfg = config.PREPROCESS
+    run(cfg)
+
