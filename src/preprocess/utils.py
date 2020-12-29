@@ -181,6 +181,9 @@ def split_label_img(filepath, p, q=None):
     -------
     """
     label_img = load_npz(filepath).toarray()
+    # label_img = np.load(filepath)
+    logger.info('label image loaded from %s' % filepath)
+    logger.info('Width: %d, height: %d' % (label_img.shape[1], label_img.shape[0]))
     out = tilefy(label_img, p, q)
     return out
 
