@@ -29,7 +29,7 @@ def run(cfg):
     logger.info('Spot labelling done')
 
     # Save now the data on the filesystem
-    cells_df, cellCoords_df, spots_df = stage.writer()
+    cells_df, cellCoords_df, spots_df = stage.writer(cfg['temp'])
 
     return cells_df, cellCoords_df, spots_df
 

@@ -17,8 +17,9 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger()
 
 
-def read_image_objects(config):
-    img_obj = pd.read_csv(config['expanded_cells'])
+def read_image_objects(cfg):
+    tempdir = getattr(config, 'PREPROCESS')['temp']
+    img_obj = pd.read_csv(os.path.join(tempdir, '_cells.csv'))
 
     meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
     relCellRadius = np.sqrt(img_obj.area / np.pi) / meanCellRadius
@@ -26,8 +27,8 @@ def read_image_objects(config):
     # append 1 for the misreads
     relCellRadius = np.append(relCellRadius, 1)
 
-    nom = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(config['InsideCellBonus'])) + np.exp(config['InsideCellBonus'])
-    denom = np.exp(-0.5) * (1 - np.exp(config['InsideCellBonus'])) + np.exp(config['InsideCellBonus'])
+    nom = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
+    denom = np.exp(-0.5) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
     CellAreaFactor = nom / denom
 
     out = {}
