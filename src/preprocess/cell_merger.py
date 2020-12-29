@@ -418,3 +418,5 @@ class Stage(object):
         spots_df[spots_headers].to_csv('spots.csv', index=False)
         logger.info('Total number of collected spots: %d' % spots_df.shape[0])
 
+        return cell_props[cells_headers], cell_props[coords_headers], spots_df[spots_headers]
+
