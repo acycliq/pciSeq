@@ -1,3 +1,0 @@
-The csv flatfiles in '''spots''' folder are the same data as those in '''SpotGlobal.csv''' (one level up from this folder)
-but I have broken them down per fov.
-The file '''SpotGlobal.csv''' came from Matlab and to split it by fov I used the python script '''split_SpltGlobal.py''' (also one level up from this folder)
