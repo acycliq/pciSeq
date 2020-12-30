@@ -34,7 +34,6 @@ def pciSeq(ini):
 if __name__ == "__main__":
     case = 'MOUSE'  # 'MOUSE' or 'HUMAN'
     ini = getattr(config, case)
-    out_dir = os.path.join(config.ROOT_DIR, 'data', 'cell_call_demo_data',  case, 'cell_type_output')
 
     run(config.PREPROCESS)
     pciSeq(ini)
