@@ -3,6 +3,7 @@ does the cell typing
 """
 import os
 from src.cell_call.main import VarBayes
+from preprocess_start import run
 import logging
 import config
 
@@ -12,17 +13,14 @@ logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(message)s"
 )
 
-if __name__ == "__main__":
-    case = 'MOUSE'  # 'MOUSE' or 'HUMAN'
 
-    ini = getattr(config, case)
-    out_dir = os.path.join(config.ROOT_DIR, 'data', 'cell_call_demo_data',  case, 'cell_type_output')
-
+def pciSeq(ini):
     # 1. run the cell calling algo
     varBayes = VarBayes(ini)
     cellData, geneData = varBayes.run()
 
     # 2. save the results
+    out_dir = ini['out_dir']
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
@@ -33,4 +31,11 @@ if __name__ == "__main__":
     logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.json')))
 
 
+if __name__ == "__main__":
+    case = 'MOUSE'  # 'MOUSE' or 'HUMAN'
+    ini = getattr(config, case)
+    out_dir = os.path.join(config.ROOT_DIR, 'data', 'cell_call_demo_data',  case, 'cell_type_output')
+
+    run(config.PREPROCESS)
+    pciSeq(ini)
     print('Done')
