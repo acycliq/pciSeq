@@ -3,7 +3,8 @@ import os
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 print(ROOT_DIR)
 
-# Settings to prepare the data
+# Settings to prepare the data. The label image and spots are parsed and if a spot
+# lies within the cell boundaries then the corresponding cell id is recorded.
 PREPROCESS = {
     'spots': os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'),
     'label_image': os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'),
