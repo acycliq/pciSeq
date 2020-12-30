@@ -3,7 +3,7 @@ import os
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 print(ROOT_DIR)
 
-
+# Settings to prepare the data
 PREPROCESS = {
     'spots': os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'),
     'label_image': os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'),
@@ -18,6 +18,11 @@ PREPROCESS = {
 
 
 MOUSE = {
+    'exclude_genes': [],  # list of genes to be excluded from the cell type algo
+    'out_dir': os.path.join(ROOT_DIR, 'out'),  # folder to save the results
+    'scRNAseq': os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),
+
+    # hyperparameters for the pciSeq method
     'CellCallTolerance': 0.02,
     'Inefficiency': 0.2,
     'InsideCellBonus': 2,
@@ -26,9 +31,5 @@ MOUSE = {
     'nNeighbors': 3,
     'rGene': 20,
     'rSpot': 2,
-    'max_iter': 100,
-    'scRNAseq': os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),
-    # 'spotsFile': os.path.join(ROOT_DIR, 'data', 'cell_call_demo_data', 'mouse', 'spots_ext.csv'),  # Spot attributes, contains x,y coordinates for the spots and their gene names
-    # 'expanded_cells':  os.path.join(ROOT_DIR, 'data', 'cell_call_demo_data', 'mouse', 'expanded_cells', 'expanded_cells.csv'),
-    'exclude_genes': []
+    'max_iter': 100
 }
