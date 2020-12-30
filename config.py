@@ -1,7 +1,14 @@
 import os
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s:%(levelname)s:%(message)s"
+)
+logger = logging.getLogger()
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
-print(ROOT_DIR)
+logger.info('Root dir is: %s' % ROOT_DIR)
 
 # Settings to prepare the data. The label image and spots are parsed and if a spot
 # lies within the cell boundaries then the corresponding cell id is recorded.
@@ -10,7 +17,7 @@ PREPROCESS = {
     'label_image': os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'),
 
     # Optional setting. If this is set, then the label_image will be split into smaller arrays (tiles).
-    # If it is set to [None, None] the tile dims will be overridden by the image dimensions
+    # If it is set to [None, None] the tile dims will be set equal to the image dimensions
     'tile_size': [None, None],  # [width_px, height_px]
 
     # Target folder to save temp data from the preprocessing step
