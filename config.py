@@ -13,14 +13,14 @@ PREPROCESS = {
     'tile_size': [None, None],  # [width_px, height_px]
 
     # Target folder to save temp data from the preprocessing step
-    'temp': os.path.join(ROOT_DIR, 'src', 'preprocess', 'temp')
+    'temp': os.path.join(ROOT_DIR, 'out', 'temp')
 }
 
 
 MOUSE = {
     'exclude_genes': [],  # list of genes to be excluded from the cell type algo
     'out_dir': os.path.join(ROOT_DIR, 'out'),  # folder to save the results
-    'scRNAseq': os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),
+    'scRNAseq': os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),  # Single cell data
 
     # hyperparameters for the pciSeq method
     'CellCallTolerance': 0.02,
