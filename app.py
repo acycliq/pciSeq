@@ -24,11 +24,11 @@ def pciSeq(ini):
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
-    cellData.to_json(os.path.join(out_dir, 'cellData.json'), orient='records')
-    logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.json')))
+    cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
+    logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
 
-    geneData.to_json(os.path.join(out_dir, 'geneData.json'), orient='records')
-    logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.json')))
+    geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
+    logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
 
 
 if __name__ == "__main__":
