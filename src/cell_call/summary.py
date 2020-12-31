@@ -27,16 +27,16 @@ def _iss_summary(cells, spots, genes):
     logger.info('starting collecting data ...')
     N = len(cell_id)
     isCount_nonZero = [gene_count[n, :] > tol for n in range(N)]
-    name_list = [gene_names[isCount_nonZero[n]] for n in range(N)]
-    count_list = [gene_count[n, isCount_nonZero[n]] for n in range(N)]
+    name_list = [gene_names[isCount_nonZero[n]].tolist() for n in range(N)]
+    count_list = [gene_count[n, isCount_nonZero[n]].tolist() for n in range(N)]
 
     isProb_nonZero = [class_prob[n, :] > tol for n in range(N)]
-    class_name_list = [class_names[isProb_nonZero[n]] for n in range(N)]
-    prob_list = [class_prob[n, isProb_nonZero[n]] for n in range(N)]
+    class_name_list = [class_names[isProb_nonZero[n]].tolist() for n in range(N)]
+    prob_list = [class_prob[n, isProb_nonZero[n]].tolist() for n in range(N)]
 
-    iss_df = pd.DataFrame({'Cell_Num': cells.cell_props['cell_id'],
-                            'X': cells.cell_props['x'],
-                            'Y': cells.cell_props['y'],
+    iss_df = pd.DataFrame({'Cell_Num': cells.cell_props['cell_id'].tolist(),
+                            'X': cells.cell_props['x'].tolist(),
+                            'Y': cells.cell_props['y'].tolist(),
                             'Genenames': name_list,
                             'CellGeneCount': count_list,
                             'ClassName': class_name_list,
@@ -68,14 +68,14 @@ def _summary(spots):
 
     cell_prob = spots.adj_cell_prob
     neighbors = spots.adj_cell_id
-    p = [cell_prob[i, :] for i in range(num_rows)]
-    nbrs = [neighbors[i, :] for i in range(num_rows)]
-    max_nbrs = [neighbors[i, idx] for i in range(num_rows) for idx in [np.argmax(cell_prob[i, :])]]
+    p = [cell_prob[i, :].tolist() for i in range(num_rows)]
+    nbrs = [neighbors[i, :].tolist() for i in range(num_rows)]
+    max_nbrs = [neighbors[i, idx].tolist() for i in range(num_rows) for idx in [np.argmax(cell_prob[i, :])]]
 
-    out = pd.DataFrame({'Gene': spots.data.gene_name,
-                        'Expt': spots.gene_id,
-                        'x': spots.data.x,
-                        'y': spots.data.y,
+    out = pd.DataFrame({'Gene': spots.data.gene_name.tolist(),
+                        'Expt': spots.gene_id.tolist(),
+                        'x': spots.data.x.tolist(),
+                        'y': spots.data.y.tolist(),
                         'neighbour': max_nbrs,
                         'neighbour_array': nbrs,
                         'neighbour_prob': p})
