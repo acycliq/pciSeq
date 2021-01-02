@@ -4,6 +4,7 @@ does the cell typing
 import os
 from src.cell_call.main import VarBayes
 from src.preprocess import stage_data
+from src.viewer.utils import splitter_mb
 import logging
 import config
 
@@ -29,6 +30,10 @@ def pciSeq(ini):
 
     geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
     logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
+
+    # Write to the disk as tsv of 99MB each
+    splitter_mb(cellData, os.path.join(out_dir, 'cellData'), 99)
+    splitter_mb(geneData, os.path.join(out_dir, 'geneData'), 99)
 
 
 if __name__ == "__main__":
