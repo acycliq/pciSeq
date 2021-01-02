@@ -1,44 +1,88 @@
 """ Functions to manipulate flat files (split or minify them) """
 from typing import Union
-
 import pandas as pd
 import numpy as np
 import json
 import os
 import glob
+import csv
+import logging
+
+logger = logging.getLogger()
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s:%(levelname)s:%(message)s"
+)
 
 
-def splitter_mb(filepath, mb_size):
+
+def splitter_mb(df, dir_path, mb_size):
     """ Splits a text file in (almost) equally sized parts on the disk. Assumes that there is a header in the first line
     :param filepath: The path of the text file to be broken up into smaller files
     :param mb_size: size in MB of each chunk
     :return:
     """
-    handle = open(filepath, 'r')
-    OUT_DIR = os.path.join(os.path.splitext(filepath)[0] + '_split')
+    # OUT_DIR = os.path.join(os.path.splitext(filepath)[0] + '_split')
 
-    if not os.path.exists(OUT_DIR):
-        os.makedirs(OUT_DIR)
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
     else:
-        files = glob.glob(OUT_DIR + '/*.*')
+        files = glob.glob(dir_path + '/*.*')
         for f in files:
             os.remove(f)
 
     n = 0
-    header_line = next(handle)
-    file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)
-    for line in handle:
+    header_line = df.columns.tolist()
+    # header_line = next(handle)[1].tolist()
+    file_out, handle_out = _get_file(dir_path, n, header_line)
+    # data_row = next(handle)[1].tolist()
+    for index, row in df.iterrows():
+        row = row.tolist()
         size = os.stat(file_out).st_size
         if size > mb_size*1024*1024:
-            print('saved %s with file size %4.3f MB' % (file_out, size/(1024*1024)))
+            logger.info('saved %s with file size %4.3f MB' % (file_out, size/(1024*1024)))
             n += 1
             handle_out.close()
-            file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)
-        handle_out.write(str(line))
+            file_out, handle_out = _get_file(dir_path, n, header_line)
+        write = csv.writer(handle_out, delimiter='\t')
+        write.writerow(row)
 
     # print(str(file_out) + " file size = \t" + str(size))
-    print('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
+    logger.info('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
     handle_out.close()
+
+
+# def splitter_mb(filepath, mb_size):
+#     """ Splits a text file in (almost) equally sized parts on the disk. Assumes that there is a header in the first line
+#     :param filepath: The path of the text file to be broken up into smaller files
+#     :param mb_size: size in MB of each chunk
+#     :return:
+#     """
+#     handle = open(filepath, 'r')
+#     OUT_DIR = os.path.join(os.path.splitext(filepath)[0] + '_split')
+#
+#     if not os.path.exists(OUT_DIR):
+#         os.makedirs(OUT_DIR)
+#     else:
+#         files = glob.glob(OUT_DIR + '/*.*')
+#         for f in files:
+#             os.remove(f)
+#
+#     n = 0
+#     header_line = next(handle)
+#     file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)
+#     for line in handle:
+#         size = os.stat(file_out).st_size
+#         if size > mb_size*1024*1024:
+#             print('saved %s with file size %4.3f MB' % (file_out, size/(1024*1024)))
+#             n += 1
+#             handle_out.close()
+#             file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)
+#         handle_out.write(str(line))
+#
+#     # print(str(file_out) + " file size = \t" + str(size))
+#     print('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
+#     handle_out.close()
 
 
 def splitter_n(filepath, n):
@@ -153,12 +197,12 @@ def _clean_dir(out_dir, ext):
             os.remove(f)
 
 
-
-def _get_file(OUT_DIR, filepath, n, header_line):
-    [filename, ext] = os.path.basename(filepath).split('.')
-    file = os.path.join(OUT_DIR, filename + '_%d.%s' % (n, ext))
-    handle = open(file, "a")
-    handle.write(header_line)
+def _get_file(OUT_DIR, n, header_line):
+    filename = os.path.basename(OUT_DIR).split('.')[0]
+    file = os.path.join(OUT_DIR, filename + '_%d.%s' % (n, 'tsv'))
+    handle = open(file, "a", newline='', encoding='utf-8')
+    write = csv.writer(handle, delimiter='\t')
+    write.writerow(header_line)
     return file, handle
 
 
