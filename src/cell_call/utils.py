@@ -204,7 +204,7 @@ def splitter_mb(filepath, mb_size):
     for line in handle:
         size = os.stat(file_out).st_size
         if size > mb_size*1024*1024:
-            print('saved %s with file size %4.3f MB' % (file_out, size/(1024*1024)))
+            logger.info('saved %s with file size %4.3f MB' % (file_out, size/(1024*1024)))
             n += 1
             handle_out.close()
             file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)
