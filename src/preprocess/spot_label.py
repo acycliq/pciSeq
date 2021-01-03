@@ -53,7 +53,7 @@ def _spot_parent_label(tile, spots, sp_label_image):
         label_image = sp_label_image.toarray()
 
         # 2. unscaled and local coordinates for the spots (as a sparse array)
-        coo = coofy(spots[['x', 'y']].copy(), tile)
+        coo = coofy(spots.copy(), tile)
 
         coo_arr = coo.toarray()
         label_coords = coo_matrix(label_image * coo_arr.astype(bool))
@@ -69,7 +69,8 @@ def _spot_parent_label(tile, spots, sp_label_image):
             ## that actually means that the same spot (ie read/dot) exists at two different locations at the same time
 
         df = df[~df.index.duplicated()]
-        spots['label'] = df.label
+        # spots['label'] = df.label
+        spots = spots.merge(df, how='left', on=['x', 'y'])
 
         # if nan it means the spot is on the background. Hence set the label = 0
         spots['label'] = spots.label.fillna(0).astype(int)
@@ -105,6 +106,7 @@ def coofy(spots, tile):
     y = spots_loc.y.values.astype(int)
 
     coo_shape = np.array(tile['label_image'].shape)
-    coo = coo_matrix((spots.index.values, (y, x)), shape=coo_shape)
+    idx = spots.index.values + 1  # avoid having idx = 0
+    coo = coo_matrix((idx, (y, x)), shape=coo_shape)
 
     return coo
