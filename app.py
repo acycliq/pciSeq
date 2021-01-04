@@ -38,7 +38,7 @@ def pciSeq(ini):
 
 if __name__ == "__main__":
     # 1. prepare the data
-    stage_data.run(config.PREPROCESS)
+    # stage_data.run(config.PREPROCESS)
 
     # 2. cell typing
     pciSeq(config.MOUSE)  # 'MOUSE' or 'HUMAN'
