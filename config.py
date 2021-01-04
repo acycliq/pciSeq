@@ -21,7 +21,7 @@ PREPROCESS = {
     'tile_size': [None, None],  # [width_px, height_px]
 
     # Target folder to save temp data from the preprocessing step
-    'temp': os.path.join(ROOT_DIR, 'out', 'temp', 'int')
+    'temp': os.path.join(ROOT_DIR, 'out', 'temp')
 }
 
 
