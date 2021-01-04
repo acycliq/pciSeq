@@ -100,12 +100,12 @@ def calc_props(stage):
     # sort by x and y and then relabel so that labelling looks more deterministic.
     # Not necessary, it is nice to have tho. If however that takes place then the
     # label_image array has to be updated to be inline with the new labels
-    cell_props = cell_props.sort_values(by=['x', 'y'])
+    cell_props = cell_props.sort_values(by=['label', 'x', 'y'])
 
     global_label = np.arange(cell_props.shape[0]) + 1
     label_map = np.column_stack((cell_props.label.values, global_label))
     cell_props['label'] = global_label
-    cell_props['label'] = global_label
+    # cell_props['label'] = global_label
 
     logger.info('')
     logger.info('updating the labels on label_image to align them with cell_props')
@@ -129,7 +129,7 @@ def calc_props(stage):
     _cell_boundaries = cell_boundaries(stage, cell_props)
     out = cell_props.merge(_cell_boundaries, how='left', on=['label'])
 
-    return out
+    return out.sort_values(by=['label'])
 
 
 def locate_tile(stage, centroid, tile_ids):
