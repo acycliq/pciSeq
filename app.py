@@ -3,7 +3,7 @@ does the cell typing
 """
 import os
 from src.cell_call.main import VarBayes
-from src.preprocess import stage_data
+from src.preprocess.spot_labels import stage_data
 from src.viewer.utils import splitter_mb
 import logging
 import config
@@ -38,7 +38,7 @@ def pciSeq(ini):
 
 if __name__ == "__main__":
     # 1. prepare the data
-    stage_data.run(config.PREPROCESS)
+    stage_data(config.PREPROCESS)
 
     # 2. cell typing
     pciSeq(config.MOUSE)  # 'MOUSE' or 'HUMAN'

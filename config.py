@@ -18,7 +18,7 @@ PREPROCESS = {
 
     # Optional setting. If this is set, then the label_image will be split into smaller arrays (tiles).
     # If it is set to [None, None] the tile dims will be set equal to the image dimensions
-    'tile_size': [None, None],  # [width_px, height_px]
+    # 'tile_size': [None, None],  # [width_px, height_px]
 
     # Target folder to save temp data from the preprocessing step
     'temp': os.path.join(ROOT_DIR, 'out', 'temp')
