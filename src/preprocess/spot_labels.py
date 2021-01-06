@@ -9,7 +9,7 @@ import logging
 
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
-
+logger = logging.getLogger()
 
 def coofy(spots, label_image):
     x = spots.x.values.astype(int)
@@ -128,7 +128,12 @@ def stage_data(cfg):
 
     # resuffle
     # spots = spots.sample(frac=1).reset_index(drop=True)
+    _point = [14, 110]
+    logger.info('label at (y, x): (%d, %d) is %d' % (_point[0], _point[1], coo.toarray()[_point[0], _point[1]]))
     coo = remap_labels(coo)
+    logger.info('remapped label at (y, x): (%d, %d) is %d' % (_point[0], _point[1], coo.toarray()[_point[0], _point[1]]))
+
+
 
     spot_label = _spot_parent_label(spots, coo)
 
