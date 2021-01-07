@@ -1,0 +1,153 @@
+C:\ProgramData\Anaconda3\python.exe "D:/Home/Dimitris/OneDrive - University College London/dev/Python/pciSeq/app.py"
+2021-01-07 19:59:03,813:INFO:Root dir is: D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq
+2021-01-07 19:59:04,825:INFO:NumExpr defaulting to 8 threads.
+PyDIPjavaio unavailable:
+DLL load failed: The specified module could not be found.
+
+libjvm not found
+2021-01-07 19:59:05,366:INFO:********* Getting spot attributes from D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq\out\testing\_spots.csv **********
+2021-01-07 19:59:05,492:INFO:Loading single cell data from D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq\data\mouse\ca1\scRNA\scRNAseq.csv.gz
+2021-01-07 20:00:12,211:INFO:Renaming subclasses PC.CA2 and PC.CA3 to be PC.Other1 and PC.Other2
+2021-01-07 20:00:13,493:INFO:calc expected gamma
+time in geneCount:  0.3410036563873291
+2021-01-07 20:00:14,351:INFO:cell to cell type
+time in geneCount:  0.016993045806884766
+2021-01-07 20:00:14,948:INFO:Cell 0 is classified as Oligo.4 with prob 0.36290927
+2021-01-07 20:00:14,948:INFO:cell ---> cell class probabilities updated
+2021-01-07 20:00:14,980:INFO:spot to cell
+in loglik
+2021-01-07 20:00:15,329:INFO:spot ---> cell probabilities updated
+2021-01-07 20:00:15,340:INFO:update gamma
+2021-01-07 20:00:15,407:INFO:Iteration 0, mean prob change 1.000000
+2021-01-07 20:00:15,407:INFO:calc expected gamma
+time in geneCount:  0.017003297805786133
+2021-01-07 20:00:16,005:INFO:cell to cell type
+time in geneCount:  0.019997119903564453
+2021-01-07 20:00:16,624:INFO:Cell 0 is classified as Oligo.4 with prob 0.36831678
+2021-01-07 20:00:16,624:INFO:cell ---> cell class probabilities updated
+2021-01-07 20:00:16,658:INFO:spot to cell
+in loglik
+2021-01-07 20:00:17,016:INFO:spot ---> cell probabilities updated
+2021-01-07 20:00:17,028:INFO:update gamma
+2021-01-07 20:00:17,091:INFO:Iteration 1, mean prob change 0.794106
+2021-01-07 20:00:17,091:INFO:calc expected gamma
+time in geneCount:  0.016966819763183594
+2021-01-07 20:00:17,665:INFO:cell to cell type
+time in geneCount:  0.017009258270263672
+2021-01-07 20:00:18,264:INFO:Cell 0 is classified as Oligo.4 with prob 0.38891827
+2021-01-07 20:00:18,264:INFO:cell ---> cell class probabilities updated
+2021-01-07 20:00:18,297:INFO:spot to cell
+in loglik
+2021-01-07 20:00:18,653:INFO:spot ---> cell probabilities updated
+2021-01-07 20:00:18,664:INFO:update gamma
+2021-01-07 20:00:18,726:INFO:Iteration 2, mean prob change 0.465075
+2021-01-07 20:00:18,726:INFO:calc expected gamma
+time in geneCount:  0.017999649047851562
+2021-01-07 20:00:19,300:INFO:cell to cell type
+time in geneCount:  0.015990734100341797
+2021-01-07 20:00:19,892:INFO:Cell 0 is classified as Oligo.4 with prob 0.39100891
+2021-01-07 20:00:19,892:INFO:cell ---> cell class probabilities updated
+2021-01-07 20:00:19,927:INFO:spot to cell
+in loglik
+2021-01-07 20:00:20,284:INFO:spot ---> cell probabilities updated
+2021-01-07 20:00:20,297:INFO:update gamma
+2021-01-07 20:00:20,365:INFO:Iteration 3, mean prob change 0.278088
+2021-01-07 20:00:20,366:INFO:calc expected gamma
+time in geneCount:  0.017997264862060547
+2021-01-07 20:00:20,944:INFO:cell to cell type
+time in geneCount:  0.02097296714782715
+2021-01-07 20:00:21,556:INFO:Cell 0 is classified as Oligo.4 with prob 0.39129674
+2021-01-07 20:00:21,556:INFO:cell ---> cell class probabilities updated
+2021-01-07 20:00:21,590:INFO:spot to cell
+in loglik
+2021-01-07 20:00:21,958:INFO:spot ---> cell probabilities updated
+2021-01-07 20:00:21,969:INFO:update gamma
+2021-01-07 20:00:22,037:INFO:Iteration 4, mean prob change 0.227578
+2021-01-07 20:00:22,038:INFO:calc expected gamma
+time in geneCount:  0.018026113510131836
+2021-01-07 20:00:22,596:INFO:cell to cell type
+time in geneCount:  0.015990018844604492
+2021-01-07 20:00:23,180:INFO:Cell 0 is classified as Oligo.4 with prob 0.39133283
+2021-01-07 20:00:23,180:INFO:cell ---> cell class probabilities updated
+2021-01-07 20:00:23,212:INFO:spot to cell
+in loglik
+2021-01-07 20:00:23,558:INFO:spot ---> cell probabilities updated
+2021-01-07 20:00:23,570:INFO:update gamma
+2021-01-07 20:00:23,635:INFO:Iteration 5, mean prob change 0.256191
+2021-01-07 20:00:23,635:INFO:calc expected gamma
+time in geneCount:  0.015996932983398438
+2021-01-07 20:00:24,195:INFO:cell to cell type
+time in geneCount:  0.01696157455444336
+2021-01-07 20:00:24,780:INFO:Cell 0 is classified as Oligo.4 with prob 0.39131202
+2021-01-07 20:00:24,780:INFO:cell ---> cell class probabilities updated
+2021-01-07 20:00:24,812:INFO:spot to cell
+in loglik
+2021-01-07 20:00:25,165:INFO:spot ---> cell probabilities updated
+2021-01-07 20:00:25,177:INFO:update gamma
+2021-01-07 20:00:25,242:INFO:Iteration 6, mean prob change 0.161073
+2021-01-07 20:00:25,243:INFO:calc expected gamma
+time in geneCount:  0.017004728317260742
+2021-01-07 20:00:25,797:INFO:cell to cell type
+time in geneCount:  0.016999244689941406
+2021-01-07 20:00:26,387:INFO:Cell 0 is classified as Oligo.4 with prob 0.39128360
+2021-01-07 20:00:26,388:INFO:cell ---> cell class probabilities updated
+2021-01-07 20:00:26,422:INFO:spot to cell
+in loglik
+2021-01-07 20:00:26,796:INFO:spot ---> cell probabilities updated
+2021-01-07 20:00:26,808:INFO:update gamma
+2021-01-07 20:00:26,872:INFO:Iteration 7, mean prob change 0.109585
+2021-01-07 20:00:26,872:INFO:calc expected gamma
+time in geneCount:  0.016988754272460938
+2021-01-07 20:00:27,438:INFO:cell to cell type
+time in geneCount:  0.01896381378173828
+2021-01-07 20:00:28,031:INFO:Cell 0 is classified as Oligo.4 with prob 0.39125488
+2021-01-07 20:00:28,032:INFO:cell ---> cell class probabilities updated
+2021-01-07 20:00:28,064:INFO:spot to cell
+in loglik
+2021-01-07 20:00:28,409:INFO:spot ---> cell probabilities updated
+2021-01-07 20:00:28,421:INFO:update gamma
+2021-01-07 20:00:28,487:INFO:Iteration 8, mean prob change 0.062937
+2021-01-07 20:00:28,487:INFO:calc expected gamma
+time in geneCount:  0.01601266860961914
+2021-01-07 20:00:29,052:INFO:cell to cell type
+time in geneCount:  0.01598954200744629
+2021-01-07 20:00:29,638:INFO:Cell 0 is classified as Oligo.4 with prob 0.39124021
+2021-01-07 20:00:29,638:INFO:cell ---> cell class probabilities updated
+2021-01-07 20:00:29,670:INFO:spot to cell
+in loglik
+2021-01-07 20:00:30,023:INFO:spot ---> cell probabilities updated
+2021-01-07 20:00:30,034:INFO:update gamma
+2021-01-07 20:00:30,100:INFO:Iteration 9, mean prob change 0.038577
+2021-01-07 20:00:30,100:INFO:calc expected gamma
+time in geneCount:  0.016002893447875977
+2021-01-07 20:00:30,660:INFO:cell to cell type
+time in geneCount:  0.01599264144897461
+2021-01-07 20:00:31,246:INFO:Cell 0 is classified as Oligo.4 with prob 0.39123680
+2021-01-07 20:00:31,246:INFO:cell ---> cell class probabilities updated
+2021-01-07 20:00:31,277:INFO:spot to cell
+in loglik
+2021-01-07 20:00:31,655:INFO:spot ---> cell probabilities updated
+2021-01-07 20:00:31,666:INFO:update gamma
+2021-01-07 20:00:31,733:INFO:Iteration 10, mean prob change 0.020629
+2021-01-07 20:00:31,733:INFO:calc expected gamma
+time in geneCount:  0.016000986099243164
+2021-01-07 20:00:32,300:INFO:cell to cell type
+time in geneCount:  0.015989303588867188
+2021-01-07 20:00:32,888:INFO:Cell 0 is classified as Oligo.4 with prob 0.39123538
+2021-01-07 20:00:32,888:INFO:cell ---> cell class probabilities updated
+2021-01-07 20:00:32,919:INFO:spot to cell
+in loglik
+2021-01-07 20:00:33,279:INFO:spot ---> cell probabilities updated
+2021-01-07 20:00:33,291:INFO:update gamma
+2021-01-07 20:00:33,357:INFO:Iteration 11, mean prob change 0.015849
+2021-01-07 20:00:33,373:INFO:starting collecting data ...
+time in geneCount:  0.015967369079589844
+2021-01-07 20:00:33,439:INFO:Data collected!
+Success!!
+2021-01-07 20:00:33,973:INFO:Saved at D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq\out\cellData.tsv
+2021-01-07 20:00:34,600:INFO:Saved at D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq\out\geneData.tsv
+2021-01-07 20:00:35,205:INFO:saved D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq\out\cellData\cellData_0.tsv with file size 2.248 MB
+2021-01-07 20:00:44,638:INFO:saved D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq\out\geneData\geneData_0.tsv with file size 9.439 MB
+2021-01-07 20:00:44,684:INFO:Done
+
+Process finished with exit code 0
