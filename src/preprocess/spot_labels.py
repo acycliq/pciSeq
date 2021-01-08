@@ -6,6 +6,7 @@ from scipy.sparse import coo_matrix, save_npz, load_npz
 import skimage.measure as skmeas
 from src.preprocess.cell_borders import extract_borders_par, extract_borders_dip
 import logging
+from sklearn.neighbors import NearestNeighbors
 
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -73,8 +74,8 @@ def writer_cells(cell_props, dirpath):
 
     # 1. save the cell props
     cell_props = cell_props.rename({'x_cell': 'x', 'y_cell': 'y'}, axis=1)
-    cell_props['x'] = cell_props.x.fillna(-1).astype(int).astype('str').replace('-1', np.nan)
-    cell_props['y'] = cell_props.y.fillna(-1).astype(int).astype('str').replace('-1', np.nan)
+    # cell_props['x'] = cell_props.x.fillna(-1).astype(int).astype('str').replace('-1', np.nan)
+    # cell_props['y'] = cell_props.y.fillna(-1).astype(int).astype('str').replace('-1', np.nan)
     cell_props['cell_id'] = cell_props.cell_id.fillna(-1).astype(int).astype('str').replace('-1', np.nan)
     cell_props['label'] = cell_props.label.fillna(-1).astype(int).astype('str').replace('-1', np.nan)
 
@@ -89,20 +90,71 @@ def writer_cells(cell_props, dirpath):
 
 def writer_spots(spots_df, dirpath):
 
-    spots_df = spots_df.sort_values(by=['label', 'x', 'y'])
+    # spots_df = spots_df.sort_values(by=['label', 'x', 'y'])
 
     # 3. save the spots
     spots_df['target'] = spots_df.Gene
     spots_df['x_global'] = spots_df.x
     spots_df['y_global'] = spots_df.y
-    spots_df['x_cell'] = spots_df.x_cell.fillna(-1).astype(int).astype('str').replace('-1', np.nan)
-    spots_df['y_cell'] = spots_df.y_cell.fillna(-1).astype(int).astype('str').replace('-1', np.nan)
+    # spots_df['x_cell'] = spots_df.x_cell.fillna(-1).astype(int).astype('str').replace('-1', np.nan)
+    # spots_df['y_cell'] = spots_df.y_cell.fillna(-1).astype(int).astype('str').replace('-1', np.nan)
 
     spots_headers = ['x_global', 'y_global', 'label', 'target', 'x_cell', 'y_cell']
     spots_df[spots_headers].to_csv(os.path.join(dirpath, '_spots.csv'), index=False)
     print('Total number of collected spots: %d' % spots_df.shape[0])
 
     return spots_df[spots_headers]
+
+
+def _label_spot(a, idx):
+    '''
+    Given an array a (image_array) and
+    :param a: An array of size numPixelsY-by-numPixelsX specifying that element (i,j) belongs to
+                cell a[i,j]. Note that array a is 1-based, ie if pixel (i,j) is outside a cell then
+                a[i,j] = 0.
+    :param idx: An array of size 2-by-N of the pixels coordinates of spot idx[k], k=1...N
+    :return:
+    a = np.array([  [4,0,1],
+                    [2,0,0],
+                    [0,1,0]])
+
+    idx = np.array([[0,0],
+                    [2, 1],
+                    [1,2],
+                    [1,3]])
+
+    IndexArrayNan(a, idx.T) = [4., 1., 0., nan]
+    which means that:
+            spot with coords [0,0] belongs to cell 4
+            spot with coords [2,0] belongs to cell 1
+            spot with coords [1,2] belongs to 0 (ie no assigned cell)
+            spot with coords [1,3] is outside the bounds and assigned to nan
+
+    '''
+    assert isinstance(idx[0], np.ndarray), "Array 'idx' must be an array of arrays."
+    idx = idx.astype(np.int64)
+    out = np.array([])
+    dim = np.ones(idx.shape[0], dtype=int)
+    dim[:len(a.shape)] = a.shape
+
+    # output array
+    out = np.nan * np.ones(idx.shape[1], dtype=int)
+
+    # find the ones within bounds:
+    is_within = np.all(idx.T <= dim-1, axis=1)
+
+    # also keep only non-negative ones
+    is_positive = np.all(idx.T >= 0, axis=1)
+
+    # filter array`
+    arr = idx[:, is_within & is_positive]
+    flat_idx = np.ravel_multi_index(arr, dims=dim, order='C')
+    out[is_within & is_positive] = a.ravel()[flat_idx]
+
+    print('in label_spot')
+
+    return out
+
 
 
 def remap_labels(coo):
@@ -133,9 +185,18 @@ def stage_data(cfg):
     coo = remap_labels(coo)
     logger.info('remapped label at (y, x): (%d, %d) is %d' % (_point[0], _point[1], coo.toarray()[_point[0], _point[1]]))
 
+    _spots_df = spots[['Gene', 'x', 'y']]
+    # _label_df = pd.DataFrame({'x': coo.col, 'y': coo.row, 'label': coo.data})
+    # spot_label = _spots_df.merge(_label_df, how='left', on=['x', 'y'])
+    # spot_label.label = spot_label.label.fillna(0)
+
+    yx_coords = _spots_df[['y', 'x']].values.T
+    _spots_df['label'] = _label_spot(coo.toarray(), yx_coords)
+    spot_label = _spots_df.copy()
 
 
-    spot_label = _spot_parent_label(spots, coo)
+
+    # spot_label = _spot_parent_label(spots, coo)
 
     props = skmeas.regionprops(coo.toarray().astype(np.int32))
     props_df = pd.DataFrame(data=[(d.label, d.area, d.centroid[1], d.centroid[0]) for d in props],
@@ -146,13 +207,17 @@ def stage_data(cfg):
     assert props_df.shape[0] == cell_boundaries.shape[0] == coo.data.max()
     assert set(spot_label.label[spot_label.label > 0]) <= set(props_df.label)
 
+    # nearest neighbors
+    # nbrs = NearestNeighbors(n_neighbors=4, algorithm='ball_tree').fit(props_df[['y_cell', 'x_cell']].values)
+    # _dist, _neighbors = nbrs.kneighbors(_spots_df[['y', 'x']])
+
     cells = props_df.merge(cell_boundaries)
     cells['cell_id'] = cells.label - 1
     cells.sort_values(by=['label', 'x_cell', 'y_cell'])
     assert cells.shape[0] == cell_boundaries.shape[0] == props_df.shape[0]
 
     spots = spot_label.merge(cells, how='left', on=['label'])
-    spots.sort_values(by=['label', 'x', 'y'])
+    # spots.sort_values(by=['label', 'x', 'y'])
     assert spots.shape[0] == spot_label.shape[0]
 
     dirpath = cfg['temp']

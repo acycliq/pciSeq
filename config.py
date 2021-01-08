@@ -13,7 +13,7 @@ logger.info('Root dir is: %s' % ROOT_DIR)
 # Settings to prepare the data. The label image and spots are parsed and if a spot
 # lies within the cell boundaries then the corresponding cell id is recorded.
 PREPROCESS = {
-    'spots': os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'),
+    'spots': os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots_cleaned.csv'),
     'label_image': os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'),
 
     # Optional setting. If this is set, then the label_image will be split into smaller arrays (tiles).
