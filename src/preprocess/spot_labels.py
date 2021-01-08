@@ -22,6 +22,8 @@ def coofy(spots, label_image):
 
 
 def _spot_parent_label(spots, sp_label_image):
+# DEPRECATED. Replaced by inside_cell()
+
     if sp_label_image.nnz == 0:
         # The tile empty, all spots are on the background
         spots['label'] = 0
@@ -195,7 +197,6 @@ def stage_data(cfg):
 
     yx_coords = spots[['y', 'x']].values.T
     spots['label'] = inside_cell(coo.toarray(), yx_coords)
-    # spot_label = _spots_df.copy()
 
     # spot_label = _spot_parent_label(spots, coo)
 
@@ -219,13 +220,3 @@ def stage_data(cfg):
     dirpath = cfg['temp']
     writer(cells, spots, dirpath)
 
-
-if __name__ == "__main__":
-    # spots = pd.read_csv('data/mouse/ca1/iss/spots.csv')
-    # spots_df = pd.read_csv('D:\\Home\\Dimitris\\OneDrive - University College London\\dev\\Python\\cell_call\\demo_data\\spots_sanity_check.csv')
-
-    spots_df = pd.read_csv('../../data/mouse/ca1/iss/spots.csv')
-    label_image = load_npz('../../data/mouse/ca1/segmentation/label_image.coo.npz')
-    spot_labels(spots_df, label_image)
-
-    print('Done')
