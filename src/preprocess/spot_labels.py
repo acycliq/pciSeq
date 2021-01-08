@@ -6,11 +6,10 @@ from scipy.sparse import coo_matrix, save_npz, load_npz
 import skimage.measure as skmeas
 from src.preprocess.cell_borders import extract_borders_par, extract_borders_dip
 import logging
-from sklearn.neighbors import NearestNeighbors
-
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger()
+
 
 def coofy(spots, label_image):
     x = spots.x.values.astype(int)
@@ -106,7 +105,7 @@ def writer_spots(spots_df, dirpath):
     return spots_df[spots_headers]
 
 
-def _label_spot(a, idx):
+def inside_cell(a, idx):
     '''
     Given an array a (image_array) and
     :param a: An array of size numPixelsY-by-numPixelsX specifying that element (i,j) belongs to
@@ -151,7 +150,11 @@ def _label_spot(a, idx):
     flat_idx = np.ravel_multi_index(arr, dims=dim, order='C')
     out[is_within & is_positive] = a.ravel()[flat_idx]
 
-    print('in label_spot')
+    # if the matrix a is a coo_matrix then the following should be
+    # equivalent (maybe better memory-wise since you do not have use
+    # a proper array (no need to do coo.toarray())
+    # out[is_within & is_positive] = a.tocsr(arr)
+    # print('in label_spot')
 
     return out
 
@@ -182,19 +185,17 @@ def stage_data(cfg):
     # spots = spots.sample(frac=1).reset_index(drop=True)
     _point = [14, 110]
     logger.info('label at (y, x): (%d, %d) is %d' % (_point[0], _point[1], coo.toarray()[_point[0], _point[1]]))
-    coo = remap_labels(coo)
-    logger.info('remapped label at (y, x): (%d, %d) is %d' % (_point[0], _point[1], coo.toarray()[_point[0], _point[1]]))
+    # coo = remap_labels(coo)
+    # logger.info('remapped label at (y, x): (%d, %d) is %d' % (_point[0], _point[1], coo.toarray()[_point[0], _point[1]]))
 
-    _spots_df = spots[['Gene', 'x', 'y']]
+    # _spots_df = spots[['Gene', 'x', 'y']]
     # _label_df = pd.DataFrame({'x': coo.col, 'y': coo.row, 'label': coo.data})
     # spot_label = _spots_df.merge(_label_df, how='left', on=['x', 'y'])
     # spot_label.label = spot_label.label.fillna(0)
 
-    yx_coords = _spots_df[['y', 'x']].values.T
-    _spots_df['label'] = _label_spot(coo.toarray(), yx_coords)
-    spot_label = _spots_df.copy()
-
-
+    yx_coords = spots[['y', 'x']].values.T
+    spots['label'] = inside_cell(coo.toarray(), yx_coords)
+    # spot_label = _spots_df.copy()
 
     # spot_label = _spot_parent_label(spots, coo)
 
@@ -205,20 +206,15 @@ def stage_data(cfg):
     cell_boundaries = extract_borders_dip(coo.toarray(), 0, 0, [0])
 
     assert props_df.shape[0] == cell_boundaries.shape[0] == coo.data.max()
-    assert set(spot_label.label[spot_label.label > 0]) <= set(props_df.label)
-
-    # nearest neighbors
-    # nbrs = NearestNeighbors(n_neighbors=4, algorithm='ball_tree').fit(props_df[['y_cell', 'x_cell']].values)
-    # _dist, _neighbors = nbrs.kneighbors(_spots_df[['y', 'x']])
+    assert set(spots.label[spots.label > 0]) <= set(props_df.label)
 
     cells = props_df.merge(cell_boundaries)
     cells['cell_id'] = cells.label - 1
     cells.sort_values(by=['label', 'x_cell', 'y_cell'])
     assert cells.shape[0] == cell_boundaries.shape[0] == props_df.shape[0]
 
-    spots = spot_label.merge(cells, how='left', on=['label'])
+    spots = spots.merge(cells, how='left', on=['label'])
     # spots.sort_values(by=['label', 'x', 'y'])
-    assert spots.shape[0] == spot_label.shape[0]
 
     dirpath = cfg['temp']
     writer(cells, spots, dirpath)
