@@ -1,9 +1,9 @@
 import os
 import shutil
-import pandas as pd
 import numpy as np
-from scipy.sparse import coo_matrix, save_npz, load_npz
+import pandas as pd
 import skimage.measure as skmeas
+from scipy.sparse import coo_matrix, save_npz, load_npz
 from src.preprocess.cell_borders import extract_borders_par, extract_borders_dip
 import logging
 
