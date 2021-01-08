@@ -128,6 +128,8 @@ class Spots(object):
 
         logger.info('********* Getting spot attributes from %s **********', spotsFile)
         spots_df = pd.read_csv(spotsFile)
+        # spots_df = spots_df.sample(frac=1).reset_index(drop=True)
+
         if 'drop_nan' in self.config.keys() and self.config['drop_nan']:
             spots_df = spots_df.dropna()  ##  CAREFUL HERE  CAREFUL HERE  CAREFUL HERE  CAREFUL HERE
             logger.info('**** I HAVE REMOVED NaNs ***** I HAVE REMOVED NaNs ***** I HAVE REMOVED NaNs****')
