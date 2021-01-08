@@ -215,7 +215,6 @@ def stage_data(cfg):
     assert cells.shape[0] == cell_boundaries.shape[0] == props_df.shape[0]
 
     spots = spots.merge(cells, how='left', on=['label'])
-    # spots.sort_values(by=['label', 'x', 'y'])
 
     dirpath = cfg['temp']
     writer(cells, spots, dirpath)
