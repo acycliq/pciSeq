@@ -1,3 +1,9 @@
+"""
+Functions to prepare the data for pciSeq. The label image and spots are parsed and if a spot
+lies within the cell boundaries then the corresponding cell id is recorded.
+Cell centroids and cell areas are also calculated.
+"""
+
 import os
 import shutil
 import numpy as np
@@ -12,6 +18,7 @@ logger = logging.getLogger()
 
 
 def coofy(spots, label_image):
+# FUNCTION DEPRECATED
     x = spots.x.values.astype(int)
     y = spots.y.values.astype(int)
 
@@ -161,8 +168,10 @@ def inside_cell(a, idx):
     return out
 
 
-
 def remap_labels(coo):
+    """
+    Used for debugging only. It resuffles the label_image
+    """
     coo_max = coo.data.max()
     _keys = 1 + np.arange(coo_max)
     _vals = _keys.copy()
@@ -190,15 +199,8 @@ def stage_data(cfg):
     # coo = remap_labels(coo)
     # logger.info('remapped label at (y, x): (%d, %d) is %d' % (_point[0], _point[1], coo.toarray()[_point[0], _point[1]]))
 
-    # _spots_df = spots[['Gene', 'x', 'y']]
-    # _label_df = pd.DataFrame({'x': coo.col, 'y': coo.row, 'label': coo.data})
-    # spot_label = _spots_df.merge(_label_df, how='left', on=['x', 'y'])
-    # spot_label.label = spot_label.label.fillna(0)
-
     yx_coords = spots[['y', 'x']].values.T
     spots['label'] = inside_cell(coo.toarray(), yx_coords)
-
-    # spot_label = _spot_parent_label(spots, coo)
 
     props = skmeas.regionprops(coo.toarray().astype(np.int32))
     props_df = pd.DataFrame(data=[(d.label, d.area, d.centroid[1], d.centroid[0]) for d in props],
