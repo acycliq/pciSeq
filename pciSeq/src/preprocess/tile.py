@@ -1,10 +1,10 @@
 import numpy as np
-from src.preprocess.utils import split_label_img
+from pciSeq.src.preprocess.utils import split_label_img
 from scipy.sparse import coo_matrix
 from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import cpu_count
 from scipy.sparse import load_npz
-import config
+from pciSeq import config
 import logging
 
 logging.basicConfig(

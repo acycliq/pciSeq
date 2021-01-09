@@ -1,11 +1,7 @@
 import numpy as np
-import urllib.request
-import base64
-import json
-import os
 from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import cpu_count
-import config
+from pciSeq import config
 import logging
 import time
 

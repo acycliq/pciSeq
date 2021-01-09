@@ -1,10 +1,10 @@
 import pandas as pd
-from src.preprocess.cell_merger import Stage
-from src.preprocess.tile import Tile
-from src.preprocess.spot_label import spot_label
-from src.preprocess.cell_props import calc_props
+from pciSeq.src.preprocess.cell_merger import Stage
+from pciSeq.src.preprocess.tile import Tile
+from pciSeq.src.preprocess.spot_label import spot_label
+from pciSeq.src.preprocess.cell_props import calc_props
 import logging
-import config
+from pciSeq import config
 
 logging.basicConfig(
     level=logging.INFO,

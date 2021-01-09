@@ -1,8 +1,8 @@
 import numpy as np
-from src.cell_call.datatypes import Cells, Spots, Genes
-from src.cell_call.singleCell import sc_expression_data
-from src.cell_call.summary import collect_data
-import src.cell_call.utils as utils
+from pciSeq.src.cell_call.datatypes import Cells, Spots, Genes
+from pciSeq.src.cell_call.singleCell import sc_expression_data
+from pciSeq.src.cell_call.summary import collect_data
+import pciSeq.src.cell_call.utils as utils
 import gc
 import os
 import logging

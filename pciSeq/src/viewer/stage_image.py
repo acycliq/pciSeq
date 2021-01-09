@@ -7,7 +7,7 @@ It also creates the pyramid tiles for the viewer
 import pyvips
 import shutil
 import os
-import config
+from pciSeq import config
 import logging
 
 logging.basicConfig(
