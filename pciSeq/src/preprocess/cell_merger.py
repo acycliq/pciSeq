@@ -4,8 +4,8 @@ import logging
 import itertools
 import numpy as np
 from collections import defaultdict
-from src.preprocess.post import Post_merge
-from src.preprocess.utils import _to_csr_matrix, _get_connected_labels
+from pciSeq.src.preprocess.post import Post_merge
+from pciSeq.src.preprocess.utils import _to_csr_matrix, _get_connected_labels
 from scipy.sparse.csgraph import connected_components
 
 logging.basicConfig(

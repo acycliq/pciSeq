@@ -21,10 +21,10 @@ gsf-save*.*
 *.png
 dashboard/img
 
-/data/mouse/ca1/background_image/mouse/background_boundaries.tif
-/data/mouse/ca1/background_image/mouse/.ipynb_checkpoints/
-/data/mouse/ca1/background_image/mouse/background_image.tif
-/data/mouse/ca1/background_image/mouse/CellMap.mat
-/data/mouse/ca1/background_image/mouse/Untitled.ipynb
-/data/mouse/ca1/background_image/mouse/Untitled1.ipynb
-/data/mouse/ca1/segmentation/label_image.npy
+/pciSeq/data/mouse/ca1/background_image/mouse/background_boundaries.tif
+/pciSeq/data/mouse/ca1/background_image/mouse/.ipynb_checkpoints/
+/pciSeq/data/mouse/ca1/background_image/mouse/background_image.tif
+/pciSeq/data/mouse/ca1/background_image/mouse/CellMap.mat
+/pciSeq/data/mouse/ca1/background_image/mouse/Untitled.ipynb
+/pciSeq/data/mouse/ca1/background_image/mouse/Untitled1.ipynb
+/pciSeq/data/mouse/ca1/segmentation/label_image.npy

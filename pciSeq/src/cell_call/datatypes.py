@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
-import config
+from pciSeq import config
 from sklearn.neighbors import NearestNeighbors
 import os
 import numpy_groupies as npg
-from src.cell_call.utils import read_image_objects
+from pciSeq.src.cell_call.utils import read_image_objects
 import time
 import logging
 
