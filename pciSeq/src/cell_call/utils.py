@@ -5,7 +5,7 @@ import numba as nb
 import scipy
 import os
 import glob
-import config
+from pciSeq import config
 import gc
 import logging
 

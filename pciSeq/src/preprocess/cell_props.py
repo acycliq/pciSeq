@@ -3,7 +3,7 @@ import pandas as pd
 from scipy.sparse import coo_matrix
 import skimage.measure as skmeas
 from collections import defaultdict
-from src.preprocess.cell_borders import cell_boundaries
+from pciSeq.src.preprocess.cell_borders import cell_boundaries
 import logging
 
 logging.basicConfig(

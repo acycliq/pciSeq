@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import skimage.measure as skmeas
 from scipy.sparse import coo_matrix, save_npz, load_npz
-from src.preprocess.cell_borders import extract_borders_par, extract_borders_dip
+from pciSeq.src.preprocess.cell_borders import extract_borders_par, extract_borders_dip
 import logging
 
 dir_path = os.path.dirname(os.path.realpath(__file__))

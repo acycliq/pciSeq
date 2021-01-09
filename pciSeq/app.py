@@ -2,11 +2,11 @@
 does the cell typing
 """
 import os
-from src.cell_call.main import VarBayes
-from src.preprocess.spot_labels import stage_data
-from src.viewer.utils import splitter_mb
+from pciSeq.src.cell_call.main import VarBayes
+from pciSeq.src.preprocess.spot_labels import stage_data
+from pciSeq.src.viewer.utils import splitter_mb
 import logging
-import config
+from pciSeq import config
 
 logger = logging.getLogger()
 logging.basicConfig(
