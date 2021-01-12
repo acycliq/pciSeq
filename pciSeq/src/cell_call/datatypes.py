@@ -1,8 +1,9 @@
+import os
+import json
 import numpy as np
 import pandas as pd
-from sklearn.neighbors import NearestNeighbors
-import os
 import numpy_groupies as npg
+from sklearn.neighbors import NearestNeighbors
 from pciSeq.src.cell_call.utils import read_image_objects
 import time
 import logging
@@ -136,7 +137,8 @@ class Spots(object):
         spots_df = spots_df.rename(columns={'x_global': 'x', 'y_global': 'y'})
 
         # remove a gene if it is on the exclude list
-        gene_mask = [True if d not in self.config['PCISEQ']['exclude_genes'] else False for d in spots_df.target]
+        exclude_genes = json.loads(self.config.get('PCISEQ', 'exclude_genes').replace("'", '"'))
+        gene_mask = [True if d not in exclude_genes else False for d in spots_df.target]
         spots_df = spots_df.loc[gene_mask]
         return spots_df.rename_axis('spot_id').rename(columns={'target': 'gene_name'})
 
