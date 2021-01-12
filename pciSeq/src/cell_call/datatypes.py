@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-from pciSeq import config
 from sklearn.neighbors import NearestNeighbors
 import os
 import numpy_groupies as npg

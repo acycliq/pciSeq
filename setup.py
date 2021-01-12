@@ -19,13 +19,13 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/acycliq/pciSeq",
-    setup_requires=[
-      'pytest-runner',
-      'setuptools_scm',
-    ],
+    # setup_requires=[
+    #   'pytest-runner',
+    #   'setuptools_scm',
+    # ],
     packages=setuptools.find_packages(),
-    use_scm_version=True,
-    install_requires = install_deps,
+    # use_scm_version=True,
+    install_requires=install_deps,
     extras_require={
         'interactive': ['matplotlib>=2.2.0', 'jupyter'],
     },

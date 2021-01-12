@@ -5,7 +5,6 @@ import numexpr as ne
 import scipy
 import os
 import glob
-from pciSeq import config
 import gc
 import logging
 

@@ -1,7 +1,6 @@
 import numpy as np
 from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import cpu_count
-from pciSeq import config
 import logging
 import time
 
