@@ -40,7 +40,7 @@ def load_scRNAseq(config):
     return df
 
 
-def _remove_zero_cells(df):
+def _remove_zero_cols(df):
     """
     Removes zero columns (ie if a column is populated by zeros only, then it is removed)
     :param da:
@@ -55,7 +55,7 @@ def sc_expression_data(genes, config):
     df = load_scRNAseq(config)
     df = df.loc[gene_names].rename_axis('gene_name')
 
-    df = _remove_zero_cells(df.copy())
+    df = _remove_zero_cols(df.copy())
     da = xr.DataArray(df)
 
     # calc the mean expression within each cell type
