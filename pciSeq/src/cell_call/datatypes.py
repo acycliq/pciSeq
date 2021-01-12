@@ -15,8 +15,8 @@ logger = logging.getLogger()
 class Cells(object):
     # Get rid of the properties where not necessary!!
     def __init__(self, config):
-        self.config = config
-        self.cell_props = read_image_objects(self.config)
+        self.config = config['PCISEQ']
+        self.cell_props = read_image_objects(config)
         self.num_cells = len(self.cell_props['cell_id'])
         self.classProb = None
         self.class_names = None
@@ -40,7 +40,7 @@ class Cells(object):
         return np.log(value)
 
     def nn(self):
-        n = self.config['nNeighbors'] + 1
+        n = self.config.getint('nNeighbors') + 1
         # for each spot find the closest cell (in fact the top nN-closest cells...)
         nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(self.yx_coords)
         return nbrs
@@ -58,7 +58,7 @@ class Cells(object):
         # cell_id = self.cell_id
         # _id = np.append(cell_id, cell_id.max()+1)
         # _id = self.cell_props['cell_id']
-        nN = self.config['nNeighbors'] + 1
+        nN = self.config.getint('nNeighbors') + 1
         CellGeneCount = np.zeros([nC, nG])
 
         # name = spots.gene_panel.index.values
@@ -81,7 +81,7 @@ class Cells(object):
         # temp = temp.sum(dim='cell_id')
         # if you want to calc temp with einsum:
         temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.cell_props['area_factor'], egamma)
-        ClassTotPredicted = temp * (single_cell_data.mean_expression + ini['SpotReg'])
+        ClassTotPredicted = temp * (single_cell_data.mean_expression + ini.getfloat('SpotReg'))
         TotPredicted = ClassTotPredicted.drop('Zero', dim='class_name').sum(dim='class_name')
         return TotPredicted
 
@@ -123,7 +123,7 @@ class Spots(object):
         return self.data.gene_name.values
 
     def read(self):
-        tempdir = getattr(config, 'PREPROCESS')['temp']
+        tempdir = self.config['PREPROCESS']['temp']
         spotsFile = os.path.join(tempdir, '_spots.csv')
 
         logger.info('********* Getting spot attributes from %s **********', spotsFile)
@@ -137,7 +137,7 @@ class Spots(object):
         spots_df = spots_df.rename(columns={'x_global': 'x', 'y_global': 'y'})
 
         # remove a gene if it is on the exclude list
-        gene_mask = [True if d not in self.config['exclude_genes'] else False for d in spots_df.target]
+        gene_mask = [True if d not in self.config['PCISEQ']['exclude_genes'] else False for d in spots_df.target]
         spots_df = spots_df.loc[gene_mask]
         return spots_df.rename_axis('spot_id').rename(columns={'target': 'gene_name'})
 
@@ -158,7 +158,7 @@ class Spots(object):
 
     def _cellProb(self, neighbors, cfg):
         nS = self.data.shape[0]
-        nN = cfg['nNeighbors'] + 1
+        nN = cfg.getint('nNeighbors') + 1
         SpotInCell = self.data.label
         # assert (np.all(SpotInCell.index == neighbors.index))
 
@@ -187,10 +187,10 @@ class Spots(object):
         D = -self.Dist ** 2 / (2 * mcr ** 2) - np.log(2 * np.pi * mcr ** 2)
 
         # last column (nN-closest) keeps the misreads,
-        D[:, -1] = np.log(cfg['MisreadDensity'])
+        D[:, -1] = np.log(cfg.getfloat('MisreadDensity'))
 
         mask = np.greater(self.data.label, 0, where=~np.isnan(self.data.label))
-        D[mask, 0] = D[mask, 0] + cfg['InsideCellBonus']
+        D[mask, 0] = D[mask, 0] + cfg.getfloat('InsideCellBonus')
         print('in loglik')
         return D
 

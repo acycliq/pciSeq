@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import numexpr as ne
-import numba as nb
+# import numba as nb
 import scipy
 import os
 import glob
@@ -13,8 +13,9 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger()
 
 
-def read_image_objects(cfg):
-    tempdir = getattr(config, 'PREPROCESS')['temp']
+def read_image_objects(ini):
+    tempdir = ini['PREPROCESS']['temp']
+    cfg = ini['PCISEQ']
     img_obj = pd.read_csv(os.path.join(tempdir, '_cells.csv'))
 
     meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
@@ -23,8 +24,8 @@ def read_image_objects(cfg):
     # append 1 for the misreads
     relCellRadius = np.append(relCellRadius, 1)
 
-    nom = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
-    denom = np.exp(-0.5) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
+    nom = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(cfg.getfloat('InsideCellBonus'))) + np.exp(cfg.getfloat('InsideCellBonus'))
+    denom = np.exp(-0.5) * (1 - np.exp(cfg.getfloat('InsideCellBonus'))) + np.exp(cfg.getfloat('InsideCellBonus'))
     CellAreaFactor = nom / denom
 
     out = {}
@@ -102,28 +103,28 @@ def negBinLoglik(x, r, p):
     return contr
 
 
-@nb.njit(parallel=True, fastmath=True)
-def nb_negBinLoglik(x, r, p):
-    '''
-    Negative Binomial loglikehood
-    :param x:
-    :param r:
-    :param p:
-    :return:
-    '''
-    out = np.empty(p.shape,p.dtype)
-
-    for i in nb.prange(p.shape[0]):
-        for j in range(p.shape[1]):
-            if x[i, j, 0] != 0.:
-                x_ = x[i, j, 0]
-                for k in range(p.shape[2]):
-                    out[i, j, k] = x_ * np.log(p[i, j, k]) + r * np.log(1.-p[i, j, k])
-            else:
-                for k in range(p.shape[2]):
-                    out[i, j, k] = r * np.log(1.-p[i, j, k])
-
-    return out
+# @nb.njit(parallel=True, fastmath=True)
+# def nb_negBinLoglik(x, r, p):
+#     '''
+#     Negative Binomial loglikehood
+#     :param x:
+#     :param r:
+#     :param p:
+#     :return:
+#     '''
+#     out = np.empty(p.shape,p.dtype)
+#
+#     for i in nb.prange(p.shape[0]):
+#         for j in range(p.shape[1]):
+#             if x[i, j, 0] != 0.:
+#                 x_ = x[i, j, 0]
+#                 for k in range(p.shape[2]):
+#                     out[i, j, k] = x_ * np.log(p[i, j, k]) + r * np.log(1.-p[i, j, k])
+#             else:
+#                 for k in range(p.shape[2]):
+#                     out[i, j, k] = r * np.log(1.-p[i, j, k])
+#
+#     return out
 
 
 
