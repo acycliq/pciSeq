@@ -28,3 +28,7 @@ dashboard/img
 /pciSeq/data/mouse/ca1/background_image/mouse/Untitled.ipynb
 /pciSeq/data/mouse/ca1/background_image/mouse/Untitled1.ipynb
 /pciSeq/data/mouse/ca1/segmentation/label_image.npy
+/dist/
+/.eggs/
+/build/
+/pciSeq.egg-info/

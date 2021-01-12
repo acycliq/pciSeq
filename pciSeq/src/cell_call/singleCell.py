@@ -60,7 +60,7 @@ def sc_expression_data(genes, config):
     da = xr.DataArray(df)
 
     # calc the mean expression within each cell type
-    mean_expression_da = config['Inefficiency'] * da.groupby('class_name').mean(dim='class_name')
+    mean_expression_da = config.getfloat('Inefficiency') * da.groupby('class_name').mean(dim='class_name')
 
     # sort the dataframe (the index only)
     mean_expression = mean_expression_da.sortby('gene_name')
@@ -74,7 +74,7 @@ def sc_expression_data(genes, config):
 
     zero_da = xr.DataArray(zero_df)
     mean_expression = xr.concat([mean_expression_da, zero_da], 'class_name')
-    log_mean_expression = np.log(mean_expression + config['SpotReg'])
+    log_mean_expression = np.log(mean_expression + config.getfloat('SpotReg'))
 
     ds = xr.Dataset({'mean_expression': mean_expression,
                       'log_mean_expression': log_mean_expression

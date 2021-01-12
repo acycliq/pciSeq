@@ -13,9 +13,9 @@ logger = logging.getLogger()
 
 class VarBayes:
     def __init__(self, config):
-        self.config = config
-        self.cells = Cells(self.config)
-        self.spots = Spots(self.config)
+        self.config = config['PCISEQ']
+        self.cells = Cells(config)
+        self.spots = Spots(config)
         self.genes = Genes(self.spots)
         self.single_cell_data = sc_expression_data(self.genes, self.config)
         class_names = self.single_cell_data.coords['class_name'].values
@@ -32,7 +32,7 @@ class VarBayes:
         p0 = None
         iss_df = None
         gene_df = None
-        for i in range(self.config['max_iter']):
+        for i in range(self.config.getint('max_iter')):
             # 1. calc expected gamma
             logger.info('calc expected gamma')
             self.egamma, self.elgamma = self.expected_gamma()
@@ -49,7 +49,7 @@ class VarBayes:
             logger.info('update gamma')
             self.update_eta()
 
-            converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
+            converged, delta = utils.hasConverged(self.spots, p0, self.config.getfloat('CellCallTolerance'))
             logger.info('Iteration %d, mean prob change %f' % (i, delta))
 
             # replace p0 with the latest probabilities
@@ -68,8 +68,8 @@ class VarBayes:
         sc = self.single_cell_data
         cfg = self.config
         scaled_mean = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], sc.mean_expression)
-        rho = cfg['rSpot'] + cells.geneCount(spots)
-        beta = cfg['rSpot'] + scaled_mean
+        rho = cfg.getint('rSpot') + cells.geneCount(spots)
+        beta = cfg.getint('rSpot') + scaled_mean
 
         expected_gamma = utils.gammaExpectation(rho, beta)
         expected_loggamma = utils.logGammaExpectation(rho, beta)
@@ -93,10 +93,10 @@ class VarBayes:
 
         gene_gamma = self.genes.gamma
         sc = self.single_cell_data
-        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], gene_gamma, sc.mean_expression) + self.config['SpotReg']
-        pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
+        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], gene_gamma, sc.mean_expression) + self.config.getfloat('SpotReg')
+        pNegBin = ScaledExp / (self.config.getint('rSpot') + ScaledExp)
         cgc = self.cells.geneCount(self.spots)
-        contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
+        contr = utils.negBinLoglik(cgc, self.config.getint('rSpot'), pNegBin)
         wCellClass = np.sum(contr, axis=1) + self.cells.log_prior
         pCellClass = utils.softmax(wCellClass, axis=1)
 
@@ -109,7 +109,7 @@ class VarBayes:
     # -------------------------------------------------------------------- #
     def assign_spots(self):
         # spot to cell assignment
-        nN = self.config['nNeighbors'] + 1
+        nN = self.config.getint('nNeighbors') + 1
         nS = self.spots.data.gene_name.shape[0]
         aSpotCell = np.zeros([nS, nN])
         gn = self.spots.data.gene_name.values
@@ -152,8 +152,8 @@ class VarBayes:
 
         TotPredictedB = np.bincount(self.spots.gene_id, self.spots.adj_cell_prob[:, -1].data)
 
-        nom = self.config['rGene'] + self.spots.counts_per_gene - TotPredictedB - TotPredictedZ
-        denom = self.config['rGene'] + TotPredicted
+        nom = self.config.getint('rGene') + self.spots.counts_per_gene - TotPredictedB - TotPredictedZ
+        denom = self.config.getint('rGene') + TotPredicted
         res = nom / denom
 
         # Finally, update gene_gamma
