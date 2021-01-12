@@ -14,13 +14,12 @@ def load_scRNAseq(config):
     :return:
     """
 
-    sc_path = os.path.join(dir_path, config['scRNAseq'])
-    logger.info('Loading single cell data from %s' % sc_path)
+    logger.info('Loading single cell data from %s' % config['scRNAseq'])
     # Exression table from single cell data can have counts from the same class multiple times (more than once) .
     # Pandas do not like headers with non-unique names, hence do not use a header
     # when you read the csv.
     # Read the csv with no headers  The class name will be the very first row of the dataframe
-    df = pd.read_csv(sc_path, header=None, index_col=0, compression='gzip', dtype=object)
+    df = pd.read_csv(config['scRNAseq'], header=None, index_col=0, compression='gzip', dtype=object)
 
     # from https://github.com/pandas-dev/pandas/issues/19383
     # Move now the class name from the top row to the headers of the dataframe
