@@ -6,7 +6,8 @@ from pciSeq.src.cell_call.main import VarBayes
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.viewer.utils import splitter_mb
 import logging
-from pciSeq import config
+# from pciSeq import config
+from configparser import ConfigParser
 
 logger = logging.getLogger()
 logging.basicConfig(
@@ -15,13 +16,13 @@ logging.basicConfig(
 )
 
 
-def pciSeq(ini):
+def cell_type(ini):
     # 1. run the cell calling algo
     varBayes = VarBayes(ini)
     cellData, geneData = varBayes.run()
 
     # 2. save the results
-    out_dir = ini['out_dir']
+    out_dir = ini['PCISEQ']['out_dir']
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
@@ -36,10 +37,26 @@ def pciSeq(ini):
     splitter_mb(geneData, os.path.join(out_dir, 'geneData'), 99)
 
 
-if __name__ == "__main__":
+def app(ini):
+    cfg = ConfigParser()
+    cfg.read(ini)
+
     # 1. prepare the data
-    stage_data(config.PREPROCESS)
+    stage_data(cfg['PREPROCESS'])
 
     # 2. cell typing
-    pciSeq(config.MOUSE)  # 'MOUSE' or 'HUMAN'
+    cell_type(cfg)  # 'MOUSE' or 'HUMAN'
+    logger.info('Done')
+
+
+if __name__ == "__main__":
+    # Read config.ini file
+    cfg = ConfigParser()
+    cfg.read('./pciSeq/config.ini')
+
+    # 1. prepare the data
+    stage_data(cfg['PREPROCESS'])
+
+    # 2. cell typing
+    cell_type(cfg)  # 'MOUSE' or 'HUMAN'
     logger.info('Done')
