@@ -4,7 +4,6 @@ from pciSeq.src.preprocess.tile import Tile
 from pciSeq.src.preprocess.spot_label import spot_label
 from pciSeq.src.preprocess.cell_props import calc_props
 import logging
-from pciSeq import config
 
 logging.basicConfig(
     level=logging.INFO,

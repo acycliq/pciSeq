@@ -4,7 +4,6 @@ from scipy.sparse import coo_matrix
 from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import cpu_count
 from scipy.sparse import load_npz
-from pciSeq import config
 import logging
 
 logging.basicConfig(
