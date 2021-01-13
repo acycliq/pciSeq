@@ -121,8 +121,13 @@ def stage_data(cfg):
 
     spots = spots.merge(cells, how='left', on=['label'])
 
-    dirpath = cfg['temp']
-    writer(cells, spots, dirpath)
+    # dirpath = cfg['temp']
+    # _cells, _cell_boundaries, _spots = writer(cells, spots, dirpath)
+    # return _cells, _cell_boundaries, _spots
+    _cells = cells[['cell_id', 'label', 'area', 'x_cell', 'y_cell']].rename(columns={'x_cell': 'x', 'y_cell': 'y'})
+    _cell_boundaries = cells[['cell_id', 'label', 'coords']]
+    _spots = spots[['x', 'y', 'label', 'Gene', 'x_cell', 'y_cell']].rename(columns={'Gene': 'target', 'x': 'x_global', 'y': 'y_global'})
+    return _cells, _cell_boundaries, _spots
 
 
 def writer(cells, spots, dirpath):
@@ -130,8 +135,9 @@ def writer(cells, spots, dirpath):
         shutil.rmtree(dirpath)
     os.mkdir(dirpath)
 
-    writer_cells(cells, dirpath)
-    writer_spots(spots, dirpath)
+    _cells, _cell_boundaries = writer_cells(cells, dirpath)
+    _spots = writer_spots(spots, dirpath)
+    return _cells, _cell_boundaries, _spots
 
 
 def writer_cells(cell_props, dirpath):

@@ -12,10 +12,10 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger()
 
 
-def read_image_objects(ini):
-    tempdir = ini['PREPROCESS']['temp']
+def read_image_objects(img_obj, ini):
+    # tempdir = ini['PREPROCESS']['temp']
     cfg = ini['PCISEQ']
-    img_obj = pd.read_csv(os.path.join(tempdir, '_cells.csv'))
+    # img_obj = pd.read_csv(os.path.join(tempdir, '_cells.csv'))
 
     meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
     relCellRadius = np.sqrt(img_obj.area / np.pi) / meanCellRadius

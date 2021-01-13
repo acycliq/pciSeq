@@ -14,9 +14,9 @@ logger = logging.getLogger()
 
 class Cells(object):
     # Get rid of the properties where not necessary!!
-    def __init__(self, config):
+    def __init__(self, _cells_df, config):
         self.config = config['PCISEQ']
-        self.cell_props = read_image_objects(config)
+        self.cell_props = read_image_objects(_cells_df, config)
         self.num_cells = len(self.cell_props['cell_id'])
         self.classProb = None
         self.class_names = None
@@ -104,9 +104,9 @@ class Genes(object):
 
 
 class Spots(object):
-    def __init__(self, config):
+    def __init__(self, spots_df, config):
         self.config = config
-        self.data = self.read()
+        self.data = self.read(spots_df)
         self.call = None
         self.adj_cell_prob = None
         self.adj_cell_id = None
@@ -122,12 +122,12 @@ class Spots(object):
         [self.unique_gene_names, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True, return_counts=True)
         return self.data.gene_name.values
 
-    def read(self):
-        tempdir = self.config['PREPROCESS']['temp']
-        spotsFile = os.path.join(tempdir, '_spots.csv')
+    def read(self, spots_df):
+        # tempdir = self.config['PREPROCESS']['temp']
+        # spotsFile = os.path.join(tempdir, '_spots.csv')
 
-        logger.info('********* Getting spot attributes from %s **********', spotsFile)
-        spots_df = pd.read_csv(spotsFile)
+        # logger.info('********* Getting spot attributes from %s **********', spotsFile)
+        # spots_df = pd.read_csv(spotsFile)
         # spots_df = spots_df.sample(frac=1).reset_index(drop=True)
 
         if 'drop_nan' in self.config.keys() and self.config['drop_nan']:
