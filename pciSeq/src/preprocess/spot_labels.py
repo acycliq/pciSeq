@@ -85,9 +85,9 @@ def remap_labels(coo):
     return out
 
 
-def stage_data(cfg):
-    spots = pd.read_csv(cfg['spots'])
-    coo = load_npz(cfg['label_image'])
+def stage_data(spots, coo):
+    # spots = pd.read_csv(cfg['spots'])
+    # coo = load_npz(cfg['label_image'])
     # spots_df = spots_df[['Gene', 'xc', 'yc']].rename(columns={'xc': 'x', 'yc': 'y'})
     # spots_df.x = spots_df.x - 6150
     # spots_df.y = spots_df.y - 12987
@@ -103,7 +103,8 @@ def stage_data(cfg):
     # logger.info('remapped label at (y, x): (%d, %d) is %d' % (_point[0], _point[1], coo.toarray()[_point[0], _point[1]]))
 
     yx_coords = spots[['y', 'x']].values.T
-    spots['label'] = inside_cell(coo.toarray(), yx_coords)
+    inc = inside_cell(coo.toarray(), yx_coords)
+    spots = spots.assign(label=inc)
 
     props = skmeas.regionprops(coo.toarray().astype(np.int32))
     props_df = pd.DataFrame(data=[(d.label, d.area, d.centroid[1], d.centroid[0]) for d in props],

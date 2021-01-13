@@ -12,12 +12,12 @@ logger = logging.getLogger()
 
 
 class VarBayes:
-    def __init__(self, _cells_df, _spots_df, config):
+    def __init__(self, _cells_df, _spots_df, scRNAseq, config):
         self.config = config['PCISEQ']
         self.cells = Cells(_cells_df, config)
         self.spots = Spots(_spots_df, config)
         self.genes = Genes(self.spots)
-        self.single_cell_data = sc_expression_data(self.genes, self.config)
+        self.single_cell_data = sc_expression_data(self.genes, scRNAseq, self.config)
         class_names = self.single_cell_data.coords['class_name'].values
         self.cells.log_prior = self.cells.prior(class_names)
         self.cells.class_names = class_names

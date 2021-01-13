@@ -35,8 +35,12 @@ def load_scRNAseq(config):
     class_name = ['PC.Other2' if x == 'PC.CA3' else x for x in class_name]
 
     df.columns = class_name
-    df = df.rename_axis("class_name", axis="columns") \
-        .rename_axis('gene_name')
+    # df = set_axes(df)
+    return df
+
+
+def set_axes(df):
+    df = df.rename_axis("class_name", axis="columns").rename_axis('gene_name')
     return df
 
 
@@ -50,10 +54,15 @@ def _remove_zero_cols(df):
     return out
 
 
-def sc_expression_data(genes, config):
+def sc_expression_data(genes, df, config):
     gene_names = genes.gene_names
-    df = load_scRNAseq(config)
-    df = df.loc[gene_names].rename_axis('gene_name')
+    # df = load_scRNAseq(config)
+    df = df.loc[gene_names]
+
+    # set the axes labels
+    df = set_axes(df)
+
+
 
     df = _remove_zero_cols(df.copy())
     da = xr.DataArray(df)
