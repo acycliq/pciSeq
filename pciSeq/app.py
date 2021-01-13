@@ -16,9 +16,9 @@ logging.basicConfig(
 )
 
 
-def cell_type(ini):
+def cell_type(_cells, _spots, ini):
     # 1. run the cell calling algo
-    varBayes = VarBayes(ini)
+    varBayes = VarBayes(_cells, _spots, ini)
     cellData, geneData = varBayes.run()
 
     # 2. save the results
@@ -55,8 +55,8 @@ if __name__ == "__main__":
     cfg.read('./pciSeq/config.ini')
 
     # 1. prepare the data
-    stage_data(cfg['PREPROCESS'])
+    _cells, _cell_boundaries, _spots = stage_data(cfg['PREPROCESS'])
 
     # 2. cell typing
-    cell_type(cfg)  # 'MOUSE' or 'HUMAN'
+    cell_type(_cells, _spots, cfg)  # 'MOUSE' or 'HUMAN'
     logger.info('Done')
