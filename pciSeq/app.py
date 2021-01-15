@@ -43,15 +43,10 @@ def cell_type(_cells, _spots, scRNAseq, ini):
     return cellData, geneData
 
 
-def app(iss_spots, coo, scRNAseq, ini=None):
-    if os.path.isfile('./pciSeq/config.ini'):
-        logger.info("config.ini exists")
-    else:
-        logger.info("config.ini does not exist")
-
-    cfg = ConfigParser()
-    if ini is None:
-        cfg.read(os.path.join(config.ROOT_DIR,  'config.ini'))
+def app(iss_spots, coo, scRNAseq, cfg):
+    # cfg = ConfigParser()
+    # if ini is None:
+    #     cfg.read('./pciSeq/config.ini')
 
     # 1. prepare the data
     logger.info('Preprocessing data')
@@ -75,7 +70,10 @@ if __name__ == "__main__":
     _scRNAseq = _scRNAseq.rename(columns=_scRNAseq.iloc[0], copy=False).iloc[1:]
     _scRNAseq = _scRNAseq.astype(np.float).astype(np.uint32)
 
-    app(_iss_spots, _coo, _scRNAseq)
+    cfg = ConfigParser()
+    cfg.read('./pciSeq/config.ini')
+
+    app(_iss_spots, _coo, _scRNAseq, cfg)
     # # 1. prepare the data
     # logger.info('Preprocessing data')
     # _cells, _cell_boundaries, _spots = stage_data(_iss_spots, _coo)
