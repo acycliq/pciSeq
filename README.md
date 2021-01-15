@@ -10,7 +10,7 @@ You can run a pciSeq demo in google colab: [![Open In Colab](https://colab.resea
 
 ## References 
 <a id="1">[1]</a> 
-Qian, X., et al. (2019). Probabilistic cell typing enables fine mapping of closely related cell types in situ. Nat
+Qian, X., et al. (2020). Probabilistic cell typing enables fine mapping of closely related cell types in situ. Nat
 Methods 17, 101 – 106.
 
 
