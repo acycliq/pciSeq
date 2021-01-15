@@ -9,7 +9,7 @@ from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.viewer.utils import splitter_mb
 import logging
 from scipy.sparse import coo_matrix, save_npz, load_npz
-# from pciSeq import config
+from pciSeq import config
 from configparser import ConfigParser
 
 logger = logging.getLogger()
@@ -44,14 +44,21 @@ def cell_type(_cells, _spots, scRNAseq, ini):
 
 
 def app(iss_spots, coo, scRNAseq, ini=None):
+    if os.path.isfile('./pciSeq/config.ini'):
+        logger.info("config.ini exists")
+    else:
+        logger.info("config.ini does not exist")
+
     cfg = ConfigParser()
     if ini is None:
-        cfg.read('../pciSeq/config.ini')
+        cfg.read(os.path.join(config.ROOT_DIR,  'config.ini'))
 
     # 1. prepare the data
+    logger.info('Preprocessing data')
     _cells, _cell_boundaries, _spots = stage_data(iss_spots, coo)
 
     # 2. cell typing
+    logger.info('Start cell typing')
     cellData, geneData = cell_type(_cells, _spots, scRNAseq, cfg)
     logger.info('Done')
     return cellData, geneData
@@ -68,11 +75,12 @@ if __name__ == "__main__":
     _scRNAseq = _scRNAseq.rename(columns=_scRNAseq.iloc[0], copy=False).iloc[1:]
     _scRNAseq = _scRNAseq.astype(np.float).astype(np.uint32)
 
-    # 1. prepare the data
-    logger.info('Preprocessing data')
-    _cells, _cell_boundaries, _spots = stage_data(_iss_spots, _coo)
-
-    # 2. cell typing
-    logger.info('Start cell typing')
-    cell_type(_cells, _spots, _scRNAseq, cfg)
-    logger.info('Done')
+    app(_iss_spots, _coo, _scRNAseq)
+    # # 1. prepare the data
+    # logger.info('Preprocessing data')
+    # _cells, _cell_boundaries, _spots = stage_data(_iss_spots, _coo)
+    #
+    # # 2. cell typing
+    # logger.info('Start cell typing')
+    # cell_type(_cells, _spots, _scRNAseq, cfg)
+    # logger.info('Done')
