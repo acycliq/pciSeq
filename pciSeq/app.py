@@ -9,7 +9,7 @@ from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.viewer.utils import splitter_mb
 import logging
 from scipy.sparse import coo_matrix, save_npz, load_npz
-# from pciSeq import config
+from pciSeq import config
 from configparser import ConfigParser
 
 logger = logging.getLogger()
@@ -44,9 +44,14 @@ def cell_type(_cells, _spots, scRNAseq, ini):
 
 
 def app(iss_spots, coo, scRNAseq, ini=None):
+    if os.path.isfile('./pciSeq/config.ini'):
+        logger.info("config.ini exists")
+    else:
+        logger.info("config.ini does not exist")
+
     cfg = ConfigParser()
     if ini is None:
-        cfg.read('./pciSeq/config.ini')
+        cfg.read(os.path.join(config.ROOT_DIR,  'config.ini'))
 
     # 1. prepare the data
     logger.info('Preprocessing data')
