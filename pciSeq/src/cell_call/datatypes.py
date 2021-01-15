@@ -71,7 +71,7 @@ class Cells(object):
             accumarray = npg.aggregate(group_idx, a, func="sum", size=(nC, nG))
             CellGeneCount = CellGeneCount + accumarray
         end = time.time()
-        print('time in geneCount: ', end - start)
+        # print('time in geneCount: ', end - start)
         # CellGeneCount = xr.DataArray(CellGeneCount, coords=[_id, name], dims=['cell_id', 'gene_name'])
         # self.CellGeneCount = CellGeneCount
         return CellGeneCount
@@ -192,7 +192,7 @@ class Spots(object):
 
         mask = np.greater(self.data.label, 0, where=~np.isnan(self.data.label))
         D[mask, 0] = D[mask, 0] + cfg.getfloat('InsideCellBonus')
-        print('in loglik')
+        # print('in loglik')
         return D
 
     def TotPredictedZ(self, geneNo, pCellZero):

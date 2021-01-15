@@ -24,20 +24,23 @@ def cell_type(_cells, _spots, scRNAseq, ini):
     varBayes = VarBayes(_cells, _spots, scRNAseq, ini)
     cellData, geneData = varBayes.run()
 
-    # 2. save the results
-    out_dir = ini['PCISEQ']['out_dir']
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    save_data = False
+    if save_data:
+        # 2. save the results
+        out_dir = ini['PCISEQ']['out_dir']
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
 
-    cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
-    logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
+        cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
+        logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
 
-    geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
-    logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
+        geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
+        logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
 
-    # Write to the disk as tsv of 99MB each
-    splitter_mb(cellData, os.path.join(out_dir, 'cellData'), 99)
-    splitter_mb(geneData, os.path.join(out_dir, 'geneData'), 99)
+        # Write to the disk as tsv of 99MB each
+        splitter_mb(cellData, os.path.join(out_dir, 'cellData'), 99)
+        splitter_mb(geneData, os.path.join(out_dir, 'geneData'), 99)
+    return cellData, geneData
 
 
 def app(iss_spots, coo, scRNAseq, ini=None):
@@ -49,8 +52,9 @@ def app(iss_spots, coo, scRNAseq, ini=None):
     _cells, _cell_boundaries, _spots = stage_data(iss_spots, coo)
 
     # 2. cell typing
-    cell_type(_cells, _spots, scRNAseq, cfg)
+    cellData, geneData = cell_type(_cells, _spots, scRNAseq, cfg)
     logger.info('Done')
+    return cellData, geneData
 
 
 if __name__ == "__main__":
@@ -65,8 +69,10 @@ if __name__ == "__main__":
     _scRNAseq = _scRNAseq.astype(np.float).astype(np.uint32)
 
     # 1. prepare the data
+    logger.info('Preprocessing data')
     _cells, _cell_boundaries, _spots = stage_data(_iss_spots, _coo)
 
     # 2. cell typing
+    logger.info('Start cell typing')
     cell_type(_cells, _spots, _scRNAseq, cfg)
     logger.info('Done')

@@ -34,19 +34,19 @@ class VarBayes:
         gene_df = None
         for i in range(self.config.getint('max_iter')):
             # 1. calc expected gamma
-            logger.info('calc expected gamma')
+            # logger.info('calc expected gamma')
             self.egamma, self.elgamma = self.expected_gamma()
 
             # 2 assign cells to cell types
-            logger.info('cell to cell type')
+            # logger.info('cell to cell type')
             self.cells.classProb = self.update_classProb()
 
             # 3 assign spots to cells
-            logger.info('spot to cell')
+            # logger.info('spot to cell')
             self.assign_spots()
 
             # 4 update gene efficiency
-            logger.info('update gamma')
+            # logger.info('update gamma')
             self.update_eta()
 
             converged, delta = utils.hasConverged(self.spots, p0, self.config.getfloat('CellCallTolerance'))
@@ -57,7 +57,7 @@ class VarBayes:
 
             if converged:
                 iss_df, gene_df = collect_data(self.cells, self.spots, self.genes)
-                print("Success!!")
+                # print("Success!!")
                 break
         return iss_df, gene_df
 
@@ -100,10 +100,10 @@ class VarBayes:
         wCellClass = np.sum(contr, axis=1) + self.cells.log_prior
         pCellClass = utils.softmax(wCellClass, axis=1)
 
-        # self.cells.classProb = pCellClass
-        logger.info('Cell 0 is classified as %s with prob %4.8f' % (
-            self.cells.class_names[np.argmax(wCellClass[0, :])], pCellClass[0, np.argmax(wCellClass[0, :])]))
-        logger.info('cell ---> cell class probabilities updated')
+        ## self.cells.classProb = pCellClass
+        # logger.info('Cell 0 is classified as %s with prob %4.8f' % (
+        #     self.cells.class_names[np.argmax(wCellClass[0, :])], pCellClass[0, np.argmax(wCellClass[0, :])]))
+        # logger.info('cell ---> cell class probabilities updated')
         return pCellClass
 
     # -------------------------------------------------------------------- #
@@ -140,7 +140,7 @@ class VarBayes:
         # update the prob a spot belongs to a neighboring cell
         pSpotNeighb = utils.softmax(wSpotCell, axis=1)
         self.spots.adj_cell_prob = pSpotNeighb
-        logger.info('spot ---> cell probabilities updated')
+        # logger.info('spot ---> cell probabilities updated')
 
     # -------------------------------------------------------------------- #
     def update_eta(self):
