@@ -145,15 +145,18 @@ class Spots(object):
     def _neighborCells(self, cells):
         # this needs some clean up.
         spotYX = self.data[['y', 'x']]
-        numCells = cells.num_cells
+        # numCells = cells.num_cells
 
         # for each spot find the closest cell (in fact the top nN-closest cells...)
         nbrs = cells.nn()
         self.Dist, neighbors = nbrs.kneighbors(spotYX)
 
-        # last column is for misreads. Id is dummy id and set to the
-        # number of cells (which so-far should always be unallocated)
-        neighbors[:, -1] = numCells
+        # last column is for misreads.
+        # cell_props has already been expanded by one row. The
+        # last row (corresponding to the max cell_id) is for the
+        # dummy cell, which is a super-neighbour (always a neighbour
+        # to any given cell)
+        neighbors[:, -1] = cells.cell_props['cell_id'].max()
 
         return neighbors
 
