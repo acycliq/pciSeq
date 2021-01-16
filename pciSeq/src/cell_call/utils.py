@@ -41,7 +41,7 @@ def read_image_objects(img_obj, ini):
     out['area'] = np.append(img_obj.area, np.nan)
     out['x'] = np.append(img_obj.x.values, np.nan)
     out['y'] = np.append(img_obj.y.values, np.nan)
-    out['cell_id'] = np.append(img_obj.cell_id.values, img_obj.cell_id.shape[0]+1)
+    out['cell_id'] = np.append(img_obj.cell_id.values, img_obj.cell_id.max()+1)
     # Last cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
     # and will be used to get all the misreads
 
