@@ -29,7 +29,7 @@ def read_image_objects(img_obj, ini):
     relCellRadius = np.sqrt(img_obj.area / np.pi) / meanCellRadius
 
     # append 1 for the misreads
-    relCellRadius = np.append(relCellRadius, 1)
+    relCellRadius = np.append(1, relCellRadius)
 
     nom = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(cfg.getfloat('InsideCellBonus'))) + np.exp(cfg.getfloat('InsideCellBonus'))
     denom = np.exp(-0.5) * (1 - np.exp(cfg.getfloat('InsideCellBonus'))) + np.exp(cfg.getfloat('InsideCellBonus'))
@@ -38,10 +38,10 @@ def read_image_objects(img_obj, ini):
     out = {}
     out['area_factor'] = CellAreaFactor
     out['rel_radius'] = relCellRadius
-    out['area'] = np.append(img_obj.area, np.nan)
-    out['x'] = np.append(img_obj.x.values, np.nan)
-    out['y'] = np.append(img_obj.y.values, np.nan)
-    out['cell_id'] = np.append(img_obj.cell_id.values, img_obj.cell_id.max()+1)
+    out['area'] = np.append(np.nan, img_obj.area)
+    out['x'] = np.append(-sys.maxsize, img_obj.x.values)
+    out['y'] = np.append(-sys.maxsize, img_obj.y.values)
+    out['cell_label'] = np.append(0, img_obj.label.values)
     # Last cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
     # and will be used to get all the misreads
 

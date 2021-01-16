@@ -121,7 +121,6 @@ def stage_data(spots, coo):
     assert set(spots.label[spots.label > 0]) <= set(props_df.label)
 
     cells = props_df.merge(cell_boundaries)
-    cells['cell_id'] = cells.label - 1
     cells.sort_values(by=['label', 'x_cell', 'y_cell'])
     assert cells.shape[0] == cell_boundaries.shape[0] == props_df.shape[0]
 
@@ -130,8 +129,8 @@ def stage_data(spots, coo):
     # dirpath = cfg['temp']
     # _cells, _cell_boundaries, _spots = writer(cells, spots, dirpath)
     # return _cells, _cell_boundaries, _spots
-    _cells = cells[['cell_id', 'label', 'area', 'x_cell', 'y_cell']].rename(columns={'x_cell': 'x', 'y_cell': 'y'})
-    _cell_boundaries = cells[['cell_id', 'label', 'coords']]
+    _cells = cells[['label', 'area', 'x_cell', 'y_cell']].rename(columns={'x_cell': 'x', 'y_cell': 'y'})
+    _cell_boundaries = cells[['label', 'coords']]
     _spots = spots[['x', 'y', 'label', 'Gene', 'x_cell', 'y_cell']].rename(columns={'Gene': 'target', 'x': 'x_global', 'y': 'y_global'})
     return _cells, _cell_boundaries, _spots
 

@@ -17,7 +17,7 @@ class Cells(object):
     def __init__(self, _cells_df, config):
         self.config = config['PCISEQ']
         self.cell_props = read_image_objects(_cells_df, config)
-        self.num_cells = len(self.cell_props['cell_id'])
+        self.num_cells = len(self.cell_props['cell_label'])
         self.classProb = None
         self.class_names = None
         self.log_prior = None
@@ -152,11 +152,7 @@ class Spots(object):
         self.Dist, neighbors = nbrs.kneighbors(spotYX)
 
         # last column is for misreads.
-        # cell_props has already been expanded by one row. The
-        # last row (corresponding to the max cell_id) is for the
-        # dummy cell, which is a super-neighbour (always a neighbour
-        # to any given cell)
-        neighbors[:, -1] = cells.cell_props['cell_id'].max()
+        neighbors[:, -1] = 0
 
         return neighbors
 
@@ -172,7 +168,7 @@ class Spots(object):
         assert ~any(sanity_check), "a spot is in a cell not closest neighbor!"
 
         pSpotNeighb = np.zeros([nS, nN])
-        pSpotNeighb[neighbors + 1 == SpotInCell.values[:, None]] = 1  # neighbors is 0-based whereas SpotInCell 1-based
+        pSpotNeighb[neighbors == SpotInCell.values[:, None]] = 1
         pSpotNeighb[SpotInCell == 0, -1] = 1
 
         ## Add a couple of checks here
@@ -184,7 +180,7 @@ class Spots(object):
 
     def loglik(self, cells, cfg):
         # meanCellRadius = cells.ds.mean_radius
-        area = cells.cell_props['area'][:-1]
+        area = cells.cell_props['area'][1:]
         mcr = np.mean(np.sqrt(area / np.pi)) * 0.5  # This is the meanCellRadius
 
         # Assume a bivariate normal and calc the likelihood
