@@ -42,8 +42,9 @@ def read_image_objects(img_obj, ini):
     out['x'] = np.append(-sys.maxsize, img_obj.x.values)
     out['y'] = np.append(-sys.maxsize, img_obj.y.values)
     out['cell_label'] = np.append(0, img_obj.label.values)
-    # Last cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
-    # and will be used to get all the misreads
+    # First cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
+    # and will be used to get all the misreads. It was given the label=0 and some very small
+    # negative coords
 
     return out
 
