@@ -15,7 +15,7 @@ def _iss_summary(cells, spots, genes):
     '''
     x = cells.cell_props['x']
     y = cells.cell_props['y']
-    cell_id = cells.cell_props['cell_id']
+    cell_id = cells.cell_props['cell_label']
 
     gene_count = cells.geneCount(spots)
     class_prob = cells.classProb
@@ -34,7 +34,7 @@ def _iss_summary(cells, spots, genes):
     class_name_list = [class_names[isProb_nonZero[n]].tolist() for n in range(N)]
     prob_list = [class_prob[n, isProb_nonZero[n]].tolist() for n in range(N)]
 
-    iss_df = pd.DataFrame({'Cell_Num': cells.cell_props['cell_id'].tolist(),
+    iss_df = pd.DataFrame({'Cell_Num': cells.cell_props['cell_label'].tolist(),
                             'X': cells.cell_props['x'].tolist(),
                             'Y': cells.cell_props['y'].tolist(),
                             'Genenames': name_list,
@@ -46,14 +46,8 @@ def _iss_summary(cells, spots, genes):
                            )
     iss_df.set_index(['Cell_Num'])
 
-    # Sanity check. Only the dummy cell where the misreads are going to be assigned to should not have
-    # proper coordinates
-    mask = np.isnan(iss_df.X.values) & np.isnan(iss_df.Y.values)
-    assert sum(mask) == 1, 'You should have exactly one dummy cell with nan valued coordinates. ' \
-                           'It will be used to assign the misreads'
-
-    # Remove that dummy cell from data to be rendered by the viewer
-    iss_df = iss_df[~mask]
+    # Ignore the first row. It the pseudocell to keep the misreads (ie the background)
+    iss_df = iss_df[1:]
     logger.info('Data collected!')
 
     return iss_df
