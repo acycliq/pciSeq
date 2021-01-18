@@ -65,23 +65,31 @@ def sc_expression_data(genes, df, config):
 
 
     df = _remove_zero_cols(df.copy())
-    da = xr.DataArray(df)
+    # da = xr.DataArray(df)
 
-    # calc the mean expression within each cell type
-    mean_expression_da = config.getfloat('Inefficiency') * da.groupby('class_name').mean(dim='class_name')
+    dfT = df.T
 
-    # sort the dataframe (the index only)
-    mean_expression = mean_expression_da.sortby('gene_name')
+    expr = dfT.groupby(dfT.index.values).agg('mean').T
+    expr['Zero'] = np.zeros([expr.shape[0], 1])
+    expr = expr.sort_index(axis=0).sort_index(axis=1)
+    expr = config.getfloat('Inefficiency') * expr
+    mean_expression = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")
 
-    # append the zero cell
-    zero_df = pd.DataFrame({'Zero': np.zeros(mean_expression.shape[0])
-                            }, index=da.gene_name.values
-                           )\
-        .rename_axis("class_name", axis="columns")\
-        .rename_axis('gene_name')
-
-    zero_da = xr.DataArray(zero_df)
-    mean_expression = xr.concat([mean_expression_da, zero_da], 'class_name')
+    # # calc the mean expression within each cell type
+    # mean_expression_da = config.getfloat('Inefficiency') * da.groupby('class_name').mean(dim='class_name')
+    #
+    # # sort the dataframe (the index only)
+    # mean_expression = mean_expression_da.sortby('gene_name')
+    #
+    # # append the zero cell
+    # zero_df = pd.DataFrame({'Zero': np.zeros(mean_expression.shape[0])
+    #                         }, index=da.gene_name.values
+    #                        )\
+    #     .rename_axis("class_name", axis="columns")\
+    #     .rename_axis('gene_name')
+    #
+    # zero_da = xr.DataArray(zero_df)
+    # mean_expression = xr.concat([mean_expression_da, zero_da], 'class_name')
     log_mean_expression = np.log(mean_expression + config.getfloat('SpotReg'))
 
     ds = xr.Dataset({'mean_expression': mean_expression,
