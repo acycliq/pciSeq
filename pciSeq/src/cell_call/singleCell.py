@@ -55,18 +55,15 @@ def _remove_zero_cols(df):
 
 
 def sc_expression_data(genes, df, config):
+    assert np.all(df >= 0), "Single cell dataframe has negative values"
+
     gene_names = genes.gene_names
-    # df = load_scRNAseq(config)
     df = df.loc[gene_names]
 
     # set the axes labels
     df = set_axes(df)
 
-
-
     df = _remove_zero_cols(df.copy())
-    # da = xr.DataArray(df)
-
     dfT = df.T
 
     expr = dfT.groupby(dfT.index.values).agg('mean').T
