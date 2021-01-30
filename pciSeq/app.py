@@ -92,7 +92,7 @@ def app(iss_spots, coo, scRNAseq, cfg):
             Name: Gene_id, dtype: int64, The gene id, the position of the gene if all genes are sorted.
             Name: x, dtype: int64, X-axis coordinate of the spot
             Name: y, dtype: int64, Y-axis coordinate of the spot
-            Name: neighbour, dtype: int64, the label of the cell which is more likely to 'raise' the spot
+            Name: neighbour, dtype: int64, the label of the cell which is more likely to 'raise' the spot. If zero then the spot is a misread.
             Name: neighbour_array, dtype: Object, array-like with the labels of the 4 nearest cell. The last always the background and has label=0
             Name: neighbour_prob, dtype: Object, array-like with the prob the corresponding cell from neighbour_array has risen the spot.
     """
