@@ -9,7 +9,6 @@ from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.viewer.utils import splitter_mb
 import logging
 from scipy.sparse import coo_matrix, save_npz, load_npz
-from pciSeq import config
 from configparser import ConfigParser
 
 logger = logging.getLogger()
@@ -44,9 +43,6 @@ def cell_type(_cells, _spots, scRNAseq, ini):
 
 
 def app(iss_spots, coo, scRNAseq, cfg):
-    # cfg = ConfigParser()
-    # if ini is None:
-    #     cfg.read('./pciSeq/config.ini')
 
     # 1. prepare the data
     logger.info('Preprocessing data')
@@ -60,25 +56,21 @@ def app(iss_spots, coo, scRNAseq, cfg):
 
 
 if __name__ == "__main__":
-    # Read config.ini file
-    cfg = ConfigParser()
-    cfg.read('./pciSeq/config.ini')
-    _iss_spots = pd.read_csv('./pciSeq/data/mouse/ca1/iss/spots.csv')
-    _coo = load_npz('./pciSeq/data/mouse/ca1/segmentation/label_image.coo.npz')
+    ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 
-    _scRNAseq = pd.read_csv('./pciSeq/data/mouse/ca1/scRNA/scRNAseq.csv.gz', header=None, index_col=0, compression='gzip', dtype=object)
+    # read config.ini file
+    cfg = ConfigParser()
+    cfg.read(os.path.join(ROOT_DIR, 'config.ini'))
+
+    # read some demo data
+    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'))
+    _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'))
+
+    _scRNAseq = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),
+                            header=None, index_col=0, compression='gzip', dtype=object)
     _scRNAseq = _scRNAseq.rename(columns=_scRNAseq.iloc[0], copy=False).iloc[1:]
     _scRNAseq = _scRNAseq.astype(np.float).astype(np.uint32)
 
-    cfg = ConfigParser()
-    cfg.read('./pciSeq/config.ini')
-
+    # main task
     app(_iss_spots, _coo, _scRNAseq, cfg)
-    # # 1. prepare the data
-    # logger.info('Preprocessing data')
-    # _cells, _cell_boundaries, _spots = stage_data(_iss_spots, _coo)
-    #
-    # # 2. cell typing
-    # logger.info('Start cell typing')
-    # cell_type(_cells, _spots, _scRNAseq, cfg)
-    # logger.info('Done')
+
