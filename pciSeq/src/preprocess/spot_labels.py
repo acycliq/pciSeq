@@ -115,7 +115,7 @@ def stage_data(spots, coo):
     props_df = pd.DataFrame(data=[(d.label, d.area, d.centroid[1], d.centroid[0]) for d in props],
                       columns=['label', 'area', 'x_cell', 'y_cell'])
 
-    cell_boundaries = extract_borders_dip(coo.toarray(), 0, 0, [0])
+    cell_boundaries = extract_borders_dip(coo.toarray().astype(np.uint32), 0, 0, [0])
 
     assert props_df.shape[0] == cell_boundaries.shape[0] == coo.data.max()
     assert set(spots.label[spots.label > 0]) <= set(props_df.label)
