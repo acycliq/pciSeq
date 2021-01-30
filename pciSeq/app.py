@@ -43,6 +43,59 @@ def cell_type(_cells, _spots, scRNAseq, ini):
 
 
 def app(iss_spots, coo, scRNAseq, cfg):
+    """
+    Main entry point for pciSeq.
+
+    Parameters
+    ----------
+    iss_spots : pandas.DataFrame
+        Index:
+            RangeIndex
+        Columns:
+            Name: Gene, dtype: string, The gene name
+            Name: x, dtype: int64, X-axis coordinate of the spot
+            Name: y, dtype: int64, Y-axis coordinate of the spot
+
+    coo : scipy.sparse.coo_matrix
+        A label image array as a coo_matrix datatype. The label denote
+        which cell the corresponding pixel 'belongs' to. If label is
+        zero, the pixel is on the background
+
+    scRNAseq : pandas.DataFrame
+        Index:
+            The gene name
+        Columns:
+            The column headers are the cell classes and the type of their values is np.uint32
+
+    cfg : configParser
+        A configParser object which has parsed the config.ini to read the hyperparameters.
+
+    Returns
+    ------
+    cellData : pandas.DataFrame
+        Index:
+            RangeIndex
+        Columns:
+            Name: Cell_Num, dtype: int64, The label of the cell
+            Name: X, dtype: float64, X-axis coordinate of the cell centroid
+            Name: Y, dtype: float64, Y-axis coordinate of the cell centroid
+            Name: Genenames, dtype: Object, array-like of the genes assinged to the cell
+            Name: CellGeneCount, dtype: Object,array-like of the corresponding gene counts
+            Name: ClassName, dtype: Object, array-like of the genes probable classes for the cell
+            Name: Prob, dtype: Object, array-like array-like of the corresponding cell class probabilities
+
+    geneData : pandas.DataFrame
+        Index:
+            RangeIndex
+        Columns:
+            Name: Gene, dtype: string, The gene name
+            Name: Gene_id, dtype: int64, The gene id, the position of the gene if all genes are sorted.
+            Name: x, dtype: int64, X-axis coordinate of the spot
+            Name: y, dtype: int64, Y-axis coordinate of the spot
+            Name: neighbour, dtype: int64, the label of the cell which is more likely to 'raise' the spot
+            Name: neighbour_array, dtype: Object, array-like with the labels of the 4 nearest cell. The last always the background and has label=0
+            Name: neighbour_prob, dtype: Object, array-like with the prob the corresponding cell from neighbour_array has risen the spot.
+    """
 
     # 1. prepare the data
     logger.info('Preprocessing data')
