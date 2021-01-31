@@ -32,7 +32,8 @@ class VarBayes:
         p0 = None
         iss_df = None
         gene_df = None
-        for i in range(self.config.getint('max_iter')):
+        max_iter = self.config.getint('max_iter')
+        for i in range(max_iter):
             # 1. calc expected gamma
             # logger.info('calc expected gamma')
             self.egamma, self.elgamma = self.expected_gamma()
@@ -59,6 +60,9 @@ class VarBayes:
                 iss_df, gene_df = collect_data(self.cells, self.spots, self.genes)
                 # print("Success!!")
                 break
+
+            if i == max_iter-1:
+                logger.info('Loop exhausted. Exiting with convergence status: %s' % converged)
         return iss_df, gene_df
 
     # -------------------------------------------------------------------- #
