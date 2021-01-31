@@ -1,13 +1,13 @@
 import os
+import json
 import pandas as pd
 import numpy as np
 from scipy.sparse import coo_matrix, save_npz, load_npz
-import json
 from pciSeq.src.cell_call.main import VarBayes
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.viewer.utils import splitter_mb
-import logging
 from configparser import ConfigParser
+import logging
 
 logger = logging.getLogger()
 logging.basicConfig(
@@ -39,14 +39,14 @@ def app(iss_spots, coo, scRNAseq, opts=None):
         Index:
             The gene name
         Columns:
-            The column headers are the cell classes and the type of their values is np.uint32
+            The column headers are the cell classes and the data are uint32
 
     opts : dictionary (Optional)
         A dictionary to pass-in user-defined hyperparameter values. They override the default
         values as these are set by the config.ini file. For example to exclude genes Npy and
-        Vip you can create opts as:
+        Vip you can define opts as:
             opts = {'exclude_genes': ['Npy', 'Vip']}
-        and pass that dict to the app function as the 4th argument
+        and pass that dict to the app function as the last argument
 
     Returns
     ------
@@ -115,9 +115,9 @@ def cell_type(_cells, _spots, scRNAseq, ini):
 
 def init(opts):
     """
-    Reads the dict opts and in not None, it will override the default parameter value by
+    Reads the opts dict and if not None, it will override the default parameter value by
     the value that the dictionary key points to.
-    If opts is None, then the defaults values as these specified in the config.ini file
+    If opts is None, then the default values as these specified in the config.ini file
     are used without any change.
     """
     cfg = ConfigParser()
