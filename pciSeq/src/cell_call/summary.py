@@ -24,7 +24,7 @@ def _iss_summary(cells, spots, genes):
 
     tol = 0.001
 
-    logger.info('starting collecting data ...')
+    logger.info('Start collecting data ...')
     N = len(cell_id)
     isCount_nonZero = [gene_count[n, :] > tol for n in range(N)]
     name_list = [gene_names[isCount_nonZero[n]].tolist() for n in range(N)]
