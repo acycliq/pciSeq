@@ -6,6 +6,7 @@ from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.cell_call.main import VarBayes
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.viewer.utils import splitter_mb
+from pciSeq.src.cell_call import utils
 from configparser import ConfigParser
 import logging
 
@@ -14,6 +15,8 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s:%(levelname)s:%(message)s"
 )
+
+ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
 def app(iss_spots, coo, scRNAseq, opts=None):
@@ -120,8 +123,11 @@ def init(opts):
     If opts is None, then the default values as these specified in the config.ini file
     are used without any change.
     """
+    ini_file = utils.load_from_url('https://github.com/acycliq/pciSeq/blob/dev/pciSeq/config.ini?raw=true')
     cfg = ConfigParser()
-    cfg.read(os.path.join(ROOT_DIR, 'config.ini'))
+    cfg.read(ini_file)
+    # cfg = ConfigParser()
+    # cfg.read(os.path.join(ROOT_DIR, 'config.ini'))
     if opts is not None:
         default_items = set(dict(cfg.items('PCISEQ')).keys())
         user_items = set(opts.keys())
@@ -142,7 +148,6 @@ def init(opts):
 
 
 if __name__ == "__main__":
-    ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 
     # read some demo data
     _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'))
