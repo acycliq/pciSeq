@@ -69,7 +69,7 @@ def sc_expression_data(genes, df, config):
     expr = dfT.groupby(dfT.index.values).agg('mean').T
     expr['Zero'] = np.zeros([expr.shape[0], 1])
     expr = expr.sort_index(axis=0).sort_index(axis=1)
-    expr = config.getfloat('Inefficiency') * expr
+    expr = config['Inefficiency'] * expr
     mean_expression = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")
 
     # # calc the mean expression within each cell type
@@ -87,7 +87,7 @@ def sc_expression_data(genes, df, config):
     #
     # zero_da = xr.DataArray(zero_df)
     # mean_expression = xr.concat([mean_expression_da, zero_da], 'class_name')
-    log_mean_expression = np.log(mean_expression + config.getfloat('SpotReg'))
+    log_mean_expression = np.log(mean_expression + config['SpotReg'])
 
     ds = xr.Dataset({'mean_expression': mean_expression,
                       'log_mean_expression': log_mean_expression
