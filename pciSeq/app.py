@@ -1,12 +1,11 @@
 import os
-import json
 import pandas as pd
 import numpy as np
 from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.cell_call.main import VarBayes
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.viewer.utils import splitter_mb
-from configparser import ConfigParser
+from pciSeq import config
 import logging
 
 logger = logging.getLogger()
@@ -18,7 +17,7 @@ logging.basicConfig(
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
-def app(iss_spots, coo, scRNAseq, opts=None):
+def fit(iss_spots, coo, scRNAseq, opts=None):
     """
     Main entry point for pciSeq.
 
@@ -45,10 +44,10 @@ def app(iss_spots, coo, scRNAseq, opts=None):
 
     opts : dictionary (Optional)
         A dictionary to pass-in user-defined hyperparameter values. They override the default
-        values as these are set by the config.ini file. For example to exclude genes Npy and
+        values as these are set by the config.py file. For example to exclude genes Npy and
         Vip you can define opts as:
             opts = {'exclude_genes': ['Npy', 'Vip']}
-        and pass that dict to the app function as the last argument
+        and pass that dict to the fit function as the last argument
 
     Returns
     ------
@@ -99,7 +98,7 @@ def cell_type(_cells, _spots, scRNAseq, ini):
     save_data = False
     if save_data:
         # 2. save the results
-        out_dir = ini['PCISEQ']['out_dir']
+        out_dir = ini['out_dir']
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
 
@@ -119,27 +118,24 @@ def init(opts):
     """
     Reads the opts dict and if not None, it will override the default parameter value by
     the value that the dictionary key points to.
-    If opts is None, then the default values as these specified in the config.ini file
+    If opts is None, then the default values as these specified in the config.py file
     are used without any change.
     """
 
-    cfg = ConfigParser()
-    cfg.read(os.path.join(ROOT_DIR, 'config.ini'))
+    cfg = config.DEFAULT
     if opts is not None:
-        default_items = set(dict(cfg.items('PCISEQ')).keys())
+        default_items = set(cfg.keys())
         user_items = set(opts.keys())
         assert user_items.issubset(default_items), ('Options passed-in should be a dict with keys: %s ' % default_items)
         for item in opts.items():
-            if isinstance(item[1], (int, float)):
-                val = str(item[1])
-            elif isinstance(item[1], list):
-                val = json.dumps(item[1])
-            elif isinstance(item[1], str):
+            if isinstance(item[1], (int, float, list)):
                 val = item[1]
+            # elif isinstance(item[1], list):
+            #     val = item[1]
             else:
-                raise TypeError("Only integers, floats and lists and strings are allowed")
-            cfg.set('PCISEQ', item[0], val)
-            logger.info('%s was set to %s' % (item[0], cfg.get('PCISEQ', item[0])))
+                raise TypeError("Only integers, floats and lists are allowed")
+            cfg[item[0]] = val
+            logger.info('%s is set to %s' % (item[0], cfg[item[0]]))
 
     return cfg
 
@@ -156,6 +152,6 @@ if __name__ == "__main__":
     _scRNAseq = _scRNAseq.astype(np.float).astype(np.uint32)
 
     # main task
-    # _opts = {'max_iter': '12'}
-    app(_iss_spots, _coo, _scRNAseq)
+    # _opts = {'max_iter': 10}
+    fit(_iss_spots, _coo, _scRNAseq)
 

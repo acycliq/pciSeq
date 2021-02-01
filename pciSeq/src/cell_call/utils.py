@@ -22,7 +22,7 @@ logger = logging.getLogger()
 
 def read_image_objects(img_obj, ini):
     # tempdir = ini['PREPROCESS']['temp']
-    cfg = ini['PCISEQ']
+    cfg = ini
     # img_obj = pd.read_csv(os.path.join(tempdir, '_cells.csv'))
 
     meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
@@ -31,8 +31,8 @@ def read_image_objects(img_obj, ini):
     # append 1 for the misreads
     relCellRadius = np.append(1, relCellRadius)
 
-    nom = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(cfg.getfloat('InsideCellBonus'))) + np.exp(cfg.getfloat('InsideCellBonus'))
-    denom = np.exp(-0.5) * (1 - np.exp(cfg.getfloat('InsideCellBonus'))) + np.exp(cfg.getfloat('InsideCellBonus'))
+    nom = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
+    denom = np.exp(-0.5) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
     CellAreaFactor = nom / denom
 
     out = {}

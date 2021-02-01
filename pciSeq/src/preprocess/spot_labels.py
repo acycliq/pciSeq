@@ -87,7 +87,7 @@ def remap_labels(coo):
 
 def stage_data(spots, coo):
     logger.info('Number of spots passed in: %d' % spots.shape[0])
-    logger.info('Number of segmented cells %d' % len(set(coo.data)))
+    logger.info('Number of segmented cells: %d' % len(set(coo.data)))
     logger.info('Segmentation array implies that image has width: %dpx and height: %dpx' % (coo.shape[1], coo.shape[0]))
     # spots = pd.read_csv(cfg['spots'])
     # coo = load_npz(cfg['label_image'])

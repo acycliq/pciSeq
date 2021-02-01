@@ -5,11 +5,32 @@ A Python package that implements the cell calling algorithm as described in [[Qi
 ```
 pip install pciSeq
 ```
+## Usage
+You need to create two `pandas dataframes` for the spots and the single cell data and a `coo_matrix` for the label image (which in 
+most cases will be the output of some image segmentation application). Then you pass them into the `pciSeq.fit()` method as follows: 
+```
+import pciSeq
+
+res = pciSeq.fit(spots_df, label_image, scRNA_df)
+```
+See the demo below for a more detailed explanation about the arguments of  `pciSeq.fit()` and its return values.
+
+There is also a fourth argument (optional) to override the default hyperparameter values which are initialised 
+by the [config.py](http://) module. To pass user-defined hyperparameter values, create a `dictionary` with `keys` the
+hyperparameter names and `values` their new values. For example, to exclude all Npy and Vip spots you can do:
+
+```
+import pciSeq
+
+opts = { 'exclude_genes': ['Npy', 'Vip'] }
+res = pciSeq.fit(spots_df, label_image, scRNA_df, opts)
+```
+
 ## Demo
 You can run a pciSeq demo in google colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/acycliq/pciSeq/blob/master/notebooks/pciSeq.ipynb)
 
 ## References 
 Qian, X., et al. (2020). Probabilistic cell typing enables fine mapping of closely related cell types in situ. Nat
-Methods 17, 101 – 106.
+Methods 17, 101 - 106.
 
 
