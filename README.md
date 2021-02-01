@@ -5,6 +5,7 @@ A Python package that implements the cell calling algorithm as described in [[Qi
 ```
 pip install pciSeq
 ```
+Requirement: Python >= 3.7
 ## Usage
 You need to create two `pandas dataframes` for the spots and the single cell data and a `coo_matrix` for the label image (which in 
 most cases will be the output of some image segmentation application). Then you pass them into the `pciSeq.fit()` method as follows: 
