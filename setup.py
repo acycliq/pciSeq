@@ -3,7 +3,8 @@ from setuptools import setup
 
 install_deps = ['numpy', 'pandas', 'sklearn',
                 'numpy_groupies', 'xarray', 'numexpr',
-                'diplib', 'scikit-image', 'opencv-python']
+                'diplib', 'scikit-image', 'opencv-python',
+                'tqdm']
 
 
 with open("README.md", "r") as fh:
@@ -11,7 +12,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="pciSeq",
-    version="0.0.29",
+    version="0.0.30",
     license="BSD",
     author="Dimitris Nicoloutsopoulos",
     author_email="dimitris.nicoloutsopoulos@gmail.com",
