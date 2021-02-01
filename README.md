@@ -16,7 +16,7 @@ res = pciSeq.fit(spots_df, label_image, scRNA_df)
 See the demo below for a more detailed explanation about the arguments of  `pciSeq.fit()` and its return values.
 
 There is also a fourth argument (optional) to override the default hyperparameter values which are initialised 
-by the [config.py](http://) module. To pass user-defined hyperparameter values, create a `dictionary` with `keys` the
+by the [config.py](https://github.com/acycliq/pciSeq/blob/master/pciSeq/config.py) module. To pass user-defined hyperparameter values, create a `dictionary` with `keys` the
 hyperparameter names and `values` their new values. For example, to exclude all Npy and Vip spots you can do:
 
 ```
