@@ -1,0 +1,27 @@
+C:\ProgramData\Anaconda3\python.exe "C:\Program Files\JetBrains\PyCharm 2019.3.4\plugins\python\helpers\pydev\pydevd.py" --cmd-line --multiproc --qt-support=auto --client 127.0.0.1 --port 53063 --file "D:/Home/Dimitris/OneDrive - University College London/dev/Python/pciSeq/pciSeq/app.py"
+pydev debugger: process 17000 is connecting
+
+Connected to pydev debugger (build 193.6911.25)
+PyDIPjavaio unavailable:
+DLL load failed: The specified module could not be found.
+
+libjvm not found
+2021-02-16 20:58:35,778:INFO:Preprocessing data
+2021-02-16 20:58:35,778:INFO:Number of spots passed in: 72336
+2021-02-16 20:58:36,197:INFO:Number of segmented cells: 3481
+2021-02-16 20:58:36,197:INFO:Segmentation array implies that image has width: 7602px and height: 5471px
+2021-02-16 20:58:52,701:INFO:Start cell typing
+2021-02-16 20:59:51,020:INFO:Iteration 0, mean prob change 1.000000
+2021-02-16 20:59:52,614:INFO:Iteration 1, mean prob change 0.794103
+2021-02-16 20:59:54,180:INFO:Iteration 2, mean prob change 0.465452
+2021-02-16 20:59:55,742:INFO:Iteration 3, mean prob change 0.271388
+2021-02-16 20:59:57,329:INFO:Iteration 4, mean prob change 0.226492
+2021-02-16 20:59:58,894:INFO:Iteration 5, mean prob change 0.253153
+2021-02-16 21:00:00,461:INFO:Iteration 6, mean prob change 0.165440
+2021-02-16 21:00:02,055:INFO:Iteration 7, mean prob change 0.109564
+2021-02-16 21:00:03,629:INFO:Iteration 8, mean prob change 0.062975
+2021-02-16 21:00:05,191:INFO:Iteration 9, mean prob change 0.038623
+2021-02-16 21:00:06,758:INFO:Iteration 10, mean prob change 0.020661
+2021-02-16 21:00:08,365:INFO:Iteration 11, mean prob change 0.015410
+2021-02-16 21:00:08,381:INFO:Start collecting data ...
+2021-02-16 21:00:08,427:INFO:Data collected!
