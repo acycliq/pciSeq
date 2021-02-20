@@ -5,6 +5,9 @@ import pandas as pd
 import numpy_groupies as npg
 from sklearn.neighbors import NearestNeighbors
 from pciSeq.src.cell_call.utils import read_image_objects
+from multiprocessing.dummy import Pool as ThreadPool
+from multiprocessing import cpu_count
+from scipy.stats import multivariate_normal
 import time
 import logging
 
@@ -21,11 +24,50 @@ class Cells(object):
         self.classProb = None
         self.class_names = None
         self.log_prior = None
+        # initialise covariance matrix for all cells
+        self._cov = np.tile(8.867 * 8.867 * np.eye(2, 2), (self.num_cells, 1, 1))
+        # initialise centroids from the cell segmentation
+        self._centroid = {'x': self.cell_props['x'], 'y': self.cell_props['y']}
+        self._gene_counts = None
 
     @property
     def yx_coords(self):
         coords = [d for d in zip(self.cell_props['y'], self.cell_props['x']) if not np.isnan(d).any()]
         return np.array(coords)
+
+    @property
+    def centroid(self):
+        lst = list(zip(*[self._centroid['x'], self._centroid['y']]))
+        return np.array(lst)
+
+    @centroid.setter
+    def centroid(self, val):
+        # Add a check to prevent cell at position 0 from being mutated
+        try:
+            centre, cell_id = val
+        except ValueError:
+            mask = np.arange(self.num_cells)
+        else:
+            mask = cell_id
+        self._centroid['x'][mask] = centre[0]
+        self._centroid['y'][mask] = centre[1]
+
+    @property
+    def cov(self):
+        return self._cov
+
+    @cov.setter
+    def cov(self, val):
+        try:
+            cov, cell_id = val
+        except ValueError:
+            mask = np.arange(self.num_cells)
+        else:
+            mask = cell_id
+        if cell_id:
+            self._cov[mask] = cov
+
+
 
     # @property
     # def cell_id(self):
@@ -118,6 +160,11 @@ class Spots(object):
         # self.data['gene_id'] = self._genes.spot_id
         # self.gene_panel = self._genes.panel
 
+    @property
+    def xy_coords(self):
+        lst = list(zip(*[self.data.x, self.data.y]))
+        return np.array(lst)
+
     def _unique_genes(self):
         [self.unique_gene_names, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True, return_counts=True)
         return self.data.gene_name.values
@@ -193,6 +240,47 @@ class Spots(object):
         D[mask, 0] = D[mask, 0] + cfg['InsideCellBonus']
         # print('in loglik')
         return D
+
+    # def mvn_loglik_par(self, data, mu, sigma):
+    #     n = max(1, cpu_count() - 1)
+    #     pool = ThreadPool(n)
+    #     param = list(zip(*[data, mu, sigma]))
+    #     results = pool.map(self.loglik_contr, param)
+    #     # out = [self.loglik_contr(data[i], mu[i], sigma[i]) for i, d in enumerate(data)]
+    #     pool.close()
+    #     pool.join()
+    #     return results
+
+    def mvn_loglik(self, data, cell_label, cells):
+        centroids = cells.centroid[cell_label]
+        covs = cells.cov[cell_label]
+        param = list(zip(*[data, centroids, covs]))
+        out = [self.loglik_contr(p) for i, p in enumerate(param)]
+        # out_2 = [multivariate_normal.logpdf(p[0], p[1], p[2]) for i, p in enumerate(param)]
+        return out
+
+    def loglik_contr(self, param):
+        """
+        Contribution of a single datapoint to the bivariate Normal distribution loglikelihood
+        Should be the same as multivariate_normal.logpdf(param[0], param[1], param[2])
+        """
+        x = param[0]
+        mu = param[1]
+        sigma = param[2]
+        k = 2  # dimensionality of a point
+
+        x = x.reshape([2, -1])
+        mu = mu.reshape([2, -1])
+        assert x.shape == mu.shape == (2,1), 'Datapoint should have dimension (2, 1)'
+        assert sigma.shape == (2, 2), 'Covariance matrix should have shape: (2, 2)'
+
+        sigma_inv = np.linalg.inv(sigma)
+        a = - k/2 * np.log(2 * np.pi)
+        b = - 0.5 * np.log(np.linalg.det(sigma))
+        c = - 0.5 * np.einsum('ji, jk, ki -> i', x-mu, sigma_inv, x-mu)
+        assert len(c) == 1, 'Should be an array with just one element'
+        out = a + b + c[0]
+        return out
 
     def TotPredictedZ(self, geneNo, pCellZero):
         '''

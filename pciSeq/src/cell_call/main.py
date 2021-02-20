@@ -115,9 +115,13 @@ class VarBayes:
         # spot to cell assignment
         nN = self.config['nNeighbors'] + 1
         nS = self.spots.data.gene_name.shape[0]
-        aSpotCell = np.zeros([nS, nN])
+
+        # initialise array with the misread density
+        aSpotCell = np.zeros([nS, nN]) + np.log(self.config['MisreadDensity'])
         gn = self.spots.data.gene_name.values
         expected_spot_counts = self.single_cell_data['log_mean_expression'].sel({'gene_name': gn}).data
+
+        # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
         for n in range(nN - 1):
             spots_name = self.spots.data.gene_name.values
             self.single_cell_data['log_mean_expression'].sel({'gene_name': spots_name})
@@ -138,8 +142,11 @@ class VarBayes:
             # expectedLog = utils.bi2(self.elgamma.data, [nS, nK], sn[:, None], self.spots.data.gene_id.values[:, None])
 
             term_2 = np.einsum('ij,ij -> i', cp, expectedLog)  # same as np.sum(cp * expectedLog, axis=1) but bit faster
-            aSpotCell[:, n] = term_1 + term_2
-        wSpotCell = aSpotCell + self.spots.loglik(self.cells, self.config)
+
+            loglik = self.spots.mvn_loglik(self.spots.xy_coords, sn, self.cells)
+            aSpotCell[:, n] = term_1 + term_2 + loglik
+            # logger.info('')
+        wSpotCell = aSpotCell # + self.spots.loglik(self.cells, self.config)
 
         # update the prob a spot belongs to a neighboring cell
         pSpotNeighb = utils.softmax(wSpotCell, axis=1)
