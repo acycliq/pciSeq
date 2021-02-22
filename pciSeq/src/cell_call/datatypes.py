@@ -29,6 +29,7 @@ class Cells(object):
         # initialise centroids from the cell segmentation
         self._centroid = {'x': self.cell_props['x'], 'y': self.cell_props['y']}
         self._gene_counts = None
+        self._background_counts = None
 
     @property
     def yx_coords(self):
@@ -67,7 +68,27 @@ class Cells(object):
         if cell_id:
             self._cov[mask] = cov
 
+    @property
+    def geneCount(self):
+        return self._gene_counts
 
+    @geneCount.setter
+    def geneCount(self, val):
+        self._gene_counts = val
+
+    @property
+    def background_counts(self):
+        return self._background_counts
+
+    @background_counts.setter
+    def background_counts(self, val):
+        assert val[1:, :].sum() == 0, 'Input array must be zero everywhere apart from the top row'
+        self._background_counts = val[0, :]
+
+    @property
+    def total_counts(self):
+        tc = self.geneCount.sum(axis=1)
+        return self.geneCount.sum(axis=1)
 
     # @property
     # def cell_id(self):
@@ -87,13 +108,14 @@ class Cells(object):
         nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(self.yx_coords)
         return nbrs
 
-    def geneCount(self, spots):
+    def geneCount_upd(self, spots):
         '''
         Produces a matrix numCells-by-numGenes where element at position (c,g) keeps the expected
         number of gene g  in cell c.
         :param spots:
         :return:
         '''
+        # logger.info('(2)... ok geneCount_upd')
         start = time.time()
         nC = self.num_cells
         nG = len(spots.unique_gene_names)
@@ -105,18 +127,28 @@ class Cells(object):
 
         # name = spots.gene_panel.index.values
         spot_id = spots.gene_id
-        for n in range(nN - 1):
+        for n in range(nN):
+            # for n in range(nN - 1):
             c = spots.adj_cell_id[:, n]
             # c = spots.neighboring_cells['id'].sel(neighbor=n).values
             group_idx = np.vstack((c[None, :], spot_id[None, :]))
             a = spots.adj_cell_prob[:, n]
             accumarray = npg.aggregate(group_idx, a, func="sum", size=(nC, nG))
-            CellGeneCount = CellGeneCount + accumarray
+            if n == nN - 1:
+                self.background_counts = accumarray
+            else:
+                CellGeneCount = CellGeneCount + accumarray
+
         end = time.time()
         # print('time in geneCount: ', end - start)
         # CellGeneCount = xr.DataArray(CellGeneCount, coords=[_id, name], dims=['cell_id', 'gene_name'])
         # self.CellGeneCount = CellGeneCount
-        return CellGeneCount
+
+        # print(self.background_counts.sum())
+        # print(CellGeneCount.sum(axis=1).sum())
+        # assert self.background_counts.sum() + CellGeneCount.sum(axis=1).sum() == spots.data.shape[0], \
+        #     "The sum of the background spots and the cell gene counts should be equal to the total number of spots"
+        self.geneCount = CellGeneCount
 
     def geneCountsPerKlass(self, single_cell_data, egamma, ini):
         # temp = self.classProb * self.cell_props.area_factor.to_xarray() * egamma
@@ -130,19 +162,34 @@ class Cells(object):
 
 class Genes(object):
     def __init__(self, spots):
-        self.gamma = np.ones(len(spots.unique_gene_names))
+        # self.gamma = np.ones(len(spots.unique_gene_names))
+        # self.gamma = None
+        self._eta = None
         self.gene_names = spots.unique_gene_names
+        self.nG = len(self.gene_names)
 
-    def update_gamma(self, cells, spots, single_cell_data, egamma, ini):
-        TotPredictedZ = spots.TotPredictedZ(self.panel.spot_id.data,
-                                                cells.classProb.sel({'class_name': 'Zero'}).data)
+    # @property
+    # def gamma(self):
+    #     return self._eta
 
-        TotPredicted = cells.geneCountsPerKlass(single_cell_data, egamma, ini)
-        TotPredictedB = np.bincount(spots.geneUniv.spot_id.data, spots.neighboring_cells['prob'][:, -1])
+    @property
+    def eta(self):
+        return self._eta
 
-        nom = ini['rGene'] + spots.geneUniv.total_spots - TotPredictedB - TotPredictedZ
-        denom = ini['rGene'] + TotPredicted
-        self.panel.gene_gamma.data = nom / denom
+    @eta.setter
+    def eta(self, val):
+        self._eta = val
+
+    # def update_gamma(self, cells, spots, single_cell_data, egamma, ini):
+    #     TotPredictedZ = spots.TotPredictedZ(self.panel.spot_id.data,
+    #                                             cells.classProb.sel({'class_name': 'Zero'}).data)
+    #
+    #     TotPredicted = cells.geneCountsPerKlass(single_cell_data, egamma, ini)
+    #     TotPredictedB = np.bincount(spots.geneUniv.spot_id.data, spots.neighboring_cells['prob'][:, -1])
+    #
+    #     nom = ini['rGene'] + spots.geneUniv.total_spots - TotPredictedB - TotPredictedZ
+    #     denom = ini['rGene'] + TotPredicted
+    #     self.panel.gene_gamma.data = nom / denom
 
 
 class Spots(object):
@@ -150,7 +197,7 @@ class Spots(object):
         self.config = config
         self.data = self.read(spots_df)
         self.call = None
-        self.adj_cell_prob = None
+        self._adj_cell_prob = None
         self.adj_cell_id = None
         self.unique_gene_names = None
         self.gene_id = None
@@ -165,8 +212,24 @@ class Spots(object):
         lst = list(zip(*[self.data.x, self.data.y]))
         return np.array(lst)
 
+    @property
+    def adj_cell_prob(self):
+        return self._adj_cell_prob
+
+    @adj_cell_prob.setter
+    def adj_cell_prob(self, val):
+        # logger.info('(1) adj_cell_prob updated....')
+        cell_prob = val[0]
+        cell_obj = val[1]
+        self._adj_cell_prob = cell_prob
+        # Since the spot-to-cell probabilities changed you have
+        # to change the cell gene counts too
+        cell_obj.geneCount_upd(self)
+
     def _unique_genes(self):
-        [self.unique_gene_names, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True, return_counts=True)
+        [self.unique_gene_names, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values,
+                                                                                 return_inverse=True,
+                                                                                 return_counts=True)
         return self.data.gene_name.values
 
     def read(self, spots_df):
@@ -203,7 +266,7 @@ class Spots(object):
 
         return neighbors
 
-    def _cellProb(self, neighbors, cfg):
+    def ini_cellProb(self, neighbors, cfg):
         nS = self.data.shape[0]
         nN = cfg['nNeighbors'] + 1
         SpotInCell = self.data.label
@@ -223,7 +286,8 @@ class Spots(object):
 
     def init_call(self, cells, config):
         self.adj_cell_id = self._neighborCells(cells)
-        self.adj_cell_prob = self._cellProb(self.adj_cell_id, config)
+        self.adj_cell_prob = (self.ini_cellProb(self.adj_cell_id, config), cells)
+        # self.adj_cell_prob = self.ini_cellProb(self.adj_cell_id, config)
 
     def loglik(self, cells, cfg):
         # meanCellRadius = cells.ds.mean_radius
@@ -271,18 +335,18 @@ class Spots(object):
 
         x = x.reshape([2, -1])
         mu = mu.reshape([2, -1])
-        assert x.shape == mu.shape == (2,1), 'Datapoint should have dimension (2, 1)'
+        assert x.shape == mu.shape == (2, 1), 'Datapoint should have dimension (2, 1)'
         assert sigma.shape == (2, 2), 'Covariance matrix should have shape: (2, 2)'
 
         sigma_inv = np.linalg.inv(sigma)
-        a = - k/2 * np.log(2 * np.pi)
+        a = - k / 2 * np.log(2 * np.pi)
         b = - 0.5 * np.log(np.linalg.det(sigma))
-        c = - 0.5 * np.einsum('ji, jk, ki -> i', x-mu, sigma_inv, x-mu)
+        c = - 0.5 * np.einsum('ji, jk, ki -> i', x - mu, sigma_inv, x - mu)
         assert len(c) == 1, 'Should be an array with just one element'
         out = a + b + c[0]
         return out
 
-    def TotPredictedZ(self, geneNo, pCellZero):
+    def zero_class_counts(self, geneNo, pCellZero):
         '''
         ' given a vector
         :param spots:
@@ -301,7 +365,3 @@ class Spots(object):
         # aggregate per gene id
         TotPredictedZ = np.bincount(geneNo, pSpotZero)
         return TotPredictedZ
-
-
-
-

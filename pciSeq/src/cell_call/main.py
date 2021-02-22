@@ -10,6 +10,31 @@ import logging
 dir_path = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger()
 
+# Note: 21-Feb-2020
+# I think there are TWO  bugs.
+#
+# ********** BUG 1 **********
+# I should be using: mean_expression = mean_expression + config['SpotReg']
+# instead of adding the SpotReg value every time I am calling mean_expression.
+# The ScaledExp calculation, in the code below, for example is not correct because the config['SpotReg'] constant
+# should not be added at the very end but should be moved inside the parentheses and added directly to
+# the sc.mean_expression array
+#
+# ********** BUG 2 **********
+# Gene efficienty (eta) is not also handled properly. For eta to have a gamma distribution gamma(r, r/eta_0) with
+# mean=0.2 and variance 20 the hyperparameter should be r = 0.002 and r/eta_0 = 0.002/0.2 = 0.01.
+# The mean value (ie 0.2) is applied on the single cell gene expression right after we have calculated the mean
+# class expression.
+# Then, in the rest of the code, gene efficiency is initialised as a vector of ones. While the vector eta is
+# getting multiplied with the mean expression counts when we derive the cell to cell class assignment, we do not
+# do the same when we calculate the gamma (equation 3 in the NMETH paper. We multiply the mean class expression
+# by the cell area factor and the gene efficiency is missing (see ScaledMean in matlab code)
+# I think It would better to:
+# NOT multiply the mean class expressions counts by 0.2 and the initialise eta as a vector of ones
+# BUT instead:
+# do not scale down the single cell gene expression data by 0.2 at the very beginning
+# initialise eta as a vector 0.2*np.ones([Ng, 1])
+# include eta in the calculations equations 2 and 3 and
 
 class VarBayes:
     def __init__(self, _cells_df, _spots_df, scRNAseq, config):
@@ -25,9 +50,19 @@ class VarBayes:
         self.egamma = None
         self.elgamma = None
 
+    def initialise(self):
+        # initialise the gene efficiencies and the the starting
+        # spot to parent cell assignment
+        # No need to initialise the spot gammas, they are the very first
+        # arrays to be calculated inside the run () method
+        self.genes.eta = np.ones(self.genes.nG)
+        self.spots.init_call(self.cells, self.config)
+        # self.cells.geneCount_upd(self.spots)
+
     # -------------------------------------------------------------------- #
     def run(self):
-        self.spots.init_call(self.cells, self.config)
+        self.initialise()
+        # self.spots.init_call(self.cells, self.config)
 
         p0 = None
         iss_df = None
@@ -72,7 +107,7 @@ class VarBayes:
         sc = self.single_cell_data
         cfg = self.config
         scaled_mean = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], sc.mean_expression)
-        rho = cfg['rSpot'] + cells.geneCount(spots)
+        rho = cfg['rSpot'] + cells.geneCount
         beta = cfg['rSpot'] + scaled_mean
 
         expected_gamma = utils.gammaExpectation(rho, beta)
@@ -95,11 +130,11 @@ class VarBayes:
         :return:
         """
 
-        gene_gamma = self.genes.gamma
+        # gene_gamma = self.genes.eta
         sc = self.single_cell_data
-        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], gene_gamma, sc.mean_expression) + self.config['SpotReg']
+        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], self.genes.eta, sc.mean_expression) + self.config['SpotReg']
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
-        cgc = self.cells.geneCount(self.spots)
+        cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
         wCellClass = np.sum(contr, axis=1) + self.cells.log_prior
         pCellClass = utils.softmax(wCellClass, axis=1)
@@ -115,13 +150,9 @@ class VarBayes:
         # spot to cell assignment
         nN = self.config['nNeighbors'] + 1
         nS = self.spots.data.gene_name.shape[0]
-
-        # initialise array with the misread density
-        aSpotCell = np.zeros([nS, nN]) + np.log(self.config['MisreadDensity'])
+        aSpotCell = np.zeros([nS, nN])
         gn = self.spots.data.gene_name.values
         expected_spot_counts = self.single_cell_data['log_mean_expression'].sel({'gene_name': gn}).data
-
-        # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
         for n in range(nN - 1):
             spots_name = self.spots.data.gene_name.values
             self.single_cell_data['log_mean_expression'].sel({'gene_name': spots_name})
@@ -142,33 +173,33 @@ class VarBayes:
             # expectedLog = utils.bi2(self.elgamma.data, [nS, nK], sn[:, None], self.spots.data.gene_id.values[:, None])
 
             term_2 = np.einsum('ij,ij -> i', cp, expectedLog)  # same as np.sum(cp * expectedLog, axis=1) but bit faster
-
-            loglik = self.spots.mvn_loglik(self.spots.xy_coords, sn, self.cells)
-            aSpotCell[:, n] = term_1 + term_2 + loglik
-            # logger.info('')
-        wSpotCell = aSpotCell # + self.spots.loglik(self.cells, self.config)
+            aSpotCell[:, n] = term_1 + term_2
+        wSpotCell = aSpotCell + self.spots.loglik(self.cells, self.config)
 
         # update the prob a spot belongs to a neighboring cell
         pSpotNeighb = utils.softmax(wSpotCell, axis=1)
-        self.spots.adj_cell_prob = pSpotNeighb
+        self.spots.adj_cell_prob = pSpotNeighb, self.cells
         # logger.info('spot ---> cell probabilities updated')
 
     # -------------------------------------------------------------------- #
     def update_eta(self):
-        # Maybe I should rename that to eta (not gamma). In the paper the symbol is eta
+        grand_total = self.cells.background_counts.sum() + self.cells.total_counts.sum()
+        assert(int(grand_total) == self.spots.data.shape[0] + 1,
+               'The sum of the background spots and the total gene counts should be equal to the number of spots')
+
         zero_prob = self.cells.classProb[:, -1] # probability a cell being a zero expressing cell
-        TotPredictedZ = self.spots.TotPredictedZ(self.spots.gene_id, zero_prob)
+        zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
+        class_total_counts = self.cells.geneCountsPerKlass(self.single_cell_data, self.egamma, self.config)
 
-        TotPredicted = self.cells.geneCountsPerKlass(self.single_cell_data, self.egamma, self.config)
-
-        TotPredictedB = np.bincount(self.spots.gene_id, self.spots.adj_cell_prob[:, -1].data)
-
-        nom = self.config['rGene'] + self.spots.counts_per_gene - TotPredictedB - TotPredictedZ
-        denom = self.config['rGene'] + TotPredicted
+        # TotPredictedB = np.bincount(self.spots.gene_id, self.spots.adj_cell_prob[:, -1].data)
+        # assert np.all(TotPredictedB == self.cells.background_counts)
+        background_counts = self.cells.background_counts
+        nom = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
+        denom = self.config['rGene'] + class_total_counts
         res = nom / denom
 
         # Finally, update gene_gamma
-        self.genes.gamma = res.values
+        self.genes.eta = res.values
 
 
 
