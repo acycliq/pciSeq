@@ -17,7 +17,7 @@ def _iss_summary(cells, spots, genes):
     y = cells.cell_props['y']
     cell_id = cells.cell_props['cell_label']
 
-    gene_count = cells.geneCount(spots)
+    gene_count = cells.geneCount
     class_prob = cells.classProb
     gene_names = genes.gene_names
     class_names = cells.class_names
