@@ -184,8 +184,8 @@ class VarBayes:
     # -------------------------------------------------------------------- #
     def update_eta(self):
         grand_total = self.cells.background_counts.sum() + self.cells.total_counts.sum()
-        assert(int(grand_total) == self.spots.data.shape[0] + 1,
-               'The sum of the background spots and the total gene counts should be equal to the number of spots')
+        assert int(grand_total) == self.spots.data.shape[0], \
+            'The sum of the background spots and the total gene counts should be equal to the number of spots'
 
         zero_prob = self.cells.classProb[:, -1] # probability a cell being a zero expressing cell
         zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
