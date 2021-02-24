@@ -71,7 +71,7 @@ class VarBayes:
         for i in range(max_iter):
             # 1. calc expected gamma
             # logger.info('calc expected gamma')
-            self.egamma, self.elgamma = self.expected_gamma()
+            self.mean_gamma, self.mean_loggamma = self.expected_gamma()
 
             # 2 assign cells to cell types
             # logger.info('cell to cell type')
@@ -169,7 +169,7 @@ class VarBayes:
             term_1 = np.einsum('ij, ij -> i', expected_spot_counts, cp)
 
             # logger.info('genes.spotNo should be something like spots.geneNo instead!!')
-            expectedLog = self.elgamma[self.spots.adj_cell_id[:, n], self.spots.gene_id]
+            expectedLog = self.mean_loggamma[self.spots.adj_cell_id[:, n], self.spots.gene_id]
             # expectedLog = utils.bi2(self.elgamma.data, [nS, nK], sn[:, None], self.spots.data.gene_id.values[:, None])
 
             term_2 = np.einsum('ij,ij -> i', cp, expectedLog)  # same as np.sum(cp * expectedLog, axis=1) but bit faster
@@ -184,12 +184,12 @@ class VarBayes:
     # -------------------------------------------------------------------- #
     def update_eta(self):
         grand_total = self.cells.background_counts.sum() + self.cells.total_counts.sum()
-        assert int(grand_total) == self.spots.data.shape[0], \
+        assert round(grand_total) == self.spots.data.shape[0], \
             'The sum of the background spots and the total gene counts should be equal to the number of spots'
 
         zero_prob = self.cells.classProb[:, -1] # probability a cell being a zero expressing cell
         zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
-        class_total_counts = self.cells.geneCountsPerKlass(self.single_cell_data, self.egamma, self.config)
+        class_total_counts = self.cells.geneCountsPerKlass(self.single_cell_data, self.mean_gamma, self.config)
 
         # TotPredictedB = np.bincount(self.spots.gene_id, self.spots.adj_cell_prob[:, -1].data)
         # assert np.all(TotPredictedB == self.cells.background_counts)
