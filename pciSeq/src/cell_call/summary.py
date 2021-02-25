@@ -35,14 +35,17 @@ def _iss_summary(cells, spots, genes):
     prob_list = [class_prob[n, isProb_nonZero[n]].tolist() for n in range(N)]
 
     iss_df = pd.DataFrame({'Cell_Num': cells.cell_props['cell_label'].tolist(),
-                            'X': cells.cell_props['x'].tolist(),
-                            'Y': cells.cell_props['y'].tolist(),
-                            'Genenames': name_list,
-                            'CellGeneCount': count_list,
-                            'ClassName': class_name_list,
-                            'Prob': prob_list
+                           'X': cells.centroid[:, 0],
+                           'Y': cells.centroid[:, 1],
+                           'X_0': cells.cell_props['x'].tolist(),
+                           'Y_0': cells.cell_props['y'].tolist(),
+                           'Genenames': name_list,
+                           'CellGeneCount': count_list,
+                           'ClassName': class_name_list,
+                           'Prob': prob_list,
+                           'Corr': cells.corr
                             },
-                           columns=['Cell_Num', 'X', 'Y', 'Genenames', 'CellGeneCount', 'ClassName', 'Prob']
+                           columns=['Cell_Num', 'X', 'Y', 'X_0', 'Y_0', 'Genenames', 'CellGeneCount', 'ClassName', 'Prob', 'Corr']
                            )
     iss_df.set_index(['Cell_Num'])
 
