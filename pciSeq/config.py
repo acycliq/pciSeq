@@ -8,7 +8,7 @@ DEFAULT = {
     'exclude_genes': [],
 
     # Maximum number of loops allowed for the Variational Bayes to run
-    'max_iter': 100,
+    'max_iter': 1000,
 
     # Convergence achieved if assignment probabilities between two successive loops is less than the tolerance
     'CellCallTolerance': 0.02,
