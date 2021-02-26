@@ -35,12 +35,12 @@ function add_spots_patched(all_geneData, map) {
 
     function scaleRamp(z) {
         return z === 0 ? 0.125 :
-            z === 1 ? 0.125 :
-                z === 2 ? 0.125 :
-                    z === 3 ? 0.125 :
+            z === 1 ? 0.150 :
+                z === 2 ? 0.150 :
+                    z === 3 ? 0.150 :
                         z === 4 ? 0.125 :
-                            z === 5 ? 0.125 :
-                                z === 6 ? 0.0625 : // every time you zoom in, leaflet scales up by 2. Divide here by 2 to keep the marker the same as in zoom level 5
+                            z === 5 ? 0.125/2 :
+                                z === 6 ? 0.0625/2 : // every time you zoom in, leaflet scales up by 2. Divide here by 2 to keep the marker the same as in zoom level 5
                                     z === 7 ? 0.03125 : 1
     }
 
