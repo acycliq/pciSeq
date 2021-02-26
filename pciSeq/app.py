@@ -95,18 +95,19 @@ def cell_type(_cells, _spots, scRNAseq, ini):
     varBayes = VarBayes(_cells, _spots, scRNAseq, ini)
     cellData, geneData = varBayes.run()
 
-    save_data = False
+    save_data = True
     if save_data:
         # 2. save the results
-        out_dir = ini['out_dir']
+        # out_dir = ini['out_dir']
+        out_dir = './'
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
 
-        cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
-        logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
+        cellData.to_csv(os.path.join(out_dir, 'cellData_2279.tsv'), sep='\t', index=False)
+        logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData_2279.tsv')))
 
-        geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
-        logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
+        geneData.to_csv(os.path.join(out_dir, 'geneData_2279.tsv'), sep='\t', index=False)
+        logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData_2279.tsv')))
 
         # Write to the disk as tsv of 99MB each
         splitter_mb(cellData, os.path.join(out_dir, 'cellData'), 99)
@@ -144,6 +145,12 @@ if __name__ == "__main__":
 
     # read some demo data
     _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'))
+
+    mask_x = (_iss_spots.x.values < 4605.5) & (_iss_spots.x.values > 4425.5)
+    mask_y = (_iss_spots.y.values < 502) & (_iss_spots.y.values > 322)
+    mask = mask_x & mask_y
+    _iss_spots = _iss_spots[mask]
+
     _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'))
 
     _scRNAseq = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),
