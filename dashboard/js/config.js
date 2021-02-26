@@ -2,7 +2,7 @@ function config() {
     return {
             roi: {"x0": 0, "x1": 7602, "y0": 0, "y1": 5471 },
             imageSize: [262144, 188660],
-            tiles: 'dashboard/data/img/ca1/262144px/{z}/{y}/{x}.jpg',
+            tiles: 'https://raw.githubusercontent.com/acycliq/data_dump/master/img/ca1/262144px/{z}/{y}/{x}.jpg',
             cellData: 'https://api.github.com/repos/acycliq/data_dump/contents/ca1_cell_2279/cellData?ref=master',
             geneData: 'https://api.github.com/repos/acycliq/data_dump/contents/ca1_cell_2279/geneData?ref=master',
             cellCoords: 'https://api.github.com/repos/acycliq/data_dump/contents/ca1_cell_2279/cellCoords?ref=master',
