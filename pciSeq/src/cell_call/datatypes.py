@@ -40,26 +40,12 @@ class Cells(object):
 
     @property
     def centroid(self):
-        lst = list(zip(*[self._centroid['x'], self._centroid['y']]))
-        return np.array(lst)
+        # lst = list(zip(*[self._centroid['x'], self._centroid['y']]))
+        return self._centroid.copy()
 
     @centroid.setter
-    def centroid(self, val):
-        # Add a check to prevent cell at position 0 from being mutated
-        try:
-            centre, cell_id = val
-        except ValueError:
-            mask = np.arange(self.num_cells)
-            centre = val
-            assert mask.shape[0] == val.shape[0]
-        else:
-            mask = cell_id
-        # make sure you do not mutate the coordinates of the cell at position 0.
-        # This cell is not a real cell, it represents a dummy cell to collect all
-        # the misreads(simply put it is the background)
-        mask = mask[mask > 0]
-        self._centroid['x'][mask] = centre[mask, 0]
-        self._centroid['y'][mask] = centre[mask, 1]
+    def centroid(self, df):
+        self._centroid = df.copy()
 
     @property
     def cov(self):
@@ -71,11 +57,11 @@ class Cells(object):
 
     @property
     def corr(self):
-        var_x = self.cov[:, 0, 0]
-        var_y = self.cov[:, 1, 1]
+        sigma_x = np.sqrt(self.cov[:, 0, 0])
+        sigma_y = np.sqrt(self.cov[:, 1, 1])
         cov_xy = self.cov[:, 0, 1]
-        rho = cov_xy / np.sqrt(var_x * var_y)
-        return rho
+        rho = cov_xy / (sigma_x * sigma_y)
+        return np.array(list(zip(rho, sigma_x, sigma_y)))
 
     @property
     def geneCount(self):
@@ -100,7 +86,9 @@ class Cells(object):
         return self.geneCount.sum(axis=1)
 
     def ini_centroids(self):
-        return {'x': self.cell_props['x'], 'y': self.cell_props['y']}
+        d = {'x': self.cell_props['x'], 'y': self.cell_props['y']}
+        df = pd.DataFrame(d)
+        return df.copy()
 
     def ini_cov(self):
         mcr = self.dapi_mean_cell_radius()
@@ -110,7 +98,7 @@ class Cells(object):
     def dapi_mean_cell_radius(self):
         return np.nanmean(np.sqrt(self.cell_props['area'] / np.pi)) * 0.5
 
-    def refresh(self, spots):
+    def refresh_me(self, spots):
         self.geneCount_upd(spots)
         self.centroid_upd(spots)
         self.cov_upd(spots)
@@ -133,8 +121,16 @@ class Cells(object):
 
         # aggregated x and y coordinate
         idx = spots.adj_cell_id
-        x_agg = npg.aggregate(idx.ravel(), a.ravel())
-        y_agg = npg.aggregate(idx.ravel(), b.ravel())
+        _x_agg = npg.aggregate(idx.ravel(), a.ravel())
+        _y_agg = npg.aggregate(idx.ravel(), b.ravel())
+
+        x_agg = np.zeros(N_c.shape)
+        mask = np.arange(len(_x_agg))
+        x_agg[mask] = _x_agg
+
+        y_agg = np.zeros(N_c.shape)
+        mask = np.arange(len(_y_agg))
+        y_agg[mask] = _y_agg
 
         # get the estimated cell centers
         x_bar = np.nan * np.ones(N_c.shape)
@@ -153,7 +149,7 @@ class Cells(object):
         # assert np.all(np.isfinite(x_bar) == np.isfinite(y_bar))
         # use the fitted centroids where possible otherwise use the initial ones
         xy_bar[np.isfinite(x_bar)] = xy_bar_fitted[np.isfinite(x_bar)]
-        self.centroid = xy_bar
+        self.centroid = pd.DataFrame(xy_bar, columns=['x', 'y'])
         # print(np.array(list(zip(x_bar.T, y_bar.T))))
 
     def cov_upd(self, spots):
@@ -170,7 +166,7 @@ class Cells(object):
         self.cov = cov
 
     def scatter_matrix(self, spots):
-        mu_bar = self.centroid
+        mu_bar = self.centroid.values
         prob = spots.adj_cell_prob[:, :-1]
         id = spots.adj_cell_id[:, :-1]
         xy_spots = spots.xy_coords
@@ -345,17 +341,10 @@ class Spots(object):
     def adj_cell_prob(self):
         return self._adj_cell_prob
 
-    @adj_cell_prob.setter
-    def adj_cell_prob(self, val):
-        # logger.info('(1) adj_cell_prob updated....')
-        cell_prob = val[0]
-        cell_obj = val[1]
-        self._adj_cell_prob = cell_prob
-        # Since the spot-to-cell probabilities changed you have
-        # to change the cell gene counts too
-        cell_obj.refresh(self)
-        # cell_obj.geneCount_upd(self)
-        # cell_obj.centroid_upd(self)
+    def update_cell_prob(self, new_assignments, cell_obj):
+        # Updates the parent cell probabilities
+        self._adj_cell_prob = new_assignments
+        cell_obj.refresh_me(self)  # Since the spot-to-cell prob changed you have to change the cell gene counts too
 
     def _unique_genes(self):
         [self.unique_gene_names, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values,
@@ -417,7 +406,8 @@ class Spots(object):
 
     def init_call(self, cells, config):
         self.adj_cell_id = self._neighborCells(cells)
-        self.adj_cell_prob = (self.ini_cellProb(self.adj_cell_id, config), cells)
+        ini_prob = self.ini_cellProb(self.adj_cell_id, config)
+        self.update_cell_prob(ini_prob, cells)
         logger.info('ok')
         # self.adj_cell_prob = self.ini_cellProb(self.adj_cell_id, config)
 
@@ -448,7 +438,7 @@ class Spots(object):
     #     return results
 
     def mvn_loglik(self, data, cell_label, cells):
-        centroids = cells.centroid[cell_label]
+        centroids = cells.centroid.values[cell_label]
         covs = cells.cov[cell_label]
         param = list(zip(*[data, centroids, covs]))
         out = [self.loglik_contr(p) for i, p in enumerate(param)]

@@ -69,6 +69,10 @@ class VarBayes:
         gene_df = None
         max_iter = self.config['max_iter']
         for i in range(max_iter):
+            logger.info('initial centroid of cell: 2279 is %s' % self.cells.ini_centroids().iloc[2279].values)
+            logger.info('centroid of cell: 2279 is %s' % self.cells.centroid.iloc[2279].values)
+            logger.info('(rho, sigma_x, sigma_y) of cell: 2279 is %s' % self.cells.corr[2279])
+
             # 1. calc expected gamma
             # logger.info('calc expected gamma')
             self.mean_gamma, self.mean_loggamma = self.expected_gamma()
@@ -185,7 +189,7 @@ class VarBayes:
 
         # update the prob a spot belongs to a neighboring cell
         pSpotNeighb = utils.softmax(wSpotCell, axis=1)
-        self.spots.adj_cell_prob = pSpotNeighb, self.cells
+        self.spots.update_cell_prob(pSpotNeighb, self.cells)
         # logger.info('spot ---> cell probabilities updated')
 
     # -------------------------------------------------------------------- #
