@@ -61,6 +61,10 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def run(self):
+        # make a list to keep the main attributes of the fitted bivariate normal (centroids, correlation etc...)
+        ellipsoid_attr = [self.cells.ellipsoid_attributes]
+
+
         self.initialise()
         # self.spots.init_call(self.cells, self.config)
 
@@ -69,9 +73,10 @@ class VarBayes:
         gene_df = None
         max_iter = self.config['max_iter']
         for i in range(max_iter):
-            logger.info('initial centroid of cell: 2279 is %s' % self.cells.ini_centroids().iloc[2279].values)
-            logger.info('centroid of cell: 2279 is %s' % self.cells.centroid.iloc[2279].values)
-            logger.info('(rho, sigma_x, sigma_y) of cell: 2279 is %s' % self.cells.corr[2279])
+            ellipsoid_attr.append(self.cells.ellipsoid_attributes)
+            logger.info('initial centroid of cell: 2259 is %s' % self.cells.ini_centroids().iloc[2259].values)
+            # logger.info('centroid of cell: 2259 is %s' % self.cells.centroid.iloc[2259].values)
+            logger.info('(mu, rho, sigma_x, sigma_y) of cell: 2259 is %s' % list(self.cells.ellipsoid_attributes[2259]))
 
             # 1. calc expected gamma
             # logger.info('calc expected gamma')
