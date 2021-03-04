@@ -56,12 +56,35 @@ class Cells(object):
         self._cov = val
 
     @property
+    def sigma_x(self):
+        return np.sqrt(self.cov[:, 0, 0])
+
+    @property
+    def sigma_y(self):
+        return np.sqrt(self.cov[:, 1, 1])
+
+    @property
     def corr(self):
         sigma_x = np.sqrt(self.cov[:, 0, 0])
         sigma_y = np.sqrt(self.cov[:, 1, 1])
         cov_xy = self.cov[:, 0, 1]
         rho = cov_xy / (sigma_x * sigma_y)
-        return np.array(list(zip(rho, sigma_x, sigma_y)))
+        return rho
+        # return np.array(list(zip(rho, sigma_x, sigma_y)))
+
+    @property
+    def ellipsoid_attributes(self):
+        """
+        convenience property that returns a list with
+        the ellipoid's centroid, correlation and standard
+        deviation across the x-axis and y-axis
+        """
+        mu = self.centroid.values.tolist()
+        sigma_x = self.sigma_x.tolist()
+        sigma_y = self.sigma_y.tolist()
+        rho = self.corr.tolist()
+        # list(zip(self.cells.centroid.values.tolist(), self.cells.sigma_x.tolist(), self.cells.sigma_y.tolist()))
+        return list(zip(mu, rho, sigma_x, sigma_y))
 
     @property
     def geneCount(self):
