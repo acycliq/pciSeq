@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 import logging
+from pciSeq.src.cell_call.utils import gaussian_ellipsoid
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger()
@@ -34,6 +35,16 @@ def _iss_summary(cells, spots, genes):
     class_name_list = [class_names[isProb_nonZero[n]].tolist() for n in range(N)]
     prob_list = [class_prob[n, isProb_nonZero[n]].tolist() for n in range(N)]
 
+    ellipsoid_border = []
+    for i in range(cells.num_cells):
+        # _mu = np.array([cells.centroid.x[i],  cells.centroid.y[i]])
+        # _rho = cells.corr[i]
+        # _sigma_x = cells.sigma_x[i]
+        # _sigma_y = cells.sigma_x[i]
+        ea = cells.ellipsoid_attributes[i]
+        ellipsis = gaussian_ellipsoid(*ea, 3).astype(np.int)
+        ellipsoid_border.append(ellipsis.tolist())
+
     iss_df = pd.DataFrame({'Cell_Num': cells.cell_props['cell_label'].tolist(),
                            'X': cells.centroid.x.tolist(),
                            'Y': cells.centroid.y.tolist(),
@@ -43,11 +54,12 @@ def _iss_summary(cells, spots, genes):
                            'CellGeneCount': count_list,
                            'ClassName': class_name_list,
                            'Prob': prob_list,
-                           'Corr': cells.corr[:, 0].tolist(),
+                           'rho': cells.corr[:, 0].tolist(),
                            'sigma_x': cells.corr[:,1].tolist(),
-                           'sigma_y': cells.corr[:, 2].tolist()
+                           'sigma_y': cells.corr[:, 2].tolist(),
+                           'ellipsoid_border': ellipsoid_border,
                             },
-                           columns=['Cell_Num', 'X', 'Y', 'X_0', 'Y_0', 'Genenames', 'CellGeneCount', 'ClassName', 'Prob', 'Corr']
+                           columns=['Cell_Num', 'X', 'Y', 'X_0', 'Y_0', 'Genenames', 'CellGeneCount', 'ClassName', 'Prob', 'rho', 'sigma_x', 'sigma_y', 'ellipsoid_border']
                            )
     iss_df.set_index(['Cell_Num'])
 
