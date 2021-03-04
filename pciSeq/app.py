@@ -81,38 +81,53 @@ def fit(iss_spots, coo, scRNAseq, opts=None):
 
     # 2. prepare the data
     logger.info('Preprocessing data')
-    _cells, _cell_boundaries, _spots = stage_data(iss_spots, coo)
+    _cells, cellBoundaries, _spots = stage_data(iss_spots, coo)
 
     # 3. cell typing
     logger.info('Start cell typing')
     cellData, geneData = cell_type(_cells, _spots, scRNAseq, cfg)
+
+    # 4. save to filesystem
+    save_data = True
+    if save_data:
+        write_data(cellData, geneData, cellBoundaries, cfg)
+
     logger.info('Done')
     return cellData, geneData
 
 
 def cell_type(_cells, _spots, scRNAseq, ini):
-    # 1. run the cell calling algo
     varBayes = VarBayes(_cells, _spots, scRNAseq, ini)
     cellData, geneData = varBayes.run()
-
-    save_data = True
-    if save_data:
-        # 2. save the results
-        # out_dir = ini['out_dir']
-        out_dir = './'
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-
-        cellData.to_csv(os.path.join(out_dir, 'cellData_2279.tsv'), sep='\t', index=False)
-        logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData_2279.tsv')))
-
-        geneData.to_csv(os.path.join(out_dir, 'geneData_2279.tsv'), sep='\t', index=False)
-        logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData_2279.tsv')))
-
-        # Write to the disk as tsv of 99MB each
-        splitter_mb(cellData, os.path.join(out_dir, 'cellData'), 99)
-        splitter_mb(geneData, os.path.join(out_dir, 'geneData'), 99)
     return cellData, geneData
+
+
+def write_data(cellData, geneData, cellBoundaries, ini):
+    # out_dir = ini['out_dir']
+    out_dir = r'.\cell_2259'
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+    ellipsoidBorders = cellData[['Cell_Num', 'ellipsoid_border']]
+    ellipsoidBorders = ellipsoidBorders.rename(columns={'Cell_Num': 'label', 'ellipsoid_border': 'coords'})
+
+    cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
+    logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
+
+    geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
+    logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
+
+    cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
+    logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+
+    ellipsoidBorders.to_csv(os.path.join(out_dir, 'ellipsoidBorders.tsv'), sep='\t', index=False)
+    logger.info('Saved at %s' % (os.path.join(out_dir, 'ellipsoidBorders.tsv')))
+
+    # Write to the disk as tsv of 99MB each
+    splitter_mb(cellData, os.path.join(out_dir, 'cellData'), 99)
+    splitter_mb(geneData, os.path.join(out_dir, 'geneData'), 99)
+    splitter_mb(geneData, os.path.join(out_dir, 'cellBoundaries'), 99)
+    splitter_mb(ellipsoidBorders, os.path.join(out_dir, 'ellipsoidBorders'), 99)
 
 
 def init(opts):
