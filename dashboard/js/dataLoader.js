@@ -116,7 +116,7 @@ function data_loader(workPackage) {
     }
 
     function onDataLoaded(data) {
-        [cellBoundaries, cellData] = postLoad([data.cellCoords, data.cellData]);
+        [cellBoundaries, cellData] = postLoad([data.cellEllipsoid, data.cellData]);
 
         // sort cellBoundaries and cellData. These two should be aligned
         cellBoundaries.sort((a, b) => a.cell_id - b.cell_id);
