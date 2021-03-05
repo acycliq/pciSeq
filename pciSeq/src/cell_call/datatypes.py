@@ -177,15 +177,16 @@ class Cells(object):
 
     def cov_upd(self, spots):
         # first get the scatter matrix
-        sm = self.scatter_matrix(spots)
+        S = self.scatter_matrix(spots)  # sample sum of squares
         cov_0 = self.ini_cov()
         nu_0 = self.nu_0
+        S_0 = cov_0 * nu_0 # prior sum of squarea
         N_c = self.total_counts
         d = 2
         denom = np.ones([self.num_cells, 1, 1])
-        denom[:, 0, 0] = N_c + nu_0 - d - 2
+        denom[:, 0, 0] = N_c + nu_0
         # Note: need to add code to handle the case N_c + nu_0 <= d + 2
-        cov = (sm + cov_0) / denom
+        cov = (S + S_0) / denom
         self.cov = cov
 
     def scatter_matrix(self, spots):
