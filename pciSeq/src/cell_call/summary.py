@@ -54,9 +54,9 @@ def _iss_summary(cells, spots, genes):
                            'CellGeneCount': count_list,
                            'ClassName': class_name_list,
                            'Prob': prob_list,
-                           'rho': cells.corr[:, 0].tolist(),
-                           'sigma_x': cells.corr[:,1].tolist(),
-                           'sigma_y': cells.corr[:, 2].tolist(),
+                           'rho': cells.corr.tolist(),
+                           'sigma_x': cells.sigma_x.tolist(),
+                           'sigma_y': cells.sigma_y.tolist(),
                            'ellipsoid_border': ellipsoid_border,
                             },
                            columns=['Cell_Num', 'X', 'Y', 'X_0', 'Y_0', 'Genenames', 'CellGeneCount', 'ClassName', 'Prob', 'rho', 'sigma_x', 'sigma_y', 'ellipsoid_border']
