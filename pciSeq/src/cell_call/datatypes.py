@@ -20,19 +20,23 @@ class Cells(object):
     def __init__(self, _cells_df, config):
         self.config = config
         self.cell_props = read_image_objects(_cells_df, config)
-        self.num_cells = len(self.cell_props['cell_label'])
+        self.nC = len(self.cell_props['cell_label'])
         self.classProb = None
         self.class_names = None
-        self.log_prior = None
+        self._prior = None
         # initialise covariance matrix for all cells
         self._cov = self.ini_cov()
-        self.nu_0 = 15
+        self.nu_0 = 15      # need to move that into config.py
+        self.rho_1 = 0.1    # need to move that into config.py
+        self.rho_2 = 0.1    # need to move that into config.py
         # self._cov = np.tile(8.867 * 8.867 * np.eye(2, 2), (self.num_cells, 1, 1))
         # initialise centroids from the cell segmentation
         self._centroid = self.ini_centroids()
         self._gene_counts = None
         self._background_counts = None
+        self._alpha = None
 
+    # -------- PROPERTIES -------- #
     @property
     def yx_coords(self):
         coords = [d for d in zip(self.cell_props['y'], self.cell_props['x']) if not np.isnan(d).any()]
@@ -108,6 +112,27 @@ class Cells(object):
         # tc = self.geneCount.sum(axis=1)
         return self.geneCount.sum(axis=1)
 
+    @property
+    def alpha(self):
+        return self._alpha
+
+    @alpha.setter
+    def alpha(self, val):
+        self._alpha = val
+
+    @property
+    def prior(self):
+        return self._prior
+
+    @prior.setter
+    def prior(self, val):
+        self._prior = val
+
+    @property
+    def log_prior(self):
+        return np.log(self.prior)
+
+    # -------- METHODS -------- #
     def ini_centroids(self):
         d = {'x': self.cell_props['x'], 'y': self.cell_props['y']}
         df = pd.DataFrame(d)
@@ -116,7 +141,7 @@ class Cells(object):
     def ini_cov(self):
         mcr = self.dapi_mean_cell_radius()
         cov = mcr * mcr * np.eye(2, 2)
-        return np.tile(cov, (self.num_cells, 1, 1))
+        return np.tile(cov, (self.nC, 1, 1))
 
     def dapi_mean_cell_radius(self):
         return np.nanmean(np.sqrt(self.cell_props['area'] / np.pi)) * 0.5
@@ -128,107 +153,119 @@ class Cells(object):
         # self.corr
         # logger.info('refreshed!')
 
-    def centroid_upd(self, spots):
-        # get the total gene counts per cell
-        N_c = self.total_counts
-
-        xy_spots = spots.xy_coords
-        prob = spots.adj_cell_prob
-        n = self.config['nNeighbors'] + 1
-
-        # mulitply the x coord of the spots by the cell prob
-        a = np.tile(xy_spots[:, 0], (n, 1)).T * prob
-
-        # mulitply the y coord of the spots by the cell prob
-        b = np.tile(xy_spots[:, 1], (n, 1)).T * prob
-
-        # aggregated x and y coordinate
-        idx = spots.adj_cell_id
-        _x_agg = npg.aggregate(idx.ravel(), a.ravel())
-        _y_agg = npg.aggregate(idx.ravel(), b.ravel())
-
-        x_agg = np.zeros(N_c.shape)
-        mask = np.arange(len(_x_agg))
-        x_agg[mask] = _x_agg
-
-        y_agg = np.zeros(N_c.shape)
-        mask = np.arange(len(_y_agg))
-        y_agg[mask] = _y_agg
-
-        # get the estimated cell centers
-        x_bar = np.nan * np.ones(N_c.shape)
-        y_bar = np.nan * np.ones(N_c.shape)
-        x_bar[N_c > 0] = x_agg[N_c > 0] / N_c[N_c > 0]
-        y_bar[N_c > 0] = y_agg[N_c > 0] / N_c[N_c > 0]
-        # cells with N_c = 0 will end up with x_bar = y_bar = np.nan
-        xy_bar_fitted = np.array(list(zip(x_bar.T, y_bar.T)))
-
-        # if you have a value for the estimated centroid use that, otherwise
-        # use the initial (starting values) centroids
-        ini_cent = self.ini_centroids()
-        xy_bar = np.array(tuple(zip(*[ini_cent['x'], ini_cent['y']])))
-
-        # # sanity check. NaNs or Infs should appear together
-        # assert np.all(np.isfinite(x_bar) == np.isfinite(y_bar))
-        # use the fitted centroids where possible otherwise use the initial ones
-        xy_bar[np.isfinite(x_bar)] = xy_bar_fitted[np.isfinite(x_bar)]
-        self.centroid = pd.DataFrame(xy_bar, columns=['x', 'y'])
-        # print(np.array(list(zip(x_bar.T, y_bar.T))))
-
-    def cov_upd(self, spots):
-        # first get the scatter matrix
-        S = self.scatter_matrix(spots)  # sample sum of squares
-        cov_0 = self.ini_cov()
-        nu_0 = self.nu_0
-        S_0 = cov_0 * nu_0 # prior sum of squarea
-        N_c = self.total_counts
-        d = 2
-        denom = np.ones([self.num_cells, 1, 1])
-        denom[:, 0, 0] = N_c + nu_0
-        # Note: need to add code to handle the case N_c + nu_0 <= d + 2
-        cov = (S + S_0) / denom
-        self.cov = cov
+    # def centroid_upd(self, spots):
+    #     # get the total gene counts per cell
+    #     N_c = self.total_counts
+    #
+    #     xy_spots = spots.xy_coords
+    #     prob = spots.parent_cell_prob
+    #     n = self.config['nNeighbors'] + 1
+    #
+    #     # mulitply the x coord of the spots by the cell prob
+    #     a = np.tile(xy_spots[:, 0], (n, 1)).T * prob
+    #
+    #     # mulitply the y coord of the spots by the cell prob
+    #     b = np.tile(xy_spots[:, 1], (n, 1)).T * prob
+    #
+    #     # aggregated x and y coordinate
+    #     idx = spots.parent_cell_id
+    #     _x_agg = npg.aggregate(idx.ravel(), a.ravel())
+    #     _y_agg = npg.aggregate(idx.ravel(), b.ravel())
+    #
+    #     x_agg = np.zeros(N_c.shape)
+    #     mask = np.arange(len(_x_agg))
+    #     x_agg[mask] = _x_agg
+    #
+    #     y_agg = np.zeros(N_c.shape)
+    #     mask = np.arange(len(_y_agg))
+    #     y_agg[mask] = _y_agg
+    #
+    #     # get the estimated cell centers
+    #     x_bar = np.nan * np.ones(N_c.shape)
+    #     y_bar = np.nan * np.ones(N_c.shape)
+    #     x_bar[N_c > 0] = x_agg[N_c > 0] / N_c[N_c > 0]
+    #     y_bar[N_c > 0] = y_agg[N_c > 0] / N_c[N_c > 0]
+    #     # cells with N_c = 0 will end up with x_bar = y_bar = np.nan
+    #     xy_bar_fitted = np.array(list(zip(x_bar.T, y_bar.T)))
+    #
+    #     # if you have a value for the estimated centroid use that, otherwise
+    #     # use the initial (starting values) centroids
+    #     ini_cent = self.ini_centroids()
+    #     xy_bar = np.array(tuple(zip(*[ini_cent['x'], ini_cent['y']])))
+    #
+    #     # # sanity check. NaNs or Infs should appear together
+    #     # assert np.all(np.isfinite(x_bar) == np.isfinite(y_bar))
+    #     # use the fitted centroids where possible otherwise use the initial ones
+    #     xy_bar[np.isfinite(x_bar)] = xy_bar_fitted[np.isfinite(x_bar)]
+    #     self.centroid = pd.DataFrame(xy_bar, columns=['x', 'y'])
+    #     # print(np.array(list(zip(x_bar.T, y_bar.T))))
+    #
+    # def cov_upd(self, spots):
+    #     # first get the scatter matrix
+    #     S = self.scatter_matrix(spots)  # sample sum of squares
+    #     cov_0 = self.ini_cov()
+    #     nu_0 = self.nu_0
+    #     S_0 = cov_0 * nu_0 # prior sum of squarea
+    #     N_c = self.total_counts
+    #     d = 2
+    #     denom = np.ones([self.num_cells, 1, 1])
+    #     denom[:, 0, 0] = N_c + nu_0
+    #     # Note: need to add code to handle the case N_c + nu_0 <= d + 2
+    #     cov = (S + S_0) / denom
+    #     self.cov = cov
 
     def scatter_matrix(self, spots):
         mu_bar = self.centroid.values
-        prob = spots.adj_cell_prob[:, :-1]
-        id = spots.adj_cell_id[:, :-1]
+        prob = spots.parent_cell_prob[:, :-1]
+        id = spots.parent_cell_id[:, :-1]
         xy_spots = spots.xy_coords
-        out = self.ini_cov()
+        out = self.ini_cov() * self.nu_0
         # out = np.tile(np.eye(2, 2), (self.num_cells, 1, 1))
 
-        mu_x = mu_bar[id, 0]
-        mu_y = mu_bar[id, 1]
+        mu_x = mu_bar[id, 0]  # array of size [nS, N] with the x-coord of the centroid of the N closest cells
+        mu_y = mu_bar[id, 1]  # array of size [nS, N] with the y-coord of the centroid of the N closest cells
 
         N = mu_x.shape[1]
-        _x = np.tile(xy_spots[:, 0], (N, 1)).T
-        _y = np.tile(xy_spots[:, 1], (N, 1)).T
-        x_centered = _x - mu_x
-        y_centered = _y - mu_y
+        _x = np.tile(xy_spots[:, 0], (N, 1)).T  # array of size [nS, N] populated with the x-coord of the spot
+        _y = np.tile(xy_spots[:, 1], (N, 1)).T  # array of size [nS, N] populated with the y-coord of the spot
+        x_centered = _x - mu_x  # subtract the cell centroid x-coord from the spot x-coord
+        y_centered = _y - mu_y  # subtract the cell centroid y-coord from the spot x-coord
 
-        el_00 = prob * x_centered * x_centered
-        el_11 = prob * y_centered * y_centered
-        el_01 = prob * x_centered * y_centered
+        el_00 = prob * x_centered * x_centered  # contribution to the scatter matrix's [0, 0] element
+        el_11 = prob * y_centered * y_centered  # contribution to the scatter matrix's off-diagonal element
+        el_01 = prob * x_centered * y_centered  # contribution to the scatter matrix's [1, 1] element
 
-        agg_00 = npg.aggregate(id.ravel(), el_00.ravel())
-        agg_11 = npg.aggregate(id.ravel(), el_11.ravel())
-        agg_01 = npg.aggregate(id.ravel(), el_01.ravel())
+        # Aggregate all contributions to get the scatter matrix
+        agg_00 = npg.aggregate(id.ravel(), el_00.ravel(), size=self.nC)
+        agg_11 = npg.aggregate(id.ravel(), el_11.ravel(), size=self.nC)
+        agg_01 = npg.aggregate(id.ravel(), el_01.ravel(), size=self.nC)
 
-        mcr = self.dapi_mean_cell_radius()
-        agg_00[agg_00 == 0] = mcr * mcr
-        agg_11[agg_11 == 0] = mcr * mcr
+        # # Some cell might not have any spots nearby (or all spots identical to the centroid)
+        # nonEmpty = (agg_00 > 0) & (agg_11 > 0)
 
-        # very unlikely but if the last cells do not appear anywhere
-        # in the id vector, then the agg vector will be shorter than
-        # the number of cells. Using the preallocated out array and the
-        # mask will ensure that the covariance matrix for the last
-        # few cells (if any) will be backfilled with the default cov
-        # and the return value has correct length
-        mask = np.arange(len(agg_00))
-        out[mask, 0, 0] = agg_00
-        out[mask, 0, 1] = agg_01
-        out[mask, 1, 0] = agg_01
-        out[mask, 1, 1] = agg_11
+        # Return now the scatter matrix. Some cell might not have any spots nearby. For those empty cells,
+        # the scatter matrix will be a zero squared array. That is fine.
+        out[:, 0, 0] = agg_00
+        out[:, 1, 1] = agg_11
+        out[:, 0, 1] = agg_01
+        out[:, 1, 0] = agg_01
+
+        # mcr = self.dapi_mean_cell_radius()
+        #
+        # agg_00[agg_00 == 0] = mcr * mcr
+        # agg_11[agg_11 == 0] = mcr * mcr
+        #
+        # # very unlikely but if the last cells do not appear anywhere
+        # # in the id vector, then the agg vector will be shorter than
+        # # the number of cells. Using the preallocated out array and the
+        # # mask will ensure that the covariance matrix for the last
+        # # few cells (if any) will be backfilled with the default cov
+        # # and the return value has correct length
+        # mask = np.arange(len(agg_00))
+        # out[:, 0, 0] = agg_00
+        # out[:, 0, 1] = agg_01
+        # out[:, 1, 0] = agg_01
+        # out[:, 1, 1] = agg_11
         return out
 
     # def corr(self):
@@ -244,12 +281,15 @@ class Cells(object):
     #     mask = ~np.isnan(self.cell_props.y) & ~np.isnan(self.cell_props.x)
     #     return self.cell_props.cell_id[mask]
 
-    def prior(self, cell_type):
-        name = cell_type
-        nK = name.shape[0]
-        # Check this....maybe you should divide my K-1
-        value = np.append([.5 * np.ones(nK - 1) / nK], 0.5)
-        return np.log(value)
+    # def prior(self, cell_type):
+    #     name = cell_type
+    #     nK = name.shape[0]
+    #     # Check this....maybe you should divide my K-1
+    #     value = np.append([.5 * np.ones(nK - 1) / nK], 0.5)
+    #     return value
+
+    # def log_prior(self):
+    #     return np.log(self.prior)
 
     def nn(self):
         n = self.config['nNeighbors'] + 1
@@ -257,47 +297,47 @@ class Cells(object):
         nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(self.yx_coords)
         return nbrs
 
-    def geneCount_upd(self, spots):
-        '''
-        Produces a matrix numCells-by-numGenes where element at position (c,g) keeps the expected
-        number of gene g  in cell c.
-        :param spots:
-        :return:
-        '''
-        # logger.info('(2)... ok geneCount_upd')
-        start = time.time()
-        nC = self.num_cells
-        nG = len(spots.unique_gene_names)
-        # cell_id = self.cell_id
-        # _id = np.append(cell_id, cell_id.max()+1)
-        # _id = self.cell_props['cell_id']
-        nN = self.config['nNeighbors'] + 1
-        CellGeneCount = np.zeros([nC, nG])
-
-        # name = spots.gene_panel.index.values
-        spot_id = spots.gene_id
-        for n in range(nN):
-            # for n in range(nN - 1):
-            c = spots.adj_cell_id[:, n]
-            # c = spots.neighboring_cells['id'].sel(neighbor=n).values
-            group_idx = np.vstack((c[None, :], spot_id[None, :]))
-            a = spots.adj_cell_prob[:, n]
-            accumarray = npg.aggregate(group_idx, a, func="sum", size=(nC, nG))
-            if n == nN - 1:
-                self.background_counts = accumarray
-            else:
-                CellGeneCount = CellGeneCount + accumarray
-
-        end = time.time()
-        # print('time in geneCount: ', end - start)
-        # CellGeneCount = xr.DataArray(CellGeneCount, coords=[_id, name], dims=['cell_id', 'gene_name'])
-        # self.CellGeneCount = CellGeneCount
-
-        # print(self.background_counts.sum())
-        # print(CellGeneCount.sum(axis=1).sum())
-        # assert self.background_counts.sum() + CellGeneCount.sum(axis=1).sum() == spots.data.shape[0], \
-        #     "The sum of the background spots and the cell gene counts should be equal to the total number of spots"
-        self.geneCount = CellGeneCount
+    # def geneCount_upd(self, spots):
+    #     '''
+    #     Produces a matrix numCells-by-numGenes where element at position (c,g) keeps the expected
+    #     number of gene g  in cell c.
+    #     :param spots:
+    #     :return:
+    #     '''
+    #     # logger.info('(2)... ok geneCount_upd')
+    #     start = time.time()
+    #     nC = self.num_cells
+    #     nG = len(spots.unique_gene_names)
+    #     # cell_id = self.cell_id
+    #     # _id = np.append(cell_id, cell_id.max()+1)
+    #     # _id = self.cell_props['cell_id']
+    #     nN = self.config['nNeighbors'] + 1
+    #     CellGeneCount = np.zeros([nC, nG])
+    #
+    #     # name = spots.gene_panel.index.values
+    #     spot_id = spots.gene_id
+    #     for n in range(nN):
+    #         # for n in range(nN - 1):
+    #         c = spots.parent_cell_id[:, n]
+    #         # c = spots.neighboring_cells['id'].sel(neighbor=n).values
+    #         group_idx = np.vstack((c[None, :], spot_id[None, :]))
+    #         a = spots.parent_cell_prob[:, n]
+    #         accumarray = npg.aggregate(group_idx, a, func="sum", size=(nC, nG))
+    #         if n == nN - 1:
+    #             self.background_counts = accumarray
+    #         else:
+    #             CellGeneCount = CellGeneCount + accumarray
+    #
+    #     end = time.time()
+    #     # print('time in geneCount: ', end - start)
+    #     # CellGeneCount = xr.DataArray(CellGeneCount, coords=[_id, name], dims=['cell_id', 'gene_name'])
+    #     # self.CellGeneCount = CellGeneCount
+    #
+    #     # print(self.background_counts.sum())
+    #     # print(CellGeneCount.sum(axis=1).sum())
+    #     # assert self.background_counts.sum() + CellGeneCount.sum(axis=1).sum() == spots.data.shape[0], \
+    #     #     "The sum of the background spots and the cell gene counts should be equal to the total number of spots"
+    #     self.geneCount = CellGeneCount
 
     def geneCountsPerKlass(self, single_cell_data, egamma, ini):
         # temp = self.classProb * self.cell_props.area_factor.to_xarray() * egamma
@@ -343,18 +383,39 @@ class Genes(object):
 
 class Spots(object):
     def __init__(self, spots_df, config):
+        self._parent_cell_prob = None
+        self._parent_cell_id = None
         self.config = config
         self.data = self.read(spots_df)
+        self.nS = self.data.shape[0]
         self.call = None
-        self._adj_cell_prob = None
-        self.adj_cell_id = None
+        # self._adj_cell_prob = None
+        # self.adj_cell_id = None
         self.unique_gene_names = None
         self.gene_id = None
         self.counts_per_gene = None
         self._unique_genes()
+        self._gamma_bar = None
+        self._log_gamma_bar = None
         # self._genes = Genes(self)
         # self.data['gene_id'] = self._genes.spot_id
         # self.gene_panel = self._genes.panel
+
+    @property
+    def gamma_bar(self):
+        return self._gamma_bar
+
+    @gamma_bar.setter
+    def gamma_bar(self, val):
+        self._gamma_bar = val
+
+    @property
+    def log_gamma_bar(self):
+        return self._log_gamma_bar
+
+    @log_gamma_bar.setter
+    def log_gamma_bar(self, val):
+        self._log_gamma_bar = val
 
     @property
     def xy_coords(self):
@@ -362,8 +423,20 @@ class Spots(object):
         return np.array(lst)
 
     @property
-    def adj_cell_prob(self):
-        return self._adj_cell_prob
+    def parent_cell_prob(self):
+        return self._parent_cell_prob
+
+    @parent_cell_prob.setter
+    def parent_cell_prob(self, val):
+        self._parent_cell_prob = val
+
+    @property
+    def parent_cell_id(self):
+        return self._parent_cell_id
+
+    @parent_cell_id.setter
+    def parent_cell_id(self, val):
+        self._parent_cell_id = val
 
     def update_cell_prob(self, new_assignments, cell_obj):
         # Updates the parent cell probabilities
@@ -396,7 +469,7 @@ class Spots(object):
         spots_df = spots_df.loc[gene_mask]
         return spots_df.rename_axis('spot_id').rename(columns={'target': 'gene_name'})
 
-    def _neighborCells(self, cells):
+    def cells_nearby(self, cells):
         # this needs some clean up.
         spotYX = self.data[['y', 'x']]
         # numCells = cells.num_cells
@@ -411,6 +484,9 @@ class Spots(object):
         return neighbors
 
     def ini_cellProb(self, neighbors, cfg):
+        # Note: Something is not right here.
+        # The total sum of the return value should be the same as the number od spots but it is NOT!!
+        # It doesnt seem to be a very crucial bug though.
         nS = self.data.shape[0]
         nN = cfg['nNeighbors'] + 1
         SpotInCell = self.data.label
@@ -429,7 +505,7 @@ class Spots(object):
         return pSpotNeighb
 
     def init_call(self, cells, config):
-        self.adj_cell_id = self._neighborCells(cells)
+        self.adj_cell_id = self.cells_nearby(cells)
         ini_prob = self.ini_cellProb(self.adj_cell_id, config)
         self.update_cell_prob(ini_prob, cells)
         logger.info('ok')
@@ -500,10 +576,10 @@ class Spots(object):
         '''
 
         # for each spot get the ids of the 3 nearest cells
-        spotNeighbours = self.adj_cell_id[:, :-1]
+        spotNeighbours = self.parent_cell_id[:, :-1]
 
         # get the corresponding probabilities
-        neighbourProb = self.adj_cell_prob[:, :-1]
+        neighbourProb = self.parent_cell_prob[:, :-1]
 
         # prob that a spot belongs to a zero expressing cell
         pSpotZero = np.sum(neighbourProb * pCellZero[spotNeighbours], axis=1)
