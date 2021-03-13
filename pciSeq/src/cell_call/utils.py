@@ -320,6 +320,9 @@ def load_from_url(url):
 
 def gaussian_ellipsoid(mu, rho, sigma_x, sigma_y, sdwidth=None):
     """
+    NOTE: NP NEED TO RECONSTRUCT THE COV MATRIX FROM THE VARIANCES.
+    THE COVARIANCE MATRIX IS ALREADY AVAILABLE, YOU SHOULD PASS THAT
+    INSTEAD OF THE SIGMAS AND RHO.
     Draws an ellipsoid for a given covariance matrix cov
     and mean vector mu
 
@@ -348,8 +351,8 @@ def gaussian_ellipsoid(mu, rho, sigma_x, sigma_y, sdwidth=None):
     if sdwidth is None:
         sdwidth = 1
 
-    cov_00 = sigma_x * sigma_y
-    cov_10 = rho * sigma_y * sigma_y
+    cov_00 = sigma_x * sigma_x
+    cov_10 = rho * sigma_x * sigma_y
     cov_11 = sigma_y * sigma_y
     cov = np.array([[cov_00, cov_10], [cov_10, cov_11]])
     mu = np.array(mu)
