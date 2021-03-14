@@ -36,7 +36,7 @@ def _iss_summary(cells, spots, genes):
     prob_list = [class_prob[n, isProb_nonZero[n]].tolist() for n in range(N)]
 
     ellipsoid_border = []
-    for i in range(cells.num_cells):
+    for i in range(cells.nC):
         # _mu = np.array([cells.centroid.x[i],  cells.centroid.y[i]])
         # _rho = cells.corr[i]
         # _sigma_x = cells.sigma_x[i]
@@ -77,8 +77,8 @@ def _summary(spots):
 
     num_rows = spots.data.shape[0]
 
-    cell_prob = spots.adj_cell_prob
-    neighbors = spots.adj_cell_id
+    cell_prob = spots.parent_cell_prob
+    neighbors = spots.parent_cell_id
     p = [cell_prob[i, :].tolist() for i in range(num_rows)]
     nbrs = [neighbors[i, :].tolist() for i in range(num_rows)]
     max_nbrs = [neighbors[i, idx].tolist() for i in range(num_rows) for idx in [np.argmax(cell_prob[i, :])]]
