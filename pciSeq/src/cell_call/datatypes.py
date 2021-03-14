@@ -27,8 +27,8 @@ class Cells(object):
         # initialise covariance matrix for all cells
         self._cov = self.ini_cov()
         self.nu_0 = 15      # need to move that into config.py
-        self.rho_1 = 0.1    # need to move that into config.py
-        self.rho_2 = 0.1    # need to move that into config.py
+        self.rho_1 = 10    # need to move that into config.py
+        self.rho_2 = 10   # need to move that into config.py
         # self._cov = np.tile(8.867 * 8.867 * np.eye(2, 2), (self.num_cells, 1, 1))
         # initialise centroids from the cell segmentation
         self._centroid = self.ini_centroids()
@@ -84,6 +84,7 @@ class Cells(object):
         deviation across the x-axis and y-axis
         """
         mu = self.centroid.values.tolist()
+        # cov = self.cov.tolist()
         sigma_x = self.sigma_x.tolist()
         sigma_y = self.sigma_y.tolist()
         rho = self.corr.tolist()
@@ -146,7 +147,7 @@ class Cells(object):
     def dapi_mean_cell_radius(self):
         return np.nanmean(np.sqrt(self.cell_props['area'] / np.pi)) * 0.5
 
-    def refresh_me(self, spots):
+    def refresh_me(self, spots) -> None:
         self.geneCount_upd(spots)
         self.centroid_upd(spots)
         self.cov_upd(spots)
@@ -240,56 +241,13 @@ class Cells(object):
         agg_11 = npg.aggregate(id.ravel(), el_11.ravel(), size=self.nC)
         agg_01 = npg.aggregate(id.ravel(), el_01.ravel(), size=self.nC)
 
-        # # Some cell might not have any spots nearby (or all spots identical to the centroid)
-        # nonEmpty = (agg_00 > 0) & (agg_11 > 0)
-
         # Return now the scatter matrix. Some cell might not have any spots nearby. For those empty cells,
         # the scatter matrix will be a zero squared array. That is fine.
         out[:, 0, 0] = agg_00
         out[:, 1, 1] = agg_11
         out[:, 0, 1] = agg_01
         out[:, 1, 0] = agg_01
-
-        # mcr = self.dapi_mean_cell_radius()
-        #
-        # agg_00[agg_00 == 0] = mcr * mcr
-        # agg_11[agg_11 == 0] = mcr * mcr
-        #
-        # # very unlikely but if the last cells do not appear anywhere
-        # # in the id vector, then the agg vector will be shorter than
-        # # the number of cells. Using the preallocated out array and the
-        # # mask will ensure that the covariance matrix for the last
-        # # few cells (if any) will be backfilled with the default cov
-        # # and the return value has correct length
-        # mask = np.arange(len(agg_00))
-        # out[:, 0, 0] = agg_00
-        # out[:, 0, 1] = agg_01
-        # out[:, 1, 0] = agg_01
-        # out[:, 1, 1] = agg_11
         return out
-
-    # def corr(self):
-    #     var_x = self.cov[:, 0, 0]
-    #     var_y = self.cov[:, 1, 1]
-    #     cov_xy = self.cov[:, 0, 1]
-    #     rho = cov_xy / np.sqrt(var_x * var_y)
-    #     return rho
-
-
-    # @property
-    # def cell_id(self):
-    #     mask = ~np.isnan(self.cell_props.y) & ~np.isnan(self.cell_props.x)
-    #     return self.cell_props.cell_id[mask]
-
-    # def prior(self, cell_type):
-    #     name = cell_type
-    #     nK = name.shape[0]
-    #     # Check this....maybe you should divide my K-1
-    #     value = np.append([.5 * np.ones(nK - 1) / nK], 0.5)
-    #     return value
-
-    # def log_prior(self):
-    #     return np.log(self.prior)
 
     def nn(self):
         n = self.config['nNeighbors'] + 1
@@ -297,54 +255,17 @@ class Cells(object):
         nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(self.yx_coords)
         return nbrs
 
-    # def geneCount_upd(self, spots):
-    #     '''
-    #     Produces a matrix numCells-by-numGenes where element at position (c,g) keeps the expected
-    #     number of gene g  in cell c.
-    #     :param spots:
-    #     :return:
-    #     '''
-    #     # logger.info('(2)... ok geneCount_upd')
-    #     start = time.time()
-    #     nC = self.num_cells
-    #     nG = len(spots.unique_gene_names)
-    #     # cell_id = self.cell_id
-    #     # _id = np.append(cell_id, cell_id.max()+1)
-    #     # _id = self.cell_props['cell_id']
-    #     nN = self.config['nNeighbors'] + 1
-    #     CellGeneCount = np.zeros([nC, nG])
-    #
-    #     # name = spots.gene_panel.index.values
-    #     spot_id = spots.gene_id
-    #     for n in range(nN):
-    #         # for n in range(nN - 1):
-    #         c = spots.parent_cell_id[:, n]
-    #         # c = spots.neighboring_cells['id'].sel(neighbor=n).values
-    #         group_idx = np.vstack((c[None, :], spot_id[None, :]))
-    #         a = spots.parent_cell_prob[:, n]
-    #         accumarray = npg.aggregate(group_idx, a, func="sum", size=(nC, nG))
-    #         if n == nN - 1:
-    #             self.background_counts = accumarray
-    #         else:
-    #             CellGeneCount = CellGeneCount + accumarray
-    #
-    #     end = time.time()
-    #     # print('time in geneCount: ', end - start)
-    #     # CellGeneCount = xr.DataArray(CellGeneCount, coords=[_id, name], dims=['cell_id', 'gene_name'])
-    #     # self.CellGeneCount = CellGeneCount
-    #
-    #     # print(self.background_counts.sum())
-    #     # print(CellGeneCount.sum(axis=1).sum())
-    #     # assert self.background_counts.sum() + CellGeneCount.sum(axis=1).sum() == spots.data.shape[0], \
-    #     #     "The sum of the background spots and the cell gene counts should be equal to the total number of spots"
-    #     self.geneCount = CellGeneCount
-
     def geneCountsPerKlass(self, single_cell_data, egamma, ini):
         # temp = self.classProb * self.cell_props.area_factor.to_xarray() * egamma
         # temp = temp.sum(dim='cell_id')
         # if you want to calc temp with einsum:
-        temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.cell_props['area_factor'], egamma)
+        temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.alpha, egamma)
+        # temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.cell_props['area_factor'], egamma)
+
+        # total counts predicted by all cells of each class (nG, nK)
         ClassTotPredicted = temp * (single_cell_data.mean_expression + ini['SpotReg'])
+
+        # total of each gene
         TotPredicted = ClassTotPredicted.drop('Zero', dim='class_name').sum(dim='class_name')
         return TotPredicted
 
@@ -357,10 +278,6 @@ class Genes(object):
         self.gene_names = spots.unique_gene_names
         self.nG = len(self.gene_names)
 
-    # @property
-    # def gamma(self):
-    #     return self._eta
-
     @property
     def eta(self):
         return self._eta
@@ -368,17 +285,6 @@ class Genes(object):
     @eta.setter
     def eta(self, val):
         self._eta = val
-
-    # def update_gamma(self, cells, spots, single_cell_data, egamma, ini):
-    #     TotPredictedZ = spots.TotPredictedZ(self.panel.spot_id.data,
-    #                                             cells.classProb.sel({'class_name': 'Zero'}).data)
-    #
-    #     TotPredicted = cells.geneCountsPerKlass(single_cell_data, egamma, ini)
-    #     TotPredictedB = np.bincount(spots.geneUniv.spot_id.data, spots.neighboring_cells['prob'][:, -1])
-    #
-    #     nom = ini['rGene'] + spots.geneUniv.total_spots - TotPredictedB - TotPredictedZ
-    #     denom = ini['rGene'] + TotPredicted
-    #     self.panel.gene_gamma.data = nom / denom
 
 
 class Spots(object):
@@ -389,17 +295,12 @@ class Spots(object):
         self.data = self.read(spots_df)
         self.nS = self.data.shape[0]
         self.call = None
-        # self._adj_cell_prob = None
-        # self.adj_cell_id = None
         self.unique_gene_names = None
         self.gene_id = None
         self.counts_per_gene = None
         self._unique_genes()
         self._gamma_bar = None
         self._log_gamma_bar = None
-        # self._genes = Genes(self)
-        # self.data['gene_id'] = self._genes.spot_id
-        # self.gene_panel = self._genes.panel
 
     @property
     def gamma_bar(self):
@@ -438,10 +339,10 @@ class Spots(object):
     def parent_cell_id(self, val):
         self._parent_cell_id = val
 
-    def update_cell_prob(self, new_assignments, cell_obj):
-        # Updates the parent cell probabilities
-        self._adj_cell_prob = new_assignments
-        cell_obj.refresh_me(self)  # Since the spot-to-cell prob changed you have to change the cell gene counts too
+    # def update_cell_prob(self, new_assignments, cell_obj):
+    #     # Updates the parent cell probabilities
+    #     self._adj_cell_prob = new_assignments
+    #     cell_obj.refresh_me(self)  # Since the spot-to-cell prob changed you have to change the cell gene counts too
 
     def _unique_genes(self):
         [self.unique_gene_names, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values,
@@ -469,7 +370,7 @@ class Spots(object):
         spots_df = spots_df.loc[gene_mask]
         return spots_df.rename_axis('spot_id').rename(columns={'target': 'gene_name'})
 
-    def cells_nearby(self, cells):
+    def cells_nearby(self, cells: Cells) -> np.array:
         # this needs some clean up.
         spotYX = self.data[['y', 'x']]
         # numCells = cells.num_cells
@@ -504,12 +405,12 @@ class Spots(object):
         ## Add a couple of checks here
         return pSpotNeighb
 
-    def init_call(self, cells, config):
-        self.adj_cell_id = self.cells_nearby(cells)
-        ini_prob = self.ini_cellProb(self.adj_cell_id, config)
-        self.update_cell_prob(ini_prob, cells)
-        logger.info('ok')
-        # self.adj_cell_prob = self.ini_cellProb(self.adj_cell_id, config)
+    # def init_call(self, cells, config):
+    #     self.adj_cell_id = self.cells_nearby(cells)
+    #     ini_prob = self.ini_cellProb(self.adj_cell_id, config)
+    #     self.update_cell_prob(ini_prob, cells)
+    #     logger.info('ok')
+    #     # self.adj_cell_prob = self.ini_cellProb(self.adj_cell_id, config)
 
     def loglik(self, cells, cfg):
         # meanCellRadius = cells.ds.mean_radius

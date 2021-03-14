@@ -51,12 +51,13 @@ class VarBayes:
         self.nK = len(self.scData.class_name)           # number of classes
         self.nS = self.spots.nS                         # number of spots
         self.nN = self.config['nNeighbors'] + 1         # number of neighbouring cells, candidates for being parent
-                                                        # cell of any given given spots. The last one will be used
-                                                        # for the misread spots.
+                                                        # cell of any given spot. The last one will be used for the
+                                                        # misread spots.
 
     def initialise(self):
         # initialise the gene efficiencies and the the starting
         # spot to parent cell assignment
+        self.cells.class_names = self.scData.coords['class_name'].values
 
         self.cells.prior = np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
         self.cells.classProb = np.tile(self.cells.prior, (self.nC, 1))
@@ -169,12 +170,16 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def gamma_upd(self):
+        """
+         Implements equation (3) of the Qian paper
+        """
         self.cells.alpha
         cells = self.cells
         spots = self.spots
         sc = self.scData
         cfg = self.config
-        scaled_mean = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], sc.mean_expression)
+        scaled_mean = np.einsum('c, gk -> cgk', self.cells.alpha, sc.mean_expression)
+        # scaled_mean = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], sc.mean_expression)
         rho = cfg['rSpot'] + cells.geneCount
         beta = cfg['rSpot'] + scaled_mean
 
@@ -194,6 +199,7 @@ class VarBayes:
         """
         return a an array of size numCells-by-numCellTypes where element in position [i,j]
         keeps the probability that cell i has cell type j
+        Implements equation (2) of the Qian paper
         :param spots:
         :param config:
         :return:
@@ -201,7 +207,8 @@ class VarBayes:
 
         # gene_gamma = self.genes.eta
         sc = self.scData
-        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], self.genes.eta, sc.mean_expression) + self.config['SpotReg']
+        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.alpha, self.genes.eta, sc.mean_expression) + self.config['SpotReg']
+        # ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], self.genes.eta, sc.mean_expression) + self.config['SpotReg']
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
@@ -217,7 +224,10 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def prob_spots_to_cell(self):
-        # spot to cell assignment
+        """
+        spot to cell assignment.
+        Implements equation (4) of the Qian paper
+        """
         nN = self.config['nNeighbors'] + 1
         nS = self.spots.data.gene_name.shape[0]
 
@@ -265,6 +275,7 @@ class VarBayes:
     def eta_upd(self):
         """
         Calcs the expected eta
+        Implements equation (5) of the Qian paper
         """
         grand_total = self.cells.background_counts.sum() + self.cells.total_counts.sum()
         assert round(grand_total) == self.spots.data.shape[0], \
@@ -301,6 +312,7 @@ class VarBayes:
 
         denom = np.einsum('gk, ck, cgk, g -> c', mu, zeta_bar, self.spots.gamma_bar, self.genes.eta)
         alpha_bar = (N_c + self.cells.rho_1) / (denom + self.cells.rho_2)
+        logger.info('alpha range: %s ' % [alpha_bar.min(), alpha_bar.max()])
         self.cells.alpha = alpha_bar
 
     # -------------------------------------------------------------------- #
