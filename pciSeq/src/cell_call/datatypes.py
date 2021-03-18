@@ -352,16 +352,16 @@ class Cells(object):
         shrink[mask] = np.maximum(0, np.minimum(1, kappa[mask] / self.total_counts[mask]))
         return shrink
 
-    def stein(self, x: np.array, n: np.float) -> np.array:
+    def stein(self, x: np.array) -> np.array:
         """
         x: The covariance matrix
-        n: sample size
         """
-        p, _p = x.shape
-        assert p == _p, "Input is not a squared matrix"
-        assert p == 2, "Input must be a 2-by-2 squared matrix"
+        # stein_1 = self.stein_test()
+        _shape = x.shape
+        assert _shape[1] == _shape[2] == 2, "Input must be array-like of 2-by-2 arrays"
+        p = _shape[1]
 
-        [eigval, eigvec] = np.linalg.eig(cov[1])
+        [eigval, eigvec] = np.linalg.eig(x)
         # D = np.eye(p)
         # np.fill_diagonal(D, eigval)
         # sigma = eigvec @ D @ eigvec.transpose()
@@ -371,16 +371,44 @@ class Cells(object):
         # stein = np.zeros([p, p])
 
         # Equation 8 from https://link.springer.com/content/pdf/10.1007/s00180-016-0672-4.pdf
-        a_0 = n - p + 1 + 2 * eigval[0] + 1 / (eigval[0] - eigval[1])
-        a_1 = n - p + 1 + 2 * eigval[1] + 1 / (eigval[1] - eigval[0])
+        N_c = self.total_counts
+        mask = eigval[:, 0] != eigval[:, 1]
+        a_0 = np.zeros(self.nC)
+        a_1 = np.zeros(self.nC)
+        a_0[mask] = N_c[mask] - p + 1 + 2 * eigval[mask, 0] * 1 / (eigval[mask, 0] - eigval[mask, 1])
+        a_1[mask] = N_c[mask] - p + 1 + 2 * eigval[mask, 1] * 1 / (eigval[mask, 1] - eigval[mask, 0])
 
         # Equation 9 from https://link.springer.com/content/pdf/10.1007/s00180-016-0672-4.pdf
-        phi = np.zeros([p, p])
-        phi[0, 0] = eigvec[0] / a_0
-        phi[1, 1] = eigvec[1] / a_1
+        phi = np.zeros(x.shape)
+        phi[:, 0, 0] = eigval[:, 0]
+        phi[:, 1, 1] = eigval[:, 1]
+        phi[mask, 0, 0] = eigval[mask, 0] / a_0[mask]
+        phi[mask, 1, 1] = eigval[mask, 1] / a_1[mask]
 
-        sigma = eigvec @ phi @ eigvec.transpose()
-        return (sigma)
+        # the following is simply sigma = eigvec @ phi @ eigvec.transpose()
+        sigma = np.einsum('cpn, cnm, cqm -> cpq', eigvec, phi, eigvec)
+        return sigma
+
+    def stein_test(self):
+        cov = [[65.5299, -22.4162], [-22.4162, 80.3575]]
+        p = 2
+        N_c = 14
+        [eigval, eigvec] = np.linalg.eig(cov)
+        D = np.eye(p)
+        np.fill_diagonal(D, eigval)
+        sigma = eigvec @ D @ eigvec.transpose()
+        phi = np.zeros([2,2])
+        a_0 = N_c - p + 1 + 2 * eigval[0] * 1 / (eigval[0] - eigval[1])
+        a_1 = N_c - p + 1 + 2 * eigval[1] * 1 / (eigval[1] - eigval[0])
+
+        phi[0, 0] = eigval[0] / a_0
+        phi[1, 1] = eigval[1] / a_1
+
+        stein = eigvec @ phi @ eigvec.transpose()
+        return stein
+
+
+
 
     # def stein(self. spots):
 
