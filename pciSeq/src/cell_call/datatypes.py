@@ -5,6 +5,7 @@ import pandas as pd
 import numpy_groupies as npg
 from sklearn.neighbors import NearestNeighbors
 from pciSeq.src.cell_call.utils import read_image_objects
+from typing import Tuple
 from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import cpu_count
 from scipy.stats import multivariate_normal
@@ -27,8 +28,8 @@ class Cells(object):
         # initialise covariance matrix for all cells
         self._cov = self.ini_cov()
         self.nu_0 = 15      # need to move that into config.py
-        self.rho_1 = 10    # need to move that into config.py
-        self.rho_2 = 10   # need to move that into config.py
+        self.rho_1 = 100    # need to move that into config.py
+        self.rho_2 = 100   # need to move that into config.py
         # self._cov = np.tile(8.867 * 8.867 * np.eye(2, 2), (self.num_cells, 1, 1))
         # initialise centroids from the cell segmentation
         self._centroid = self.ini_centroids()
@@ -247,7 +248,142 @@ class Cells(object):
         out[:, 1, 1] = agg_11
         out[:, 0, 1] = agg_01
         out[:, 1, 0] = agg_01
+
+        # # The following is for the Ledoit Wolf shrinkage. It implements pi from
+        # # page 13 of http://www.ledoit.net/honey.pdf
+        # denom = np.ones([self.nC, 1, 1])
+        # denom[:, 0, 0] = self.total_counts
+        # sample_cov = np.tile(np.zeros([2, 2]), (self.nC, 1, 1))
+        # mask = self.total_counts > 0
+        # sample_cov[mask] = out[mask]/denom[mask]
+        #
+        #
+        # sq_el_00 = prob * x_centered**2 * x_centered**2  # contribution to the scatter matrix's [0, 0] element
+        # sq_el_11 = prob * y_centered**2 * y_centered**2  # contribution to the scatter matrix's off-diagonal element
+        # sq_el_01 = prob * x_centered**2 * y_centered**2  # contribution to the scatter matrix's [1, 1] element
+        #
+        # # Aggregate all contributions to get the scatter matrix
+        # sq_agg_00 = npg.aggregate(id.ravel(), sq_el_00.ravel(), size=self.nC)
+        # sq_agg_11 = npg.aggregate(id.ravel(), sq_el_11.ravel(), size=self.nC)
+        # sq_agg_01 = npg.aggregate(id.ravel(), sq_el_01.ravel(), size=self.nC)
+        #
+        # sq_sample_cov = np.zeros(out.shape)
+        # sq_sample_cov[mask, 0, 0] = sq_agg_00[mask]/self.total_counts[mask]
+        # sq_sample_cov[mask, 1, 1] = sq_agg_11[mask]/self.total_counts[mask]
+        # sq_sample_cov[mask, 0, 1] = sq_agg_01[mask]/self.total_counts[mask]
+        # sq_sample_cov[mask, 1, 0] = sq_agg_01[mask]/self.total_counts[mask]
+        #
+        # pi_mat = sq_sample_cov - sample_cov**2
+        # #pi hat
+        # pi_hat = [d.sum() for d in pi_mat]
+        #
+        # #rho hat
+        # rho_hat = [d[0, 0] + d[1, 1] for d in pi_mat]
+        #
+        # # gamma-hat
+        # prior = self.ini_cov()
+        # gamma_hat = [np.linalg.norm(sample_cov[i] - prior[i], "fro") ** 2 for i in range(self.nC)]
+        #
+        # # shrinkage constant
+        # kappa = (np.array(pi_hat) - np.array(rho_hat)) / np.array(gamma_hat)
+        #
+        # shrink = np.zeros(self.nC)
+        # shrink[mask] = np.maximum(0, np.minimum(1, kappa[mask] / self.total_counts[mask]))
         return out
+
+    def ledoit_wolf(self, spots, sample_cov):
+        mu_bar = self.centroid.values
+        prob = spots.parent_cell_prob[:, :-1]
+        id = spots.parent_cell_id[:, :-1]
+        xy_spots = spots.xy_coords
+        out = self.ini_cov() * self.nu_0
+        # out = np.tile(np.eye(2, 2), (self.num_cells, 1, 1))
+
+        mu_x = mu_bar[id, 0]  # array of size [nS, N] with the x-coord of the centroid of the N closest cells
+        mu_y = mu_bar[id, 1]  # array of size [nS, N] with the y-coord of the centroid of the N closest cells
+
+        N = mu_x.shape[1]
+        _x = np.tile(xy_spots[:, 0], (N, 1)).T  # array of size [nS, N] populated with the x-coord of the spot
+        _y = np.tile(xy_spots[:, 1], (N, 1)).T  # array of size [nS, N] populated with the y-coord of the spot
+        x_centered = _x - mu_x  # subtract the cell centroid x-coord from the spot x-coord
+        y_centered = _y - mu_y  # subtract the cell centroid y-coord from the spot x-coord
+
+        sq_el_00 = prob * x_centered**2 * x_centered**2  # contribution to the scatter matrix's [0, 0] element
+        sq_el_11 = prob * y_centered**2 * y_centered**2  # contribution to the scatter matrix's off-diagonal element
+        sq_el_01 = prob * x_centered**2 * y_centered**2  # contribution to the scatter matrix's [1, 1] element
+
+        # Aggregate all contributions to get the scatter matrix
+        sq_agg_00 = npg.aggregate(id.ravel(), sq_el_00.ravel(), size=self.nC)
+        sq_agg_11 = npg.aggregate(id.ravel(), sq_el_11.ravel(), size=self.nC)
+        sq_agg_01 = npg.aggregate(id.ravel(), sq_el_01.ravel(), size=self.nC)
+
+        cov_0 = self.ini_cov()
+        nu_0 = self.nu_0
+        S_0 = cov_0 * nu_0  # prior sum of squarea
+
+        sq_scatter_mat = np.zeros(out.shape)
+        sq_scatter_mat[:, 0, 0] = sq_agg_00
+        sq_scatter_mat[:, 1, 1] = sq_agg_11
+        sq_scatter_mat[:, 0, 1] = sq_agg_01
+        sq_scatter_mat[:, 1, 0] = sq_agg_01
+
+        sq_scatter_mat = sq_scatter_mat + S_0
+        denom = np.ones([self.nC, 1, 1])
+        denom[:, 0, 0] = self.total_counts + nu_0
+        sq_sample_cov = sq_scatter_mat / denom
+
+        pi_mat = sq_sample_cov - sample_cov ** 2
+        # pi hat
+        pi_hat = np.array([d.sum() for d in pi_mat])
+
+        # rho hat
+        rho_hat = np.array([d[0, 0] + d[1, 1] for d in pi_mat])
+
+        # gamma-hat
+        prior = self.ini_cov()
+        gamma_hat = np.array([np.linalg.norm(sample_cov[i] - prior[i], "fro") ** 2 for i in range(self.nC)])
+
+        # shrinkage constant
+        mask = self.total_counts > 0
+        kappa = np.zeros(self.nC)
+        kappa[mask] = (pi_hat[mask] - rho_hat[mask]) / gamma_hat[mask]
+
+        shrink = np.ones(self.nC) * 0.5
+        shrink[mask] = np.maximum(0, np.minimum(1, kappa[mask] / self.total_counts[mask]))
+        return shrink
+
+    def stein(self, x: np.array, n: np.float) -> np.array:
+        """
+        x: The covariance matrix
+        n: sample size
+        """
+        p, _p = x.shape
+        assert p == _p, "Input is not a squared matrix"
+        assert p == 2, "Input must be a 2-by-2 squared matrix"
+
+        [eigval, eigvec] = np.linalg.eig(cov[1])
+        # D = np.eye(p)
+        # np.fill_diagonal(D, eigval)
+        # sigma = eigvec @ D @ eigvec.transpose()
+
+        # p = 2
+        # n = 15
+        # stein = np.zeros([p, p])
+
+        # Equation 8 from https://link.springer.com/content/pdf/10.1007/s00180-016-0672-4.pdf
+        a_0 = n - p + 1 + 2 * eigval[0] + 1 / (eigval[0] - eigval[1])
+        a_1 = n - p + 1 + 2 * eigval[1] + 1 / (eigval[1] - eigval[0])
+
+        # Equation 9 from https://link.springer.com/content/pdf/10.1007/s00180-016-0672-4.pdf
+        phi = np.zeros([p, p])
+        phi[0, 0] = eigvec[0] / a_0
+        phi[1, 1] = eigvec[1] / a_1
+
+        sigma = eigvec @ phi @ eigvec.transpose()
+        return (sigma)
+
+    # def stein(self. spots):
+
 
     def nn(self):
         n = self.config['nNeighbors'] + 1
