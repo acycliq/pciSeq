@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import numpy as np
+from typing import Tuple
 from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.cell_call.main import VarBayes
 from pciSeq.src.preprocess.spot_labels import stage_data
@@ -17,7 +18,7 @@ logging.basicConfig(
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
-def fit(iss_spots, coo, scRNAseq, opts=None):
+def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts=None) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Main entry point for pciSeq.
 
@@ -104,12 +105,12 @@ def cell_type(_cells, _spots, scRNAseq, ini):
 
 def write_data(cellData, geneData, cellBoundaries, ini):
     # out_dir = ini['out_dir']
-    out_dir = r'.\cell_2259'
+    out_dir = r'.\ledoit_wolf'
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
     ellipsoidBorders = cellData[['Cell_Num', 'ellipsoid_border']]
-    ellipsoidBorders = ellipsoidBorders.rename(columns={'Cell_Num': 'label', 'ellipsoid_border': 'coords'})
+    ellipsoidBorders = ellipsoidBorders.rename(columns={'Cell_Num': 'cell_id', 'ellipsoid_border': 'coords'})
 
     cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
     logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
@@ -161,10 +162,10 @@ if __name__ == "__main__":
     # read some demo data
     _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'))
 
-    mask_x = (_iss_spots.x.values < 4605.5) & (_iss_spots.x.values > 4425.5)
-    mask_y = (_iss_spots.y.values < 502) & (_iss_spots.y.values > 322)
-    mask = mask_x & mask_y
-    _iss_spots = _iss_spots[mask]
+    # mask_x = (_iss_spots.x.values < 4605.5) & (_iss_spots.x.values > 4425.5)
+    # mask_y = (_iss_spots.y.values < 502) & (_iss_spots.y.values > 322)
+    # mask = mask_x & mask_y
+    # _iss_spots = _iss_spots[mask]
 
     _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'))
 
