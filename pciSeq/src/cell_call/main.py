@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import numpy_groupies as npg
+from typing import Tuple
 from pciSeq.src.cell_call.datatypes import Cells, Spots, Genes
 from pciSeq.src.cell_call.singleCell import sc_expression_data
 from pciSeq.src.cell_call.summary import collect_data
@@ -370,7 +371,7 @@ class VarBayes:
         spots = self.spots
 
         # first get the scatter matrix
-        S = self.cells.scatter_matrix(spots)  # sample sum of squares
+        S, shrinkage = self.cells.scatter_matrix(spots)  # sample sum of squares
         cov_0 = self.cells.ini_cov()
         nu_0 = self.cells.nu_0
         S_0 = cov_0 * nu_0 # prior sum of squarea
@@ -380,6 +381,19 @@ class VarBayes:
         denom[:, 0, 0] = N_c + nu_0
         # Note: need to add code to handle the case N_c + nu_0 <= d + 2
         cov = (S + S_0) / denom
+
+        sh = self.cells.ledoit_wolf(self.spots, cov)
+
+        # shrinkage = 0.5
+        logger.info('Mean shrinkage %4.2f, %4.2f' % (shrinkage.mean(), sh.mean()))
+        logger.info('cell 601 shrinkage %4.2f, %4.2f' % (shrinkage[601], sh[601]))
+        logger.info('cell 601 gene counts %d' % self.cells.total_counts[601])
+        logger.info('cell 605 shrinkage %4.2f, %4.2f' % (shrinkage[605], sh[605]))
+        logger.info('cell 605 gene counts %d' % self.cells.total_counts[605])
+        logger.info('cell 610 shrinkage %4.2f, %4.2f' % (shrinkage[610], sh[610]))
+        logger.info('cell 610 gene counts %d' % self.cells.total_counts[610])
+        shrinkage = shrinkage.reshape(self.nC, 1, 1)
+        cov = sh*cov_0 + (1-sh)*cov
         self.cells.cov = cov
 
 
