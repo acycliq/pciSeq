@@ -105,7 +105,7 @@ def cell_type(_cells, _spots, scRNAseq, ini):
 
 def write_data(cellData, geneData, cellBoundaries, ini):
     # out_dir = ini['out_dir']
-    out_dir = r'.\contant_shrinkage_0p5'
+    out_dir = r'.\rblw'
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
