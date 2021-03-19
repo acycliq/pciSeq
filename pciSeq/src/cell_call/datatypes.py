@@ -408,9 +408,42 @@ class Cells(object):
         return stein
 
 
+    def rblw(self, sample_cov):
+        """
+        Rao Blackwellised Ledoit Wolf shrinkage
+        See https://pythonhosted.org/covar/generated/covar.cov_shrink_rblw.html#covar.cov_shrink_rblw
+        """
 
+        p = 2
+        N_c = self.total_counts
+        mask = N_c > 0
+        # alpha = np.zeros(self.nC)
+        # beta = np.zeros(self.nC)
+        # alpha[mask] = (N_c[mask] - 2) / (N_c[mask] * (N_c[mask] + 2))
+        # beta[mask] = ((p + 1)*N_c[mask] - 2) / (N_c[mask] * (N_c[mask] + 2))
+        #
+        trSxS = np.array([np.trace(d @ d) for d in sample_cov])
+        trSxtrS = np.array([np.trace(d)**2 for d in sample_cov])
+        # U = ( p * trSxS ) / trSxtrS
+        # U = U - 1
+        #
+        # gamma = np.zeros(self.nC)
+        # gamma[mask] = min(alpha[mask] + beta[mask]/U[mask])
+        #
+        # # if sample size = 0 then set shrinkage=1
+        # gamma[~mask] = 1
 
-    # def stein(self. spots):
+        top = np.ones(self.nC)
+        bottom = np.ones(self.nC)
+        top[mask] = (N_c[mask] - 2)/N_c[mask] * trSxS[mask] + trSxtrS[mask]
+        bottom[mask] = (N_c[mask] + 2) * (trSxS[mask] - trSxtrS[mask]/p)
+
+        isZero = bottom == 0
+        top[isZero] = 1
+        bottom[isZero] = 1
+        rblw_shrink = np.maximum(np.minimum(top/bottom, 1), 0)
+
+        return rblw_shrink
 
 
     def nn(self):
