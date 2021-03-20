@@ -384,10 +384,10 @@ class VarBayes:
 
         # delta = self.cells.ledoit_wolf(self.spots, cov)
         # stein = self.cells.stein(cov)
-        delta = self.cells.rblw(cov)
+        # delta = self.cells.rblw(cov)
 
         # delta = 0.5
-        logger.info('Mean shrinkage %4.2f' % delta.mean())
+        # logger.info('Mean shrinkage %4.2f' % delta.mean())
         # logger.info('cell 601 shrinkage %4.2f, %4.2f' % (shrinkage[601], sh[601]))
         logger.info('cell 601 gene counts %d' % self.cells.total_counts[601])
         # logger.info('cell 605 shrinkage %4.2f, %4.2f' % (shrinkage[605], sh[605]))
@@ -395,8 +395,10 @@ class VarBayes:
         # logger.info('cell 610 shrinkage %4.2f, %4.2f' % (shrinkage[610], sh[610]))
         logger.info('cell 610 gene counts %d' % self.cells.total_counts[610])
 
-        delta = delta.reshape(self.nC, 1, 1)
-        cov = delta*cov_0 + (1-delta)*cov
+        # delta = delta.reshape(self.nC, 1, 1)
+        # target = [np.trace(d)/2 * np.eye(2) for d in cov]  # shrinkage target
+        # cov = delta*cov_0 + (1-delta)*cov
+        # cov = delta * target + (1 - delta) * cov
         self.cells.cov = cov
 
 
