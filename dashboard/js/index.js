@@ -159,7 +159,7 @@ function run() {
     console.log('app starts');
     configSettings = config();
 
-    fetcher([configSettings.cellData, configSettings.geneData, configSettings.cellCoords]).then(
+    fetcher([configSettings.cellData, configSettings.geneData, configSettings.cellEllipsoid]).then(
         result => make_package(result),
         error => alert(error) // doesn't run
     );

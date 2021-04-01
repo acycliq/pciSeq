@@ -55,6 +55,9 @@ def _remove_zero_cols(df):
 
 
 def sc_expression_data(genes, df, config):
+    # -----------------------
+    # NOTE: MAKE THIS A CLASS
+    # -----------------------
     assert np.all(df >= 0), "Single cell dataframe has negative values"
 
     gene_names = genes.gene_names

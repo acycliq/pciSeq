@@ -32,3 +32,6 @@ dashboard/img
 /.eggs/
 /build/
 /pciSeq.egg-info/
+/pciSeq/src/viewer/pciSeq/data/mouse/ca1/background_image/mouse/map_tiles/262144px/
+/pciSeq/src/viewer/dashboard/img/
+/dashboard/data/img/
