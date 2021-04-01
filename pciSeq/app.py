@@ -89,12 +89,6 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts=N
     cellData, geneData = cell_type(_cells, _spots, scRNAseq, cfg)
 
     # 4. save to filesystem
-    save_data = True
-    if save_data:
-        write_data(cellData, geneData, cellBoundaries, cfg)
-
-
-    # 4. save to filesystem
     save_data = False
     if save_data:
         write_data(cellData, geneData, cellBoundaries, cfg)
@@ -110,13 +104,9 @@ def cell_type(_cells, _spots, scRNAseq, ini):
 
 
 def write_data(cellData, geneData, cellBoundaries, ini):
-    # out_dir = ini['out_dir']
-    out_dir = r'.\no_shrinkage'
+    out_dir = ini['out_dir']
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
-
-    ellipsoidBorders = cellData[['Cell_Num', 'ellipsoid_border']]
-    ellipsoidBorders = ellipsoidBorders.rename(columns={'Cell_Num': 'cell_id', 'ellipsoid_border': 'coords'})
 
     cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
     logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
@@ -127,14 +117,10 @@ def write_data(cellData, geneData, cellBoundaries, ini):
     cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
     logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
-    ellipsoidBorders.to_csv(os.path.join(out_dir, 'ellipsoidBorders.tsv'), sep='\t', index=False)
-    logger.info('Saved at %s' % (os.path.join(out_dir, 'ellipsoidBorders.tsv')))
-
     # Write to the disk as tsv of 99MB each
     splitter_mb(cellData, os.path.join(out_dir, 'cellData'), 99)
     splitter_mb(geneData, os.path.join(out_dir, 'geneData'), 99)
     splitter_mb(geneData, os.path.join(out_dir, 'cellBoundaries'), 99)
-    splitter_mb(ellipsoidBorders, os.path.join(out_dir, 'ellipsoidBorders'), 99)
 
 
 def init(opts):
@@ -144,7 +130,6 @@ def init(opts):
     If opts is None, then the default values as these specified in the config.py file
     are used without any change.
     """
-
     cfg = config.DEFAULT
     if opts is not None:
         default_items = set(cfg.keys())
@@ -159,7 +144,6 @@ def init(opts):
                 raise TypeError("Only integers, floats and lists are allowed")
             cfg[item[0]] = val
             logger.info('%s is set to %s' % (item[0], cfg[item[0]]))
-
     return cfg
 
 
@@ -167,12 +151,6 @@ if __name__ == "__main__":
 
     # read some demo data
     _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'))
-
-    # mask_x = (_iss_spots.x.values < 4605.5) & (_iss_spots.x.values > 4425.5)
-    # mask_y = (_iss_spots.y.values < 502) & (_iss_spots.y.values > 322)
-    # mask = mask_x & mask_y
-    # _iss_spots = _iss_spots[mask]
-
     _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'))
 
     _scRNAseq = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),
