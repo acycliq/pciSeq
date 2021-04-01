@@ -160,7 +160,7 @@ class VarBayes:
         cells = self.cells
         sc = self.scData
         cfg = self.config
-        scaled_mean = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], sc.mean_expression)
+        scaled_mean = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], sc.mean_expression.data)
         rho = cfg['rSpot'] + cells.geneCount
         beta = cfg['rSpot'] + scaled_mean
 
@@ -189,7 +189,7 @@ class VarBayes:
         # gene_gamma = self.genes.eta
         sc = self.scData
         # ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.alpha, self.genes.eta, sc.mean_expression.data) + self.config['SpotReg']
-        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], self.genes.eta, sc.mean_expression) + self.config['SpotReg']
+        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], self.genes.eta, sc.mean_expression.data) + self.config['SpotReg']
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
