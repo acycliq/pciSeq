@@ -35,31 +35,15 @@ def _iss_summary(cells, spots, genes):
     class_name_list = [class_names[isProb_nonZero[n]].tolist() for n in range(N)]
     prob_list = [class_prob[n, isProb_nonZero[n]].tolist() for n in range(N)]
 
-    ellipsoid_border = []
-    for i in range(cells.nC):
-        # _mu = np.array([cells.centroid.x[i],  cells.centroid.y[i]])
-        # _rho = cells.corr[i]
-        # _sigma_x = cells.sigma_x[i]
-        # _sigma_y = cells.sigma_x[i]
-        ea = cells.ellipsoid_attributes[i]
-        ellipsis = gaussian_ellipsoid(*ea, 3).astype(np.int)
-        ellipsoid_border.append(ellipsis.tolist())
-
     iss_df = pd.DataFrame({'Cell_Num': cells.cell_props['cell_label'].tolist(),
-                           'X': cells.centroid.x.tolist(),
-                           'Y': cells.centroid.y.tolist(),
-                           'X_0': cells.cell_props['x'].tolist(),
-                           'Y_0': cells.cell_props['y'].tolist(),
+                           'X': cells.cell_props['x'].tolist(),
+                           'Y': cells.cell_props['y'].tolist(),
                            'Genenames': name_list,
                            'CellGeneCount': count_list,
                            'ClassName': class_name_list,
-                           'Prob': prob_list,
-                           'rho': cells.corr.tolist(),
-                           'sigma_x': cells.sigma_x.tolist(),
-                           'sigma_y': cells.sigma_y.tolist(),
-                           'ellipsoid_border': ellipsoid_border,
+                           'Prob': prob_list
                             },
-                           columns=['Cell_Num', 'X', 'Y', 'X_0', 'Y_0', 'Genenames', 'CellGeneCount', 'ClassName', 'Prob', 'rho', 'sigma_x', 'sigma_y', 'ellipsoid_border']
+                           columns=['Cell_Num', 'X', 'Y', 'Genenames', 'CellGeneCount', 'ClassName', 'Prob']
                            )
     iss_df.set_index(['Cell_Num'])
 
@@ -72,8 +56,7 @@ def _iss_summary(cells, spots, genes):
 
 def _summary(spots):
     # check for duplicates (ie spots with the same coordinates with or without the same gene name).
-    # I dont know why but it can happen. Misfire during spot calling maybe?
-    is_duplicate = spots.data.duplicated(subset=['x', 'y'])
+    # is_duplicate = spots.data.duplicated(subset=['x', 'y'])
 
     num_rows = spots.data.shape[0]
 
