@@ -18,7 +18,7 @@ logging.basicConfig(
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
-def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts=None) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: dict = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Main entry point for pciSeq.
 
