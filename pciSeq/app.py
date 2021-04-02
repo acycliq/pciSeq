@@ -85,7 +85,6 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts=N
     _cells, cellBoundaries, _spots = stage_data(iss_spots, coo)
 
     # 3. cell typing
-    # logger.info(' Start cell typing')
     cellData, geneData = cell_type(_cells, _spots, scRNAseq, cfg)
 
     # 4. save to filesystem
