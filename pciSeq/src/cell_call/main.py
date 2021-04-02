@@ -1,12 +1,11 @@
 import numpy as np
 import pandas as pd
+import dask.array as da
 import numpy_groupies as npg
 from typing import Tuple
-from pciSeq.src.cell_call.datatypes import Cells, Spots, Genes
-from pciSeq.src.cell_call.singleCell import sc_expression_data
+from pciSeq.src.cell_call.datatypes import Cells, Spots, Genes, SingleCell
 from pciSeq.src.cell_call.summary import collect_data
 import pciSeq.src.cell_call.utils as utils
-import gc
 import os
 import time
 import logging
@@ -46,10 +45,10 @@ class VarBayes:
         self.cells = Cells(_cells_df, config)
         self.spots = Spots(_spots_df, config)
         self.genes = Genes(self.spots)
-        self.scData = sc_expression_data(self.genes, scRNAseq, self.config)
+        self.single_cell = SingleCell(scRNAseq, self.genes.gene_names, self.config)
         self.nC = self.cells.nC                         # number of cells
         self.nG = self.genes.nG                         # number of genes
-        self.nK = len(self.scData.class_name)           # number of classes
+        self.nK = len(self.single_cell.classes)         # number of classes
         self.nS = self.spots.nS                         # number of spots
         self.nN = self.config['nNeighbors'] + 1         # number of neighbouring cells, candidates for being parent
                                                         # cell of any given spot. The last one will be used for the
@@ -58,25 +57,23 @@ class VarBayes:
     def initialise(self):
         # initialise the gene efficiencies and the the starting
         # spot to parent cell assignment
-        self.cells.class_names = self.scData.coords['class_name'].values
+        # self.cells.class_names = self.scData.coords['class_name'].values
 
         self.cells.prior = np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
         self.cells.classProb = np.tile(self.cells.prior, (self.nC, 1))
         self.genes.eta = np.ones(self.nG)
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
-        self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK])
+        self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
 
     # -------------------------------------------------------------------- #
     def run(self):
-        # make a list to keep the main attributes of the fitted bivariate normal (centroids, correlation etc...)
-        self.initialise()
-        # self.spots.init_call(self.cells, self.config)
-
         p0 = None
         iss_df = None
         gene_df = None
         max_iter = self.config['max_iter']
+
+        self.initialise()
         for i in range(max_iter):
 
             self.geneCount_upd()
@@ -84,35 +81,31 @@ class VarBayes:
             # 1. calc expected gamma
             # logger.info('calc expected gamma')
             self.gamma_upd()
-            # self.mean_gamma, self.mean_loggamma = self.expected_gamma()
-
 
             # 2 assign cells to cell types
             # logger.info('cell to cell type')
-            self.prob_cell_to_cellType()
+            self.cell_to_cellType()
 
             # 3 assign spots to cells
             # logger.info('spot to cell')
-            self.prob_spots_to_cell()
+            self.spots_to_cell()
 
             # 4 update gene efficiency
             # logger.info('update gamma')
             self.eta_upd()
 
-
             converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
-            logger.info('Iteration %d, mean prob change %f' % (i, delta))
+            logger.info(' Iteration %d, mean prob change %f' % (i, delta))
 
             # replace p0 with the latest probabilities
             p0 = self.spots.parent_cell_prob
 
             if converged:
-                iss_df, gene_df = collect_data(self.cells, self.spots, self.genes)
-                # print("Success!!")
+                iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
                 break
 
             if i == max_iter-1:
-                logger.info('Loop exhausted. Exiting with convergence status: %s' % converged)
+                logger.info(' Loop exhausted. Exiting with convergence status: %s' % converged)
         return iss_df, gene_df
 
     # -------------------------------------------------------------------- #
@@ -158,25 +151,25 @@ class VarBayes:
          Implements equation (3) of the Qian paper
         """
         cells = self.cells
-        sc = self.scData
         cfg = self.config
-        scaled_mean = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], sc.mean_expression.data)
+        dtype = self.config['dtype']
+        beta = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
-        beta = cfg['rSpot'] + scaled_mean
+        # beta = cfg['rSpot'] + scaled_mean
 
-        expected_gamma = utils.gammaExpectation(rho, beta)
-        expected_loggamma = utils.logGammaExpectation(rho, beta)
+        self.spots.gamma_bar = self.spots.gammaExpectation(rho, beta)
+        self.spots.log_gamma_bar = self.spots.logGammaExpectation(rho, beta)
 
-        del rho
-        del beta
-        gc.collect()
-        del gc.garbage[:]
-        self.spots.gamma_bar = expected_gamma
-        self.spots.log_gamma_bar = expected_loggamma
-        # return expected_gamma, expected_loggamma
+        # del rho
+        # del beta
+        # gc.collect()
+        # del gc.garbage[:]
+        # self.spots.gamma_bar = expected_gamma
+        # self.spots.log_gamma_bar = expected_loggamma
+        # # return expected_gamma, expected_loggamma
 
     # -------------------------------------------------------------------- #
-    def prob_cell_to_cellType(self):
+    def cell_to_cellType(self):
         """
         return a an array of size numCells-by-numCellTypes where element in position [i,j]
         keeps the probability that cell i has cell type j
@@ -187,9 +180,9 @@ class VarBayes:
         """
 
         # gene_gamma = self.genes.eta
-        sc = self.scData
+        dtype = self.config['dtype']
         # ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.alpha, self.genes.eta, sc.mean_expression.data) + self.config['SpotReg']
-        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], self.genes.eta, sc.mean_expression.data) + self.config['SpotReg']
+        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], self.genes.eta, self.single_cell.mean_expression).astype(dtype) + self.config['SpotReg']
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
@@ -204,7 +197,7 @@ class VarBayes:
         # return pCellClass
 
     # -------------------------------------------------------------------- #
-    def prob_spots_to_cell(self):
+    def spots_to_cell(self):
         """
         spot to cell assignment.
         Implements equation (4) of the Qian paper
@@ -215,13 +208,10 @@ class VarBayes:
         # initialise array with the misread density
         aSpotCell = np.zeros([nS, nN])
         gn = self.spots.data.gene_name.values
-        expected_spot_counts = self.scData['log_mean_expression'].sel({'gene_name': gn}).data
+        expected_spot_counts = self.single_cell.log_mean_expression.loc[gn].values
 
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
         for n in range(nN - 1):
-            spots_name = self.spots.data.gene_name.values
-            self.scData['log_mean_expression'].sel({'gene_name': spots_name})
-
             # get the spots' nth-closest cell
             sn = self.spots.parent_cell_id[:, n]
 
@@ -239,7 +229,6 @@ class VarBayes:
 
             term_2 = np.einsum('ij, ij -> i', cp, expectedLog)  # same as np.sum(cp * expectedLog, axis=1) but bit faster
             aSpotCell[:, n] = term_1 + term_2
-            # logger.info('')
         wSpotCell = aSpotCell + self.spots.loglik(self.cells, self.config)
 
         # update the prob a spot belongs to a neighboring cell
@@ -261,7 +250,7 @@ class VarBayes:
 
         zero_prob = self.cells.classProb[:, -1] # probability a cell being a zero expressing cell
         zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
-        class_total_counts = self.cells.geneCountsPerKlass(self.scData, self.spots.gamma_bar, self.config)
+        class_total_counts = self.cells.geneCountsPerKlass(self.single_cell, self.spots.gamma_bar, self.config)
 
         # TotPredictedB = np.bincount(self.spots.gene_id, self.spots.adj_cell_prob[:, -1].data)
         # assert np.all(TotPredictedB == self.cells.background_counts)

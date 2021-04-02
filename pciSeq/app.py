@@ -81,11 +81,11 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts=N
     cfg = init(opts)
 
     # 2. prepare the data
-    logger.info('Preprocessing data')
+    logger.info(' Preprocessing data')
     _cells, cellBoundaries, _spots = stage_data(iss_spots, coo)
 
     # 3. cell typing
-    logger.info('Start cell typing')
+    # logger.info(' Start cell typing')
     cellData, geneData = cell_type(_cells, _spots, scRNAseq, cfg)
 
     # 4. save to filesystem
@@ -93,12 +93,14 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts=N
     if save_data:
         write_data(cellData, geneData, cellBoundaries, cfg)
 
-    logger.info('Done')
+    logger.info(' Done')
     return cellData, geneData
 
 
 def cell_type(_cells, _spots, scRNAseq, ini):
     varBayes = VarBayes(_cells, _spots, scRNAseq, ini)
+
+    logger.info(' Start cell typing')
     cellData, geneData = varBayes.run()
     return cellData, geneData
 
@@ -109,13 +111,13 @@ def write_data(cellData, geneData, cellBoundaries, ini):
         os.makedirs(out_dir)
 
     cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
-    logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
+    logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
 
     geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
-    logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
+    logger.info(' Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
 
     cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-    logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+    logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
     # Write to the disk as tsv of 99MB each
     splitter_mb(cellData, os.path.join(out_dir, 'cellData'), 99)
@@ -143,7 +145,7 @@ def init(opts):
             else:
                 raise TypeError("Only integers, floats and lists are allowed")
             cfg[item[0]] = val
-            logger.info('%s is set to %s' % (item[0], cfg[item[0]]))
+            logger.info(' %s is set to %s' % (item[0], cfg[item[0]]))
     return cfg
 
 

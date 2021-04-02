@@ -1,7 +1,7 @@
 """
 hyperparameters for the pciSeq method
 """
-
+import numpy as np
 
 DEFAULT = {
     # list of genes to be excluded during cell-typing, e.g ['Aldoc', 'Id2'] to exclude all spots from Aldoc and Id2
@@ -44,5 +44,7 @@ DEFAULT = {
     # are distributed according to a Negative Binomial distribution.
     # The value for rSpot will control the variance/dispersion of the counts
     'rSpot': 2,
+
+    'dtype': np.float64,
 }
 
