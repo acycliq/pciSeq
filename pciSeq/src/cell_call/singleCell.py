@@ -14,7 +14,7 @@ def load_scRNAseq(config):
     :return:
     """
 
-    logger.info('Loading single cell data from %s' % config['scRNAseq'])
+    logger.info(' Loading single cell data from %s' % config['scRNAseq'])
     # Exression table from single cell data can have counts from the same class multiple times (more than once) .
     # Pandas do not like headers with non-unique names, hence do not use a header
     # when you read the csv.
@@ -30,7 +30,7 @@ def load_scRNAseq(config):
     df = df.astype(np.float).astype(np.uint32)
 
     # Some housekeeping. PC.CA2 and PC.CA3 should be renamed if they are in the scRNAseq data
-    logger.info('Renaming subclasses PC.CA2 and PC.CA3 to be PC.Other1 and PC.Other2')
+    logger.info(' Renaming subclasses PC.CA2 and PC.CA3 to be PC.Other1 and PC.Other2')
     class_name = ['PC.Other1' if x == 'PC.CA2' else x for x in df.columns.values]
     class_name = ['PC.Other2' if x == 'PC.CA3' else x for x in class_name]
 

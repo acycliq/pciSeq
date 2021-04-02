@@ -3,6 +3,8 @@ import json
 import numpy as np
 import pandas as pd
 import numpy_groupies as npg
+import scipy
+import gc
 from sklearn.neighbors import NearestNeighbors
 from pciSeq.src.cell_call.utils import read_image_objects
 from typing import Tuple
@@ -95,7 +97,9 @@ class Cells(object):
         ClassTotPredicted = temp * (single_cell_data.mean_expression + ini['SpotReg'])
 
         # total of each gene
-        TotPredicted = ClassTotPredicted.drop('Zero', dim='class_name').sum(dim='class_name')
+        isZero = ClassTotPredicted.columns == 'Zero'
+        labels = ClassTotPredicted.columns.values[~isZero]
+        TotPredicted = ClassTotPredicted[labels].sum(axis=1)
         return TotPredicted
 
 
@@ -133,11 +137,11 @@ class Spots(object):
 
     @property
     def gamma_bar(self):
-        return self._gamma_bar
+        return self._gamma_bar.astype(self.config['dtype'])
 
     @gamma_bar.setter
     def gamma_bar(self, val):
-        self._gamma_bar = val
+        self._gamma_bar = val.astype(self.config['dtype'])
 
     @property
     def log_gamma_bar(self):
@@ -317,3 +321,101 @@ class Spots(object):
         # aggregate per gene id
         TotPredictedZ = np.bincount(geneNo, pSpotZero)
         return TotPredictedZ
+
+    def gammaExpectation(self, rho, beta):
+        '''
+        :param r:
+        :param b:
+        :return: Expectetation of a rv X following a Gamma(r,b) distribution with pdf
+        f(x;\alpha ,\beta )= \frac{\beta^r}{\Gamma(r)} x^{r-1}e^{-\beta x}
+        '''
+
+        # sanity check
+        # assert (np.all(rho.coords['cell_id'].data == beta.coords['cell_id'])), 'rho and beta are not aligned'
+        # assert (np.all(rho.coords['gene_name'].data == beta.coords['gene_name'])), 'rho and beta are not aligned'
+        r = rho[:, :, None]
+        b = beta
+        dtype = self.config['dtype']
+        # gamma = np.empty(b.shape)
+        # ne.evaluate('r/b', out=gamma)
+        return (r/b).astype(dtype)
+
+        # # del gamma
+        # del r
+        # del b
+        # gc.collect()
+        # del gc.garbage[:]
+        # return gamma
+
+    def logGammaExpectation(self, rho, beta):
+        dtype = self.config['dtype']
+        r = rho[:, :, None].astype(dtype)
+        # logb = np.empty(beta.shape)
+        # ne.evaluate("log(beta)", out=logb)
+        return scipy.special.psi(r) - np.log(beta).astype(dtype)
+
+
+class SingleCell(object):
+    def __init__(self, scdata: pd.DataFrame, genes: np.array, config):
+        self.config = config
+        self._mean_expression, self._log_mean_expression = self._setup(scdata, genes, self.config)
+
+    def _setup(self, scdata, genes, config):
+        assert np.all(scdata >= 0), "Single cell dataframe has negative values"
+        logger.info(' Single cell data passed-in have %d genes and %d cells' % (scdata.shape[0], scdata.shape[1]))
+
+        logger.info(' Single cell data: Keeping only counts for the gene panel of %d' % len(genes))
+        df = scdata.loc[genes]
+
+        # set the axes labels
+        df = self._set_axes(df)
+
+        df = self._remove_zero_cols(df.copy())
+        dfT = df.T
+
+        logger.info(' Single cell data: Grouping gene counts by cell type. Aggregating function is the mean.')
+        expr = dfT.groupby(dfT.index.values).agg('mean').T
+        expr['Zero'] = np.zeros([expr.shape[0], 1])
+        expr = expr.sort_index(axis=0).sort_index(axis=1)
+        expr = config['Inefficiency'] * expr
+        me = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")  # mean expression
+        lme = np.log(me + config['SpotReg'])  # log mean expression
+
+        logger.info(' Grouped single cell data have %d genes and %d cell types' % (me.shape[0], me.shape[1]))
+        dtype = self.config['dtype']
+        return me.astype(dtype), lme.astype(dtype)
+
+    @property
+    def mean_expression(self):
+        return self._mean_expression
+
+    @property
+    def log_mean_expression(self):
+        return self._log_mean_expression
+
+    @property
+    def genes(self):
+        return self.mean_expression.index.values
+
+    @property
+    def classes(self):
+        return self.mean_expression.columns.values
+
+    ## Helper functions ##
+    def _set_axes(self, df):
+        df = df.rename_axis("class_name", axis="columns").rename_axis('gene_name')
+        return df
+
+    def _remove_zero_cols(self, df):
+        """
+        Removes zero columns (ie if a column is populated by zeros only, then it is removed)
+        :param da:
+        :return:
+        """
+        out = df.loc[:, (df != 0).any(axis=0)]
+        return out
+
+
+
+
+

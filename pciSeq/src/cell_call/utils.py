@@ -1,30 +1,21 @@
 import sys
-import os, warnings, time, tempfile, datetime, pathlib, shutil, subprocess
+import tempfile, shutil
 from tqdm import tqdm
-import pandas as pd
-import numpy as np
-from scipy.sparse import load_npz
 from urllib.parse import urlparse
 from urllib.request import urlopen
 import numpy as np
 import pandas as pd
 import numexpr as ne
 # import numba as nb
-import scipy
 import os
 import glob
-import gc
 import logging
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger()
 
 
-def read_image_objects(img_obj, ini):
-    # tempdir = ini['PREPROCESS']['temp']
-    cfg = ini
-    # img_obj = pd.read_csv(os.path.join(tempdir, '_cells.csv'))
-
+def read_image_objects(img_obj, cfg):
     meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
     relCellRadius = np.sqrt(img_obj.area / np.pi) / meanCellRadius
 
@@ -49,49 +40,6 @@ def read_image_objects(img_obj, ini):
     # negative coords
 
     return out
-
-
-def gammaExpectation(rho, beta):
-    '''
-    :param r:
-    :param b:
-    :return: Expectetation of a rv X following a Gamma(r,b) distribution with pdf
-    f(x;\alpha ,\beta )= \frac{\beta^r}{\Gamma(r)} x^{r-1}e^{-\beta x}
-    '''
-
-    # sanity check
-    # assert (np.all(rho.coords['cell_id'].data == beta.coords['cell_id'])), 'rho and beta are not aligned'
-    # assert (np.all(rho.coords['gene_name'].data == beta.coords['gene_name'])), 'rho and beta are not aligned'
-    r = rho[:, :, None]
-    b = beta
-    gamma = np.empty(b.shape)
-    ne.evaluate('r/b', out=gamma)
-
-    # del gamma
-    del r
-    del b
-    gc.collect()
-    del gc.garbage[:]
-    return gamma
-
-
-def logGammaExpectation(rho, beta):
-    r = rho[:, :, None]
-    logb = np.empty(beta.shape)
-    ne.evaluate("log(beta)", out=logb)
-    return scipy.special.psi(r) - logb
-
-
-def _log_gamma(x, y, rho, beta):
-    def inner(rho, beta):
-        r = rho.data[x, y, None]
-        b = beta.data[x, y, :]
-        logb = np.empty(b.shape)
-        ne.evaluate("log(b)", out=logb)
-        log_gamma = scipy.special.psi(r) - logb
-        return log_gamma
-    return inner
-
 
 
 def negBinLoglik(x, r, p):
