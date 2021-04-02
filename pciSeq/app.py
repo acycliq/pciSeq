@@ -121,7 +121,7 @@ def write_data(cellData, geneData, cellBoundaries, ini):
     # Write to the disk as tsv of 99MB each
     splitter_mb(cellData, os.path.join(out_dir, 'cellData'), 99)
     splitter_mb(geneData, os.path.join(out_dir, 'geneData'), 99)
-    splitter_mb(geneData, os.path.join(out_dir, 'cellBoundaries'), 99)
+    splitter_mb(cellBoundaries, os.path.join(out_dir, 'cellBoundaries'), 99)
 
 
 def init(opts):
