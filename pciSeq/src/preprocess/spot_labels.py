@@ -92,7 +92,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.D
     within its boundaries. It also retrieves the coordinates of the cell boundaries, the cell centroids and
     the cell area
     """
-    logger.info(' Number of spots passed in: %d' % spots.shape[0])
+    logger.info(' Number of spots passed-in: %d' % spots.shape[0])
     logger.info(' Number of segmented cells: %d' % len(set(coo.data)))
     logger.info(' Segmentation array implies that image has width: %dpx and height: %dpx' % (coo.shape[1], coo.shape[0]))
     mask_x = (spots.x >= 0) & (spots.x <= coo.shape[1])
