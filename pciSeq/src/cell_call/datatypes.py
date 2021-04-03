@@ -364,7 +364,7 @@ class SingleCell(object):
         assert np.all(scdata >= 0), "Single cell dataframe has negative values"
         logger.info(' Single cell data passed-in have %d genes and %d cells' % (scdata.shape[0], scdata.shape[1]))
 
-        logger.info(' Single cell data: Keeping only counts for the gene panel of %d' % len(genes))
+        logger.info(' Single cell data: Keeping counts for the gene panel of %d only' % len(genes))
         df = scdata.loc[genes]
 
         # set the axes labels
