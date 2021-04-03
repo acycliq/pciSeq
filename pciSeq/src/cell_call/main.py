@@ -50,7 +50,7 @@ class VarBayes:
         self.nG = self.genes.nG                         # number of genes
         self.nK = len(self.single_cell.classes)         # number of classes
         self.nS = self.spots.nS                         # number of spots
-        self.nN = self.config['nNeighbors'] + 1         # number of neighbouring cells, candidates for being parent
+        self.nN = self.config['nNeighbors'] + 1         # number of closest nearby cells, candidates for being parent
                                                         # cell of any given spot. The last cell will be used for the
                                                         # misread spots. (ie cell at position nN is the background)
 
@@ -234,6 +234,7 @@ class VarBayes:
         # update the prob a spot belongs to a neighboring cell
         pSpotNeighb = utils.softmax(wSpotCell, axis=1)
         self.spots.parent_cell_prob = pSpotNeighb
+        # Since the spot-to-cell assignments changed you need to update the gene counts now
         self.geneCount_upd()
         # self.spots.update_cell_prob(pSpotNeighb, self.cells)
         # logger.info('spot ---> cell probabilities updated')
