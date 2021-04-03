@@ -208,7 +208,7 @@ class VarBayes:
         # initialise array with the misread density
         aSpotCell = np.zeros([nS, nN])
         gn = self.spots.data.gene_name.values
-        expected_spot_counts = self.single_cell.log_mean_expression.loc[gn].values
+        expected_counts = self.single_cell.log_mean_expression.loc[gn].values
 
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
         for n in range(nN - 1):
@@ -221,7 +221,7 @@ class VarBayes:
 
             # multiply and sum over cells
             # term_1 = (expected_spot_counts * cp).sum(axis=1)
-            term_1 = np.einsum('ij, ij -> i', expected_spot_counts, cp)
+            term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
 
             # logger.info('genes.spotNo should be something like spots.geneNo instead!!')
             expectedLog = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
