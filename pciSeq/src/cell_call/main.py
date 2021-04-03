@@ -51,8 +51,8 @@ class VarBayes:
         self.nK = len(self.single_cell.classes)         # number of classes
         self.nS = self.spots.nS                         # number of spots
         self.nN = self.config['nNeighbors'] + 1         # number of neighbouring cells, candidates for being parent
-                                                        # cell of any given spot. The last one will be used for the
-                                                        # misread spots.
+                                                        # cell of any given spot. The last cell will be used for the
+                                                        # misread spots. (ie cell at position nN is the background)
 
     def initialise(self):
         # initialise the gene efficiencies and the the starting
