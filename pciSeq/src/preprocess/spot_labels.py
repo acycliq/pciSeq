@@ -18,12 +18,9 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger()
 
 
-def inside_cell(a, idx):
-    '''
-    Given an array a (image_array) and
-    :param a: An array of size numPixelsY-by-numPixelsX specifying that element (i,j) belongs to
-                cell a[i,j]. Note that array a is 1-based, ie if pixel (i,j) is outside a cell then
-                a[i,j] = 0.
+def inside_cell(label_image: np.array, idx: np.array) -> np.array:
+    """
+    :param label_image: An array of size height-by-width for the label image.
     :param idx: An array of size 2-by-N of the pixels coordinates of spot idx[k], k=1...N
     :return:
     a = np.array([  [4,0,1],
@@ -35,19 +32,19 @@ def inside_cell(a, idx):
                     [1,2],
                     [1,3]])
 
-    IndexArrayNan(a, idx.T) = [4., 1., 0., nan]
+    inside_cell(a, idx.T) = [4., 1., 0., nan]
     which means that:
-            spot with coords [0,0] belongs to cell 4
-            spot with coords [2,0] belongs to cell 1
-            spot with coords [1,2] belongs to 0 (ie no assigned cell)
+            spot with coords [0,0] lies inside cell 4
+            spot with coords [2,0] lies inside cell 1
+            spot with coords [1,2] is a background spot
             spot with coords [1,3] is outside the bounds and assigned to nan
 
-    '''
+    """
     assert isinstance(idx[0], np.ndarray), "Array 'idx' must be an array of arrays."
     idx = idx.astype(np.int64)
     out = np.array([])
     dim = np.ones(idx.shape[0], dtype=int)
-    dim[:len(a.shape)] = a.shape
+    dim[:len(label_image.shape)] = label_image.shape
 
     # output array
     out = np.nan * np.ones(idx.shape[1], dtype=int)
@@ -58,10 +55,10 @@ def inside_cell(a, idx):
     # also keep only non-negative ones
     is_positive = np.all(idx.T >= 0, axis=1)
 
-    # filter array`
+    # filter array
     arr = idx[:, is_within & is_positive]
     flat_idx = np.ravel_multi_index(arr, dims=dim, order='C')
-    out[is_within & is_positive] = a.ravel()[flat_idx]
+    out[is_within & is_positive] = label_image.ravel()[flat_idx]
 
     # if the matrix a is a coo_matrix then the following should be
     # equivalent (maybe better memory-wise since you do not have use
