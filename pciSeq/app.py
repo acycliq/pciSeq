@@ -81,7 +81,7 @@ def fit(iss_spots, coo, scRNAseq, opts=None):
 
     # 2. prepare the data
     logger.info('Preprocessing data')
-    _cells, cell_boundaries, _spots = stage_data(iss_spots, coo)
+    _cells, cellBoundaries, _spots = stage_data(iss_spots, coo)
 
     # 3. cell typing
     logger.info('Start cell typing')
