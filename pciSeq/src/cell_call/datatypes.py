@@ -7,11 +7,6 @@ import scipy
 import gc
 from sklearn.neighbors import NearestNeighbors
 from pciSeq.src.cell_call.utils import read_image_objects
-from typing import Tuple
-from multiprocessing.dummy import Pool as ThreadPool
-from multiprocessing import cpu_count
-from scipy.stats import multivariate_normal
-import time
 import logging
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -87,10 +82,6 @@ class Cells(object):
         return nbrs
 
     def geneCountsPerKlass(self, single_cell_data, egamma, ini):
-        # temp = self.classProb * self.cell_props.area_factor.to_xarray() * egamma
-        # temp = temp.sum(dim='cell_id')
-        # if you want to calc temp with einsum:
-        # temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.alpha, egamma)
         temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.cell_props['area_factor'], egamma)
 
         # total counts predicted by all cells of each class (nG, nK)
@@ -172,11 +163,6 @@ class Spots(object):
     def parent_cell_id(self, val):
         self._parent_cell_id = val
 
-    # def update_cell_prob(self, new_assignments, cell_obj):
-    #     # Updates the parent cell probabilities
-    #     self._adj_cell_prob = new_assignments
-    #     cell_obj.refresh_me(self)  # Since the spot-to-cell prob changed you have to change the cell gene counts too
-
     def _unique_genes(self):
         [self.unique_gene_names, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values,
                                                                                  return_inverse=True,
@@ -206,7 +192,6 @@ class Spots(object):
     def cells_nearby(self, cells: Cells) -> np.array:
         # this needs some clean up.
         spotYX = self.data[['y', 'x']]
-        # numCells = cells.num_cells
 
         # for each spot find the closest cell (in fact the top nN-closest cells...)
         nbrs = cells.nn()
@@ -214,13 +199,9 @@ class Spots(object):
 
         # last column is for misreads.
         neighbors[:, -1] = 0
-
         return neighbors
 
     def ini_cellProb(self, neighbors, cfg):
-        # Note: Something is not right here.
-        # The total sum of the return value should be the same as the number od spots but it is NOT!!
-        # It doesnt seem to be a very crucial bug though.
         nS = self.data.shape[0]
         nN = cfg['nNeighbors'] + 1
         SpotInCell = self.data.label
@@ -238,13 +219,6 @@ class Spots(object):
         ## Add a couple of checks here
         return pSpotNeighb
 
-    # def init_call(self, cells, config):
-    #     self.adj_cell_id = self.cells_nearby(cells)
-    #     ini_prob = self.ini_cellProb(self.adj_cell_id, config)
-    #     self.update_cell_prob(ini_prob, cells)
-    #     logger.info('ok')
-    #     # self.adj_cell_prob = self.ini_cellProb(self.adj_cell_id, config)
-
     def loglik(self, cells, cfg):
         # meanCellRadius = cells.ds.mean_radius
         area = cells.cell_props['area'][1:]
@@ -261,54 +235,10 @@ class Spots(object):
         # print('in loglik')
         return D
 
-    # def mvn_loglik_par(self, data, mu, sigma):
-    #     n = max(1, cpu_count() - 1)
-    #     pool = ThreadPool(n)
-    #     param = list(zip(*[data, mu, sigma]))
-    #     results = pool.map(self.loglik_contr, param)
-    #     # out = [self.loglik_contr(data[i], mu[i], sigma[i]) for i, d in enumerate(data)]
-    #     pool.close()
-    #     pool.join()
-    #     return results
-
-    def mvn_loglik(self, data, cell_label, cells):
-        centroids = cells.centroid.values[cell_label]
-        covs = cells.cov[cell_label]
-        param = list(zip(*[data, centroids, covs]))
-        out = [self.loglik_contr(p) for i, p in enumerate(param)]
-        # out_2 = [multivariate_normal.logpdf(p[0], p[1], p[2]) for i, p in enumerate(param)]
-        return out
-
-    def loglik_contr(self, param):
-        """
-        Contribution of a single datapoint to the bivariate Normal distribution loglikelihood
-        Should be the same as multivariate_normal.logpdf(param[0], param[1], param[2])
-        """
-        x = param[0]
-        mu = param[1]
-        sigma = param[2]
-        k = 2  # dimensionality of a point
-
-        x = x.reshape([2, -1])
-        mu = mu.reshape([2, -1])
-        assert x.shape == mu.shape == (2, 1), 'Datapoint should have dimension (2, 1)'
-        assert sigma.shape == (2, 2), 'Covariance matrix should have shape: (2, 2)'
-
-        sigma_inv = np.linalg.inv(sigma)
-        a = - k / 2 * np.log(2 * np.pi)
-        b = - 0.5 * np.log(np.linalg.det(sigma))
-        c = - 0.5 * np.einsum('ji, jk, ki -> i', x - mu, sigma_inv, x - mu)
-        assert len(c) == 1, 'Should be an array with just one element'
-        out = a + b + c[0]
-        return out
-
     def zero_class_counts(self, geneNo, pCellZero):
-        '''
-        ' given a vector
-        :param spots:
-        :return:
-        '''
-
+        """
+        Gene counts for the zero expressing class
+        """
         # for each spot get the ids of the 3 nearest cells
         spotNeighbours = self.parent_cell_id[:, :-1]
 
