@@ -45,6 +45,7 @@ DEFAULT = {
     # The value for rSpot will control the variance/dispersion of the counts
     'rSpot': 2,
 
+    # Use either np.float16 or np.float32 to reduce memory usage.
     'dtype': np.float64,
 }
 
