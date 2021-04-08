@@ -1,14 +1,14 @@
 """
 hyperparameters for the pciSeq method
 """
-
+import numpy as np
 
 DEFAULT = {
     # list of genes to be excluded during cell-typing, e.g ['Aldoc', 'Id2'] to exclude all spots from Aldoc and Id2
     'exclude_genes': [],
 
     # Maximum number of loops allowed for the Variational Bayes to run
-    'max_iter': 100,
+    'max_iter': 1000,
 
     # Convergence achieved if assignment probabilities between two successive loops is less than the tolerance
     'CellCallTolerance': 0.02,
@@ -44,5 +44,8 @@ DEFAULT = {
     # are distributed according to a Negative Binomial distribution.
     # The value for rSpot will control the variance/dispersion of the counts
     'rSpot': 2,
+
+    # Use either np.float16 or np.float32 to reduce memory usage.
+    'dtype': np.float64,
 }
 

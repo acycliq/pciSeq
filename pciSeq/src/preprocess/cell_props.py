@@ -39,7 +39,7 @@ def calc_props(stage):
         labels = tt[1]
         tile_ids = sorted(tt[0])
 
-        logger.info('calculating centroid and area for the merged cells with labels %s' % labels)
+        logger.info(' calculating centroid and area for the merged cells with labels %s' % labels)
         if len(tile_ids) > 1:
             label_image = stage.collate_arrays(tile_ids)
         else:
@@ -55,7 +55,7 @@ def calc_props(stage):
         for i, p in enumerate(clipped_cells):
             centroid_tile_id, centroid_coords = locate_tile(stage, p.centroid, tile_ids)
 
-            logger.info('cell with label %d is clipped by tile_ids %s' % (p.label, tile_ids))
+            logger.info(' cell with label %d is clipped by tile_ids %s' % (p.label, tile_ids))
 
             # # sanity check
             # filtered_tiles = list(filter(lambda d: d['tile_id'] in tile_ids, self.tiles))
@@ -108,12 +108,12 @@ def calc_props(stage):
     # cell_props['label'] = global_label
 
     logger.info('')
-    logger.info('updating the labels on label_image to align them with cell_props')
+    logger.info(' updating the labels on label_image to align them with cell_props')
     for tile in stage.tiles:
         data = update_label_image(tile, label_map)
         tile['label_image'].data = data.astype(np.int64)
 
-    logger.info('Done')
+    logger.info(' Done')
 
     # relabel now the key in the merge_register dict to align them
     # with the global labels
