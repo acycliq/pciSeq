@@ -76,21 +76,22 @@ class VarBayes:
         self.initialise()
         for i in range(max_iter):
 
+            # 1. For each cell, calc the expected gene counts
             self.geneCount_upd()
 
-            # 1. calc expected gamma
+            # 2. calc expected gamma
             # logger.info('calc expected gamma')
             self.gamma_upd()
 
-            # 2 assign cells to cell types
+            # 3. assign cells to cell types
             # logger.info('cell to cell type')
             self.cell_to_cellType()
 
-            # 3 assign spots to cells
+            # 4. assign spots to cells
             # logger.info('spot to cell')
             self.spots_to_cell()
 
-            # 4 update gene efficiency
+            # 5. update gene efficiency
             # logger.info('update gamma')
             self.eta_upd()
 
@@ -112,9 +113,7 @@ class VarBayes:
     def geneCount_upd(self):
         '''
         Produces a matrix numCells-by-numGenes where element at position (c,g) keeps the expected
-        number of gene g  in cell c.
-        :param spots:
-        :return:
+        counts of gene g  in cell c.
         '''
         start = time.time()
 
@@ -249,7 +248,7 @@ class VarBayes:
         assert round(grand_total) == self.spots.data.shape[0], \
             'The sum of the background spots and the total gene counts should be equal to the number of spots'
 
-        zero_prob = self.cells.classProb[:, -1] # probability a cell being a zero expressing cell
+        zero_prob = self.cells.classProb[:, -1]  # probability a cell being a zero expressing cell
         zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
         class_total_counts = self.cells.geneCountsPerKlass(self.single_cell, self.spots.gamma_bar, self.config)
 
