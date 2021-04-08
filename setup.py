@@ -12,7 +12,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="pciSeq",
-    version="0.0.30",
+    version="0.0.31",
     license="BSD",
     author="Dimitris Nicoloutsopoulos",
     author_email="dimitris.nicoloutsopoulos@gmail.com",
