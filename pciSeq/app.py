@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import numpy as np
+from typing import Tuple
 from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.cell_call.main import VarBayes
 from pciSeq.src.preprocess.spot_labels import stage_data
@@ -17,7 +18,7 @@ logging.basicConfig(
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
-def fit(iss_spots, coo, scRNAseq, opts=None):
+def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: dict = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Main entry point for pciSeq.
 
@@ -80,11 +81,10 @@ def fit(iss_spots, coo, scRNAseq, opts=None):
     cfg = init(opts)
 
     # 2. prepare the data
-    logger.info('Preprocessing data')
+    logger.info(' Preprocessing data')
     _cells, cellBoundaries, _spots = stage_data(iss_spots, coo)
 
     # 3. cell typing
-    logger.info('Start cell typing')
     cellData, geneData = cell_type(_cells, _spots, scRNAseq, cfg)
 
     # 4. save to filesystem
@@ -92,12 +92,14 @@ def fit(iss_spots, coo, scRNAseq, opts=None):
     if save_data:
         write_data(cellData, geneData, cellBoundaries, cfg)
 
-    logger.info('Done')
+    logger.info(' Done')
     return cellData, geneData
 
 
 def cell_type(_cells, _spots, scRNAseq, ini):
     varBayes = VarBayes(_cells, _spots, scRNAseq, ini)
+
+    logger.info(' Start cell typing')
     cellData, geneData = varBayes.run()
     return cellData, geneData
 
@@ -108,18 +110,18 @@ def write_data(cellData, geneData, cellBoundaries, ini):
         os.makedirs(out_dir)
 
     cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
-    logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
+    logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
 
     geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
-    logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
+    logger.info(' Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
 
     cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-    logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+    logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
     # Write to the disk as tsv of 99MB each
     splitter_mb(cellData, os.path.join(out_dir, 'cellData'), 99)
     splitter_mb(geneData, os.path.join(out_dir, 'geneData'), 99)
-    splitter_mb(geneData, os.path.join(out_dir, 'cellBoundaries'), 99)
+    splitter_mb(cellBoundaries, os.path.join(out_dir, 'cellBoundaries'), 99)
 
 
 def init(opts):
@@ -129,7 +131,6 @@ def init(opts):
     If opts is None, then the default values as these specified in the config.py file
     are used without any change.
     """
-
     cfg = config.DEFAULT
     if opts is not None:
         default_items = set(cfg.keys())
@@ -143,8 +144,7 @@ def init(opts):
             else:
                 raise TypeError("Only integers, floats and lists are allowed")
             cfg[item[0]] = val
-            logger.info('%s is set to %s' % (item[0], cfg[item[0]]))
-
+            logger.info(' %s is set to %s' % (item[0], cfg[item[0]]))
     return cfg
 
 

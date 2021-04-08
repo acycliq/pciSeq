@@ -27,7 +27,7 @@ function dapi(cfg) {
     }).setView([img[1], img[0] / 2], 2);
     L.tileLayer(tiles, {
         minZoom: 0,
-        maxZoom: 10
+        maxZoom: 8
     }).addTo(map);
 
     function getTaxonomy(gene) {
