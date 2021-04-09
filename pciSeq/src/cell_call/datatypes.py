@@ -94,14 +94,14 @@ class Cells(object):
         TotPredicted = ClassTotPredicted[labels].sum(axis=1)
         return TotPredicted
 
-
+# ----------------------------------------Class: Genes--------------------------------------------------- #
 class Genes(object):
     def __init__(self, spots):
         # self.gamma = np.ones(len(spots.unique_gene_names))
         # self.gamma = None
+        self.gene_panel = np.unique(spots.data.gene_name.values)
         self._eta = None
-        self.gene_names = spots.unique_gene_names
-        self.nG = len(self.gene_names)
+        self.nG = len(self.gene_panel)
 
     @property
     def eta(self):
@@ -111,7 +111,7 @@ class Genes(object):
     def eta(self, val):
         self._eta = val
 
-
+# ----------------------------------------Class: Spots--------------------------------------------------- #
 class Spots(object):
     def __init__(self, spots_df, config):
         self._parent_cell_prob = None
@@ -121,12 +121,11 @@ class Spots(object):
         self.nS = self.data.shape[0]
         self.call = None
         self.unique_gene_names = None
-        self.gene_id = None
-        self.counts_per_gene = None
-        self._unique_genes()
         self._gamma_bar = None
         self._log_gamma_bar = None
+        [_, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True, return_counts=True)
 
+    # -------- PROPERTIES -------- #
     @property
     def gamma_bar(self):
         return self._gamma_bar.astype(self.config['dtype'])
@@ -164,24 +163,12 @@ class Spots(object):
     def parent_cell_id(self, val):
         self._parent_cell_id = val
 
-    def _unique_genes(self):
-        [self.unique_gene_names, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values,
-                                                                                 return_inverse=True,
-                                                                                 return_counts=True)
-        return self.data.gene_name.values
 
+    # -------- METHODS -------- #
     def read(self, spots_df):
-        # tempdir = self.config['PREPROCESS']['temp']
-        # spotsFile = os.path.join(tempdir, '_spots.csv')
-
-        # logger.info('********* Getting spot attributes from %s **********', spotsFile)
-        # spots_df = pd.read_csv(spotsFile)
-        # spots_df = spots_df.sample(frac=1).reset_index(drop=True)
-
-        if 'drop_nan' in self.config.keys() and self.config['drop_nan']:
-            spots_df = spots_df.dropna()  ##  CAREFUL HERE  CAREFUL HERE  CAREFUL HERE  CAREFUL HERE
-            logger.info('**** I HAVE REMOVED NaNs ***** I HAVE REMOVED NaNs ***** I HAVE REMOVED NaNs****')
-
+        # No need for x_global, y_global to be in the spots_df at first place.
+        # Instead of renaming here, you could just use 'x' and 'y' when you
+        # created the spots_df
         spots_df = spots_df.rename(columns={'x_global': 'x', 'y_global': 'y'})
 
         # remove a gene if it is on the exclude list
@@ -191,7 +178,6 @@ class Spots(object):
         return spots_df.rename_axis('spot_id').rename(columns={'target': 'gene_name'})
 
     def cells_nearby(self, cells: Cells) -> np.array:
-        # this needs some clean up.
         spotYX = self.data[['y', 'x']]
 
         # for each spot find the closest cell (in fact the top nN-closest cells...)
@@ -221,7 +207,6 @@ class Spots(object):
         return pSpotNeighb
 
     def loglik(self, cells, cfg):
-        # meanCellRadius = cells.ds.mean_radius
         area = cells.cell_props['area'][1:]
         mcr = np.mean(np.sqrt(area / np.pi)) * 0.5  # This is the meanCellRadius
 
@@ -233,7 +218,6 @@ class Spots(object):
 
         mask = np.greater(self.data.label, 0, where=~np.isnan(self.data.label))
         D[mask, 0] = D[mask, 0] + cfg['InsideCellBonus']
-        # print('in loglik')
         return D
 
     def zero_class_counts(self, geneNo, pCellZero):
@@ -285,6 +269,7 @@ class Spots(object):
             return scipy.special.psi(r) - np.log(beta).astype(dtype)
 
 
+# ----------------------------------------Class: SingleCell--------------------------------------------------- #
 class SingleCell(object):
     def __init__(self, scdata: pd.DataFrame, genes: np.array, config):
         self.config = config
@@ -315,6 +300,7 @@ class SingleCell(object):
         dtype = self.config['dtype']
         return me.astype(dtype), lme.astype(dtype)
 
+    # -------- PROPERTIES -------- #
     @property
     def mean_expression(self):
         return self._mean_expression
