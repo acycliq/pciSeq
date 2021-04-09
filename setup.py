@@ -1,5 +1,6 @@
 import setuptools
 from setuptools import setup
+import json
 
 install_deps = ['numpy', 'pandas', 'sklearn',
                 'numpy_groupies', 'xarray', 'numexpr',
@@ -10,9 +11,12 @@ install_deps = ['numpy', 'pandas', 'sklearn',
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+with open('pciSeq/version.json') as fp:
+    _info = json.load(fp)
+
 setup(
     name="pciSeq",
-    version="0.0.32",
+    version=_info['version'],
     license="BSD",
     author="Dimitris Nicoloutsopoulos",
     author_email="dimitris.nicoloutsopoulos@gmail.com",
