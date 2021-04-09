@@ -5,6 +5,7 @@ import pandas as pd
 import numpy_groupies as npg
 import scipy
 import gc
+import numexpr as ne
 from sklearn.neighbors import NearestNeighbors
 from pciSeq.src.cell_call.utils import read_image_objects
 import logging
@@ -263,26 +264,25 @@ class Spots(object):
         # sanity check
         # assert (np.all(rho.coords['cell_id'].data == beta.coords['cell_id'])), 'rho and beta are not aligned'
         # assert (np.all(rho.coords['gene_name'].data == beta.coords['gene_name'])), 'rho and beta are not aligned'
-        r = rho[:, :, None]
-        b = beta
-        dtype = self.config['dtype']
-        # gamma = np.empty(b.shape)
-        # ne.evaluate('r/b', out=gamma)
-        return (r/b).astype(dtype)
 
-        # # del gamma
-        # del r
-        # del b
-        # gc.collect()
-        # del gc.garbage[:]
-        # return gamma
+        dtype = self.config['dtype']
+        r = rho[:, :, None]
+        if dtype == np.float64:
+            gamma = np.empty(beta.shape)
+            ne.evaluate('r/beta', out=gamma)
+            return gamma
+        else:
+            return (r/beta).astype(dtype)
 
     def logGammaExpectation(self, rho, beta):
         dtype = self.config['dtype']
         r = rho[:, :, None].astype(dtype)
-        # logb = np.empty(beta.shape)
-        # ne.evaluate("log(beta)", out=logb)
-        return scipy.special.psi(r) - np.log(beta).astype(dtype)
+        if dtype == np.float64:
+            logb = np.empty(beta.shape)
+            ne.evaluate("log(beta)", out=logb)
+            return scipy.special.psi(r) - logb
+        else:
+            return scipy.special.psi(r) - np.log(beta).astype(dtype)
 
 
 class SingleCell(object):

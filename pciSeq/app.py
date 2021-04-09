@@ -137,7 +137,7 @@ def init(opts):
         user_items = set(opts.keys())
         assert user_items.issubset(default_items), ('Options passed-in should be a dict with keys: %s ' % default_items)
         for item in opts.items():
-            if isinstance(item[1], (int, float, list)):
+            if isinstance(item[1], (int, float, list)) or isinstance(item[1](1), np.floating):
                 val = item[1]
             # elif isinstance(item[1], list):
             #     val = item[1]
@@ -160,6 +160,6 @@ if __name__ == "__main__":
     _scRNAseq = _scRNAseq.astype(np.float).astype(np.uint32)
 
     # main task
-    # _opts = {'max_iter': 10}
-    fit(_iss_spots, _coo, _scRNAseq)
+    _opts = {'max_iter': 10}
+    fit(_iss_spots, _coo, _scRNAseq, _opts)
 
