@@ -13,31 +13,6 @@ import logging
 dir_path = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger()
 
-# Note: 21-Feb-2020
-# I think there are TWO  bugs.
-#
-# ********** BUG 1 **********
-# I should be using: mean_expression = mean_expression + config['SpotReg']
-# instead of adding the SpotReg value every time I am calling mean_expression.
-# The ScaledExp calculation, in the code below, for example is not correct because the config['SpotReg'] constant
-# should not be added at the very end but should be moved inside the parentheses and added directly to
-# the sc.mean_expression array
-#
-# ********** BUG 2 **********
-# Gene efficienty (eta) is not also handled properly. For eta to have a gamma distribution gamma(r, r/eta_0) with
-# mean=0.2 and variance 20 the hyperparameter should be r = 0.002 and r/eta_0 = 0.002/0.2 = 0.01.
-# The mean value (ie 0.2) is applied on the single cell gene expression right after we have calculated the mean
-# class expression.
-# Then, in the rest of the code, gene efficiency is initialised as a vector of ones. While the vector eta is
-# getting multiplied with the mean expression counts when we derive the cell to cell class assignment, we do not
-# do the same when we calculate the gamma (equation 3 in the NMETH paper. We multiply the mean class expression
-# by the cell area factor and the gene efficiency is missing (see ScaledMean in matlab code)
-# I think It would better to:
-# NOT multiply the mean class expressions counts by 0.2 and the initialise eta as a vector of ones
-# BUT instead:
-# do not scale down the single cell gene expression data by 0.2 at the very beginning
-# initialise eta as a vector 0.2*np.ones([Ng, 1])
-# include eta in the calculations equations 2 and 3 and
 
 class VarBayes:
     def __init__(self, _cells_df, _spots_df, scRNAseq, config):
@@ -45,7 +20,7 @@ class VarBayes:
         self.cells = Cells(_cells_df, config)
         self.spots = Spots(_spots_df, config)
         self.genes = Genes(self.spots)
-        self.single_cell = SingleCell(scRNAseq, self.genes.gene_names, self.config)
+        self.single_cell = SingleCell(scRNAseq, self.genes.gene_panel, self.config)
         self.nC = self.cells.nC                         # number of cells
         self.nG = self.genes.nG                         # number of genes
         self.nK = len(self.single_cell.classes)         # number of classes
@@ -55,10 +30,6 @@ class VarBayes:
                                                         # misread spots. (ie cell at position nN is the background)
 
     def initialise(self):
-        # initialise the gene efficiencies and the the starting
-        # spot to parent cell assignment
-        # self.cells.class_names = self.scData.coords['class_name'].values
-
         self.cells.prior = np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
         self.cells.classProb = np.tile(self.cells.prior, (self.nC, 1))
         self.genes.eta = np.ones(self.nG)
@@ -80,19 +51,15 @@ class VarBayes:
             self.geneCount_upd()
 
             # 2. calc expected gamma
-            # logger.info('calc expected gamma')
             self.gamma_upd()
 
             # 3. assign cells to cell types
-            # logger.info('cell to cell type')
             self.cell_to_cellType()
 
             # 4. assign spots to cells
-            # logger.info('spot to cell')
             self.spots_to_cell()
 
             # 5. update gene efficiency
-            # logger.info('update gamma')
             self.eta_upd()
 
             converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
