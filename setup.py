@@ -11,12 +11,9 @@ install_deps = ['numpy', 'pandas', 'sklearn',
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-with open('pciSeq/version.json') as fp:
-    _info = json.load(fp)
-
 setup(
     name="pciSeq",
-    version=_info['version'],
+    version="0.0.34",
     license="BSD",
     author="Dimitris Nicoloutsopoulos",
     author_email="dimitris.nicoloutsopoulos@gmail.com",
