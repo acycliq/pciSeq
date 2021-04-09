@@ -160,6 +160,6 @@ if __name__ == "__main__":
     _scRNAseq = _scRNAseq.astype(np.float).astype(np.uint32)
 
     # main task
-    _opts = {'max_iter': 10}
-    fit(_iss_spots, _coo, _scRNAseq, _opts)
+    # _opts = {'max_iter': 10}
+    fit(_iss_spots, _coo, _scRNAseq)
 
