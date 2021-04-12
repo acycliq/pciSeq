@@ -45,16 +45,22 @@ class VarBayes:
         gene_df = None
         max_iter = self.config['max_iter']
 
+        # make a list to keep the main attributes of the fitted bivariate normal (centroids, correlation etc...)
+        # ellipsoid_attr = [self.cells.ellipsoid_attributes]
+
         self.initialise()
         for i in range(max_iter):
+            # ellipsoid_attr.append(self.cells.ellipsoid_attributes)
 
             # 1. For each cell, calc the expected gene counts
             self.geneCount_upd()
 
+            self.alpha_upd()
+
             # 2. calc expected gamma
             self.gamma_upd()
 
-            self.alpha_upd()
+            self.gaussian_upd()
 
             # 3. assign cells to cell types
             self.cell_to_cellType()
@@ -176,7 +182,7 @@ class VarBayes:
         nS = self.spots.data.gene_name.shape[0]
 
         # initialise array with the misread density
-        aSpotCell = np.zeros([nS, nN])
+        aSpotCell = np.zeros([nS, nN]) + np.log(self.config['MisreadDensity'])
         gn = self.spots.data.gene_name.values
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
 
@@ -198,8 +204,11 @@ class VarBayes:
             # expectedLog = utils.bi2(self.elgamma.data, [nS, nK], sn[:, None], self.spots.data.gene_id.values[:, None])
 
             term_2 = np.einsum('ij, ij -> i', cp, expectedLog)  # same as np.sum(cp * expectedLog, axis=1) but bit faster
-            aSpotCell[:, n] = term_1 + term_2
-        wSpotCell = aSpotCell + self.spots.loglik(self.cells, self.config)
+
+            loglik = self.spots.mvn_loglik(self.spots.xy_coords, sn, self.cells)
+            aSpotCell[:, n] = term_1 + term_2 + loglik
+            # logger.info('')
+        wSpotCell = aSpotCell  # + self.spots.loglik(self.cells, self.config)
 
         # update the prob a spot belongs to a neighboring cell
         pSpotNeighb = utils.softmax(wSpotCell, axis=1)
@@ -246,14 +255,102 @@ class VarBayes:
 
         N_c = self.cells.total_counts
         zeta_bar = self.cells.classProb
-        mu = self.scData['mean_expression'].data   # need to add constant too!
+        mu = self.single_cell.mean_expression  # need to add constant too!
 
         denom = np.einsum('gk, ck, cgk, g -> c', mu, zeta_bar, self.spots.gamma_bar, self.genes.eta)
         alpha_bar = (N_c + self.cells.rho_1) / (denom + self.cells.rho_2)
         logger.info('alpha range: %s ' % [alpha_bar.min(), alpha_bar.max()])
         self.cells.alpha = alpha_bar
 
+    # -------------------------------------------------------------------- #
+    def gaussian_upd(self):
+        self.centroid_upd()
+        self.cov_upd()
 
+    # -------------------------------------------------------------------- #
+    def centroid_upd(self):
+        spots = self.spots
+
+        # get the total gene counts per cell
+        N_c = self.cells.total_counts
+
+        xy_spots = spots.xy_coords
+        prob = spots.parent_cell_prob
+        n = self.cells.config['nNeighbors'] + 1
+
+        # mulitply the x coord of the spots by the cell prob
+        a = np.tile(xy_spots[:, 0], (n, 1)).T * prob
+
+        # mulitply the y coord of the spots by the cell prob
+        b = np.tile(xy_spots[:, 1], (n, 1)).T * prob
+
+        # aggregated x and y coordinate
+        idx = spots.parent_cell_id
+        x_agg = npg.aggregate(idx.ravel(), a.ravel(), size=len(N_c))
+        y_agg = npg.aggregate(idx.ravel(), b.ravel(), size=len(N_c))
+
+        # x_agg = np.zeros(N_c.shape)
+        # mask = np.arange(len(_x_agg))
+        # x_agg[mask] = _x_agg
+        #
+        # y_agg = np.zeros(N_c.shape)
+        # mask = np.arange(len(_y_agg))
+        # y_agg[mask] = _y_agg
+
+        # get the estimated cell centers
+        x_bar = np.nan * np.ones(N_c.shape)
+        y_bar = np.nan * np.ones(N_c.shape)
+        x_bar[N_c > 0] = x_agg[N_c > 0] / N_c[N_c > 0]
+        y_bar[N_c > 0] = y_agg[N_c > 0] / N_c[N_c > 0]
+        # cells with N_c = 0 will end up with x_bar = y_bar = np.nan
+        xy_bar_fitted = np.array(list(zip(x_bar.T, y_bar.T)))
+
+        # if you have a value for the estimated centroid use that, otherwise
+        # use the initial (starting values) centroids
+        ini_cent = self.cells.ini_centroids()
+        xy_bar = np.array(tuple(zip(*[ini_cent['x'], ini_cent['y']])))
+
+        # # sanity check. NaNs or Infs should appear together
+        # assert np.all(np.isfinite(x_bar) == np.isfinite(y_bar))
+        # use the fitted centroids where possible otherwise use the initial ones
+        xy_bar[np.isfinite(x_bar)] = xy_bar_fitted[np.isfinite(x_bar)]
+        self.cells.centroid = pd.DataFrame(xy_bar, columns=['x', 'y'])
+        # print(np.array(list(zip(x_bar.T, y_bar.T))))
+
+    # -------------------------------------------------------------------- #
+    def cov_upd(self):
+        spots = self.spots
+
+        # first get the scatter matrix
+        S = self.cells.scatter_matrix(spots)  # sample sum of squares
+        cov_0 = self.cells.ini_cov()
+        nu_0 = self.cells.nu_0
+        S_0 = cov_0 * nu_0 # prior sum of squarea
+        N_c = self.cells.total_counts
+        d = 2
+        denom = np.ones([self.nC, 1, 1])
+        denom[:, 0, 0] = N_c + nu_0
+        # Note: need to add code to handle the case N_c + nu_0 <= d + 2
+        cov = (S + S_0) / denom
+
+        # delta = self.cells.ledoit_wolf(self.spots, cov)
+        # stein = self.cells.stein(cov)
+        # delta = self.cells.rblw(cov)
+
+        # delta = 0.5
+        # logger.info('Mean shrinkage %4.2f' % delta.mean())
+        # logger.info('cell 601 shrinkage %4.2f, %4.2f' % (shrinkage[601], sh[601]))
+        logger.info('cell 601 gene counts %d' % self.cells.total_counts[601])
+        # logger.info('cell 605 shrinkage %4.2f, %4.2f' % (shrinkage[605], sh[605]))
+        logger.info('cell 605 gene counts %d' % self.cells.total_counts[605])
+        # logger.info('cell 610 shrinkage %4.2f, %4.2f' % (shrinkage[610], sh[610]))
+        logger.info('cell 610 gene counts %d' % self.cells.total_counts[610])
+
+        # delta = delta.reshape(self.nC, 1, 1)
+        # target = [np.trace(d)/2 * np.eye(2) for d in cov]  # shrinkage target
+        # cov = delta*cov_0 + (1-delta)*cov
+        # cov = delta * target + (1 - delta) * cov
+        self.cells.cov = cov
 
 
 

@@ -25,8 +25,9 @@ class Cells(object):
         self._prior = None
         self._cov = self.ini_cov()
         self.nu_0 = 15      # need to move that into config.py
-        self.rho_1 = 100    # need to move that into config.py
-        self.rho_2 = 100   # need to move that into config.py
+        self.rho_1 = self.config['rho_1']    # need to move that into config.py
+        self.rho_2 = self.config['rho_2']   # need to move that into config.py
+        self._centroid = self.ini_centroids()
         self._gene_counts = None
         self._background_counts = None
         self._alpha = None
@@ -79,7 +80,61 @@ class Cells(object):
     def alpha(self, val):
         self._alpha = val
 
+    @property
+    def centroid(self):
+        # lst = list(zip(*[self._centroid['x'], self._centroid['y']]))
+        return self._centroid.copy()
+
+    @centroid.setter
+    def centroid(self, df):
+        self._centroid = df.copy()
+
+    @property
+    def cov(self):
+        return self._cov
+
+    @cov.setter
+    def cov(self, val):
+        self._cov = val
+
+    @property
+    def sigma_x(self):
+        return np.sqrt(self.cov[:, 0, 0])
+
+    @property
+    def sigma_y(self):
+        return np.sqrt(self.cov[:, 1, 1])
+
+    @property
+    def corr(self):
+        sigma_x = np.sqrt(self.cov[:, 0, 0])
+        sigma_y = np.sqrt(self.cov[:, 1, 1])
+        cov_xy = self.cov[:, 0, 1]
+        rho = cov_xy / (sigma_x * sigma_y)
+        return rho
+
+    @property
+    def ellipsoid_attributes(self):
+        """
+        convenience property that returns a list with
+        the ellipoid's centroid, correlation and standard
+        deviation across the x-axis and y-axis
+        """
+        mu = self.centroid.values.tolist()
+        # cov = self.cov.tolist()
+        sigma_x = self.sigma_x.tolist()
+        sigma_y = self.sigma_y.tolist()
+        rho = self.corr.tolist()
+        # list(zip(self.cells.centroid.values.tolist(), self.cells.sigma_x.tolist(), self.cells.sigma_y.tolist()))
+        return list(zip(mu, rho, sigma_x, sigma_y))
+
+
     # -------- METHODS -------- #
+    def ini_centroids(self):
+        d = {'x': self.cell_props['x'], 'y': self.cell_props['y']}
+        df = pd.DataFrame(d)
+        return df.copy()
+
     def ini_cov(self):
         mcr = self.dapi_mean_cell_radius()
         cov = mcr * mcr * np.eye(2, 2)
@@ -106,6 +161,41 @@ class Cells(object):
         labels = ClassTotPredicted.columns.values[~isZero]
         TotPredicted = ClassTotPredicted[labels].sum(axis=1)
         return TotPredicted
+
+    def scatter_matrix(self, spots):
+        mu_bar = self.centroid.values
+        prob = spots.parent_cell_prob[:, :-1]
+        id = spots.parent_cell_id[:, :-1]
+        xy_spots = spots.xy_coords
+        out = self.ini_cov() * self.nu_0
+        # out = np.tile(np.eye(2, 2), (self.num_cells, 1, 1))
+
+        mu_x = mu_bar[id, 0]  # array of size [nS, N] with the x-coord of the centroid of the N closest cells
+        mu_y = mu_bar[id, 1]  # array of size [nS, N] with the y-coord of the centroid of the N closest cells
+
+        N = mu_x.shape[1]
+        _x = np.tile(xy_spots[:, 0], (N, 1)).T  # array of size [nS, N] populated with the x-coord of the spot
+        _y = np.tile(xy_spots[:, 1], (N, 1)).T  # array of size [nS, N] populated with the y-coord of the spot
+        x_centered = _x - mu_x  # subtract the cell centroid x-coord from the spot x-coord
+        y_centered = _y - mu_y  # subtract the cell centroid y-coord from the spot x-coord
+
+        el_00 = prob * x_centered * x_centered  # contribution to the scatter matrix's [0, 0] element
+        el_11 = prob * y_centered * y_centered  # contribution to the scatter matrix's off-diagonal element
+        el_01 = prob * x_centered * y_centered  # contribution to the scatter matrix's [1, 1] element
+
+        # Aggregate all contributions to get the scatter matrix
+        agg_00 = npg.aggregate(id.ravel(), el_00.ravel(), size=self.nC)
+        agg_11 = npg.aggregate(id.ravel(), el_11.ravel(), size=self.nC)
+        agg_01 = npg.aggregate(id.ravel(), el_01.ravel(), size=self.nC)
+
+        # Return now the scatter matrix. Some cell might not have any spots nearby. For those empty cells,
+        # the scatter matrix will be a zero squared array. That is fine.
+        out[:, 0, 0] = agg_00
+        out[:, 1, 1] = agg_11
+        out[:, 0, 1] = agg_01
+        out[:, 1, 0] = agg_01
+
+        return out
 
 # ----------------------------------------Class: Genes--------------------------------------------------- #
 class Genes(object):
@@ -232,6 +322,37 @@ class Spots(object):
         mask = np.greater(self.data.label, 0, where=~np.isnan(self.data.label))
         D[mask, 0] = D[mask, 0] + cfg['InsideCellBonus']
         return D
+
+    def mvn_loglik(self, data, cell_label, cells):
+        centroids = cells.centroid.values[cell_label]
+        covs = cells.cov[cell_label]
+        param = list(zip(*[data, centroids, covs]))
+        out = [self.loglik_contr(p) for i, p in enumerate(param)]
+        # out_2 = [multivariate_normal.logpdf(p[0], p[1], p[2]) for i, p in enumerate(param)]
+        return out
+
+    def loglik_contr(self, param):
+        """
+        Contribution of a single datapoint to the bivariate Normal distribution loglikelihood
+        Should be the same as multivariate_normal.logpdf(param[0], param[1], param[2])
+        """
+        x = param[0]
+        mu = param[1]
+        sigma = param[2]
+        k = 2  # dimensionality of a point
+
+        x = x.reshape([2, -1])
+        mu = mu.reshape([2, -1])
+        assert x.shape == mu.shape == (2, 1), 'Datapoint should have dimension (2, 1)'
+        assert sigma.shape == (2, 2), 'Covariance matrix should have shape: (2, 2)'
+
+        sigma_inv = np.linalg.inv(sigma)
+        a = - k / 2 * np.log(2 * np.pi)
+        b = - 0.5 * np.log(np.linalg.det(sigma))
+        c = - 0.5 * np.einsum('ji, jk, ki -> i', x - mu, sigma_inv, x - mu)
+        assert len(c) == 1, 'Should be an array with just one element'
+        out = a + b + c[0]
+        return out
 
     def zero_class_counts(self, geneNo, pCellZero):
         """

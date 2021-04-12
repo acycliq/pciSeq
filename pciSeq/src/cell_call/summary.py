@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+from pciSeq.src.cell_call.utils import gaussian_ellipsoid
 import logging
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -34,16 +35,29 @@ def _iss_summary(cells, genes, single_cell):
     class_name_list = [class_names[isProb_nonZero[n]].tolist() for n in range(N)]
     prob_list = [class_prob[n, isProb_nonZero[n]].tolist() for n in range(N)]
 
+    ellipsoid_border = []
+    for i in range(cells.nC):
+        ea = cells.ellipsoid_attributes[i]
+        ellipsis = gaussian_ellipsoid(*ea, 3).astype(np.int)
+        ellipsoid_border.append(ellipsis.tolist())
+
     iss_df = pd.DataFrame({'Cell_Num': cells.cell_props['cell_label'].tolist(),
-                           'X': cells.cell_props['x'].tolist(),
-                           'Y': cells.cell_props['y'].tolist(),
+                           'X': cells.centroid.x.tolist(),
+                           'Y': cells.centroid.y.tolist(),
+                           'X_0': cells.cell_props['x'].tolist(),
+                           'Y_0': cells.cell_props['y'].tolist(),
                            'Genenames': name_list,
                            'CellGeneCount': count_list,
                            'ClassName': class_name_list,
-                           'Prob': prob_list
+                           'Prob': prob_list,
+                           'rho': cells.corr.tolist(),
+                           'sigma_x': cells.sigma_x.tolist(),
+                           'sigma_y': cells.sigma_y.tolist(),
+                           'ellipsoid_border': ellipsoid_border,
                             },
-                           columns=['Cell_Num', 'X', 'Y', 'Genenames', 'CellGeneCount', 'ClassName', 'Prob']
-                           )
+                          columns=['Cell_Num', 'X', 'Y', 'X_0', 'Y_0', 'Genenames', 'CellGeneCount', 'ClassName',
+                                   'Prob', 'rho', 'sigma_x', 'sigma_y', 'ellipsoid_border']
+                          )
     iss_df.set_index(['Cell_Num'])
 
     # Ignore the first row. It is the pseudocell to keep the misreads (ie the background)
