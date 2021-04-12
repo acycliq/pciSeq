@@ -24,8 +24,12 @@ class Cells(object):
         self.class_names = None
         self._prior = None
         self._cov = self.ini_cov()
+        self.nu_0 = 15      # need to move that into config.py
+        self.rho_1 = 100    # need to move that into config.py
+        self.rho_2 = 100   # need to move that into config.py
         self._gene_counts = None
         self._background_counts = None
+        self._alpha = None
 
     # -------- PROPERTIES -------- #
     @property
@@ -67,6 +71,14 @@ class Cells(object):
     def log_prior(self):
         return np.log(self.prior)
 
+    @property
+    def alpha(self):
+        return self._alpha
+
+    @alpha.setter
+    def alpha(self, val):
+        self._alpha = val
+
     # -------- METHODS -------- #
     def ini_cov(self):
         mcr = self.dapi_mean_cell_radius()
@@ -83,7 +95,8 @@ class Cells(object):
         return nbrs
 
     def geneCountsPerKlass(self, single_cell_data, egamma, ini):
-        temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.cell_props['area_factor'], egamma)
+        temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.alpha, egamma)
+        # temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.cell_props['area_factor'], egamma)
 
         # total counts predicted by all cells of each class (nG, nK)
         ClassTotPredicted = temp * (single_cell_data.mean_expression + ini['SpotReg'])

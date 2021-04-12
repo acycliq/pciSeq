@@ -36,6 +36,7 @@ class VarBayes:
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
+        self.cells.alpha = np.ones(self.nC) * self.cells.rho_1 / self.cells.rho_2
 
     # -------------------------------------------------------------------- #
     def run(self):
@@ -52,6 +53,8 @@ class VarBayes:
 
             # 2. calc expected gamma
             self.gamma_upd()
+
+            self.alpha_upd()
 
             # 3. assign cells to cell types
             self.cell_to_cellType()
@@ -119,7 +122,8 @@ class VarBayes:
         cells = self.cells
         cfg = self.config
         dtype = self.config['dtype']
-        beta = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
+        beta = np.einsum('c, gk -> cgk', self.cells.alpha, self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
+        # beta = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
         # beta = cfg['rSpot'] + scaled_mean
 
@@ -147,8 +151,8 @@ class VarBayes:
 
         # gene_gamma = self.genes.eta
         dtype = self.config['dtype']
-        # ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.alpha, self.genes.eta, sc.mean_expression.data) + self.config['SpotReg']
-        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], self.genes.eta, self.single_cell.mean_expression).astype(dtype) + self.config['SpotReg']
+        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.alpha, self.genes.eta, self.single_cell.mean_expression).astype(dtype) + self.config['SpotReg']
+        # ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], self.genes.eta, self.single_cell.mean_expression).astype(dtype) + self.config['SpotReg']
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
@@ -228,6 +232,26 @@ class VarBayes:
 
         # Finally, update gene_gamma
         self.genes.eta = res.values
+
+    # -------------------------------------------------------------------- #
+    def alpha_upd(self):
+        ## manual way to do the denom, useful for debugging
+        ## Pick up a cell, lets say the first one and get the ids of its most likely cell types
+        # mask = np.argsort(-1 * self.classProb[1, :])
+
+        ## select the top 3 most likely cell types
+        # mask = mask[: 3]
+        ## find the theoretical gene counts that this particular cell should have
+        # out = np.einsum('cg, g, gc, c -> ', gamma_bar[1, :, mask], genes.eta, sc.mean_expression.data[:, mask], self.classProb[1, mask])
+
+        N_c = self.cells.total_counts
+        zeta_bar = self.cells.classProb
+        mu = self.scData['mean_expression'].data   # need to add constant too!
+
+        denom = np.einsum('gk, ck, cgk, g -> c', mu, zeta_bar, self.spots.gamma_bar, self.genes.eta)
+        alpha_bar = (N_c + self.cells.rho_1) / (denom + self.cells.rho_2)
+        logger.info('alpha range: %s ' % [alpha_bar.min(), alpha_bar.max()])
+        self.cells.alpha = alpha_bar
 
 
 
