@@ -87,6 +87,8 @@ class Cells(object):
 
     @centroid.setter
     def centroid(self, df):
+        assert isinstance(df, pd.DataFrame), 'Input should be a dataframe'
+        assert set(df.columns.values) == {'x', 'y'}, 'Dataframe columns should be ''x'' and ''y'' '
         self._centroid = df.copy()
 
     @property
