@@ -13,6 +13,31 @@ import logging
 dir_path = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger()
 
+# Note: 21-Feb-2020
+# I think there are TWO  bugs.
+#
+# ********** BUG 1 **********
+# I should be using: mean_expression = mean_expression + config['SpotReg']
+# instead of adding the SpotReg value every time I am calling mean_expression.
+# The ScaledExp calculation, in the code below, for example is not correct because the config['SpotReg'] constant
+# should not be added at the very end but should be moved inside the parentheses and added directly to
+# the sc.mean_expression array
+#
+# ********** BUG 2 **********
+# Gene efficiency (eta) is not also handled properly. For eta to have a gamma distribution gamma(r, r/eta_0) with
+# mean=0.2 and variance 20 the hyperparameter should be r = 0.002 and r/eta_0 = 0.002/0.2 = 0.01.
+# The mean value (ie 0.2) is applied on the single cell gene expression right after we have calculated the mean
+# class expression.
+# Then, in the rest of the code, gene efficiency is initialised as a vector of ones. While the vector eta is
+# getting multiplied with the mean expression counts when we derive the cell to cell class assignment, we do not
+# do the same when we calculate the gamma (equation 3 in the NMETH paper. We multiply the mean class expression
+# by the cell area factor and the gene efficiency is missing (see ScaledMean in matlab code)
+# I think It would better to:
+# NOT multiply the mean class expressions counts by 0.2 and the initialise eta as a vector of ones
+# BUT instead:
+# do not scale down the single cell gene expression data by 0.2 at the very beginning
+# initialise eta as a vector 0.2*np.ones([Ng, 1])
+# include eta in the calculations equations 2 and 3 and
 
 class VarBayes:
     def __init__(self, _cells_df, _spots_df, scRNAseq, config):
@@ -61,6 +86,9 @@ class VarBayes:
 
             # 5. update gene efficiency
             self.eta_upd()
+
+            # 6. Update single cell data
+            self.mu_upd()
 
             converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
             logger.info(' Iteration %d, mean prob change %f' % (i, delta))
@@ -228,6 +256,45 @@ class VarBayes:
 
         # Finally, update gene_gamma
         self.genes.eta = res.values
+
+    # -------------------------------------------------------------------- #
+    def mu_upd(self):
+        logger.info('Update single cell data')
+        # make an array nS-by-nN and fill it with the spots id
+        gene_ids = np.tile(self.spots.gene_id, (self.nN, 1)).T
+
+        # flatten it
+        gene_ids = gene_ids.ravel()
+
+        # make corresponding arrays for cell_id and probs
+        cell_ids = self.spots.parent_cell_id.ravel()
+        probs = self.spots.parent_cell_prob.ravel()
+
+        # make the array to be used as index in the group-by operation
+        group_idx = np.vstack((cell_ids, gene_ids))
+
+        # For each cell aggregate the number of spots from the same gene.
+        # It will produce an array of size nC-by-nG where the entry at (c,g)
+        # is the gene counts of gene g within cell c
+        N_cg = npg.aggregate(group_idx, probs, size=(self.nC, self.nG))
+
+        numer = np.einsum('ck, cg -> gk', self.cells.classProb, N_cg)
+        denom = np.einsum('ck, c, cgk, g -> gk', self.cells.classProb, self.cells.cell_props['area_factor'], self.spots.gamma_bar, self.genes.eta)
+
+        # set the hyperparameter for the gamma prior
+        m = 1
+
+        # ignore the last class, it is the zero class
+        numer = numer[:, :-1]
+        denom = denom[:, :-1]
+        mu_gk = (numer + m) / (denom + m/self.single_cell.raw_data)
+        me, lme = self.single_cell._helper(mu_gk)
+        self.single_cell._mean_expression = me
+        self.single_cell._log_mean_expression = lme
+
+        logger.info('Singe cell data updated')
+
+
 
 
 

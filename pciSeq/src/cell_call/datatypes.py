@@ -290,13 +290,16 @@ class SingleCell(object):
 
         logger.info(' Single cell data: Grouping gene counts by cell type. Aggregating function is the mean.')
         expr = dfT.groupby(dfT.index.values).agg('mean').T
-        expr['Zero'] = np.zeros([expr.shape[0], 1])
-        expr = expr.sort_index(axis=0).sort_index(axis=1)
-        expr = config['Inefficiency'] * expr
-        me = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")  # mean expression
-        lme = np.log(me + config['SpotReg'])  # log mean expression
 
-        logger.info(' Grouped single cell data have %d genes and %d cell types' % (me.shape[0], me.shape[1]))
+        self.raw_data = expr
+        me, lme = self._helper(expr.copy())
+        # expr['Zero'] = np.zeros([expr.shape[0], 1])
+        # expr = expr.sort_index(axis=0).sort_index(axis=1)
+        # expr = config['Inefficiency'] * expr
+        # me = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")  # mean expression
+        # lme = np.log(me + config['SpotReg'])  # log mean expression
+        #
+        # logger.info(' Grouped single cell data have %d genes and %d cell types' % (me.shape[0], me.shape[1]))
         dtype = self.config['dtype']
         return me.astype(dtype), lme.astype(dtype)
 
@@ -330,6 +333,15 @@ class SingleCell(object):
         """
         out = df.loc[:, (df != 0).any(axis=0)]
         return out
+
+    def _helper(self, arr):
+        arr['Zero'] = np.zeros([arr.shape[0], 1])
+        arr = arr.sort_index(axis=0).sort_index(axis=1)
+        expr = self.config['Inefficiency'] * arr
+        me = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")  # mean expression
+        lme = np.log(me + self.config['SpotReg'])  # log mean expression
+        return me, lme
+
 
 
 
