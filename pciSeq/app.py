@@ -76,6 +76,9 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
             Name: neighbour_array, dtype: Object, array-like with the labels of the 4 nearest cell. The last is always the background and has label=0
             Name: neighbour_prob, dtype: Object, array-like with the prob the corresponding cell from neighbour_array has risen the spot.
     """
+    logger.warning('NEEDS TO BE CHECKED!! REGRESSION ERRORS PROBABLY')
+    logger.warning('NEEDS TO BE CHECKED!! REGRESSION ERRORS PROBABLY')
+    logger.warning('NEEDS TO BE CHECKED!! REGRESSION ERRORS PROBABLY')
 
     # 1. get the hyperparameters
     cfg = init(opts)
