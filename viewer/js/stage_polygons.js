@@ -83,7 +83,7 @@ function renderPolygons(data) {
                 document.getElementById('webgl').innerHTML = '<span class="greenDot"> </span><span> GPU acceleration: Enabled</span>'
                 console.log('GPU acceleration: Enabled')
                 gl.blendFunc(gl.ONE, gl.ZERO);
-                document.querySelector('#webgl').style.display = 'block';
+                // document.querySelector('#webgl').style.display = 'block'; // Uncomment to show the control
             } else {
                 document.getElementById('webgl').innerHTML = '<span class="redDot blinking"> </span><span> Browser is not using the GPU</span>';
                 console.log('GPU acceleration: Disabled')
