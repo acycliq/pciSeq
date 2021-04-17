@@ -97,8 +97,8 @@ function legendControl() {
     if (!legend_added) {
         legendLink.addEventListener(`click`, () => {
             // Opens the page and stores the opened window instance
-            legendWindow = window.open(`./dashboard/my_datatable.html`); // <--- THAT NEEDS TO BE EXPOSED TO THE USER. MOVE I INSIDE config.js MAYBE
-            // legendWindow = window.open('./dashboard/my_datatable.html', '_blank','toolbar=yes');
+            legendWindow = window.open(`./dashboard/genes_datatable.html`); // <--- THAT NEEDS TO BE EXPOSED TO THE USER. MOVE I INSIDE config.js MAYBE
+            // legendWindow = window.open('./viewer/genes_datatable.html', '_blank','toolbar=yes');
 
         });
     }
@@ -159,7 +159,7 @@ function run() {
     console.log('app starts');
     configSettings = config();
 
-    fetcher([configSettings.cellData, configSettings.geneData, configSettings.cellEllipsoid]).then(
+    fetcher([configSettings.cellData, configSettings.geneData, configSettings.cellBoundaries]).then(
         result => make_package(result),
         error => alert(error) // doesn't run
     );
