@@ -20,6 +20,9 @@ function dapi(cfg) {
         transformation: new L.Transformation(1 / 1024, 0, 1 / 1024, 0),
     });
 
+    var southWest = L.latLng(img[1], img[0]),
+        northEast = L.latLng(0, 0),
+        mapBounds = L.latLngBounds(southWest, northEast);
 
     map = L.map('mymap', {
         crs: L.CRS.MySimple,
@@ -27,7 +30,8 @@ function dapi(cfg) {
     }).setView([img[1], img[0] / 2], 2);
     L.tileLayer(tiles, {
         minZoom: 0,
-        maxZoom: 8
+        maxZoom: 8,
+        bounds: mapBounds,
     }).addTo(map);
 
     function getTaxonomy(gene) {

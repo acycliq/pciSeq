@@ -27,7 +27,9 @@ function refresh() {
 
             if (masterMarkerContainer) {
                 var x = masterMarkerContainer.getChildByName(d);
-                x.visible = false
+                if (x) {
+                    x.visible = false
+                }
             }
         })
     }

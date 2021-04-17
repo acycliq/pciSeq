@@ -33,22 +33,11 @@ function add_spots_patched(all_geneData, map) {
         }, {}); // empty object is the initial value for result object
     };
 
-    // function scaleRamp(z) {
-    //     return z === 0 ? 0.125 :
-    //         z === 1 ? 0.125 :
-    //             z === 2 ? 0.125 :
-    //                 z === 3 ? 0.125 :
-    //                     z === 4 ? 0.125 :
-    //                         z === 5 ? 0.125 :
-    //                             z === 6 ? 0.0625 : // every time you zoom in, leaflet scales up by 2. Divide here by 2 to keep the marker the same as in zoom level 5
-    //                                 z === 7 ? 0.03125 : 1
-    // }
-
     function scaleRamp(z) {
-        var scale = 1 / 8;
-        return z === 0 ? scaleRampHelper(z, 0.25 * scale) :
-            z === 1 ? scaleRampHelper(z, 0.5 * scale) :
-                z === 2 ? scaleRampHelper(z, 0.5 * scale) : scaleRampHelper(z, scale)
+        var scale = 1 / 64;
+        return z === 0 ? scaleRampHelper(z, scale) :
+                z === 1 ? scaleRampHelper(z,  2 * scale) :
+                    z === 2 ? scaleRampHelper(z,  2 * scale) : scaleRampHelper(z, 4 * scale)
 
         // return z === 0 ? 0.03 * 2**3 :
         //     z === 1 ? 0.03 * 2**3 :
@@ -61,7 +50,7 @@ function add_spots_patched(all_geneData, map) {
         //                                 z === 8 ? 0.03 : (2**z)/7602
     }
 
-    function scaleRampHelper(z, scale) {
+    function scaleRampHelper(z, scale){
         // makes a tiny dot and the its scales it up based on the map and the dapi dimensions
         // As a general remark also, keep in mind that every time you zoom in, leaflet (I think) scales up by 2.
         // Divide by 2 to keep the marker the same as size. Hence if for zoom level = 3 the  return value from
@@ -71,11 +60,10 @@ function add_spots_patched(all_geneData, map) {
             dapi_size = [configSettings.roi.x1 - configSettings.roi.x0, configSettings.roi.y1 - configSettings.roi.y0],
             max_dapi = Math.max(...dapi_size),
             c = map_size / max_dapi,
-            tiny_dot = 1 / (2 ** z),
+            tiny_dot = 1 / (2**z),
             dot = c * tiny_dot;
         return dot * scale
     }
-
 
 
     var pixiLayer = (function () {
@@ -115,7 +103,8 @@ function add_spots_patched(all_geneData, map) {
 
             geneNames.forEach(gene => {
                 var my_color = markerColor(gene);
-                var texture = generateCircleTexture(my_color, 16, masterMarkerRenderer);
+                var radius = 16;
+                var texture = generateCircleTexture(my_color, radius, masterMarkerRenderer);
                 var pc = geneContainer_array.filter(d => d.name === gene)[0];
                 pc.texture = texture;
                 pc.baseTexture = texture.baseTexture;

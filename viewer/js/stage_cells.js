@@ -1,3 +1,7 @@
+// *******************************************************
+//           DEPRECATED CODE. NOT USED ANYMORE
+//  *******************************************************
+
 function drawCellSprites(resources, markers, map) {
     var textures = [resources.plane.texture, resources.circle.texture, resources.bicycle.texture];
     var focusTextures = [resources.focusPlane.texture, resources.focusCircle.texture, resources.focusBicycle.texture];
