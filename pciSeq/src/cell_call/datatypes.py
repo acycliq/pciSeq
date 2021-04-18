@@ -47,8 +47,9 @@ class Cells(object):
 
     @background_counts.setter
     def background_counts(self, val):
-        assert val[1:, :].sum() == 0, 'Input array must be zero everywhere apart from the top row'
-        self._background_counts = val[0, :]
+        # assert val[1:, :].sum() == 0, 'Input array must be zero everywhere apart from the top row'
+        # self._background_counts = val[0, :]
+        self._background_counts = val
 
     @property
     def total_counts(self):
