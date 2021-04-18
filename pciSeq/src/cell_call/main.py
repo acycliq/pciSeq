@@ -78,38 +78,39 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def geneCount_upd(self):
-        '''
+        """
         Produces a matrix numCells-by-numGenes where element at position (c,g) keeps the expected
         counts of gene g  in cell c.
-        '''
-        start = time.time()
+        """
+        # make an array nS-by-nN and fill it with the spots id
+        gene_ids = np.tile(self.spots.gene_id, (self.nN, 1)).T
 
-        # nN = self.cells.config['nNeighbors'] + 1
-        CellGeneCount = np.zeros([self.nC, self.nG])
+        # flatten it
+        gene_ids = gene_ids.ravel()
 
-        # name = spots.gene_panel.index.values
-        spot_id = self.spots.gene_id
-        for n in range(self.nN):
-            c = self.spots.parent_cell_id[:, n]
-            group_idx = np.vstack((c[None, :], spot_id[None, :]))
-            a = self.spots.parent_cell_prob[:, n]
-            accumarray = npg.aggregate(group_idx, a, func="sum", size=(self.nC, self.nG))
-            if n == self.nN - 1:
-                # the last neighbouring cell is for the misreads
-                self.cells.background_counts = accumarray
-            else:
-                CellGeneCount = CellGeneCount + accumarray
+        # make corresponding arrays for cell_id and probs
+        cell_ids = self.spots.parent_cell_id.ravel()
+        probs = self.spots.parent_cell_prob.ravel()
 
-        end = time.time()
-        # print('time in geneCount: ', end - start)
-        # CellGeneCount = xr.DataArray(CellGeneCount, coords=[_id, name], dims=['cell_id', 'gene_name'])
-        # self.CellGeneCount = CellGeneCount
+        # make the array to be used as index in the group-by operation
+        group_idx = np.vstack((cell_ids, gene_ids))
 
-        # print(self.background_counts.sum())
-        # print(CellGeneCount.sum(axis=1).sum())
-        # assert self.background_counts.sum() + CellGeneCount.sum(axis=1).sum() == spots.data.shape[0], \
+        # For each cell aggregate the number of spots from the same gene.
+        # It will produce an array of size nC-by-nG where the entry at (c,g)
+        # is the gene counts of gene g within cell c
+        N_cg = npg.aggregate(group_idx, probs, size=(self.nC, self.nG))
+
+        # assert N_cg.sum() == self.spots.data.shape[0], \
         #     "The sum of the background spots and the cell gene counts should be equal to the total number of spots"
-        self.cells.geneCount = CellGeneCount
+
+        # make output. This part needs to be rewritten
+        out = np.zeros([self.nC, self.nG])
+        out[1:, :] = N_cg[1:, :]
+
+        # cell at position zero is the background
+        self.cells.background_counts = N_cg[0, :]
+        # Actual cells are on non-zero positions
+        self.cells.geneCount = out
 
     # -------------------------------------------------------------------- #
     def gamma_upd(self):
