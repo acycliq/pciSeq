@@ -19,48 +19,14 @@
 
     <script src="js/glyphPaths.js"></script>
     <script src="js/glyphConfig.js"></script>
-    <script src="cookies.js"></script>  <!--I did remove that right? There is no cookies.js anymore -->
 
     <style>
-        /** {*/
-        /*    font-size: 100.01%;*/
-        /*    margin: 0;*/
-        /*    padding: 0;*/
-        /*}*/
-
-        /*html {*/
-        /*    font: 62.5%/1.5 Verdana, Tahoma, sans-serif;*/
-        /*}*/
-
         html, body {
             width: 98%;
             height: 100%;
             /*overflow: hidden;*/
         }
-
-        .map-content {
-            position: absolute;
-            z-index: 1000;
-            padding: 4px 7px 5px;
-            border-top: 1px solid #777;
-            border-left: 1px solid #777;
-            border-right: 2px solid #444;
-            border-bottom: 2px solid #444;
-            line-height: 1.6;
-            font-size: 1.2em;
-            background: white;
-            -moz-border-radius: 5px;
-            -webkit-border-radius: 5px;
-            border-radius: 5px;
-        }
-
-        #forecast {
-            top: 45px;
-            right: 60px;
-        }
-
     </style>
-
 </head>
 <body>
 
@@ -71,7 +37,7 @@
         <tr>
             <th></th>
             <th>Gene Name</th>
-            <th>Taxonomy</th>
+<!--            <th>Taxonomy</th>-->
             <th>Glyph Name</th>
             <th>Glyph Color</th>
             <th>Glyph</th>
@@ -86,7 +52,7 @@
     var table;
     $(document).ready(function () {
         var legendData = glyphSettings().filter(d => {return d.gene != 'Generic'})
-          .map((d,i) => {return [i, d.gene, d.taxonomy, d.glyphName, glyphColor(d.taxonomy)]});
+          .map((d,i) => {return [i, d.gene, d.glyphName, glyphColor(d.taxonomy)]});
         table = $('#example').DataTable({
             'data': legendData,
             'columnDefs': [
@@ -112,9 +78,9 @@
             'columns': [
                 {"data": 0, "orderable": true}, //checkboxes
                 {"data": 1, "orderable": true}, //Gene Name
-                {"data": 2, "orderable": true}, //Taxonomy
-                {"data": 3, "orderable": true}, //Glyph Name
-                {"data": 4, "orderable": true}, //Glyph Color
+                // {"data": 2, "orderable": true}, //Taxonomy
+                {"data": 2, "orderable": true}, //Glyph Name
+                {"data": 3, "orderable": true}, //Glyph Color
                 {
                     "render": function (data, type, JsonResultRow, meta) {
                         var canv = document.createElement('canvas');
@@ -142,45 +108,16 @@
             var c = document.getElementById(d[1]); //d[1] is the gene name which is also the id of the canvas element
             var ctx = c.getContext("2d");
             var p = {x: 7, y: 7};
-            var r = ['star5','star6'].includes(d[3])? 7: 5; //controls the glyph size
+            var r = ['star5','star6'].includes(d[2])? 7: 5; //controls the glyph size, d[2] is the glyph name
 
-            ctx = ctxPath(d[3], ctx, p, r);
-            ctx.strokeStyle = d[4]; //color
+            ctx = ctxPath(d[2], ctx, p, r);
+            ctx.strokeStyle = d[3]; //d[3] is the color (hex code)
             ctx.lineWidth = 1;
             ctx.stroke()
         })
 
     });
 
-    // // Print selected rows
-    // function printSelectedRows() {
-    //     var rows_selected = $('#example').DataTable().column(0).checkboxes.selected();
-    //     var genesSelection = rows_selected.map(d => $('#example').DataTable().cell(d, 1).data());
-    //     genesSelection = JSON.stringify(genesSelection.toArray())
-    //     saveCookie('firstDraw', 1)
-    //     relayCookie('datatable_selection', genesSelection)
-    //     // window.localStorage["1"] = new Date().getTime(); // this will trigger the "storage" event in the other tabs.
-    //
-    // };
-
-    // function onSelect() {
-    //     return function () {
-    //         var rows_selected = $('#example').DataTable().column(0).checkboxes.selected();
-    //         var genesSelection = rows_selected.map(d => $('#example').DataTable().cell(d, 1).data());
-    //         genesSelection = JSON.stringify(genesSelection.toArray())
-    //         // console.log(+getCookie('dtCompleted'));
-    //         if (+getCookie('dtCompleted')){
-    //             console.log('relaying cookie');
-    //             relayCookie('datatable_selection', genesSelection)
-    //         }
-    //         else{
-    //             saveCookie('datatable_selection', genesSelection)
-    //         }
-    //
-    //         // window.localStorage["1"] = new Date().getTime(); // this will trigger the "storage" event in the other tabs.
-    //
-    //     }
-    // }
 
     function getPreviousSelection(table){
 
