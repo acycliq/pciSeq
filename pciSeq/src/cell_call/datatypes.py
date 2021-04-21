@@ -352,6 +352,7 @@ class SingleCell(object):
 
         logger.info(' Single cell data: Grouping gene counts by cell type. Aggregating function is the mean.')
         out = dfT.groupby(dfT.index.values).agg('mean').T
+        logger.info(' Grouped single cell data have %d genes and %d cell types' % (out.shape[0], out.shape[1]))
         return out
 
 
