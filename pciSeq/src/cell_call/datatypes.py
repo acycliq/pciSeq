@@ -282,19 +282,25 @@ class SingleCell(object):
         These hyperparameters and some bacic cleaning takes part in the functions
         called herein
         """
-        expr = self._raw_data(scdata, genes)
+        # expr = self._raw_data(scdata, genes)
+        expr = self._naive(scdata, genes)
         self.raw_data = expr
         me, lme = self._helper(expr.copy())
         dtype = self.config['dtype']
+
+        assert me.columns[-1] == 'Zero', "Last column should be the Zero class"
+        assert lme.columns[-1] == 'Zero', "Last column should be the Zero class"
         return me.astype(dtype), lme.astype(dtype)
 
     # -------- PROPERTIES -------- #
     @property
     def mean_expression(self):
+        assert self._mean_expression.columns[-1] == 'Zero', "Last column should be the Zero class"
         return self._mean_expression
 
     @property
     def log_mean_expression(self):
+        assert self._log_mean_expression.columns[-1] == 'Zero', "Last column should be the Zero class"
         return self._log_mean_expression
 
     @property
@@ -321,7 +327,8 @@ class SingleCell(object):
 
     def _helper(self, arr):
         arr['Zero'] = np.zeros([arr.shape[0], 1])
-        arr = arr.sort_index(axis=0).sort_index(axis=1)
+        arr = arr.sort_index(axis=0).sort_index(axis=1, key=lambda x: x.str.lower())
+        # arr = arr.sort_index(axis=0).sort_index(axis=1)
         expr = self.config['Inefficiency'] * arr
         me = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")  # mean expression
         lme = np.log(me + self.config['SpotReg'])  # log mean expression
@@ -347,6 +354,35 @@ class SingleCell(object):
         logger.info(' Single cell data: Grouping gene counts by cell type. Aggregating function is the mean.')
         out = dfT.groupby(dfT.index.values).agg('mean').T
         return out
+
+    def _naive(self, scdata, genes):
+        logger.info('******************************************************')
+        logger.info('*************** NAIVE SINGLE CELL DATA ***************')
+        logger.info('******************************************************')
+        nG = 92
+        nK = 71
+        mgc = 15  # how many gene counts a cell has on average
+        # mgc = 160
+        arr = np.zeros([nG, nK])
+        arr[:, 0::2] = mgc / nG
+        # arr = np.ones([nG, nK]) * mgc / nG
+        labels = ["label_" + str(d) for d in range(arr.shape[1])]
+        df = pd.DataFrame(arr).set_index(genes)
+        df.columns = labels
+        return df
+
+    def _zeros(self, scdata, genes):
+        logger.info('******************************************************')
+        logger.info('*************** ZEROS SINGLE CELL DATA ***************')
+        logger.info('******************************************************')
+        nG = 92
+        nK = 71
+        arr = np.zeros([nG, nK])
+        labels = ["label_" + str(d) for d in range(arr.shape[1])]
+        df = pd.DataFrame(arr).set_index(genes)
+        df.columns = labels
+
+        return df
 
 
 
