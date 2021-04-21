@@ -277,37 +277,30 @@ class SingleCell(object):
         self._mean_expression, self._log_mean_expression = self._setup(scdata, genes, self.config)
 
     def _setup(self, scdata, genes, config):
-        assert np.all(scdata >= 0), "Single cell dataframe has negative values"
-        logger.info(' Single cell data passed-in have %d genes and %d cells' % (scdata.shape[0], scdata.shape[1]))
-
-        logger.info(' Single cell data: Keeping counts for the gene panel of %d only' % len(genes))
-        df = scdata.loc[genes]
-
-        # set the axes labels
-        df = self._set_axes(df)
-
-        df = self._remove_zero_cols(df.copy())
-        dfT = df.T
-
-        logger.info(' Single cell data: Grouping gene counts by cell type. Aggregating function is the mean.')
-        expr = dfT.groupby(dfT.index.values).agg('mean').T
-        expr['Zero'] = np.zeros([expr.shape[0], 1])
-        expr = expr.sort_index(axis=0).sort_index(axis=1)
-        expr = config['Inefficiency'] * expr
-        me = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")  # mean expression
-        lme = np.log(me + config['SpotReg'])  # log mean expression
-
-        logger.info(' Grouped single cell data have %d genes and %d cell types' % (me.shape[0], me.shape[1]))
+        """
+        calcs the mean (and the log-mean) gene counts per cell type. Note that
+        some hyperparameter values have been applied before those means are derived.
+        These hyperparameters and some bacic cleaning takes part in the functions
+        called herein
+        """
+        expr = self._raw_data(scdata, genes)
+        self.raw_data = expr
+        me, lme = self._helper(expr.copy())
         dtype = self.config['dtype']
+
+        assert me.columns[-1] == 'Zero', "Last column should be the Zero class"
+        assert lme.columns[-1] == 'Zero', "Last column should be the Zero class"
         return me.astype(dtype), lme.astype(dtype)
 
     # -------- PROPERTIES -------- #
     @property
     def mean_expression(self):
+        assert self._mean_expression.columns[-1] == 'Zero', "Last column should be the Zero class"
         return self._mean_expression
 
     @property
     def log_mean_expression(self):
+        assert self._log_mean_expression.columns[-1] == 'Zero', "Last column should be the Zero class"
         return self._log_mean_expression
 
     @property
@@ -331,6 +324,36 @@ class SingleCell(object):
         """
         out = df.loc[:, (df != 0).any(axis=0)]
         return out
+
+    def _helper(self, arr):
+        arr['Zero'] = np.zeros([arr.shape[0], 1])
+        arr = arr.sort_index(axis=0).sort_index(axis=1, key=lambda x: x.str.lower())
+        expr = self.config['Inefficiency'] * arr
+        me = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")  # mean expression
+        lme = np.log(me + self.config['SpotReg'])  # log mean expression
+        return me, lme
+
+    def _raw_data(self, scdata, genes):
+        """
+        Reads the raw single data, filters out any genes outside the gene panel and then it
+        groups by the cell type
+        """
+        assert np.all(scdata >= 0), "Single cell dataframe has negative values"
+        logger.info(' Single cell data passed-in have %d genes and %d cells' % (scdata.shape[0], scdata.shape[1]))
+
+        logger.info(' Single cell data: Keeping counts for the gene panel of %d only' % len(genes))
+        df = scdata.loc[genes]
+
+        # set the axes labels
+        df = self._set_axes(df)
+
+        df = self._remove_zero_cols(df.copy())
+        dfT = df.T
+
+        logger.info(' Single cell data: Grouping gene counts by cell type. Aggregating function is the mean.')
+        out = dfT.groupby(dfT.index.values).agg('mean').T
+        return out
+
 
 
 
