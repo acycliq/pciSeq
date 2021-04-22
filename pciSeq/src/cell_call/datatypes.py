@@ -283,7 +283,8 @@ class SingleCell(object):
         called herein
         """
         # expr = self._raw_data(scdata, genes)
-        expr = self._naive(scdata, genes)
+        # expr = self._naive(scdata, genes)
+        expr = self._diag(scdata, genes)
         self.raw_data = expr
         me, lme = self._helper(expr.copy())
         dtype = self.config['dtype']
@@ -378,6 +379,20 @@ class SingleCell(object):
         nG = 92
         nK = 71
         arr = np.zeros([nG, nK])
+        labels = ["label_" + str(d) for d in range(arr.shape[1])]
+        df = pd.DataFrame(arr).set_index(genes)
+        df.columns = labels
+
+        return df
+
+    def _diag(self, scdata, genes):
+        logger.info('******************************************************')
+        logger.info('*************** DIAGONAL SINGLE CELL DATA ***************')
+        logger.info('******************************************************')
+        nG = 92
+        # nK = 71
+        mgc = 15
+        arr = mgc * np.eye(nG)
         labels = ["label_" + str(d) for d in range(arr.shape[1])]
         df = pd.DataFrame(arr).set_index(genes)
         df.columns = labels
