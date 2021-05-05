@@ -88,7 +88,7 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
     cellData, geneData = cell_type(_cells, _spots, scRNAseq, cfg)
 
     # 4. save to filesystem
-    save_data = True
+    save_data = False
     if save_data:
         write_data(cellData, geneData, cellBoundaries, cfg)
 
@@ -110,6 +110,9 @@ def write_data(cellData, geneData, cellBoundaries, ini):
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
+    ellipsoidBorders = cellData[['Cell_Num', 'ellipsoid_border']]
+    ellipsoidBorders = ellipsoidBorders.rename(columns={'Cell_Num': 'cell_id', 'ellipsoid_border': 'coords'})
+
     cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
     logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
 
@@ -119,10 +122,14 @@ def write_data(cellData, geneData, cellBoundaries, ini):
     cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
     logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
+    ellipsoidBorders.to_csv(os.path.join(out_dir, 'ellipsoidBorders.tsv'), sep='\t', index=False)
+    logger.info('Saved at %s' % (os.path.join(out_dir, 'ellipsoidBorders.tsv')))
+
     # Write to the disk as tsv of 99MB each
     splitter_mb(cellData, os.path.join(out_dir, 'cellData'), 99)
     splitter_mb(geneData, os.path.join(out_dir, 'geneData'), 99)
     splitter_mb(cellBoundaries, os.path.join(out_dir, 'cellBoundaries'), 99)
+    splitter_mb(ellipsoidBorders, os.path.join(out_dir, 'ellipsoidBorders'), 99)
 
 
 def init(opts):

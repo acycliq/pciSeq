@@ -27,9 +27,9 @@ def read_image_objects(img_obj, cfg):
     CellAreaFactor = nom / denom
 
     out = {}
-    out['area_factor'] = CellAreaFactor
-    # out['area_factor'] = np.ones(CellAreaFactor.shape)
-    # logger.info('Overriden CellAreaFactor = 1')
+    # out['area_factor'] = CellAreaFactor
+    out['area_factor'] = np.ones(CellAreaFactor.shape)
+    logger.info('Overriden CellAreaFactor = 1')
     out['rel_radius'] = relCellRadius
     out['area'] = np.append(np.nan, img_obj.area)
     out['x'] = np.append(-sys.maxsize, img_obj.x.values)
@@ -264,4 +264,60 @@ def load_from_url(url):
         download_url_to_file(url, filename)
     return filename
 
+
+def gaussian_ellipsoid(mu, rho, sigma_x, sigma_y, sdwidth=None):
+    """
+    NOTE: NP NEED TO RECONSTRUCT THE COV MATRIX FROM THE VARIANCES.
+    THE COVARIANCE MATRIX IS ALREADY AVAILABLE, YOU SHOULD PASS THAT
+    INSTEAD OF THE SIGMAS AND RHO.
+    Draws an ellipsoid for a given covariance matrix cov
+    and mean vector mu
+
+    Example
+    cov_1 = [[1, 0.5], [0.5, 1]]
+    means_1 = [1, 1]
+
+    cov_2 = [[1, -0.7], [-0.7, 1]]
+    means_2 = [2, 1.5]
+
+    cov_3 = [[1, 0], [0, 1]]
+    means_3 = [0, 0]
+
+    ellipsis_1 = gaussian_ellipsoid(cov_1, means_1)
+    ellipsis_2 = gaussian_ellipsoid(cov_2, means_2)
+    ellipsis_3 = gaussian_ellipsoid(cov_3, means_3)
+    ellipsis_3b = gaussian_ellipsoid(cov_3, means_3, sdwidth=2)
+    ellipsis_3c = gaussian_ellipsoid(cov_3, means_3, sdwidth=3)
+
+    plt.plot(ellipsis_1[0], ellipsis_1[1], c='b')
+    plt.plot(ellipsis_2[0], ellipsis_2[1], c='r')
+    plt.plot(ellipsis_3[0], ellipsis_3[1], c='g')
+    plt.plot(ellipsis_3b[0], ellipsis_3b[1], c='g')
+    plt.plot(ellipsis_3c[0], ellipsis_3c[1], c='g')
+    """
+    if sdwidth is None:
+        sdwidth = 1
+
+    cov_00 = sigma_x * sigma_x
+    cov_10 = rho * sigma_x * sigma_y
+    cov_11 = sigma_y * sigma_y
+    cov = np.array([[cov_00, cov_10], [cov_10, cov_11]])
+    mu = np.array(mu)
+
+    npts = 40
+    tt = np.linspace(0, 2 * np.pi, npts)
+    ap = np.zeros((2, npts))
+    x = np.cos(tt)
+    y = np.sin(tt)
+    ap[0, :] = x
+    ap[1, :] = y
+
+    eigvals, eigvecs = np.linalg.eig(cov)
+    eigvals = sdwidth * np.sqrt(eigvals)
+    eigvals = eigvals * np.eye(2)
+
+    vd = eigvecs.dot(eigvals)
+    out = vd.dot(ap) + mu.reshape(2, -1)
+
+    return np.array(list(zip(*out)))
 

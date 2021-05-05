@@ -52,5 +52,9 @@ DEFAULT = {
     # your machine. Changing the datatype to a float16 or float32 will help keeping RAM usage to a lower
     # level
     'dtype': np.float64,
+
+    # Hyperparameters for the gamma-distributed alpha variate
+    'rho_1': 100,  # need to move that into config.py
+    'rho_2': 100,  # need to move that into config.py
 }
 
