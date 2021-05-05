@@ -360,7 +360,7 @@ class SingleCell(object):
         logger.info('******************************************************')
         logger.info('*************** NAIVE SINGLE CELL DATA ***************')
         logger.info('******************************************************')
-        nG = 92
+        nG = len(genes)
         nK = 71
         mgc = 15  # how many gene counts a cell has on average
         # mgc = 160
@@ -376,7 +376,7 @@ class SingleCell(object):
         logger.info('******************************************************')
         logger.info('*************** ZEROS SINGLE CELL DATA ***************')
         logger.info('******************************************************')
-        nG = 92
+        nG = len(genes)
         nK = 71
         arr = np.zeros([nG, nK])
         labels = ["label_" + str(d) for d in range(arr.shape[1])]
@@ -389,7 +389,7 @@ class SingleCell(object):
         logger.info('******************************************************')
         logger.info('*************** DIAGONAL SINGLE CELL DATA ***************')
         logger.info('******************************************************')
-        nG = 92
+        nG = len(genes)
         # nK = 71
         mgc = 15
         arr = mgc * np.eye(nG)
