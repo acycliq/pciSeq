@@ -61,7 +61,7 @@ class VarBayes:
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
-        self.cells.alpha = np.ones(self.nC) * self.cells.rho_1 / self.cells.rho_2
+        # self.cells.alpha = np.ones(self.nC) * self.cells.rho_1 / self.cells.rho_2
 
     # -------------------------------------------------------------------- #
     def run(self):
@@ -80,7 +80,7 @@ class VarBayes:
             # 1. For each cell, calc the expected gene counts
             self.geneCount_upd()
 
-            self.alpha_upd()
+            # self.alpha_upd()
 
             # 2. calc expected gamma
             self.gamma_upd()
@@ -156,8 +156,8 @@ class VarBayes:
         cells = self.cells
         cfg = self.config
         dtype = self.config['dtype']
-        beta = np.einsum('c, gk -> cgk', self.cells.alpha, self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
-        # beta = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
+        # beta = np.einsum('c, gk -> cgk', self.cells.alpha, self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
+        beta = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
         # beta = cfg['rSpot'] + scaled_mean
 
@@ -365,7 +365,7 @@ class VarBayes:
         # stein = self.cells.stein(cov)
         # delta = self.cells.rblw(cov)
 
-        # delta = 0.5
+        delta = 0.5
         # logger.info('Mean shrinkage %4.2f' % delta.mean())
         # logger.info('cell 601 shrinkage %4.2f, %4.2f' % (shrinkage[601], sh[601]))
         logger.info('cell 601 gene counts %d' % self.cells.total_counts[601])
@@ -376,7 +376,7 @@ class VarBayes:
 
         # delta = delta.reshape(self.nC, 1, 1)
         # target = [np.trace(d)/2 * np.eye(2) for d in cov]  # shrinkage target
-        # cov = delta*cov_0 + (1-delta)*cov
+        cov = delta*cov_0 + (1-delta)*cov
         # cov = delta * target + (1 - delta) * cov
         self.cells.cov = cov
 

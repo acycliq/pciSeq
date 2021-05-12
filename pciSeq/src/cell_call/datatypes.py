@@ -152,8 +152,8 @@ class Cells(object):
         return nbrs
 
     def geneCountsPerKlass(self, single_cell_data, egamma, ini):
-        temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.alpha, egamma)
-        # temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.cell_props['area_factor'], egamma)
+        # temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.alpha, egamma)
+        temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.cell_props['area_factor'], egamma)
 
         # total counts predicted by all cells of each class (nG, nK)
         ClassTotPredicted = temp * (single_cell_data.mean_expression + ini['SpotReg'])

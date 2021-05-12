@@ -88,7 +88,7 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
     cellData, geneData = cell_type(_cells, _spots, scRNAseq, cfg)
 
     # 4. save to filesystem
-    save_data = False
+    save_data = True
     if save_data:
         write_data(cellData, geneData, cellBoundaries, cfg)
 
@@ -106,7 +106,7 @@ def cell_type(_cells, _spots, scRNAseq, ini):
 
 def write_data(cellData, geneData, cellBoundaries, ini):
     # out_dir = ini['out_dir']
-    out_dir = r"./random_single_cell_data"
+    out_dir = r"./random_single_cell_data_with_ellipsoids"
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 

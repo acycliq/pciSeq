@@ -27,9 +27,7 @@ def read_image_objects(img_obj, cfg):
     CellAreaFactor = nom / denom
 
     out = {}
-    # out['area_factor'] = CellAreaFactor
-    out['area_factor'] = np.ones(CellAreaFactor.shape)
-    logger.info('Overriden CellAreaFactor = 1')
+    out['area_factor'] = CellAreaFactor
     out['rel_radius'] = relCellRadius
     out['area'] = np.append(np.nan, img_obj.area)
     out['x'] = np.append(-sys.maxsize, img_obj.x.values)
