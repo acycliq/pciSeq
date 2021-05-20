@@ -55,13 +55,37 @@ class VarBayes:
                                                         # misread spots. (ie cell at position nN is the background)
 
     def initialise(self):
-        self.cells.prior = np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
+        # self.cells.prior = np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
+        self.cells.prior = np.append(0.5 * self.rnd_dirichlet(), 0.5)
         self.cells.classProb = np.tile(self.cells.prior, (self.nC, 1))
         self.genes.eta = np.ones(self.nG)
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
         # self.cells.alpha = np.ones(self.nC) * self.cells.rho_1 / self.cells.rho_2
+
+    def rnd_dirichlet(self):
+        """
+        generates a sample from the dirichlet distribution
+        """
+        np.random.seed(2021)
+        K = self.nK-1
+        rd = np.random.dirichlet([self.nC / K] * K)
+        return rd
+
+    def rnd_dirichlet_tweaked(self):
+        """
+        generates a sample from the dirichlet distribution
+        """
+        K = self.nK-1
+        out = np.zeros(K)
+        idx = [0, 1,  17, 3,  30, 35,  42,  45, 56, 58,  60,  69,  80, 89,  9]
+
+        out[idx] = np.random.dirichlet([self.nC / len(idx)] * len(idx))
+
+        return out
+
+
 
     # -------------------------------------------------------------------- #
     def run(self):
