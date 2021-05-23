@@ -3,7 +3,7 @@ import pandas as pd
 import dask.array as da
 import numpy_groupies as npg
 from typing import Tuple
-from pciSeq.src.cell_call.datatypes import Cells, Spots, Genes, SingleCell
+from pciSeq.src.cell_call.datatypes import Cells, Spots, Genes, SingleCell, CellType
 from pciSeq.src.cell_call.summary import collect_data
 import pciSeq.src.cell_call.utils as utils
 import os
@@ -46,9 +46,11 @@ class VarBayes:
         self.spots = Spots(_spots_df, config)
         self.genes = Genes(self.spots)
         self.single_cell = SingleCell(scRNAseq, self.genes.gene_panel, self.config)
+        self.cellTypes = CellType(self.single_cell)
         self.nC = self.cells.nC                         # number of cells
         self.nG = self.genes.nG                         # number of genes
-        self.nK = len(self.single_cell.classes)         # number of classes
+        # self.nK = len(self.single_cell.classes)       # number of classes
+        self.nK = self.cellTypes.nK                     # number of classes
         self.nS = self.spots.nS                         # number of spots
         self.nN = self.config['nNeighbors'] + 1         # number of closest nearby cells, candidates for being parent
                                                         # cell of any given spot. The last cell will be used for the
@@ -56,8 +58,9 @@ class VarBayes:
 
     def initialise(self):
         # self.cells.prior = np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
-        self.cells.prior = np.append(0.5 * self.rnd_dirichlet(), 0.5)
-        self.cells.classProb = np.tile(self.cells.prior, (self.nC, 1))
+        # self.cellTypes.prior = np.append(0.5 * self.rnd_dirichlet(), 0.5)
+        self.cellTypes.ini_prior('dirichlet')
+        self.cells.classProb = np.tile(self.cellTypes.pi_bar, (self.nC, 1))
         self.genes.eta = np.ones(self.nG)
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
@@ -85,8 +88,6 @@ class VarBayes:
 
         return out
 
-
-
     # -------------------------------------------------------------------- #
     def run(self):
         p0 = None
@@ -113,6 +114,9 @@ class VarBayes:
 
             # 3. assign cells to cell types
             self.cell_to_cellType()
+
+            # update cell type weights
+            self.dalpha_upd()
 
             # 4. assign spots to cells
             self.spots_to_cell()
@@ -214,7 +218,7 @@ class VarBayes:
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
-        wCellClass = np.sum(contr, axis=1) + self.cells.log_prior
+        wCellClass = np.sum(contr, axis=1) + self.cellTypes.logpi_bar
         pCellClass = utils.softmax(wCellClass, axis=1)
 
         ## self.cells.classProb = pCellClass
@@ -440,6 +444,13 @@ class VarBayes:
         self.single_cell._log_mean_expression = lme
 
         logger.info('Singe cell data updated')
+
+# -------------------------------------------------------------------- #
+    def dalpha_upd(self):
+        logger.info('Update cell type (marginal) distribution')
+        zeta = self.cells.classProb.sum(axis=0)
+        alpha = self.cellTypes.ini_alpha()
+        self.cellTypes.alpha = zeta + alpha
 
 
 

@@ -106,7 +106,7 @@ def cell_type(_cells, _spots, scRNAseq, ini):
 
 def write_data(cellData, geneData, cellBoundaries, ini):
     # out_dir = ini['out_dir']
-    out_dir = r"./ca1_random_single_cell_data_with_ellipsoids_and_dirichletPrior"
+    out_dir = r"./ca1_random_single_cell_data_with_ellipsoids_and_dirichlet_upd"
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 

@@ -60,17 +60,17 @@ class Cells(object):
         # tc = self.geneCount.sum(axis=1)
         return self.geneCount.sum(axis=1)
 
-    @property
-    def prior(self):
-        return self._prior
-
-    @prior.setter
-    def prior(self, val):
-        self._prior = val
-
-    @property
-    def log_prior(self):
-        return np.log(self.prior)
+    # @property
+    # def prior(self):
+    #     return self._prior
+    #
+    # @prior.setter
+    # def prior(self, val):
+    #     self._prior = val
+    #
+    # @property
+    # def log_prior(self):
+    #     return np.log(self.prior)
 
     @property
     def alpha(self):
@@ -534,6 +534,94 @@ class SingleCell(object):
         df.columns = labels
 
         return df
+
+
+class CellType(object):
+    def __init__(self, single_cell):
+        assert single_cell.classes[-1] == 'Zero', "Last label should be the Zero class"
+        self._names = single_cell.classes
+        # self._prior = None
+        self._alpha = None
+        self._pi = np.append(.5 * np.ones(self.nK - 1) / (self.nK - 1), 0.5)
+
+    @property
+    def names(self):
+        assert self._names[-1] == 'Zero', "Last label should be the Zero class"
+        return self._names
+
+    @property
+    def nK(self):
+        return len(self.names)
+
+    # @property
+    # def prior(self):
+    #     return self.pi_bar
+
+    # @prior.setter
+    # def prior(self, val):
+    #     self._prior = val
+
+    @property
+    def alpha(self):
+        return self._alpha
+
+    @alpha.setter
+    def alpha(self, val):
+        self._alpha = val
+
+    # @property
+    # def pi(self):
+    #     return self._pi
+
+    @property
+    def pi_bar(self):
+        return self.alpha / self.alpha.sum()
+
+    @property
+    def logpi_bar(self):
+        return scipy.special.psi(self.alpha) - scipy.special.psi(self.alpha.sum())
+
+    # @property
+    # def log_prior(self):
+    #     return self.logpi_bar
+
+    def ini_prior(self, ini_family):
+        if ini_family == 'uniform':
+            self.prior = np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
+        # elif ini_family == 'rnd_dirichlet':
+        #     assert nC is not None, "nC must not be None"
+        #     assert isinstance(nC, int), "nC must be integer"
+        #     self.prior = np.append(0.5 * self._rnd_dirichlet(nC), 0.5)
+        elif ini_family == 'dirichlet':
+            self._dirichlet()
+            # return self.prior(self)
+
+
+
+    def _rnd_dirichlet(self, nC):
+        """
+        generates a sample from the dirichlet distribution
+        """
+        np.random.seed(2021)
+        K = self.nK-1
+        rd = np.random.dirichlet([nC / K] * K)
+        return rd
+
+    def _dirichlet(self):
+        """
+        sets the initial dirichlet prior
+        """
+        assert self.names[-1] == 'Zero', 'Last class should be the Zero class'
+        self._alpha = self.ini_alpha()
+        u = np.ones(self.nK - 1)
+        self._pi = np.append(.5 * np.ones(len(u)) / len(u), 0.5)
+
+    def ini_alpha(self):
+        return np.append(np.ones(self.nK - 1), sum(np.ones(self.nK - 1)))
+
+
+
+
 
 
 
