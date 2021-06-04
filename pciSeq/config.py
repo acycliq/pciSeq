@@ -11,13 +11,13 @@ DEFAULT = {
     'max_iter': 1000,
 
     # Convergence achieved if assignment probabilities between two successive loops is less than the tolerance
-    'CellCallTolerance': 0.02,
+    'CellCallTolerance': 0.06,
 
     # A gamma distribution expresses the efficiency of the in-situ sequencing for each gene. It tries to capture
     # the ratio of the observed over the theoretical counts for a given gene. rGene controls the variance and
     # Inefficiency is the average of this assumed Gamma distribution
     'rGene': 20,
-    'Inefficiency': 0.2,
+    'Inefficiency': 1,
 
     # If a spot is inside the cell boundaries this bonus will give the likelihood an extra boost
     # in order to make the spot more probable to get assigned to the cell than another spot positioned
@@ -56,5 +56,7 @@ DEFAULT = {
     # Hyperparameters for the gamma-distributed alpha variate
     'rho_1': 100,  # need to move that into config.py
     'rho_2': 100,  # need to move that into config.py
+
+    'm': 1
 }
 

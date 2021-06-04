@@ -466,9 +466,20 @@ class SingleCell(object):
         arr['Zero'] = np.zeros([arr.shape[0], 1])
         arr = arr.sort_index(axis=0).sort_index(axis=1, key=lambda x: x.str.lower())
         # arr = arr.sort_index(axis=0).sort_index(axis=1)
-        expr = self.config['Inefficiency'] * arr
+        expr = arr
         me = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")  # mean expression
         lme = np.log(me + self.config['SpotReg'])  # log mean expression
+        return me, lme
+
+    def _gene_expressions(self, fitted, scale):
+        m = self.config['m']
+        a = fitted + m * self.raw_data
+        b = scale + m
+        me = a / b
+        lme = scipy.special.psi(a) - np.log(b)
+        zero_col = np.zeros(me.shape[0])
+        me = me.assign(Zero=zero_col)
+        lme = lme.assign(Zero=np.log(zero_col + self.config['SpotReg']))
         return me, lme
 
     def _raw_data(self, scdata, genes):

@@ -55,13 +55,15 @@ class VarBayes:
         self.nN = self.config['nNeighbors'] + 1         # number of closest nearby cells, candidates for being parent
                                                         # cell of any given spot. The last cell will be used for the
                                                         # misread spots. (ie cell at position nN is the background)
+        self.me_arr = np.tile(np.zeros([self.nG, self.nK]), (self.config['max_iter'], 1, 1))  # Keep here the estimated single cell expression matrix
+        self.deltas = np.zeros(self.config['max_iter']) * np.nan # Keep here the diff between successive iterations
 
     def initialise(self):
         # self.cells.prior = np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
         # self.cellTypes.prior = np.append(0.5 * self.rnd_dirichlet(), 0.5)
         self.cellTypes.ini_prior('dirichlet')
         self.cells.classProb = np.tile(self.cellTypes.pi_bar, (self.nC, 1))
-        self.genes.eta = np.ones(self.nG)
+        self.genes.eta = np.ones(self.nG) * self.config['Inefficiency']
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
@@ -129,11 +131,23 @@ class VarBayes:
 
             converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
             logger.info(' Iteration %d, mean prob change %f' % (i, delta))
+            self.deltas[i] = delta
+            self.me_arr[i] = self.single_cell.mean_expression
+            if i % 10 == 0 or i == max_iter:
+                np.save('deltas.npy', self.deltas)
+                np.save('me_arr.npy', self.me_arr)
+                logger.info('Saved deltas.npy and me_arr.npy to %s' % os.getcwd())
+
 
             # replace p0 with the latest probabilities
             p0 = self.spots.parent_cell_prob
 
+            logger.info('Number of cell per class: %s',
+                        ["{0:0.2f}".format(i) for i in self.cells.classProb.sum(axis=0)])
+
             if converged:
+                np.save('deltas.npy', self.deltas)
+                np.save('me_arr.npy', self.me_arr)
                 iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
                 break
 
@@ -271,6 +285,8 @@ class VarBayes:
         self.spots.parent_cell_prob = pSpotNeighb
         # Since the spot-to-cell assignments changed you need to update the gene counts now
         self.geneCount_upd()
+        assert np.isfinite(wSpotCell).all(), "wSpotCell array contains non numeric values"
+        logger.info('Spot to cell loglikelihood: %f' % wSpotCell.sum())
         # self.spots.update_cell_prob(pSpotNeighb, self.cells)
         # logger.info('spot ---> cell probabilities updated')
 
@@ -292,7 +308,7 @@ class VarBayes:
         # assert np.all(TotPredictedB == self.cells.background_counts)
         background_counts = self.cells.background_counts
         nom = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
-        denom = self.config['rGene'] + class_total_counts
+        denom = self.config['rGene']/self.config['Inefficiency'] + class_total_counts
         res = nom / denom
 
         # Finally, update gene_gamma
@@ -429,19 +445,24 @@ class VarBayes:
         # is the gene counts of gene g within cell c
         N_cg = npg.aggregate(group_idx, probs, size=(self.nC, self.nG))
 
-        numer = np.einsum('ck, cg -> gk', self.cells.classProb, N_cg)
-        denom = np.einsum('ck, c, cgk, g -> gk', self.cells.classProb, self.cells.cell_props['area_factor'], self.spots.gamma_bar, self.genes.eta)
+        classProb = self.cells.classProb[1:, :-1].copy()
+        geneCount = self.cells.geneCount[1:, :].copy()
+        gamma_bar = self.spots.gamma_bar[1:, :, :-1].copy()
+        area_factor = self.cells.cell_props['area_factor'][1:]
+
+        numer = np.einsum('ck, cg -> gk', classProb, geneCount)
+        denom = np.einsum('ck, c, cgk, g -> gk', classProb, area_factor, gamma_bar, self.genes.eta)
 
         # set the hyperparameter for the gamma prior
-        m = 1
+        # m = 1
 
         # ignore the last class, it is the zero class
-        numer = numer[:, :-1]
-        denom = denom[:, :-1]
-        mu_gk = (numer + m) / (denom + m/self.single_cell.raw_data)
-        me, lme = self.single_cell._helper(mu_gk)
+        # numer = numer[:, :-1]
+        # denom = denom[:, :-1]
+        # mu_gk = (numer + m * self.single_cell.raw_data) / (denom + m)
+        me, lme = self.single_cell._gene_expressions(numer, denom)
         self.single_cell._mean_expression = me
-        self.single_cell._log_mean_expression = lme
+        self.single_cell._log_mean_expression = np.log(me + self.config['SpotReg'])
 
         logger.info('Singe cell data updated')
 
