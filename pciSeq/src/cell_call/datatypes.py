@@ -22,7 +22,6 @@ class Cells(object):
         self.nC = len(self.cell_props['cell_label'])
         self.classProb = None
         self.class_names = None
-        self._prior = None
         self._cov = self.ini_cov()
         self._gene_counts = None
         self._background_counts = None
@@ -56,18 +55,6 @@ class Cells(object):
         # tc = self.geneCount.sum(axis=1)
         return self.geneCount.sum(axis=1)
 
-    @property
-    def prior(self):
-        return self._prior
-
-    @prior.setter
-    def prior(self, val):
-        self._prior = val
-
-    @property
-    def log_prior(self):
-        return np.log(self.prior)
-
     # -------- METHODS -------- #
     def ini_cov(self):
         mcr = self.dapi_mean_cell_radius()
@@ -83,17 +70,20 @@ class Cells(object):
         nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(self.yx_coords)
         return nbrs
 
-    def geneCountsPerKlass(self, single_cell_data, egamma, ini):
-        temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.cell_props['area_factor'], egamma)
-
-        # total counts predicted by all cells of each class (nG, nK)
-        ClassTotPredicted = temp * (single_cell_data.mean_expression + ini['SpotReg'])
-
-        # total of each gene
-        isZero = ClassTotPredicted.columns == 'Zero'
-        labels = ClassTotPredicted.columns.values[~isZero]
-        TotPredicted = ClassTotPredicted[labels].sum(axis=1)
-        return TotPredicted
+    # def geneCountsPerKlass(self, single_cell_data, egamma, ini):
+    #     # ********************************************
+    #     # DEPRECATED. Replaced by a simple einsum call
+    #     # ********************************************
+    #     temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.cell_props['area_factor'], egamma)
+    #
+    #     # total counts predicted by all cells of each class (nG, nK)
+    #     ClassTotPredicted = temp * (single_cell_data.mean_expression + ini['SpotReg'])
+    #
+    #     # total of each gene
+    #     isZero = ClassTotPredicted.columns == 'Zero'
+    #     labels = ClassTotPredicted.columns.values[~isZero]
+    #     TotPredicted = ClassTotPredicted[labels].sum(axis=1)
+    #     return TotPredicted
 
 # ----------------------------------------Class: Genes--------------------------------------------------- #
 class Genes(object):
@@ -355,6 +345,40 @@ class SingleCell(object):
         logger.info(' Grouped single cell data have %d genes and %d cell types' % (out.shape[0], out.shape[1]))
         return out
 
+
+# ---------------------------------------- Class: CellType --------------------------------------------------- #
+class CellType(object):
+    def __init__(self, single_cell):
+        assert single_cell.classes[-1] == 'Zero', "Last label should be the Zero class"
+        self._names = single_cell.classes
+        self._prior = None
+
+    @property
+    def names(self):
+        assert self._names[-1] == 'Zero', "Last label should be the Zero class"
+        return self._names
+
+    @property
+    def nK(self):
+        return len(self.names)
+
+    @property
+    def prior(self):
+        return self._prior
+
+    @prior.setter
+    def prior(self, val):
+        self._prior = val
+
+    @property
+    def log_prior(self):
+        return np.log(self.prior)
+
+    def ini_prior(self, ini_family):
+        if ini_family == 'uniform':
+            self.prior = np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
+        else:
+            raise Exception('Method not implemented yet. Please pass "uniform" when you call ini_prior() ')
 
 
 
