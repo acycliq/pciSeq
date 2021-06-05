@@ -216,15 +216,19 @@ class VarBayes:
         zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
         zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
 
+        # Calcs the sum in the Gamma distribution (equation 5). The zero class
+        # is excluded from the sum, hence the arrays in the einsum below stop at :-1
+        # Note. I also think we should exclude the "cell" that is meant to keep the
+        # misreads, ie exclude the background
         class_total_counts = np.einsum('ck, gk, c, cgk -> g',
                                        classProb[:, :-1],
                                        mu.values[:, :-1],
                                        area_factor,
                                        gamma_bar[:, :, :-1])
         background_counts = self.cells.background_counts
-        nom = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
+        numer = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
         denom = self.config['rGene'] + class_total_counts
-        res = nom / denom
+        res = numer / denom
 
         # Finally, update gene_gamma
         self.genes.eta = res
