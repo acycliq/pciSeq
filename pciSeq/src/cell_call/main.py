@@ -3,7 +3,7 @@ import pandas as pd
 import dask.array as da
 import numpy_groupies as npg
 from typing import Tuple
-from pciSeq.src.cell_call.datatypes import Cells, Spots, Genes, SingleCell
+from pciSeq.src.cell_call.datatypes import Cells, Spots, Genes, SingleCell, CellType
 from pciSeq.src.cell_call.summary import collect_data
 import pciSeq.src.cell_call.utils as utils
 import os
@@ -21,17 +21,18 @@ class VarBayes:
         self.spots = Spots(_spots_df, config)
         self.genes = Genes(self.spots)
         self.single_cell = SingleCell(scRNAseq, self.genes.gene_panel, self.config)
+        self.cellTypes = CellType(self.single_cell)
         self.nC = self.cells.nC                         # number of cells
         self.nG = self.genes.nG                         # number of genes
-        self.nK = len(self.single_cell.classes)         # number of classes
+        self.nK = self.cellTypes.nK                     # number of classes
         self.nS = self.spots.nS                         # number of spots
         self.nN = self.config['nNeighbors'] + 1         # number of closest nearby cells, candidates for being parent
                                                         # cell of any given spot. The last cell will be used for the
                                                         # misread spots. (ie cell at position nN is the background)
 
     def initialise(self):
-        self.cells.prior = np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
-        self.cells.classProb = np.tile(self.cells.prior, (self.nC, 1))
+        self.cellTypes.ini_prior('uniform')
+        self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
         self.genes.eta = np.ones(self.nG)
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
@@ -122,18 +123,9 @@ class VarBayes:
         dtype = self.config['dtype']
         beta = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
-        # beta = cfg['rSpot'] + scaled_mean
 
         self.spots.gamma_bar = self.spots.gammaExpectation(rho, beta)
         self.spots.log_gamma_bar = self.spots.logGammaExpectation(rho, beta)
-
-        # del rho
-        # del beta
-        # gc.collect()
-        # del gc.garbage[:]
-        # self.spots.gamma_bar = expected_gamma
-        # self.spots.log_gamma_bar = expected_loggamma
-        # # return expected_gamma, expected_loggamma
 
     # -------------------------------------------------------------------- #
     def cell_to_cellType(self):
@@ -153,7 +145,7 @@ class VarBayes:
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
-        wCellClass = np.sum(contr, axis=1) + self.cells.log_prior
+        wCellClass = np.sum(contr, axis=1) + self.cellTypes.log_prior
         pCellClass = utils.softmax(wCellClass, axis=1)
 
         ## self.cells.classProb = pCellClass
@@ -216,19 +208,26 @@ class VarBayes:
         assert round(grand_total) == self.spots.data.shape[0], \
             'The sum of the background spots and the total gene counts should be equal to the number of spots'
 
-        zero_prob = self.cells.classProb[:, -1]  # probability a cell being a zero expressing cell
-        zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
-        class_total_counts = self.cells.geneCountsPerKlass(self.single_cell, self.spots.gamma_bar, self.config)
+        classProb = self.cells.classProb
+        mu = self.single_cell.mean_expression + self.config['SpotReg']
+        area_factor = self.cells.cell_props['area_factor']
+        gamma_bar = self.spots.gamma_bar
 
-        # TotPredictedB = np.bincount(self.spots.gene_id, self.spots.adj_cell_prob[:, -1].data)
-        # assert np.all(TotPredictedB == self.cells.background_counts)
+        zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
+        zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
+
+        class_total_counts = np.einsum('ck, gk, c, cgk -> g',
+                                       classProb[:, :-1],
+                                       mu.values[:, :-1],
+                                       area_factor,
+                                       gamma_bar[:, :, :-1])
         background_counts = self.cells.background_counts
         nom = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
         denom = self.config['rGene'] + class_total_counts
         res = nom / denom
 
         # Finally, update gene_gamma
-        self.genes.eta = res.values
+        self.genes.eta = res
 
 
 
