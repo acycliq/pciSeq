@@ -8,6 +8,7 @@ from pciSeq.src.cell_call.summary import collect_data
 import pciSeq.src.cell_call.utils as utils
 import os
 import time
+import pickle
 import logging
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -133,6 +134,8 @@ class VarBayes:
             logger.info(' Iteration %d, mean prob change %f' % (i, delta))
             self.deltas[i] = delta
             self.me_arr[i] = self.single_cell.mean_expression
+            obj = os.path.join('E:\pickle_dump', 'obj_' + str(i))
+            pickle.dump(self, open(obj, "wb"))
             if i % 10 == 0 or i == max_iter:
                 np.save('deltas.npy', self.deltas)
                 np.save('me_arr.npy', self.me_arr)
@@ -228,17 +231,20 @@ class VarBayes:
         # gene_gamma = self.genes.eta
         dtype = self.config['dtype']
         # ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.alpha, self.genes.eta, sc.mean_expression.data) + self.config['SpotReg']
-        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], self.genes.eta, self.single_cell.mean_expression).astype(dtype) + self.config['SpotReg']
+        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], self.genes.eta, self.single_cell.mean_expression + self.config['SpotReg']).astype(dtype)
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
         wCellClass = np.sum(contr, axis=1) + self.cellTypes.logpi_bar
+        assert np.isfinite(wCellClass).all(), "wCellClass array contains non numeric values"
         pCellClass = utils.softmax(wCellClass, axis=1)
+        assert np.isfinite(pCellClass).all(), "pCellClass array contains non numeric values"
 
         ## self.cells.classProb = pCellClass
         # logger.info('Cell 0 is classified as %s with prob %4.8f' % (
         #     self.cells.class_names[np.argmax(wCellClass[0, :])], pCellClass[0, np.argmax(wCellClass[0, :])]))
         # logger.info('cell ---> cell class probabilities updated')
+
         self.cells.classProb = pCellClass
         # return pCellClass
 
@@ -469,9 +475,16 @@ class VarBayes:
 # -------------------------------------------------------------------- #
     def dalpha_upd(self):
         logger.info('Update cell type (marginal) distribution')
-        zeta = self.cells.classProb.sum(axis=0)
+        zeta = self.cells.classProb.sum(axis=0) # this the class size
         alpha = self.cellTypes.ini_alpha()
-        self.cellTypes.alpha = zeta + alpha
+        out = zeta + alpha
+
+        logger.info("***************************************************")
+        logger.info("**** Dirichlet alpha is zero if class size <=%d ****" % self.config['min_class_size'])
+        logger.info("***************************************************")
+        mask = zeta <= self.config['min_class_size']
+        out[mask] = 10e-6
+        self.cellTypes.alpha = out
 
 
 

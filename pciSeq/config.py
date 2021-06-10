@@ -8,10 +8,10 @@ DEFAULT = {
     'exclude_genes': [],
 
     # Maximum number of loops allowed for the Variational Bayes to run
-    'max_iter': 1000,
+    'max_iter': 10000,
 
     # Convergence achieved if assignment probabilities between two successive loops is less than the tolerance
-    'CellCallTolerance': 0.06,
+    'CellCallTolerance': 0.02,
 
     # A gamma distribution expresses the efficiency of the in-situ sequencing for each gene. It tries to capture
     # the ratio of the observed over the theoretical counts for a given gene. rGene controls the variance and
@@ -57,6 +57,12 @@ DEFAULT = {
     'rho_1': 100,  # need to move that into config.py
     'rho_2': 100,  # need to move that into config.py
 
-    'm': 1
+    # the prior on mean expression follows a Gamma(m * M , m), where M is the starting point (the initial
+    # array) of single cell data
+    'm': 1,
+
+    # used by the Dirichler distribution. If a class size is smaller than 'min_class_size' then it will be
+    # assigned a weight of almost zero
+    'min_class_size': 5
 }
 

@@ -540,7 +540,8 @@ class SingleCell(object):
         # nK = 71
         mgc = 15
         arr = mgc * np.eye(nG)
-        labels = ["label_" + str(d) for d in range(arr.shape[1])]
+        # labels = ["label_" + str(d) for d in range(arr.shape[1])]
+        labels = [s + '_class' for s in genes]
         df = pd.DataFrame(arr).set_index(genes)
         df.columns = labels
 
@@ -595,6 +596,12 @@ class CellType(object):
     # @property
     # def log_prior(self):
     #     return self.logpi_bar
+
+    def size(self, cells):
+        """
+        calcs the size of a cell class, ie how many members (ie cells) each cell type has
+        """
+        return cells.classProb.sum(axis=0)
 
     def ini_prior(self, ini_family):
         if ini_family == 'uniform':
