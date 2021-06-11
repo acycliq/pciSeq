@@ -106,7 +106,8 @@ def cell_type(_cells, _spots, scRNAseq, ini):
 
 def write_data(cellData, geneData, cellBoundaries, ini):
     # out_dir = ini['out_dir']
-    out_dir = r"./ca1_random_single_cell_data_with_ellipsoids_and_dirichlet_upd"
+    # out_dir = r"./ca1_random_single_cell_data_with_ellipsoids_and_dirichlet_upd"
+    out_dir = r"./septal"
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
@@ -159,12 +160,12 @@ def init(opts):
 if __name__ == "__main__":
 
     # # read some demo data
-    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'))
-    _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'))
+    # _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'))
+    # _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'))
 
     # read some demo data
-    # _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'tugrul', 'spots_all_baysor_70genes.csv'))
-    # _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'tugrul', 'label_image.coo.npz'))
+    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'tugrul', 'spots_all_baysor_70genes.csv'))
+    _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'tugrul', 'label_image.coo.npz'))
 
     _scRNAseq = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),
                             header=None, index_col=0, compression='gzip', dtype=object)

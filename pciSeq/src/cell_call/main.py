@@ -134,7 +134,7 @@ class VarBayes:
             logger.info(' Iteration %d, mean prob change %f' % (i, delta))
             self.deltas[i] = delta
             self.me_arr[i] = self.single_cell.mean_expression
-            obj = os.path.join('E:\pickle_dump', 'obj_' + str(i))
+            obj = os.path.join('E:\pickle_dump\septal', 'obj_' + str(i))
             pickle.dump(self, open(obj, "wb"))
             if i % 10 == 0 or i == max_iter:
                 np.save('deltas.npy', self.deltas)
