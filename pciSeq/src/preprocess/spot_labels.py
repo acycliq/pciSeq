@@ -69,7 +69,7 @@ logger = logging.getLogger()
 #     return out
 
 
-def inside_cell(label_image, idx: np.array) -> np.array:
+def inside_cell(label_image, spots) -> np.array:
     if isinstance(label_image, coo_matrix):
         label_image = label_image.tocsr()
     elif isinstance(label_image, np.ndarray):
@@ -78,7 +78,7 @@ def inside_cell(label_image, idx: np.array) -> np.array:
         pass
     else:
         raise Exception('label_image should be of type "csr_matrix" ')
-    m = label_image[idx[0, :], idx[1, :]]
+    m = label_image[spots.y, spots.x]
     out = np.asarray(m)
     return out[0]
 
@@ -121,8 +121,8 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.D
     # logger.info('remapped label at (y, x): (%d, %d) is %d' % (_point[0], _point[1], coo.toarray()[_point[0], _point[1]]))
 
     # 1. Find which cell the spots lie within
-    yx_coords = spots[['y', 'x']].values.T
-    inc = inside_cell(coo.tocsr(), yx_coords)
+    # yx_coords = spots[['y', 'x']].values.T
+    inc = inside_cell(coo.tocsr(), spots)
     spots = spots.assign(label=inc)
 
     # 2. Get cell centroids and area
