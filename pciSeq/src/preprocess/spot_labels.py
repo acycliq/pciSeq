@@ -10,6 +10,9 @@ import numpy as np
 import pandas as pd
 import skimage.measure as skmeas
 from typing import Tuple
+from PIL import Image, ImageDraw
+from shapely.geometry import Point
+from shapely.geometry.polygon import Polygon
 from scipy.sparse import coo_matrix, csr_matrix, save_npz, load_npz
 from pciSeq.src.preprocess.cell_borders import extract_borders_par, extract_borders_dip
 import logging
@@ -97,7 +100,27 @@ def remap_labels(coo):
     return out
 
 
-def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def fill_roi(roi, img_width, img_height):
+    """
+    returns the mask from a polygon's boundaries coords
+    :return:
+    """
+    img = Image.new('1', (img_width, img_height), 0)
+    ImageDraw.Draw(img).polygon(roi, outline=1, fill=1)
+    mask = np.array(img)
+    return mask
+
+
+def roi_mask(spots, roi, shape):
+    w = shape[1]
+    h = shape[0]
+    f = fill_roi(roi, w+1, h+1)
+    csr = csr_matrix(f)
+    mask = inside_cell(csr, spots[['x', 'y']])
+    return mask
+
+
+def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Reads the spots and the label image that are passed in and calculates which cell (if any) encircles any
     given spot within its boundaries. It also retrieves the coordinates of the cell boundaries, the cell
@@ -109,6 +132,10 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.D
     mask_x = (spots.x >= 0) & (spots.x <= coo.shape[1])
     mask_y = (spots.y >= 0) & (spots.y <= coo.shape[0])
     spots = spots[mask_x & mask_y]
+
+    # Get now the point only within the ROI
+    mask = roi_mask(spots, cfg['roi'], coo.shape)
+    spots = spots[mask]
 
     # Debugging code!
     # resuffle
