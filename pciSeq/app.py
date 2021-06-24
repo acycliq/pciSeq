@@ -164,8 +164,8 @@ if __name__ == "__main__":
     # _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'))
 
     # read some demo data
-    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'tugrul', 'spots_all_baysor_70genes.csv'))
-    _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'tugrul', 'label_image.coo.npz'))
+    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'tugrul', 'TO105_S3', 'spots_all_70genes_TO105_S3_shifted.csv'))
+    _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'tugrul', 'TO105_S3', 'label_image.coo.npz'))
 
     _scRNAseq = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),
                             header=None, index_col=0, compression='gzip', dtype=object)
