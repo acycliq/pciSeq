@@ -55,7 +55,7 @@ def is_inside_sm_parallel(points, polygon):
     return D
 
 
-def run():
+def stage_vizgen():
     cellBoundaries_file = r"D:\rotated_dapi_map_tiles\MsBrain_Eg1_VS6_JH_V6_05-02-2021\region_0\cellBoundaries\cellBoundaries.tsv"
     cell_props_file = r"D:\rotated_dapi_map_tiles\MsBrain_Eg1_VS6_JH_V6_05-02-2021\region_0\cell_props\cell_props.tsv"
     spots_file = r"D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq\pciSeq\data\vizgen\merfish\labelled_spots.tsv"
@@ -123,5 +123,5 @@ def run():
 
 
 if __name__ == "__main__":
-    _cells, _cellBoundaries, spots_df = run()
+    _cells, _cellBoundaries, spots_df = stage_vizgen()
     print('ok')
