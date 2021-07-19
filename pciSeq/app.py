@@ -18,7 +18,7 @@ logging.basicConfig(
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
-def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: dict = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def fit(iss_spots: pd.DataFrame, scRNAseq: pd.DataFrame, opts: dict = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Main entry point for pciSeq.
 
@@ -31,11 +31,6 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
             Name: Gene, dtype: string, The gene name
             Name: x, dtype: int64, X-axis coordinate of the spot
             Name: y, dtype: int64, Y-axis coordinate of the spot
-
-    coo : scipy.sparse.coo_matrix
-        A label image array as a coo_matrix datatype. The label denote
-        which cell the corresponding pixel 'belongs' to. If label is
-        zero, the pixel is on the background
 
     scRNAseq : pandas.DataFrame
         Index:
@@ -152,15 +147,13 @@ def init(opts):
 if __name__ == "__main__":
 
     # read some demo data
-    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'))
-    _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'))
-
-    _scRNAseq = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),
+    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'vizgen', 'merfish', 'labelled_spots.tsv'), sep='\t')
+    _scRNAseq = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'vizgen', 'scRNA', 'scRNAseq.csv.gz'),
                             header=None, index_col=0, compression='gzip', dtype=object)
     _scRNAseq = _scRNAseq.rename(columns=_scRNAseq.iloc[0], copy=False).iloc[1:]
     _scRNAseq = _scRNAseq.astype(np.float).astype(np.uint32)
 
     # main task
     # _opts = {'max_iter': 10}
-    fit(_iss_spots, _coo, _scRNAseq)
+    fit(_iss_spots, _scRNAseq)
 
