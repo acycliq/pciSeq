@@ -58,11 +58,13 @@ def is_inside_sm_parallel(points, polygon):
 def run():
     cellBoundaries_file = r"D:\rotated_dapi_map_tiles\MsBrain_Eg1_VS6_JH_V6_05-02-2021\region_0\cellBoundaries\cellBoundaries.tsv"
     cell_props_file = r"D:\rotated_dapi_map_tiles\MsBrain_Eg1_VS6_JH_V6_05-02-2021\region_0\cell_props\cell_props.tsv"
+    spots_file = r"D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq\pciSeq\data\vizgen\merfish\labelled_spots.tsv"
     clip_poly_file = r"D:\rotated_dapi_map_tiles\MsBrain_Eg1_VS6_JH_V6_05-02-2021\region_0\roi\roi_rotated.csv"
 
     cellBoundaries = pd.read_csv(cellBoundaries_file, sep='\t')
     cellProps = pd.read_csv(cell_props_file, sep='\t')
     roi = pd.read_csv(clip_poly_file)
+    spots_df = pd.read_csv(spots_file, sep='\t')
 
     # the boundaries appear to be strings. Convert them to a list of tuples
     _cell_boundaries = [eval(d) for d in cellBoundaries.cell_boundaries]
@@ -73,12 +75,12 @@ def run():
     # add a cell key column to cellBoundaries dataframe
     assert np.all(cellProps.cell_label == cellBoundaries.cell_label), 'cellBoundaries and cell_props are not aligned'
     cellBoundaries['cell_key'] = cellProps.cell_key
-    cellBoundaries['x_cell'] = cellProps.x
-    cellBoundaries['y_cell'] = cellProps.y
+    cellBoundaries['x'] = cellProps.x
+    cellBoundaries['y'] = cellProps.y
     cellBoundaries['cell_area'] = cellProps.cell_area
     cellBoundaries = cellBoundaries.set_index('cell_key')
 
-    points = cellBoundaries[['x_cell', 'y_cell']].values
+    points = cellBoundaries[['x', 'y']].values
     poly = roi.values
     mask = is_inside_sm_parallel(points, poly)
 
@@ -86,14 +88,40 @@ def run():
     df = df.drop(['cell_label'], axis=1)
     df = df.rename(columns={'cell_area': 'area',
                             'cell_boundaries': 'coords'})
-    df = df.sort_values(['x_cell', 'y_cell'], ascending=[True, True])
+
+    # for some reason two or more cells can have the same cell_key. I havent
+    # looked at it but for now I will remove the duplicates and keep the one
+    # with the largest area
+    df = df.sort_values(by=['cell_key', 'area'], ascending=[False, False])
+    df = df[~df.index.duplicated(keep='first')]
+
+    # after this data cleaning, sort by the centroid
+    df = df.sort_values(['x', 'y'], ascending=[True, True])
     df['label'] = np.arange(df.shape[0]).astype(np.int32) + 1
 
-    cells_df = df[['label', 'area', 'x_cell', 'y_cell']].reset_index()
+    cells_df = df[['label', 'area', 'x', 'y']].reset_index().drop(['cell_key'], axis=1)
     cell_boundaries_df = df[['label', 'coords']].reset_index()
-    return cells_df, cell_boundaries_df
+
+    spots_df = spots_df.drop(['neighbour', 'neighbour_array', 'neighbour_prob'], axis=1)
+    spots_df = spots_df.rename(columns={'x': 'x_global',
+                                        'y': 'y_global',
+                                        'Gene': 'target'})
+    spots_df.inside_cell_key = spots_df.inside_cell_key.fillna(0)
+
+    spots_df = spots_df.merge(df, how='left', left_on='inside_cell_key', right_index=True)
+    spots_df = spots_df[['x_global', 'y_global', 'label', 'target', 'x', 'y']]
+    spots_df.label = spots_df.label.fillna(0)
+    spots_df = spots_df.rename(columns={'x': 'x_cell',
+                                        'y': 'y_cell'})
+    spots_df = spots_df.astype({'x_global': np.int32,
+                                'y_global': np.int32,
+                                'label': np.int32})
+
+
+
+    return cells_df, cell_boundaries_df, spots_df
 
 
 if __name__ == "__main__":
-    _cells, _cellBoundaries = run()
+    _cells, _cellBoundaries, spots_df = run()
     print('ok')
