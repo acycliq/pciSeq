@@ -5,6 +5,7 @@ from typing import Tuple
 from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.cell_call.main import VarBayes
 from pciSeq.src.preprocess.spot_labels import stage_data
+from pciSeq.src.preprocess.stage_vizgen import stage_vizgen
 from pciSeq.src.viewer.utils import splitter_mb
 from pciSeq import config
 import logging
@@ -18,7 +19,7 @@ logging.basicConfig(
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
-def fit(iss_spots: pd.DataFrame, scRNAseq: pd.DataFrame, opts: dict = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def fit(scRNAseq: pd.DataFrame, opts: dict = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Main entry point for pciSeq.
 
@@ -77,7 +78,8 @@ def fit(iss_spots: pd.DataFrame, scRNAseq: pd.DataFrame, opts: dict = None) -> T
 
     # 2. prepare the data
     logger.info(' Preprocessing data')
-    _cells, cellBoundaries, _spots = stage_data(iss_spots, coo, cfg)
+    _cells, cellBoundaries, _spots = stage_vizgen()
+    logger.info(' Preprocessing finished')
 
     # 3. cell typing
     cellData, geneData = cell_type(_cells, _spots, scRNAseq, cfg)
@@ -101,7 +103,7 @@ def cell_type(_cells, _spots, scRNAseq, ini):
 
 def write_data(cellData, geneData, cellBoundaries, ini):
     # out_dir = ini['out_dir']
-    out_dir = 'Stefano'
+    out_dir = 'vizgen_out'
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
@@ -147,7 +149,6 @@ def init(opts):
 if __name__ == "__main__":
 
     # read some demo data
-    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'vizgen', 'merfish', 'labelled_spots.tsv'), sep='\t')
     _scRNAseq = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'vizgen', 'scRNA', 'scRNAseq.csv.gz'),
                             header=None, index_col=0, compression='gzip', dtype=object)
     _scRNAseq = _scRNAseq.rename(columns=_scRNAseq.iloc[0], copy=False).iloc[1:]
@@ -155,5 +156,5 @@ if __name__ == "__main__":
 
     # main task
     # _opts = {'max_iter': 10}
-    fit(_iss_spots, _scRNAseq)
+    fit(_scRNAseq)
 
