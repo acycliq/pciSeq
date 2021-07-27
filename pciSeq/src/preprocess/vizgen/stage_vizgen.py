@@ -55,16 +55,11 @@ def is_inside_sm_parallel(points, polygon):
     return D
 
 
-def stage_vizgen():
-    cellBoundaries_file = r"D:\rotated_dapi_map_tiles\MsBrain_Eg1_VS6_JH_V6_05-02-2021\region_0\cellBoundaries\cellBoundaries.tsv"
-    cell_props_file = r"D:\rotated_dapi_map_tiles\MsBrain_Eg1_VS6_JH_V6_05-02-2021\region_0\cell_props\cell_props.tsv"
-    spots_file = r"D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq\pciSeq\data\vizgen\merfish\labelled_spots.tsv"
-    clip_poly_file = r"D:\rotated_dapi_map_tiles\MsBrain_Eg1_VS6_JH_V6_05-02-2021\region_0\roi\roi_rotated.csv"
-
-    cellBoundaries = pd.read_csv(cellBoundaries_file, sep='\t')
-    cellProps = pd.read_csv(cell_props_file, sep='\t')
-    roi = pd.read_csv(clip_poly_file)
-    spots_df = pd.read_csv(spots_file, sep='\t')
+def stage_vizgen(cfg):
+    cellBoundaries = pd.read_csv(cfg["cellBoundaries_file"], sep='\t')
+    cellProps = pd.read_csv(cfg["cell_props_file"], sep='\t')
+    roi = pd.read_csv(cfg["clip_poly_file"])
+    spots_df = pd.read_csv(cfg["spots_file"], sep='\t')
 
     # the boundaries appear to be strings. Convert them to a list of tuples
     _cell_boundaries = [eval(d) for d in cellBoundaries.cell_boundaries]
@@ -102,7 +97,8 @@ def stage_vizgen():
     cells_df = df[['label', 'area', 'x', 'y']].reset_index().drop(['cell_key'], axis=1)
     cell_boundaries_df = df[['label', 'coords']].reset_index()
 
-    spots_df = spots_df.drop(['neighbour', 'neighbour_array', 'neighbour_prob'], axis=1)
+    if {'neighbour', 'neighbour_array', 'neighbour_prob'} in set(spots_df.columns.values):
+        spots_df = spots_df.drop(['neighbour', 'neighbour_array', 'neighbour_prob'], axis=1)
     spots_df = spots_df.rename(columns={'x': 'x_global',
                                         'y': 'y_global',
                                         'Gene': 'target'})
@@ -121,5 +117,7 @@ def stage_vizgen():
 
 
 if __name__ == "__main__":
+    slice_id = "MsBrain_Eg1_VS6_JH_V6_05-02-2021"
+    level_id = "region_0"
     _cells, _cellBoundaries, spots_df = stage_vizgen()
     print('ok')
