@@ -2,10 +2,8 @@ import os
 import pandas as pd
 import numpy as np
 from typing import Tuple
-from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.cell_call.main import VarBayes
-from pciSeq.src.preprocess.spot_labels import stage_data
-from pciSeq.src.preprocess.stage_vizgen import stage_vizgen
+from pciSeq.src.preprocess.vizgen.stage_vizgen import stage_vizgen
 from pciSeq.src.viewer.utils import splitter_mb
 from pciSeq import config
 import logging
@@ -17,7 +15,7 @@ logging.basicConfig(
 )
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
-
+DATASTORE_DIR = os.path.join('D:\\', 'rotated_dapi_map_tiles')
 
 def fit(scRNAseq: pd.DataFrame, opts: dict = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
@@ -78,7 +76,7 @@ def fit(scRNAseq: pd.DataFrame, opts: dict = None) -> Tuple[pd.DataFrame, pd.Dat
 
     # 2. prepare the data
     logger.info(' Preprocessing data')
-    _cells, cellBoundaries, _spots = stage_vizgen()
+    _cells, cellBoundaries, _spots = stage_vizgen(cfg)
     logger.info(' Preprocessing finished')
 
     # 3. cell typing
@@ -103,7 +101,7 @@ def cell_type(_cells, _spots, scRNAseq, ini):
 
 def write_data(cellData, geneData, cellBoundaries, ini):
     # out_dir = ini['out_dir']
-    out_dir = 'vizgen_out'
+    out_dir = os.path.join(DATASTORE_DIR, ini['slice_id'], ini['region_id'], 'celltyped')
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
@@ -135,18 +133,20 @@ def init(opts):
         user_items = set(opts.keys())
         assert user_items.issubset(default_items), ('Options passed-in should be a dict with keys: %s ' % default_items)
         for item in opts.items():
-            if isinstance(item[1], (int, float, list)) or isinstance(item[1](1), np.floating):
+            if isinstance(item[1], str):
                 val = item[1]
-            # elif isinstance(item[1], list):
-            #     val = item[1]
+            elif isinstance(item[1], (int, float, list)) or isinstance(item[1](1), np.floating):
+                val = item[1]
             else:
-                raise TypeError("Only integers, floats and lists are allowed")
+                raise TypeError("Only integers, floats and lists and strings are allowed")
             cfg[item[0]] = val
             logger.info(' %s is set to %s' % (item[0], cfg[item[0]]))
     return cfg
 
 
 if __name__ == "__main__":
+    slice_id = "MsBrain_Eg3_VS6_JH_V6_05-01-2021"
+    region_id = "region_1"
 
     # read some demo data
     _scRNAseq = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'vizgen', 'scRNA', 'scRNAseq.csv.gz'),
@@ -154,7 +154,13 @@ if __name__ == "__main__":
     _scRNAseq = _scRNAseq.rename(columns=_scRNAseq.iloc[0], copy=False).iloc[1:]
     _scRNAseq = _scRNAseq.astype(np.float).astype(np.uint32)
 
-    # main task
-    # _opts = {'max_iter': 10}
-    fit(_scRNAseq)
-
+    # pass now the paths to the preprocessed vizgen data
+    opts = {
+        'slice_id': slice_id,
+        'region_id': region_id,
+        'cellBoundaries_file': os.path.join(DATASTORE_DIR, slice_id, region_id, 'cellBoundaries', 'cellBoundaries.tsv'),
+        'cell_props_file': os.path.join(DATASTORE_DIR, slice_id, region_id, 'cell_props', 'cell_props.tsv'),
+        'spots_file': os.path.join(DATASTORE_DIR, slice_id, region_id, 'labelled_spots', 'labelled_spots.tsv'),
+        'clip_poly_file': os.path.join(DATASTORE_DIR, slice_id, region_id, 'roi', 'roi_rotated.csv'),
+    }
+    fit(_scRNAseq, opts)

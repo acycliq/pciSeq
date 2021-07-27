@@ -53,5 +53,22 @@ DEFAULT = {
     # level
     'dtype': np.float64,
 
+    # ------------------------------------------------------------------------------------------------------------------
+    # All the keys below this line Will be set on the fly
+    'slice_id': "",
+    'region_id': "",
+
+    # path to the file with the cell boundaries
+    'cellBoundaries_file': [],
+
+    # path to the file with the cell properties (cell centroids and area)
+    'cell_props_file': [],
+
+    # path to the labelled spots
+    'spots_file': [],
+
+    # path to the clipping polygon
+    'clip_poly_file': [],
+
 }
 
