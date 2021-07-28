@@ -12,20 +12,11 @@ logging.basicConfig(
 )
 
 if __name__ == "__main__":
-    merfish_id = 'MERFISH_M_Z'
+    merfish_id = 'MERFISH_F_E'
     slice_ids = [
-        "MsBrain_ZM0_VS6_JH_V6_05-15-2021",
-        "MsBrain_ZM1_VS6_JH_V11_05-16-2021",
-        "MsBrain_ZM2_VS6_JH_V11_05-15-2021",
-        "MsBrain_ZM3_VS6_JH_V11_05-17-2021",
-        "MsBrain_ZM4_VS6_JH_V11_05-11-2021",
-        "MsBrain_ZM5.1_VS6_JH_V11_05-12-2021",
-        "MsBrain_ZM5.2_VS6_JH_V6_05-13-2021",
-        "MsBrain_ZM6.1_VS6_V6_JH_05-11-2021",
-        "MsBrain_ZM7.1_VS6_V6_JH_05-12-2021",
-        "MsBrain_ZM7.2_VS6_JH_V11_05-13-2021"
+        "VS6_MsBrain_B3_VS6library_V10_LH_02-07-21"
         ]
-    region_ids = ['region_0']
+    region_ids = ['region_0', 'region_1']
 
     for slice_id in slice_ids:
         for region_id in region_ids:
