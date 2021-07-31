@@ -62,10 +62,8 @@ def get_subdir(merfish_id, slice_id=''):
     return out
 
 
-
 if __name__ == "__main__":
     merfish_ids = ['MERFISH_F_E', 'MERFISH_M_Z']
-    region_ids = ['region_0', 'region_1']
 
     for merfish_id in merfish_ids:
         for slice_id in get_slice_ids(merfish_id):
