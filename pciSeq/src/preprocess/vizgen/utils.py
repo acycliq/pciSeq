@@ -254,7 +254,7 @@ def rotate_data(points, cgf):
 
 
 @numba.jit(nopython=True)
-def is_inside_sm(polygon, point):
+def _is_inside_sm(polygon, point):
     # From https://github.com/sasamil/PointInPolygon_Py/blob/master/pointInside.py
     # and
     # https://github.com/sasamil/PointInPolygon_Py/blob/master/pointInside.py
@@ -292,14 +292,19 @@ def is_inside_sm(polygon, point):
 
 
 @numba.njit(parallel=True)
-def is_inside_sm_parallel(points, polygon):
+def _is_inside_sm_parallel(points, polygon):
     ln = len(points)
     D = np.empty(ln, dtype=numba.boolean)
     for i in numba.prange(ln):
-        D[i] = is_inside_sm(polygon,points[i])
+        D[i] = _is_inside_sm(polygon,points[i])
     return D
 
 
+def is_inside(points, polygon):
+    # make sure polygon is closed
+    if tuple(polygon[0]) != tuple(polygon[-1]):
+        polygon = np.append(polygon, polygon[0, None], axis=0)
+    return _is_inside_sm_parallel(points, polygon)
 
 
 
