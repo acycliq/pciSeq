@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import os
 import pyvips
-import src.config as config
+import pciSeq.src.preprocess.vizgen.config as config
 import shutil
 import logging
 from pathlib import Path
@@ -18,18 +18,18 @@ logging.basicConfig(
 )
 
 
-def rotate_image(slice_id, region_id):
+def rotate_image(merfish_id, slice_id, region_id):
     """
     rotates an image.
     img_in: path to the image to be rotated
     img_out: path to save the rotared image to
     deg: degrees to rotate the image by (clockwise)
     """
-    cfg = config.get_config(slice_id=slice_id, region_id=region_id)
+    cfg = config.get_config(merfish_id=merfish_id, slice_id=slice_id, region_id=region_id)
     deg = cfg['rotation'][0]
     logger.info('Rotating %s\%s by %d degrees' % (slice_id, region_id, deg))
 
-    img_in = os.path.join('Z:\\', 'MERFISH_F_E', slice_id, region_id, 'images', 'mosaic_DAPI_z3.tif')
+    img_in = os.path.join('Z:\\', merfish_id, slice_id, region_id, 'images', 'mosaic_DAPI_z3.tif')
     img_out = os.path.join('Z:\\', 'Dimitris folder', 'rotated_dapi', slice_id, region_id, 'images', 'mosaic_DAPI_z3.tif')
 
     if not os.path.exists(img_out):
@@ -99,30 +99,31 @@ def tile_maker(z_depth, out_dir, img_path):
     return pixel_dims
 
 
-def run(slice_id, region_id):
-    img_in, img_out = rotate_image(slice_id, region_id)
+def run(merfish_id, slice_id, region_id):
+    img_in, img_out = rotate_image(merfish_id, slice_id, region_id)
     _dir = os.path.join(os.path.dirname(img_out), '262144px')
-    tile_maker(10, _dir, img_out)
+    # tile_maker(10, _dir, img_out)
 
 
 
 if __name__ == "__main__":
+    merfish_id = 'MERFISH_M_Z'
     slice_ids = [
-        "MsBrain_Eg1_VS6_JH_V6_05-02-2021",
-        "MsBrain_Eg2_VS6_V11_JH_05-02-2021",
-        "MsBrain_Eg3_VS6_JH_V6_05-01-2021",  # missing file region_1\\images\\manifest.json
-        "MsBrain_EG4_VS6library_V6_LH_04-14-21", # missing file region_1\\images\\manifest.json
-        "MsBrain_Eg5_VS6_JH_V6_05-16-2021"
+        "MsBrain_ZM0_VS6_JH_V6_05-15-2021",
+        # "MsBrain_ZM1_VS6_JH_V11_05-16-2021",
+        # "MsBrain_ZM2_VS6_JH_V11_05-15-2021",
+        # "MsBrain_ZM3_VS6_JH_V11_05-17-2021",
+        # "MsBrain_ZM4_VS6_JH_V11_05-11-2021",
+        # "MsBrain_ZM5.1_VS6_JH_V11_05-12-2021",
+        # "MsBrain_ZM5.2_VS6_JH_V6_05-13-2021",
+        # "MsBrain_ZM6.1_VS6_V6_JH_05-11-2021",
+        # "MsBrain_ZM7.1_VS6_V6_JH_05-12-2021",
+        # "MsBrain_ZM7.2_VS6_JH_V11_05-13-2021"
         ]
-    region_ids = ['region_0', 'region_1']
+    region_ids = ['region_0']
 
     for slice_id in slice_ids:
         for region_id in region_ids:
-            try:
-                run(slice_id, region_id)
-            except KeyError as e:
-                logger.info('KeyError %s' % str(e))
-            except FileNotFoundError as e:
-                logger.info('FileNotFoundError %s' % str(e))
+            run(merfish_id, slice_id, region_id)
 
     logger.info('Done!')
