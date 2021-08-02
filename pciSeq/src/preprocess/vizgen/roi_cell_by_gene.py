@@ -3,11 +3,12 @@ Standalone script to carve out the roi-specific cell by gene array
 WARNING. THIS OPERATES ON THE NON ROTATED ROI
 """
 import os
+import glob
 import numpy as np
 import pandas as pd
 import pciSeq.src.preprocess.vizgen.config as config
 from pathlib import Path
-from pciSeq.src.preprocess.vizgen.utils import transformation, is_inside_sm_parallel
+from pciSeq.src.preprocess.vizgen.utils import transformation, is_inside
 import logging
 
 logger = logging.getLogger()
@@ -37,15 +38,37 @@ def run(merfish_id, slice_id, region_id):
     # find which cell centroid fall inside the roi
     points = cell_meta[['center_x_px', 'center_y_px']].values
     poly = np.array(roi)
-    mask = is_inside_sm_parallel(points, poly)
+    mask = is_inside(points, poly)
 
     # filter the full dataframe
     idx = cell_meta[mask].index.values
     df = pd.read_csv(cfg['cell_by_gene'], index_col=0).loc[idx]
-
     logger.info('Found %d cell inside the roi' % df.shape[0])
+
+    dir_name = os.path.join(config.DROPBOX_URL, 'Dimitris folder', 'cell_by_gene', merfish_id, slice_id, region_id, 'roi_cell_by_gene')
+    file_name = save_df_simple(df, dir_name)
+    logger.info('cell by gene array saved to %s' % file_name)
     return df
 
+
+def save_df_simple(df, dir_path):
+    """
+    Simple convenience function to save a dataframe as a tsv.
+    It creates the containing folder if it doesnt exist
+    :param df:
+    :param dir_path:
+    :return:
+    """
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+    else:
+        files = glob.glob(dir_path + '/*.*')
+        for f in files:
+            os.remove(f)
+    filename = os.path.basename(dir_path).split('.')[0]
+    file_name = os.path.join(dir_path, filename + '.csv')
+    df.to_csv(file_name, sep='\t', index=False)
+    return file_name
 
 def get_slice_ids(merfish_id):
     return get_subdir(merfish_id)
