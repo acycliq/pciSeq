@@ -67,7 +67,7 @@ def save_df_simple(df, dir_path):
             os.remove(f)
     filename = os.path.basename(dir_path).split('.')[0]
     file_name = os.path.join(dir_path, filename + '.csv')
-    df.to_csv(file_name, sep='\t', index=False)
+    df.to_csv(file_name)
     return file_name
 
 def get_slice_ids(merfish_id):
