@@ -132,14 +132,14 @@ class VarBayes:
 
             converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
             logger.info(' Iteration %d, mean prob change %f' % (i, delta))
-            self.deltas[i] = delta
-            self.me_arr[i] = self.single_cell.mean_expression
-            obj = os.path.join('E:\pickle_dump\septal', 'obj_' + str(i))
-            pickle.dump(self, open(obj, "wb"))
-            if i % 10 == 0 or i == max_iter:
-                np.save('deltas.npy', self.deltas)
-                np.save('me_arr.npy', self.me_arr)
-                logger.info('Saved deltas.npy and me_arr.npy to %s' % os.getcwd())
+            # self.deltas[i] = delta
+            # self.me_arr[i] = self.single_cell.mean_expression
+            # obj = os.path.join('E:\pickle_dump\septal', 'obj_' + str(i))
+            # pickle.dump(self, open(obj, "wb"))
+            # if i % 10 == 0 or i == max_iter:
+            #     np.save('deltas.npy', self.deltas)
+            #     np.save('me_arr.npy', self.me_arr)
+            #     logger.info('Saved deltas.npy and me_arr.npy to %s' % os.getcwd())
 
 
             # replace p0 with the latest probabilities
@@ -149,8 +149,8 @@ class VarBayes:
                         ["{0:0.2f}".format(i) for i in self.cells.classProb.sum(axis=0)])
 
             if converged:
-                np.save('deltas.npy', self.deltas)
-                np.save('me_arr.npy', self.me_arr)
+                # np.save('deltas.npy', self.deltas)
+                # np.save('me_arr.npy', self.me_arr)
                 iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
                 break
 
