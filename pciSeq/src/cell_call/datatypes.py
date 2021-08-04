@@ -463,8 +463,12 @@ class SingleCell(object):
         return out
 
     def _helper(self, arr):
-        arr['Zero'] = np.zeros([arr.shape[0], 1])
+        # order my column name
         arr = arr.sort_index(axis=0).sort_index(axis=1, key=lambda x: x.str.lower())
+
+        # append at the end the Zero class
+        arr['Zero'] = np.zeros([arr.shape[0], 1])
+
         # arr = arr.sort_index(axis=0).sort_index(axis=1)
         expr = arr
         me = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")  # mean expression
