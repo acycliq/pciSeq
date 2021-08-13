@@ -78,7 +78,6 @@ def run(dbx, merfish_ids):
 
 if __name__ == "__main__":
     DROPBOX_TOKEN = "Xlk6baOMGrMAAAAAAAAAATuJFoFOL2_2ix6sa3dDK2IuQRarxEQD3EG9SMIig1FS"
-
     merfish_ids = ['MERFISH_F_E', 'MERFISH_F_F', 'MERFISH_M_C', 'MERFISH_M_Z']
     dbx = dropbox.Dropbox(DROPBOX_TOKEN)
 
