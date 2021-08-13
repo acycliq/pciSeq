@@ -60,13 +60,6 @@ def download_file(dbx, filename):
         f.write(res.content)
         logger.info('Saved %s' % fName)
 
-# get_dbx_paths(DBX_ROOT_PATH)
-
-# with open("Prime_Numbers.mp4", "wb") as f:
-#     metadata, res = dbx.files_download(path="/OneAndOnly/VID_20210411_110935.mp4")
-#     f.write(res.content)
-#     print('Done')
-
 
 def worker(merfish_id, dbx):
     pid = os.getpid()
@@ -76,6 +69,9 @@ def worker(merfish_id, dbx):
 
 
 def run_par(dbx, merfish_ids):
+    """
+    same as run() but uses multiprocessing
+    """
     processes = cpu_count()
     with Pool(processes=processes) as pool:
         pool.map(partial(worker, dbx=dbx), merfish_ids)
