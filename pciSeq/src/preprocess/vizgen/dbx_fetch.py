@@ -17,13 +17,6 @@ logging.basicConfig(
     format="%(asctime)s:%(levelname)s:%(message)s"
 )
 
-DROPBOX_TOKEN = "Xlk6baOMGrMAAAAAAAAAATuJFoFOL2_2ix6sa3dDK2IuQRarxEQD3EG9SMIig1FS"
-dbx = dropbox.Dropbox(DROPBOX_TOKEN)
-out = dbx.files_list_folder("/MERFISH:DRONC/MERFISH_F_F", recursive=True)
-for p in out.entries:
-    print(p.path_display)
-
-DBX_ROOT_PATH = "/MERFISH:DRONC/MERFISH_F_F"
 
 def get_dbx_paths(dbx, ROOT_PATH, cursor=False):
     res = []
@@ -34,11 +27,11 @@ def get_dbx_paths(dbx, ROOT_PATH, cursor=False):
     for p in out.entries:
         filename = p.path_display
         ext = pathlib.Path(filename).suffix
-        visited = pd.read_csv('out.log').values
+        visited = pd.read_csv('dbx_fetch.log').values
         if filename not in visited:
             if (ext in ['.csv', '.json']) and (os.path.basename(filename) != 'detected_transcripts.csv') and (filename not in visited):
                 download_file(dbx, filename)
-                with open('out.log', 'a') as fd:
+                with open('dbx_fetch.log', 'a') as fd:
                     fd.write(filename)
                     fd.write("\n")
                 res.append(filename)
@@ -84,6 +77,8 @@ def run(dbx, merfish_ids):
 
 
 if __name__ == "__main__":
+    DROPBOX_TOKEN = "Xlk6baOMGrMAAAAAAAAAATuJFoFOL2_2ix6sa3dDK2IuQRarxEQD3EG9SMIig1FS"
+
     merfish_ids = ['MERFISH_F_E', 'MERFISH_F_F', 'MERFISH_M_C', 'MERFISH_M_Z']
     dbx = dropbox.Dropbox(DROPBOX_TOKEN)
 
