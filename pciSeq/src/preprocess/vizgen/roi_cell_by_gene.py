@@ -45,7 +45,7 @@ def run(merfish_id, slice_id, region_id):
     df = pd.read_csv(cfg['cell_by_gene'], index_col=0).loc[idx]
     logger.info('Found %d cell inside the roi' % df.shape[0])
 
-    dir_name = os.path.join(config.DROPBOX_URL, 'Dimitris folder', 'cell_by_gene', merfish_id, slice_id, region_id, 'roi_cell_by_gene')
+    dir_name = os.path.join('E:\\', 'Dimitris folder_upd', 'cell_by_gene', merfish_id, slice_id, region_id, 'roi_cell_by_gene')
     file_name = save_df_simple(df, dir_name)
     logger.info('cell by gene array saved to %s' % file_name)
     return df
@@ -92,8 +92,10 @@ if __name__ == "__main__":
         for slice_id in get_slice_ids(merfish_id):
             for region_id in get_region_ids(merfish_id, slice_id):
                 # logger.info("\n Started slice %s, region %s" % (slice_id, region_id))
-                run(merfish_id, slice_id, region_id)
-
+                try:
+                    run(merfish_id, slice_id, region_id)
+                except FileNotFoundError as not_found:
+                    logger.warning('File not found: %s ' % not_found.filename)
 
     logger.info('Done!')
 

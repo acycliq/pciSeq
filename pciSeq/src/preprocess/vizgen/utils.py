@@ -8,6 +8,7 @@ from multiprocessing import Pool, cpu_count, freeze_support
 from functools import partial
 import pyvips
 import numba
+import json
 # import dropbox
 import logging
 import pciSeq.src.preprocess.vizgen.config as config
@@ -121,6 +122,17 @@ def dapi_dims(cfg):
     return img
 
 
+def dapi_dims_from_manifest(cfg):
+    with open(cfg['manifest']) as f:
+        settings = json.load(f)
+
+    # image width and height in pixels
+    img = {'width': settings['mosaic_width_pixels'],
+           'height': settings['mosaic_height_pixels']}
+
+    return img
+
+
 def transformation(cfg):
     # Micron to pixel transformation
 
@@ -133,7 +145,8 @@ def transformation(cfg):
     c = um_to_px[1, 1]
     d = um_to_px[1, 2]
 
-    img = dapi_dims(cfg)
+    # img = dapi_dims(cfg)
+    img = dapi_dims_from_manifest(cfg)
 
     # bounding box in microns
     bbox = {}
@@ -231,7 +244,8 @@ def rotate_data(points, cgf):
     theta_deg = cgf['rotation'][0]
     theta_rad = math.radians(theta_deg)
 
-    img = dapi_dims(cgf)
+    # img = dapi_dims(cgf)
+    img = dapi_dims_from_manifest(cfg)
     w = img['width']
     h = img['height']
 
