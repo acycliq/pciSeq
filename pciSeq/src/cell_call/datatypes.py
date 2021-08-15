@@ -328,10 +328,41 @@ class Spots(object):
     def mvn_loglik(self, data, cell_label, cells):
         centroids = cells.centroid.values[cell_label]
         covs = cells.cov[cell_label]
-        param = list(zip(*[data, centroids, covs]))
-        out = [self.loglik_contr(p) for i, p in enumerate(param)]
+        # param = list(zip(*[data, centroids, covs]))
+        # out = [self.loglik_contr(p) for i, p in enumerate(param)]
         # out_2 = [multivariate_normal.logpdf(p[0], p[1], p[2]) for i, p in enumerate(param)]
+        out = self.multiple_logpdfs(data, centroids, covs)
         return out
+
+    def multiple_logpdfs(self, x, means, covs):
+        """
+        vectorised mvn log likelihood evaluated at multiple pairs of (centroid_1, cov_1), ..., (centroid_N, cov_N)
+        Taken from http://gregorygundersen.com/blog/2020/12/12/group-multivariate-normal-pdf/
+        """
+        # Thankfully, NumPy broadcasts `eigh`.
+        vals, vecs = np.linalg.eigh(covs)
+
+        # Compute the log determinants across the second axis.
+        logdets = np.sum(np.log(vals), axis=1)
+
+        # Invert the eigenvalues.
+        valsinvs = 1. / vals
+
+        # Add a dimension to `valsinvs` so that NumPy broadcasts appropriately.
+        Us = vecs * np.sqrt(valsinvs)[:, None]
+        devs = x - means
+
+        # Use `einsum` for matrix-vector multiplications across the first dimension.
+        devUs = np.einsum('ni,nij->nj', devs, Us)
+
+        # Compute the Mahalanobis distance by squaring each term and summing.
+        mahas = np.sum(np.square(devUs), axis=1)
+
+        # Compute and broadcast scalar normalizers.
+        dim = len(vals[0])
+        log2pi = np.log(2 * np.pi)
+
+        return -0.5 * (dim * log2pi + mahas + logdets)
 
     def loglik_contr(self, param):
         """
