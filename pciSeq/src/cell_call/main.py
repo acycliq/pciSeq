@@ -254,7 +254,8 @@ class VarBayes:
         spot to cell assignment.
         Implements equation (4) of the Qian paper
         """
-        nN = self.config['nNeighbors'] + 1
+        # nN = self.config['nNeighbors'] + 1
+        nN = self.nN
         nS = self.spots.data.gene_name.shape[0]
 
         # initialise array with the misread density
