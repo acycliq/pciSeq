@@ -52,7 +52,5 @@ DEFAULT = {
     # your machine. Changing the datatype to a float16 or float32 will help keeping RAM usage to a lower
     # level
     'dtype': np.float64,
-
-    'roi': [(2000, 1000), (2000, 1700), (6000, 1700), (6000, 1000)]
 }
 
