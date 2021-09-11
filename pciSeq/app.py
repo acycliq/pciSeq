@@ -82,13 +82,13 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
 
     # 2. prepare the data
     logger.info(' Preprocessing data')
-    _cells, cellBoundaries, _spots = stage_data(iss_spots, coo, cfg)
+    _cells, cellBoundaries, _spots = stage_data(iss_spots, coo)
 
     # 3. cell typing
     cellData, geneData = cell_type(_cells, _spots, scRNAseq, cfg)
 
     # 4. save to filesystem
-    save_data = True
+    save_data = False
     if save_data:
         write_data(cellData, geneData, cellBoundaries, cfg)
 
@@ -105,8 +105,7 @@ def cell_type(_cells, _spots, scRNAseq, ini):
 
 
 def write_data(cellData, geneData, cellBoundaries, ini):
-    # out_dir = ini['out_dir']
-    out_dir = 'Stefano'
+    out_dir = ini['out_dir']
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
