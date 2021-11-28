@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 import pciSeq.src.preprocess.vizgen.config as config
 import logging
-from pciSeq.src.preprocess.vizgen.utils import transformation, splitter_mb, save_df, save_df_simple, rotate_data, is_inside_sm_parallel
+from pciSeq.src.preprocess.vizgen.utils import transformation, splitter_mb, save_df, save_df_simple, rotate_data, is_inside
 from pciSeq.src.preprocess.vizgen.cellBorders import cell_boundaries_px_par
 from pciSeq.src.preprocess.vizgen import label_spots
 
@@ -47,7 +47,7 @@ def clip_data(df, cfg):
 
         points = df[['x', 'y']].values
         poly = np.array(coords)
-        mask = is_inside_sm_parallel(points, poly)
+        mask = is_inside(points, poly)
         logger.info('Collected %d points inside ROI' % mask.sum())
         return df[mask]
     else:

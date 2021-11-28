@@ -15,7 +15,7 @@ from os import listdir
 from os.path import isfile, join
 from natsort import natsorted
 import pciSeq.src.preprocess.vizgen.config as config
-from pciSeq.src.preprocess.vizgen.utils import is_inside_sm_parallel
+from pciSeq.src.preprocess.vizgen.utils import is_inside
 from multiprocessing import Pool, cpu_count
 from functools import partial
 import os
@@ -63,7 +63,7 @@ def worker(cell_meta, cellBoundaries, spots, all_keys, fov):
             outer_ring.append(outer_ring[0])
         # find if a spots lies within the poly
         poly = np.array(outer_ring)
-        mask = is_inside_sm_parallel(points, poly)
+        mask = is_inside(points, poly)
 
         # get the index of those spots that fall inside the poly
         spots_idx = spots_in_fov.index[mask]
