@@ -233,15 +233,15 @@ def bbox_rot(w, h, R):
     return offset_x, offset_y
 
 
-def rotate_data(points, cgf):
+def rotate_data(points, cfg):
     """
     rotates the spots by theta_degrees
     :param my_points:
     :param theta_deg:
-    :param cgf:
+    :param cfg:
     :return:
     """
-    theta_deg = cgf['rotation'][0]
+    theta_deg = cfg['rotation'][0]
     theta_rad = math.radians(theta_deg)
 
     # img = dapi_dims(cgf)
