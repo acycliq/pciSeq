@@ -134,8 +134,8 @@ _rotation['VS6MsBrain_F3_VS6libary_V10_LH_03-21-21']['region_0'] = 'XXX',
 _rotation['VS6MsBrain_F3_VS6libary_V10_LH_03-21-21']['region_1'] = 'XXX',
 _rotation['VS6MsBrain_F4_VS6libary_V3_LH_03-19-21']['region_0'] = 'XXX',
 _rotation['VS6MsBrain_F4_VS6libary_V3_LH_03-19-21']['region_1'] = 'XXX',
-_rotation['VS6MsBrain_F5_VS6libary_V10_LH_03-17-21']['region_0'] = 'XXX',
-_rotation['VS6MsBrain_F5_VS6libary_V10_LH_03-17-21']['region_1'] = 'XXX',
+_rotation['VS6MsBrain_F5_VS6libary_V10_LH_03-17-21']['region_0'] = 127,
+_rotation['VS6MsBrain_F5_VS6libary_V10_LH_03-17-21']['region_1'] = 118,
 
 # MERFISH MISC
 _rotation['MsBrain_BM2_VS6_V11_JH_05-01-2021']['region_0'] = 'XXX',

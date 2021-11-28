@@ -12,9 +12,9 @@ logging.basicConfig(
 )
 
 if __name__ == "__main__":
-    merfish_id = 'MERFISH_F_E'
+    merfish_id = 'MERFISH_F_F'
     slice_ids = [
-        "VS6_MsBrain_B3_VS6library_V10_LH_02-07-21"
+        "VS6MsBrain_F5_VS6libary_V10_LH_03-17-21"
         ]
     region_ids = ['region_0', 'region_1']
 
