@@ -24,7 +24,7 @@ class Cells(object):
         self.class_names = None
         self._prior = None
         self._cov = self.ini_cov()
-        self.nu_0 = 15      # need to move that into config.py
+        self.nu_0 = 15  # need to move that into config.py. Degrees of freedom of the Wishart prior. Use the mean gene counts per cell to set nu_0
         self.rho_1 = self.config['rho_1']    # need to move that into config.py
         self.rho_2 = self.config['rho_2']   # need to move that into config.py
         self._centroid = self.ini_centroids()
