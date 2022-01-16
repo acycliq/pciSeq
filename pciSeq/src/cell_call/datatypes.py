@@ -57,20 +57,7 @@ class Cells(object):
 
     @property
     def total_counts(self):
-        # tc = self.geneCount.sum(axis=1)
         return self.geneCount.sum(axis=1)
-
-    # @property
-    # def prior(self):
-    #     return self._prior
-    #
-    # @prior.setter
-    # def prior(self, val):
-    #     self._prior = val
-    #
-    # @property
-    # def log_prior(self):
-    #     return np.log(self.prior)
 
     @property
     def alpha(self):
@@ -123,11 +110,9 @@ class Cells(object):
         deviation across the x-axis and y-axis
         """
         mu = self.centroid.values.tolist()
-        # cov = self.cov.tolist()
         sigma_x = self.sigma_x.tolist()
         sigma_y = self.sigma_y.tolist()
         rho = self.corr.tolist()
-        # list(zip(self.cells.centroid.values.tolist(), self.cells.sigma_x.tolist(), self.cells.sigma_y.tolist()))
         return list(zip(mu, rho, sigma_x, sigma_y))
 
 
@@ -152,7 +137,6 @@ class Cells(object):
         return nbrs
 
     def geneCountsPerKlass(self, single_cell_data, egamma, ini):
-        # temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.alpha, egamma)
         temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.cell_props['area_factor'], egamma)
 
         # total counts predicted by all cells of each class (nG, nK)
@@ -170,7 +154,6 @@ class Cells(object):
         id = spots.parent_cell_id[:, :-1]
         xy_spots = spots.xy_coords
         out = self.ini_cov() * self.nu_0
-        # out = np.tile(np.eye(2, 2), (self.num_cells, 1, 1))
 
         mu_x = mu_bar[id, 0]  # array of size [nS, N] with the x-coord of the centroid of the N closest cells
         mu_y = mu_bar[id, 1]  # array of size [nS, N] with the y-coord of the centroid of the N closest cells
@@ -191,7 +174,7 @@ class Cells(object):
         agg_01 = npg.aggregate(id.ravel(), el_01.ravel(), size=self.nC)
 
         # Return now the scatter matrix. Some cell might not have any spots nearby. For those empty cells,
-        # the scatter matrix will be a zero squared array. That is fine.
+        # the scatter matrix will be a squared zero array. That is fine.
         out[:, 0, 0] = agg_00
         out[:, 1, 1] = agg_11
         out[:, 0, 1] = agg_01
@@ -202,8 +185,6 @@ class Cells(object):
 # ----------------------------------------Class: Genes--------------------------------------------------- #
 class Genes(object):
     def __init__(self, spots):
-        # self.gamma = np.ones(len(spots.unique_gene_names))
-        # self.gamma = None
         self.gene_panel = np.unique(spots.data.gene_name.values)
         self._eta = None
         self.nG = len(self.gene_panel)
@@ -600,14 +581,6 @@ class CellType(object):
     def nK(self):
         return len(self.names)
 
-    # @property
-    # def prior(self):
-    #     return self.pi_bar
-
-    # @prior.setter
-    # def prior(self, val):
-    #     self._prior = val
-
     @property
     def alpha(self):
         return self._alpha
@@ -616,10 +589,6 @@ class CellType(object):
     def alpha(self, val):
         self._alpha = val
 
-    # @property
-    # def pi(self):
-    #     return self._pi
-
     @property
     def pi_bar(self):
         return self.alpha / self.alpha.sum()
@@ -627,10 +596,6 @@ class CellType(object):
     @property
     def logpi_bar(self):
         return scipy.special.psi(self.alpha) - scipy.special.psi(self.alpha.sum())
-
-    # @property
-    # def log_prior(self):
-    #     return self.logpi_bar
 
     def size(self, cells):
         """
@@ -641,13 +606,8 @@ class CellType(object):
     def ini_prior(self, ini_family):
         if ini_family == 'uniform':
             self.prior = np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
-        # elif ini_family == 'rnd_dirichlet':
-        #     assert nC is not None, "nC must not be None"
-        #     assert isinstance(nC, int), "nC must be integer"
-        #     self.prior = np.append(0.5 * self._rnd_dirichlet(nC), 0.5)
         elif ini_family == 'dirichlet':
             self._dirichlet()
-            # return self.prior(self)
 
 
 
