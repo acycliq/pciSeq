@@ -386,12 +386,12 @@ class Spots(object):
         return TotPredictedZ
 
     def gammaExpectation(self, rho, beta):
-        '''
+        """
         :param r:
         :param b:
         :return: Expectetation of a rv X following a Gamma(r,b) distribution with pdf
         f(x;\alpha ,\beta )= \frac{\beta^r}{\Gamma(r)} x^{r-1}e^{-\beta x}
-        '''
+        """
 
         # sanity check
         # assert (np.all(rho.coords['cell_id'].data == beta.coords['cell_id'])), 'rho and beta are not aligned'
