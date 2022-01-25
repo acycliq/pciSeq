@@ -69,11 +69,11 @@ def test_stage_data(spots, coo_label_image, datadir):
     assert isinstance(dots, pd.DataFrame)
 
     # check the cells
-    cells_expected = pd.read_csv(datadir.join('cells_expected.csv'))
+    cells_expected = pd.read_csv(datadir.join('expected_cells.csv'))
     assert (abs(cells - cells_expected)).values.max() < tol
 
     # check the cell boundaries
-    cell_boundaries_expected = pd.read_csv(datadir.join('cell_boundaries_expected.csv'))
+    cell_boundaries_expected = pd.read_csv(datadir.join('expected_cellBoundaries.csv'))
     tmp = []
     for index, row in cell_boundaries_expected.iterrows():
         tmp.append(eval(row['coords']))
@@ -81,7 +81,7 @@ def test_stage_data(spots, coo_label_image, datadir):
     assert cell_boundaries_expected.equals(cell_boundaries)
 
     # check the labels
-    spots_expected = pd.read_csv(datadir.join('spots_expected.csv'))
+    spots_expected = pd.read_csv(datadir.join('expected_spots.csv'))
     a = dots[['x_global', 'y_global', 'label', 'x_cell', 'y_cell']]
     b = spots_expected[['x_global', 'y_global', 'label', 'x_cell', 'y_cell']]
     assert np.nanmax(abs(a - b)) < tol
