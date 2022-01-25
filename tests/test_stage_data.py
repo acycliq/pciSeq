@@ -23,18 +23,6 @@ def datadir(tmpdir, request):
 
     return tmpdir
 
-@pytest.fixture
-def ground_truth_spots(datadir):
-    return pd.read_csv(datadir.join('results_spots.csv'))
-
-@pytest.fixture(scope='module')
-def dummy_label_image():
-    n = 5
-    m = 25
-    label_image = np.arange(n * n, dtype=np.uint16).reshape((n, n))
-    label_image = cv2.resize(label_image, (m, m), interpolation=cv2.INTER_NEAREST)
-    yield label_image
-
 @pytest.fixture(scope='module')
 def coo_label_image():
     coo_file = utils.load_from_url(
@@ -72,23 +60,39 @@ def test_extract_borders_dip(coo_label_image):
         out += np.array(row['coords']).sum()
     assert out == 505840577.0
 
+
 def test_stage_data(spots, coo_label_image, datadir):
     cells, cell_boundaries, dots = stage_data(spots, coo_label_image)
+    tol = 1e-10
     assert isinstance(cells, pd.DataFrame)
     assert isinstance(cell_boundaries, pd.DataFrame)
     assert isinstance(dots, pd.DataFrame)
 
-    assert cells.label.max() == 3481.0
-    assert cells.area.sum() == 3721912.0
-    assert cells[['x', 'y']].values.sum() == 18715156.370488837
+    # check the cells
+    cells_expected = pd.read_csv(datadir.join('cells_expected.csv'))
+    assert (abs(cells - cells_expected)).values.max() < tol
 
-    out = 0
-    for index, row in cell_boundaries.iterrows():
-        out += np.array(row['coords']).sum()
-    assert out == 505840577.0
+    # check the cell boundaries
+    cell_boundaries_expected = pd.read_csv(datadir.join('cell_boundaries_expected.csv'))
+    tmp = []
+    for index, row in cell_boundaries_expected.iterrows():
+        tmp.append(eval(row['coords']))
+    cell_boundaries_expected['coords'] = tmp
+    assert cell_boundaries_expected.equals(cell_boundaries)
 
-    spots_good = pd.read_csv(datadir.join('results_spots.csv'))
-    assert np.nanmax(abs(dots[['x_global', 'y_global', 'label', 'x_cell', 'y_cell']] - spots_good[['x_global', 'y_global', 'label', 'x_cell', 'y_cell']])) < 1e-10
+    # check the labels
+    spots_expected = pd.read_csv(datadir.join('spots_expected.csv'))
+    a = dots[['x_global', 'y_global', 'label', 'x_cell', 'y_cell']]
+    b = spots_expected[['x_global', 'y_global', 'label', 'x_cell', 'y_cell']]
+    assert np.nanmax(abs(a - b)) < tol
+
+    assert np.all(dots.target == spots_expected.target)
+
+    print('ok')
+
+
+
+
 
 
 
