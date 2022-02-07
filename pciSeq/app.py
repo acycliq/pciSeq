@@ -88,7 +88,7 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
     cellData, geneData = cell_type(_cells, _spots, scRNAseq, cfg)
 
     # 4. save to filesystem
-    save_data = True
+    save_data = False
     if save_data:
         write_data(cellData, geneData, cellBoundaries, cfg)
 
