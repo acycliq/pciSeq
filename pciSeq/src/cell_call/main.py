@@ -50,7 +50,6 @@ class VarBayes:
         self.cellTypes = CellType(self.single_cell)
         self.nC = self.cells.nC                         # number of cells
         self.nG = self.genes.nG                         # number of genes
-        # self.nK = len(self.single_cell.classes)       # number of classes
         self.nK = self.cellTypes.nK                     # number of classes
         self.nS = self.spots.nS                         # number of spots
         self.nN = self.config['nNeighbors'] + 1         # number of closest nearby cells, candidates for being parent
