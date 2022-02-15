@@ -2,7 +2,7 @@
 from typing import Union
 import pandas as pd
 import numpy as np
-import pyvips
+# import pyvips
 import json
 import os
 import glob
@@ -230,16 +230,18 @@ def _order_prob(df, n, class_name=[], prob=[]):
     return [class_name, prob]
 
 
-def rotate_image(img_in, img_out, deg):
-    """
-    rotates an image.
-    img_in: path to the image to be rotated
-    img_out: path to save the rotated image to
-    deg: degrees to rotate the image by (clockwise)
-    """
-    x = pyvips.Image.new_from_file(img_in)
-    x = x.rotate(deg, interpolate=pyvips.Interpolate.new("nearest"))
-    x.write_to_file(img_out, compression="jpeg", tile=True)
+# def rotate_image(img_in, img_out, deg):
+#     """
+#     rotates an image.
+#     img_in: path to the image to be rotated
+#     img_out: path to save the rotated image to
+#     deg: degrees to rotate the image by (clockwise)
+#
+#     NOTE: 15-Feb-2022: removed because Google Colab cannot properly load pyvips. Needs to be investigated
+#     """
+#     x = pyvips.Image.new_from_file(img_in)
+#     x = x.rotate(deg, interpolate=pyvips.Interpolate.new("nearest"))
+#     x.write_to_file(img_out, compression="jpeg", tile=True)
 
 
 _format = lambda x: round(x, 3) # keep only 3 decimal points
