@@ -5,7 +5,7 @@ from setuptools import setup
 install_deps = ['numpy', 'pandas', 'sklearn',
                 'numpy_groupies', 'xarray', 'numexpr',
                 'diplib', 'scikit-image', 'opencv-python',
-                'tqdm']
+                'tqdm', 'pyvips']
 
 version = None
 with open(os.path.join('pciSeq', 'src', '_version.py'), 'r') as fid:
