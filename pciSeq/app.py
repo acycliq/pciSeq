@@ -157,7 +157,7 @@ if __name__ == "__main__":
     _scRNAseq = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),
                             header=None, index_col=0, compression='gzip', dtype=object)
     _scRNAseq = _scRNAseq.rename(columns=_scRNAseq.iloc[0], copy=False).iloc[1:]
-    _scRNAseq = _scRNAseq.astype(np.float).astype(np.uint32)
+    _scRNAseq = _scRNAseq.astype(float).astype(np.uint32)
 
     # main task
     # _opts = {'max_iter': 10}
