@@ -169,7 +169,7 @@ class Spots(object):
         return spots_df.rename_axis('spot_id').rename(columns={'target': 'gene_name'})
 
     def cells_nearby(self, cells: Cells) -> np.array:
-        spotYX = self.data[['y', 'x']]
+        spotYX = self.data[['y', 'x']].values
 
         # for each spot find the closest cell (in fact the top nN-closest cells...)
         nbrs = cells.nn()
