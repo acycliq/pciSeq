@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import numpy as np
+import tempfile
 from typing import Tuple
 from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.cell_call.main import VarBayes
@@ -88,9 +89,8 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
     cellData, geneData = cell_type(_cells, _spots, scRNAseq, cfg)
 
     # 4. save to filesystem
-    save_data = False
-    if save_data:
-        write_data(cellData, geneData, cellBoundaries, cfg)
+    if cfg['save_data']:
+        write_data(cellData, geneData, cellBoundaries)
 
     logger.info(' Done')
     return cellData, geneData
@@ -104,8 +104,8 @@ def cell_type(_cells, _spots, scRNAseq, ini):
     return cellData, geneData
 
 
-def write_data(cellData, geneData, cellBoundaries, ini):
-    out_dir = ini['out_dir']
+def write_data(cellData, geneData, cellBoundaries):
+    out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq')
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
@@ -119,9 +119,9 @@ def write_data(cellData, geneData, cellBoundaries, ini):
     logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
     # Write to the disk as tsv of 99MB each
-    splitter_mb(cellData, os.path.join(out_dir, 'cellData'), 99)
-    splitter_mb(geneData, os.path.join(out_dir, 'geneData'), 99)
-    splitter_mb(cellBoundaries, os.path.join(out_dir, 'cellBoundaries'), 99)
+    # splitter_mb(cellData, os.path.join(out_dir, 'cellData'), 99)
+    # splitter_mb(geneData, os.path.join(out_dir, 'geneData'), 99)
+    # splitter_mb(cellBoundaries, os.path.join(out_dir, 'cellBoundaries'), 99)
 
 
 def init(opts):
