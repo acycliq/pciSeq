@@ -46,7 +46,7 @@ DEFAULT = {
     'rSpot': 2,
 
     # Boolean, if True the output will be saved as tsv files in a folder named 'pciSeq' in your system's temp dir.
-    'save_data': True,
+    'save_data': False,
 
     # Use either np.float16 or np.float32 to reduce memory usage. In most cases RAM consumption shouldnt
     # need more than 32Gb RAM. If you have a dataset from a full coronal mouse slice with a high number of
