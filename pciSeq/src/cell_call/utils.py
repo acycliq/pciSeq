@@ -15,31 +15,31 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger()
 
 
-def read_image_objects(img_obj, cfg):
-    meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
-    relCellRadius = np.sqrt(img_obj.area / np.pi) / meanCellRadius
-
-    # append 1 for the misreads
-    relCellRadius = np.append(1, relCellRadius)
-
-    nom = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
-    denom = np.exp(-0.5) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
-    CellAreaFactor = nom / denom
-
-    out = {}
-    out['area_factor'] = CellAreaFactor
-    # out['area_factor'] = np.ones(CellAreaFactor.shape)
-    # logger.info('Overriden CellAreaFactor = 1')
-    out['rel_radius'] = relCellRadius
-    out['area'] = np.append(np.nan, img_obj.area)
-    out['x'] = np.append(-sys.maxsize, img_obj.x.values)
-    out['y'] = np.append(-sys.maxsize, img_obj.y.values)
-    out['cell_label'] = np.append(0, img_obj.label.values)
-    # First cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
-    # and will be used to get all the misreads. It was given the label=0 and some very small
-    # negative coords
-
-    return out
+# def read_image_objects(img_obj, cfg):
+#     meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
+#     relCellRadius = np.sqrt(img_obj.area / np.pi) / meanCellRadius
+#
+#     # append 1 for the misreads
+#     relCellRadius = np.append(1, relCellRadius)
+#
+#     nom = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
+#     denom = np.exp(-0.5) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
+#     CellAreaFactor = nom / denom
+#
+#     out = {}
+#     out['area_factor'] = CellAreaFactor
+#     # out['area_factor'] = np.ones(CellAreaFactor.shape)
+#     # logger.info('Overriden CellAreaFactor = 1')
+#     out['rel_radius'] = relCellRadius
+#     out['area'] = np.append(np.nan, img_obj.area)
+#     out['x'] = np.append(-sys.maxsize, img_obj.x.values)
+#     out['y'] = np.append(-sys.maxsize, img_obj.y.values)
+#     out['cell_label'] = np.append(0, img_obj.label.values)
+#     # First cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
+#     # and will be used to get all the misreads. It was given the label=0 and some very small
+#     # negative coords
+#
+#     return out
 
 
 def negBinLoglik(x, r, p):
