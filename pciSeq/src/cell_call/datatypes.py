@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import numpy as np
 import pandas as pd
@@ -7,7 +8,7 @@ import scipy
 import gc
 import numexpr as ne
 from sklearn.neighbors import NearestNeighbors
-from pciSeq.src.cell_call.utils import read_image_objects
+# from pciSeq.src.cell_call.utils import read_image_objects
 import logging
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -18,7 +19,7 @@ class Cells(object):
     # Get rid of the properties where not necessary!!
     def __init__(self, _cells_df, config):
         self.config = config
-        self.cell_props = read_image_objects(_cells_df, config)
+        self.cell_props, self.mcr = self.read_image_objects(_cells_df, config)
         self.nC = len(self.cell_props['cell_label'])
         self.classProb = None
         self.class_names = None
@@ -84,6 +85,32 @@ class Cells(object):
     #     labels = ClassTotPredicted.columns.values[~isZero]
     #     TotPredicted = ClassTotPredicted[labels].sum(axis=1)
     #     return TotPredicted
+
+    def read_image_objects(self, img_obj, cfg):
+        meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
+        relCellRadius = np.sqrt(img_obj.area / np.pi) / meanCellRadius
+
+        # append 1 for the misreads
+        relCellRadius = np.append(1, relCellRadius)
+
+        nom = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
+        denom = np.exp(-0.5) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
+        CellAreaFactor = nom / denom
+
+        out = {}
+        out['area_factor'] = CellAreaFactor
+        # out['area_factor'] = np.ones(CellAreaFactor.shape)
+        # logger.info('Overriden CellAreaFactor = 1')
+        out['rel_radius'] = relCellRadius
+        out['area'] = np.append(np.nan, img_obj.area)
+        out['x'] = np.append(-sys.maxsize, img_obj.x.values)
+        out['y'] = np.append(-sys.maxsize, img_obj.y.values)
+        out['cell_label'] = np.append(0, img_obj.label.values)
+        # First cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
+        # and will be used to get all the misreads. It was given the label=0 and some very small
+        # negative coords
+
+        return out, meanCellRadius
 
 # ----------------------------------------Class: Genes--------------------------------------------------- #
 class Genes(object):
@@ -198,9 +225,9 @@ class Spots(object):
         return pSpotNeighb
 
     def loglik(self, cells, cfg):
-        area = cells.cell_props['area'][1:]
-        mcr = np.mean(np.sqrt(area / np.pi)) * 0.5  # This is the meanCellRadius
-
+        # area = cells.cell_props['area'][1:]
+        # mcr = np.mean(np.sqrt(area / np.pi)) * 0.5  # This is the meanCellRadius
+        mcr = cells.mcr
         # Assume a bivariate normal and calc the likelihood
         D = -self.Dist ** 2 / (2 * mcr ** 2) - np.log(2 * np.pi * mcr ** 2)
 
