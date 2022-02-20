@@ -12,7 +12,7 @@ from sklearn.neighbors import NearestNeighbors
 import logging
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class Cells(object):

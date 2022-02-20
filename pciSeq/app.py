@@ -10,12 +10,7 @@ from pciSeq.src.viewer.utils import splitter_mb
 from pciSeq import config
 import logging
 
-logger = logging.getLogger()
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s:%(levelname)s:%(message)s"
-)
-
+logger = logging.getLogger(__name__)
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
