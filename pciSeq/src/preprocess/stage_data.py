@@ -5,11 +5,7 @@ from pciSeq.src.preprocess.spot_label import spot_label
 from pciSeq.src.preprocess.cell_props import calc_props
 import logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s:%(levelname)s:%(message)s"
-)
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 def run(cfg):
