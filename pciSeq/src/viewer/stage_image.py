@@ -4,9 +4,9 @@ Look also at https://stackoverflow.com/questions/10853119/chop-image-into-tiles-
 for an alternative (and probably better way)
 It also creates the pyramid tiles for the viewer
 '''
-import pyvips
 import shutil
 import os
+import pyvips
 import logging
 
 logger = logging.getLogger(__name__)

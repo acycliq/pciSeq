@@ -2,7 +2,6 @@
 from typing import Union
 import pandas as pd
 import numpy as np
-# import pyvips
 import json
 import os
 import glob
@@ -10,6 +9,10 @@ import csv
 import logging
 
 logger = logging.getLogger(__name__)
+
+from pciSeq import check_libvips
+if check_libvips():
+    import pyvips
 
 
 def splitter_mb(df, dir_path, mb_size):
@@ -48,37 +51,37 @@ def splitter_mb(df, dir_path, mb_size):
     handle_out.close()
 
 
-# def splitter_mb(filepath, mb_size):
-#     """ Splits a text file in (almost) equally sized parts on the disk. Assumes that there is a header in the first line
-#     :param filepath: The path of the text file to be broken up into smaller files
-#     :param mb_size: size in MB of each chunk
-#     :return:
-#     """
-#     handle = open(filepath, 'r')
-#     OUT_DIR = os.path.join(os.path.splitext(filepath)[0] + '_split')
-#
-#     if not os.path.exists(OUT_DIR):
-#         os.makedirs(OUT_DIR)
-#     else:
-#         files = glob.glob(OUT_DIR + '/*.*')
-#         for f in files:
-#             os.remove(f)
-#
-#     n = 0
-#     header_line = next(handle)
-#     file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)
-#     for line in handle:
-#         size = os.stat(file_out).st_size
-#         if size > mb_size*1024*1024:
-#             print('saved %s with file size %4.3f MB' % (file_out, size/(1024*1024)))
-#             n += 1
-#             handle_out.close()
-#             file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)
-#         handle_out.write(str(line))
-#
-#     # print(str(file_out) + " file size = \t" + str(size))
-#     print('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
-#     handle_out.close()
+def splitter_mb(filepath, mb_size):
+    """ Splits a text file in (almost) equally sized parts on the disk. Assumes that there is a header in the first line
+    :param filepath: The path of the text file to be broken up into smaller files
+    :param mb_size: size in MB of each chunk
+    :return:
+    """
+    handle = open(filepath, 'r')
+    OUT_DIR = os.path.join(os.path.splitext(filepath)[0] + '_split')
+
+    if not os.path.exists(OUT_DIR):
+        os.makedirs(OUT_DIR)
+    else:
+        files = glob.glob(OUT_DIR + '/*.*')
+        for f in files:
+            os.remove(f)
+
+    n = 0
+    header_line = next(handle)
+    file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)
+    for line in handle:
+        size = os.stat(file_out).st_size
+        if size > mb_size*1024*1024:
+            print('saved %s with file size %4.3f MB' % (file_out, size/(1024*1024)))
+            n += 1
+            handle_out.close()
+            file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)
+        handle_out.write(str(line))
+
+    # print(str(file_out) + " file size = \t" + str(size))
+    print('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
+    handle_out.close()
 
 
 def splitter_n(filepath, n):
@@ -225,18 +228,16 @@ def _order_prob(df, n, class_name=[], prob=[]):
     return [class_name, prob]
 
 
-# def rotate_image(img_in, img_out, deg):
-#     """
-#     rotates an image.
-#     img_in: path to the image to be rotated
-#     img_out: path to save the rotated image to
-#     deg: degrees to rotate the image by (clockwise)
-#
-#     NOTE: 15-Feb-2022: removed because Google Colab cannot properly load pyvips. Needs to be investigated
-#     """
-#     x = pyvips.Image.new_from_file(img_in)
-#     x = x.rotate(deg, interpolate=pyvips.Interpolate.new("nearest"))
-#     x.write_to_file(img_out, compression="jpeg", tile=True)
+def rotate_image(img_in, img_out, deg):
+    """
+    rotates an image.
+    img_in: path to the image to be rotated
+    img_out: path to save the rotated image to
+    deg: degrees to rotate the image by (clockwise)
+    """
+    x = pyvips.Image.new_from_file(img_in)
+    x = x.rotate(deg, interpolate=pyvips.Interpolate.new("nearest"))
+    x.write_to_file(img_out, compression="jpeg", tile=True)
 
 
 _format = lambda x: round(x, 3) # keep only 3 decimal points
