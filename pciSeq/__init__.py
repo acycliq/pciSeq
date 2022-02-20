@@ -5,8 +5,6 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s:%(levelname)s:%(message)s"
 )
-logger.info('__init__.py parsed')
-
 
 from pciSeq.src._version import __version__
 from pciSeq.app import fit
