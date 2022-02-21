@@ -81,7 +81,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.D
     spots = spots.merge(cells, how='left', on=['label'])
 
     _cells = cells[['label', 'area', 'x_cell', 'y_cell']].rename(columns={'x_cell': 'x', 'y_cell': 'y'})
-    _cell_boundaries = cells[['label', 'coords']]
+    _cell_boundaries = cells[['label', 'coords']].rename(columns={'label': 'cell_id'})
     _spots = spots[['x', 'y', 'label', 'Gene', 'x_cell', 'y_cell']].rename(columns={'Gene': 'target', 'x': 'x_global', 'y': 'y_global'})
 
     return _cells, _cell_boundaries, _spots
