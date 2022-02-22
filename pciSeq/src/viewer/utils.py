@@ -8,12 +8,7 @@ import glob
 import csv
 import logging
 
-logger = logging.getLogger()
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s:%(levelname)s:%(message)s"
-)
-
+logger = logging.getLogger(__name__)
 
 
 def splitter_mb(df, dir_path, mb_size):

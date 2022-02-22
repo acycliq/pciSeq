@@ -5,7 +5,7 @@ from pciSeq.src.cell_call.utils import gaussian_ellipsoid
 import logging
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 def _iss_summary(cells, genes, single_cell):
