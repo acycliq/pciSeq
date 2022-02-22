@@ -61,8 +61,11 @@ DEFAULT = {
     # array) of single cell data
     'm': 1,
 
-    # used by the Dirichler distribution. If a class size is smaller than 'min_class_size' then it will be
+    # used by the Dirichlet distribution. If a class size is smaller than 'min_class_size' then it will be
     # assigned a weight of almost zero
-    'min_class_size': 5
+    'min_class_size': 5,
+
+    # Boolean, if True the output will be saved as tsv files in a folder named 'pciSeq' in your system's temp dir.
+    'save_data': False,
 }
 
