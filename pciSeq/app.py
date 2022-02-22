@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import numpy as np
+import tempfile
 from typing import Tuple
 from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.cell_call.main import VarBayes
@@ -9,16 +10,12 @@ from pciSeq.src.viewer.utils import splitter_mb
 from pciSeq import config
 import logging
 
-logger = logging.getLogger()
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s:%(levelname)s:%(message)s"
-)
+logger = logging.getLogger(__name__)
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
-def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: dict = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Main entry point for pciSeq.
 
@@ -77,6 +74,21 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
             Name: neighbour_prob, dtype: Object, array-like with the prob the corresponding cell from neighbour_array has risen the spot.
     """
 
+    try:
+        scRNAseq = kwargs['scRNAseq']
+    except KeyError:
+        scRNAseq = None
+    except Exception as err:
+        raise
+
+    try:
+        opts = kwargs['opts']
+    except KeyError:
+        opts = None
+    except Exception as err:
+        raise
+
+
     # 1. get the hyperparameters
     cfg = init(opts)
 
@@ -88,9 +100,8 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
     cellData, geneData = cell_type(_cells, _spots, scRNAseq, cfg)
 
     # 4. save to filesystem
-    save_data = False
-    if save_data:
-        write_data(cellData, geneData, cellBoundaries, cfg)
+    if cfg['save_data']:
+        write_data(cellData, geneData, cellBoundaries)
 
     logger.info(' Done')
     return cellData, geneData
@@ -104,10 +115,8 @@ def cell_type(_cells, _spots, scRNAseq, ini):
     return cellData, geneData
 
 
-def write_data(cellData, geneData, cellBoundaries, ini):
-    # out_dir = ini['out_dir']
-    # out_dir = r"./ca1_random_single_cell_data_with_ellipsoids_and_dirichlet_upd"
-    out_dir = r"./TO123-S1"
+def write_data(cellData, geneData, cellBoundaries):
+    out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq')
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
@@ -126,11 +135,11 @@ def write_data(cellData, geneData, cellBoundaries, ini):
     ellipsoidBorders.to_csv(os.path.join(out_dir, 'ellipsoidBorders.tsv'), sep='\t', index=False)
     logger.info('Saved at %s' % (os.path.join(out_dir, 'ellipsoidBorders.tsv')))
 
-    # Write to the disk as tsv of 99MB each
-    splitter_mb(cellData, os.path.join(out_dir, 'cellData'), 99)
-    splitter_mb(geneData, os.path.join(out_dir, 'geneData'), 99)
-    splitter_mb(cellBoundaries, os.path.join(out_dir, 'cellBoundaries'), 99)
-    splitter_mb(ellipsoidBorders, os.path.join(out_dir, 'ellipsoidBorders'), 99)
+    # # Write to the disk as tsv of 99MB each
+    # splitter_mb(cellData, os.path.join(out_dir, 'cellData'), 99)
+    # splitter_mb(geneData, os.path.join(out_dir, 'geneData'), 99)
+    # splitter_mb(cellBoundaries, os.path.join(out_dir, 'cellBoundaries'), 99)
+    # splitter_mb(ellipsoidBorders, os.path.join(out_dir, 'ellipsoidBorders'), 99)
 
 
 def init(opts):
@@ -160,19 +169,19 @@ def init(opts):
 if __name__ == "__main__":
 
     # # read some demo data
-    # _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'))
-    # _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'))
+    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'))
+    _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'))
 
     # read some demo data
-    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'tugrul', 'TO123_S1', 'spots_shifted.csv'))
-    _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'tugrul', 'TO123_S1', 'label_image.coo.npz'))
+    # _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'tugrul', 'TO123_S1', 'spots_shifted.csv'))
+    # _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'tugrul', 'TO123_S1', 'label_image.coo.npz'))
 
     _scRNAseq = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),
                             header=None, index_col=0, compression='gzip', dtype=object)
     _scRNAseq = _scRNAseq.rename(columns=_scRNAseq.iloc[0], copy=False).iloc[1:]
-    _scRNAseq = _scRNAseq.astype(np.float).astype(np.uint32)
+    _scRNAseq = _scRNAseq.astype(float).astype(np.uint32)
 
     # main task
     # _opts = {'max_iter': 10}
-    fit(_iss_spots, _coo, _scRNAseq)
+    fit(_iss_spots, _coo, scRNAseq=_scRNAseq, opts={'save_data': True})
 

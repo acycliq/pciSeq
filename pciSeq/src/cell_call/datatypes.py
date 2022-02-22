@@ -11,7 +11,7 @@ from pciSeq.src.cell_call.utils import read_image_objects
 import logging
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class Cells(object):
@@ -420,6 +420,9 @@ class Spots(object):
 # ----------------------------------------Class: SingleCell--------------------------------------------------- #
 class SingleCell(object):
     def __init__(self, scdata: pd.DataFrame, genes: np.array, config):
+        self.isMissing = None  # Will be set to False is single cell data are assumed known and given as an input
+                               # otherwise, if they are unknown, this will be set to True and the algorithm will
+                               # try to estimate them
         self.config = config
         self._mean_expression, self._log_mean_expression = self._setup(scdata, genes, self.config)
 
@@ -430,9 +433,16 @@ class SingleCell(object):
         These hyperparameters and some bacic cleaning takes part in the functions
         called herein
         """
-        # expr = self._raw_data(scdata, genes)
-        # expr = self._naive(scdata, genes)
-        expr = self._diag(scdata, genes)
+        if scdata is None:
+            logger.info('Single Cell data are missing. We will try to estimate it')
+            logger.info('Starting point is a diagonal array')
+            # expr = self._naive(scdata, genes)
+            expr = self._diag(genes)
+            self.isMissing = True
+        else:
+            expr = self._raw_data(scdata, genes)
+            self.isMissing = False
+
         self.raw_data = expr
         me, lme = self._helper(expr.copy())
         dtype = self.config['dtype']
@@ -548,7 +558,7 @@ class SingleCell(object):
 
         return df
 
-    def _diag(self, scdata, genes):
+    def _diag(self, genes):
         logger.info('******************************************************')
         logger.info('*************** DIAGONAL SINGLE CELL DATA ***************')
         logger.info('******************************************************')

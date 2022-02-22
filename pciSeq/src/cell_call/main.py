@@ -12,7 +12,7 @@ import pickle
 import logging
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 # Note: 21-Feb-2020
 # I think there are TWO  bugs.
@@ -127,7 +127,8 @@ class VarBayes:
             self.eta_upd()
 
             # 6. Update single cell data
-            self.mu_upd()
+            if self.single_cell.isMissing:
+                self.mu_upd()
 
             converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
             logger.info(' Iteration %d, mean prob change %f' % (i, delta))
