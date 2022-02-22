@@ -228,8 +228,9 @@ class Spots(object):
         # area = cells.cell_props['area'][1:]
         # mcr = np.mean(np.sqrt(area / np.pi)) * 0.5  # This is the meanCellRadius
         mcr = cells.mcr
+        dim = 2  # dimensions of the normal distribution: Bivariate
         # Assume a bivariate normal and calc the likelihood
-        D = -self.Dist ** 2 / (2 * mcr ** 2) - np.log(2 * np.pi * mcr ** 2)
+        D = -self.Dist ** 2 / (2 * mcr ** 2) - dim/2 * np.log(2 * np.pi * mcr ** 2)
 
         # last column (nN-closest) keeps the misreads,
         D[:, -1] = np.log(cfg['MisreadDensity'])
