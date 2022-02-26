@@ -64,8 +64,7 @@ class VarBayes:
         self.cellTypes.ini_prior('dirichlet')
         self.cells.classProb = np.tile(self.cellTypes.pi_bar, (self.nC, 1))
         self.genes.eta = np.ones(self.nG) * self.config['Inefficiency']
-        self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
-        self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
+        self.spots.parent_cell_id, self.spots.parent_cell_prob = self.spots.cells_nearby(self.cells)
         self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
         # self.cells.alpha = np.ones(self.nC) * self.cells.rho_1 / self.cells.rho_2
 

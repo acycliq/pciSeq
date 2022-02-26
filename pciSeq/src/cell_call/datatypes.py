@@ -289,7 +289,10 @@ class Spots(object):
 
         # last column is for misreads.
         neighbors[:, -1] = 0
-        return neighbors
+
+        cellProb = np.zeros(neighbors.shape, dtype=np.uint32)
+        cellProb[:, 0] = np.ones(neighbors.shape[0])
+        return neighbors, cellProb
 
     def ini_cellProb(self, neighbors, cfg):
         nS = self.data.shape[0]
