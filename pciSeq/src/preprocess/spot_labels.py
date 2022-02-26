@@ -46,54 +46,83 @@ def remap_labels(coo):
     return out
 
 
-def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Reads the spots and the label image that are passed in and calculates which cell (if any) encircles any
     given spot within its boundaries. It also retrieves the coordinates of the cell boundaries, the cell
     centroids and the cell area
     """
+    if 'z' not in spots.columns:
+        # spots = spots.assign(z=np.zeros(spots.shape[0]))
+        z = []
+        n = len(coo)
+        for i, row in spots.iterrows():
+            r = divmod(i, n)[1]
+            # r = uniform(0, n)
+            z.append(r)
+        spots = spots.assign(z=z)
+        logger.info(' Added z-dimension to the spots dataframe')
+
+    if isinstance(coo, list):
+        for i in range(len(coo)):
+            assert isinstance(coo[i], coo_matrix)
+
+    if isinstance(coo, coo_matrix):
+        assert coo.shape == 2
+        coo = [coo]
+
+    label_image_3d = np.stack([d.toarray().astype(np.uint32) for d in coo])
     logger.info(' Number of spots passed-in: %d' % spots.shape[0])
-    logger.info(' Number of segmented cells: %d' % len(set(coo.data)))
-    logger.info(' Segmentation array implies that image has width: %dpx and height: %dpx' % (coo.shape[1], coo.shape[0]))
-    mask_x = (spots.x >= 0) & (spots.x <= coo.shape[1])
-    mask_y = (spots.y >= 0) & (spots.y <= coo.shape[0])
-    spots = spots[mask_x & mask_y]
+    logger.info(' Number of segmented cells: %d' % sum(np.unique(label_image_3d) > 0))
+    # logger.info(' Segmentation array implies that image has width: %dpx and height: %dpx' % (coo.shape[1], coo.shape[0]))
+    mask_x = (spots.x >= 0) & (spots.x <= label_image_3d.shape[2])
+    mask_y = (spots.y >= 0) & (spots.y <= label_image_3d.shape[1])
+    mask_z = (spots.z >= 0) & (spots.z <= label_image_3d.shape[0])
+    spots = spots[mask_x & mask_y & mask_z]
 
-    # Debugging code!
-    # resuffle
-    # spots = spots.sample(frac=1).reset_index(drop=True)
-
-    # _point = [5471-14, 110]
-    # logger.info('label at (y, x): (%d, %d) is %d' % (_point[0], _point[1], coo.toarray()[_point[0], _point[1]]))
-
-    # coo = remap_labels(coo)
-    # logger.info('remapped label at (y, x): (%d, %d) is %d' % (_point[0], _point[1], coo.toarray()[_point[0], _point[1]]))
-
-    # 1. Find which cell the spots lie within
-    # yx_coords = spots[['y', 'x']].values.T
-    inc = inside_cell(coo.tocsr(), spots)
-    spots = spots.assign(label=inc)
+    spots_list = []
+    for i, d in enumerate(np.unique(spots.z)):
+        # z_plane = spots.z == d
+        z_plane = int(np.floor(d))  # get the z-plane right below or exactly on the spot.
+        spots_z = spots[spots.z == d]  # get all the spots with the same z-coord as d
+        my_coo = coo[z_plane]
+        inc = inside_cell(my_coo.tocsr(), spots_z)
+        spots_list.append(spots_z.assign(label=inc))
+    spots_df = pd.concat(spots_list)
 
     # 2. Get cell centroids and area
-    props = skmeas.regionprops(coo.toarray().astype(np.int32))
-    props_df = pd.DataFrame(data=[(d.label, d.area, d.centroid[1], d.centroid[0]) for d in props],
-                      columns=['label', 'area', 'x_cell', 'y_cell'])
+    properties = ['label', 'area', 'centroid', 'filled_image']
+    props_df = pd.DataFrame(skmeas.regionprops_table(label_image_3d, properties=properties))
+    num_slices = props_df.filled_image.apply(img_depth).values
+    props_df = props_df.assign(mean_area_per_slice=props_df.area/num_slices)
+    props_df = props_df.drop(['filled_image'], axis=1)
+    props_df = props_df.rename(columns={"centroid-0": "z_cell", "centroid-1": "y_cell", "centroid-2": "x_cell"})
 
     # 3. Get the cell boundaries
-    cell_boundaries = extract_borders_dip(coo.toarray().astype(np.uint32), 0, 0, [0])
+    boundaries_list = []
+    for i, d in enumerate(coo):
+        z_page = d.toarray()
+        b = extract_borders_dip(z_page.astype(np.uint32), 0, 0, [0], cfg['ppm'])
+        b = b.assign(z=i)
+        b = b[['label', 'z', 'coords']]
+        boundaries_list.append(b)
+    cell_boundaries = pd.concat(boundaries_list)
 
-    assert props_df.shape[0] == cell_boundaries.shape[0] == coo.data.max()
-    assert set(spots.label[spots.label > 0]) <= set(props_df.label)
+    logger.info('Keeping boundaries for z=0 only')
+    cell_boundaries = cell_boundaries[cell_boundaries.z == 0]  # Select the boundaries on z=0 only
 
-    cells = props_df.merge(cell_boundaries)
-    cells.sort_values(by=['label', 'x_cell', 'y_cell'])
-    assert cells.shape[0] == cell_boundaries.shape[0] == props_df.shape[0]
-
-    # join spots and cells on the cell label so you can get the x,y coords of the cell for any given spot
-    spots = spots.merge(cells, how='left', on=['label'])
-
-    _cells = cells[['label', 'area', 'x_cell', 'y_cell']].rename(columns={'x_cell': 'x', 'y_cell': 'y'})
-    _cell_boundaries = cells[['label', 'coords']]
-    _spots = spots[['x', 'y', 'label', 'Gene', 'x_cell', 'y_cell']].rename(columns={'Gene': 'target', 'x': 'x_global', 'y': 'y_global'})
+    _cells = props_df.rename(columns={'x_cell': 'x', 'y_cell': 'y', 'z_cell': 'z'})
+    _cell_boundaries = cell_boundaries.sort_values(['label', 'z'])
+    _spots = spots_df[['x', 'y', 'z', 'label', 'Gene']].rename(columns={'Gene': 'target', 'x': 'x_global', 'y': 'y_global', 'z': 'z_global'})
 
     return _cells, _cell_boundaries, _spots
+
+
+def img_depth(x):
+    if len(x.shape) == 3:
+        return x.shape[0]
+    elif len(x.shape) == 2:
+        return 1
+    else:
+        return np.nan
+

@@ -151,7 +151,7 @@ class VarBayes:
             if converged:
                 # np.save('deltas.npy', self.deltas)
                 # np.save('me_arr.npy', self.me_arr)
-                iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
+                iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config['ppm'])
                 break
 
             if i == max_iter-1:
@@ -282,7 +282,8 @@ class VarBayes:
 
             term_2 = np.einsum('ij, ij -> i', cp, expectedLog)  # same as np.sum(cp * expectedLog, axis=1) but bit faster
 
-            loglik = self.spots.mvn_loglik(self.spots.xy_coords, sn, self.cells)
+            xyz_coords = np.flip(self.spots.zyx_coords, axis=1)
+            loglik = self.spots.mvn_loglik(xyz_coords, sn, self.cells)
             aSpotCell[:, n] = term_1 + term_2 + loglik
             # logger.info('')
         wSpotCell = aSpotCell  # + self.spots.loglik(self.cells, self.config)
@@ -353,20 +354,24 @@ class VarBayes:
         # get the total gene counts per cell
         N_c = self.cells.total_counts
 
-        xy_spots = spots.xy_coords
+        zyx_coords = spots.zyx_coords
         prob = spots.parent_cell_prob
         n = self.cells.config['nNeighbors'] + 1
 
         # mulitply the x coord of the spots by the cell prob
-        a = np.tile(xy_spots[:, 0], (n, 1)).T * prob
+        a = np.tile(zyx_coords[:, 2], (n, 1)).T * prob
 
         # mulitply the y coord of the spots by the cell prob
-        b = np.tile(xy_spots[:, 1], (n, 1)).T * prob
+        b = np.tile(zyx_coords[:, 1], (n, 1)).T * prob
 
-        # aggregated x and y coordinate
+        # mulitply the z coord of the spots by the cell prob
+        c = np.tile(zyx_coords[:, 0], (n, 1)).T * prob
+
+        # aggregated x, y and z coordinates
         idx = spots.parent_cell_id
         x_agg = npg.aggregate(idx.ravel(), a.ravel(), size=len(N_c))
         y_agg = npg.aggregate(idx.ravel(), b.ravel(), size=len(N_c))
+        z_agg = npg.aggregate(idx.ravel(), c.ravel(), size=len(N_c))
 
         # x_agg = np.zeros(N_c.shape)
         # mask = np.arange(len(_x_agg))
@@ -379,21 +384,23 @@ class VarBayes:
         # get the estimated cell centers
         x_bar = np.nan * np.ones(N_c.shape)
         y_bar = np.nan * np.ones(N_c.shape)
+        z_bar = np.nan * np.ones(N_c.shape)
         x_bar[N_c > 0] = x_agg[N_c > 0] / N_c[N_c > 0]
         y_bar[N_c > 0] = y_agg[N_c > 0] / N_c[N_c > 0]
+        z_bar[N_c > 0] = z_agg[N_c > 0] / N_c[N_c > 0]
         # cells with N_c = 0 will end up with x_bar = y_bar = np.nan
-        xy_bar_fitted = np.array(list(zip(x_bar.T, y_bar.T)))
+        xyz_bar_fitted = np.array(list(zip(x_bar.T, y_bar.T, z_bar.T)))
 
         # if you have a value for the estimated centroid use that, otherwise
         # use the initial (starting values) centroids
         ini_cent = self.cells.ini_centroids()
-        xy_bar = np.array(tuple(zip(*[ini_cent['x'], ini_cent['y']])))
+        xyz_bar = np.array(tuple(zip(*[ini_cent['x'], ini_cent['y'], ini_cent['z']])))
 
         # # sanity check. NaNs or Infs should appear together
         # assert np.all(np.isfinite(x_bar) == np.isfinite(y_bar))
         # use the fitted centroids where possible otherwise use the initial ones
-        xy_bar[np.isfinite(x_bar)] = xy_bar_fitted[np.isfinite(x_bar)]
-        self.cells.centroid = pd.DataFrame(xy_bar, columns=['x', 'y'])
+        xyz_bar[np.isfinite(x_bar)] = xyz_bar_fitted[np.isfinite(x_bar)]
+        self.cells.centroid = pd.DataFrame(xyz_bar, columns=['x', 'y', 'z'])
         # print(np.array(list(zip(x_bar.T, y_bar.T))))
 
     # -------------------------------------------------------------------- #

@@ -38,7 +38,7 @@ DEFAULT = {
     # the misreads to. Could be seen as the background. Hence, by default the algorithm tries examines
     # whether any of the 3 nearest cells is a possible parent cell to a given cell or whether the spot is
     # a misread
-    'nNeighbors': 3,
+    'nNeighbors': 6,
 
     # A gamma distributed variate from Gamma(rSpot, 1) is applied to the mean expression, hence the counts
     # are distributed according to a Negative Binomial distribution.
@@ -67,5 +67,8 @@ DEFAULT = {
 
     # Boolean, if True the output will be saved as tsv files in a folder named 'pciSeq' in your system's temp dir.
     'save_data': False,
+
+    # resolution, pixels per micron
+    'ppm': 3.0,
 }
 

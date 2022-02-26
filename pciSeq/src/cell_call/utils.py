@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 def read_image_objects(img_obj, cfg):
-    meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
-    relCellRadius = np.sqrt(img_obj.area / np.pi) / meanCellRadius
+    meanCellRadius = np.mean(np.sqrt(img_obj.mean_area_per_slice / np.pi)) * 0.5
+    relCellRadius = np.sqrt(img_obj.mean_area_per_slice / np.pi) / meanCellRadius
 
     # append 1 for the misreads
     relCellRadius = np.append(1, relCellRadius)
@@ -36,12 +36,13 @@ def read_image_objects(img_obj, cfg):
     out['area'] = np.append(np.nan, img_obj.area)
     out['x'] = np.append(-sys.maxsize, img_obj.x.values)
     out['y'] = np.append(-sys.maxsize, img_obj.y.values)
+    out['z'] = np.append(-sys.maxsize, img_obj.z.values)
     out['cell_label'] = np.append(0, img_obj.label.values)
     # First cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
     # and will be used to get all the misreads. It was given the label=0 and some very small
     # negative coords
 
-    return out
+    return out, meanCellRadius
 
 
 def negBinLoglik(x, r, p):
@@ -267,7 +268,7 @@ def load_from_url(url):
     return filename
 
 
-def gaussian_ellipsoid(mu, rho, sigma_x, sigma_y, sdwidth=None):
+def gaussian_ellipsoid(mu, cov, sdwidth=None):
     """
     NOTE: NP NEED TO RECONSTRUCT THE COV MATRIX FROM THE VARIANCES.
     THE COVARIANCE MATRIX IS ALREADY AVAILABLE, YOU SHOULD PASS THAT
@@ -300,26 +301,104 @@ def gaussian_ellipsoid(mu, rho, sigma_x, sigma_y, sdwidth=None):
     if sdwidth is None:
         sdwidth = 1
 
-    cov_00 = sigma_x * sigma_x
-    cov_10 = rho * sigma_x * sigma_y
-    cov_11 = sigma_y * sigma_y
-    cov = np.array([[cov_00, cov_10], [cov_10, cov_11]])
-    mu = np.array(mu)
+    # cov_00 = sigma_x * sigma_x
+    # cov_10 = rho * sigma_x * sigma_y
+    # cov_11 = sigma_y * sigma_y
+    # cov = np.array([[cov_00, cov_10], [cov_10, cov_11]])
+    # mu = np.array(mu)
 
     npts = 40
-    tt = np.linspace(0, 2 * np.pi, npts)
-    ap = np.zeros((2, npts))
+    dims = 3  # Number of dimensions of the mutivariate normal
+    tt = np.linspace(0, dims * np.pi, npts)
+    ap = np.zeros((dims, npts))
     x = np.cos(tt)
     y = np.sin(tt)
+    z = np.sin(tt)
     ap[0, :] = x
     ap[1, :] = y
+    ap[2, :] = z
 
-    eigvals, eigvecs = np.linalg.eig(cov)
+    eigvals, eigvecs = np.linalg.eig(cov)  # eigvecs.dot(eigvals * np.eye(3)).dot(eigvecs.T)
     eigvals = sdwidth * np.sqrt(eigvals)
-    eigvals = eigvals * np.eye(2)
+    eigvals = eigvals * np.eye(dims)
 
     vd = eigvecs.dot(eigvals)
-    out = vd.dot(ap) + mu.reshape(2, -1)
+    out = vd.dot(ap) + mu.reshape(dims, -1)
 
     return np.array(list(zip(*out)))
+
+
+def gaussian_ellipsoid_props(cov, sdwidth=None):
+    """
+    get the scaling, rotation of the ellipsoid
+    """
+    eigvals, eigvecs = np.linalg.eig(cov)
+    scaling = sdwidth * np.sqrt(eigvals)
+    rotation = roll_pitch_yaw(eigvecs)
+    return scaling, rotation
+
+
+def roll_pitch_yaw(R):
+    """
+    Illustration of the rotation matrix / sometimes called 'orientation' matrix
+    R = [
+           R11 , R12 , R13,
+           R21 , R22 , R23,
+           R31 , R32 , R33
+        ]
+
+    REMARKS:
+    1. this implementation is meant to make the mathematics easy to be deciphered
+    from the script, not so much on 'optimized' code.
+    You can then optimize it to your own style.
+
+    2. I have utilized naval rigid body terminology here whereby;
+    2.1 roll -> rotation about x-axis
+    2.2 pitch -> rotation about the y-axis
+    2.3 yaw -> rotation about the z-axis (this is pointing 'upwards')
+    """
+    from math import (
+        asin, pi, atan2, cos
+    )
+    R11 = R[0,0]
+    R12 = R[0,1]
+    R13 = R[0,2]
+
+    R21 = R[1,0]
+    R22 = R[1,1]
+    R23 = R[1,2]
+
+    R31 = R[2, 0]
+    R32 = R[2, 1]
+    R33 = R[2, 2]
+
+
+    if R31 != 1 and R31 != -1:
+        pitch_1 = -1 * asin(R31)
+        pitch_2 = pi - pitch_1
+        roll_1 = atan2(R32 / cos(pitch_1), R33 / cos(pitch_1))
+        roll_2 = atan2(R32 / cos(pitch_2), R33 / cos(pitch_2))
+        yaw_1 = atan2(R21 / cos(pitch_1), R11 / cos(pitch_1))
+        yaw_2 = atan2(R21 / cos(pitch_2), R11 / cos(pitch_2))
+
+        # IMPORTANT NOTE here, there is more than one solution but we choose the first for this case for simplicity !
+        # You can insert your own domain logic here on how to handle both solutions appropriately (see the reference publication link for more info).
+        pitch = pitch_1
+        roll = roll_1
+        yaw = yaw_1
+    else:
+        yaw = 0  # anything (we default this to zero)
+        if R31 == -1:
+            pitch = pi / 2
+            roll = yaw + atan2(R12, R13)
+        else:
+            pitch = -pi / 2
+            roll = -1 * yaw + atan2(-1 * R12, -1 * R13)
+
+            # convert from radians to degrees
+    roll = roll * 180 / pi
+    pitch = pitch * 180 / pi
+    yaw = yaw * 180 / pi
+
+    return [roll, pitch, yaw]
 

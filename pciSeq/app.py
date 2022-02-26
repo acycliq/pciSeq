@@ -94,7 +94,7 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
 
     # 2. prepare the data
     logger.info(' Preprocessing data')
-    _cells, cellBoundaries, _spots = stage_data(iss_spots, coo)
+    _cells, cellBoundaries, _spots = stage_data(iss_spots, coo, cfg)
 
     # 3. cell typing
     cellData, geneData = cell_type(_cells, _spots, scRNAseq, cfg)
@@ -123,6 +123,7 @@ def write_data(cellData, geneData, cellBoundaries):
     ellipsoidBorders = cellData[['Cell_Num', 'ellipsoid_border']]
     ellipsoidBorders = ellipsoidBorders.rename(columns={'Cell_Num': 'cell_id', 'ellipsoid_border': 'coords'})
 
+    cellData = cellData.drop(['ellipsoid_border'], axis=1)
     cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
     logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
 
@@ -166,11 +167,32 @@ def init(opts):
     return cfg
 
 
+def downscale(spots, img, ppm):
+    spots.x = spots.x/ppm
+    spots.y = spots.y / ppm
+
+    # z, h, w = img.shape
+    # col = np.ceil(h/ppm)
+    # row = np.ceil(w/ppm)
+    # out = skimage.transform.resize(img, (z, col, row))
+
+    d = int(np.floor(ppm))
+    out = None
+    if img is not None:
+        _img = img[:, ::d, ::d]
+        out = [coo_matrix(_img[i, :, :]) for i in range(len(_img))]
+    return spots, out
+
+
 if __name__ == "__main__":
+    ppm = 6.0121  # pixels per micron
 
     # # read some demo data
-    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'))
-    _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'))
+    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'B2A3', 'spots.csv'))
+    # _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'B2A3', 'ca1', 'segmentation', 'label_image.coo.npz'))
+    label_image = np.load(os.path.join(ROOT_DIR, 'data', 'B2A3', 'B2A3_label_image.npz'))
+    label_image = label_image['arr_0']
+    _coo = [coo_matrix(d) for d in label_image]  # this is already downscaled, ppm = 6.0121
 
     # read some demo data
     # _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'tugrul', 'TO123_S1', 'spots_shifted.csv'))
@@ -183,5 +205,7 @@ if __name__ == "__main__":
 
     # main task
     # _opts = {'max_iter': 10}
-    fit(_iss_spots, _coo, scRNAseq=_scRNAseq, opts={'save_data': True})
+    # my_label_image = np.stack([_coo.toarray() for i in range(10)])
+    _iss_spots, _ = downscale(_iss_spots, None, ppm)
+    fit(_iss_spots, _coo, scRNAseq=_scRNAseq, opts={'ppm': ppm, 'save_data': True})
 

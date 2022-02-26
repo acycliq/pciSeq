@@ -18,7 +18,7 @@ class Cells(object):
     # Get rid of the properties where not necessary!!
     def __init__(self, _cells_df, config):
         self.config = config
-        self.cell_props = read_image_objects(_cells_df, config)
+        self.cell_props, self.mcr = read_image_objects(_cells_df, config)
         self.nC = len(self.cell_props['cell_label'])
         self.classProb = None
         self.class_names = None
@@ -34,8 +34,8 @@ class Cells(object):
 
     # -------- PROPERTIES -------- #
     @property
-    def yx_coords(self):
-        coords = [d for d in zip(self.cell_props['y'], self.cell_props['x']) if not np.isnan(d).any()]
+    def zyx_coords(self):
+        coords = [d for d in zip(self.cell_props['z'], self.cell_props['y'], self.cell_props['x']) if not np.isnan(d).any()]
         return np.array(coords)
 
     @property
@@ -75,7 +75,7 @@ class Cells(object):
     @centroid.setter
     def centroid(self, df):
         assert isinstance(df, pd.DataFrame), 'Input should be a dataframe'
-        assert set(df.columns.values) == {'x', 'y'}, 'Dataframe columns should be ''x'' and ''y'' '
+        assert set(df.columns.values) == {'x', 'y', 'z'}, 'Dataframe columns should be ''x'', ''y'' and ''z'' '
         self._centroid = df.copy()
 
     @property
@@ -118,22 +118,22 @@ class Cells(object):
 
     # -------- METHODS -------- #
     def ini_centroids(self):
-        d = {'x': self.cell_props['x'], 'y': self.cell_props['y']}
+        d = {'x': self.cell_props['x'], 'y': self.cell_props['y'], 'z': self.cell_props['z']}
         df = pd.DataFrame(d)
         return df.copy()
 
     def ini_cov(self):
-        mcr = self.dapi_mean_cell_radius()
-        cov = mcr * mcr * np.eye(2, 2)
+        dim = 3
+        cov = self.mcr * self.mcr * np.eye(dim, dim)
         return np.tile(cov, (self.nC, 1, 1))
 
-    def dapi_mean_cell_radius(self):
-        return np.nanmean(np.sqrt(self.cell_props['area'] / np.pi)) * 0.5
+    # def dapi_mean_cell_radius(self):
+    #     return np.nanmean(np.sqrt(self.cell_props['area'] / np.pi)) * 0.5
 
     def nn(self):
         n = self.config['nNeighbors'] + 1
         # for each spot find the closest cell (in fact the top nN-closest cells...)
-        nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(self.yx_coords)
+        nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(self.zyx_coords)
         return nbrs
 
     def geneCountsPerKlass(self, single_cell_data, egamma, ini):
@@ -152,33 +152,50 @@ class Cells(object):
         mu_bar = self.centroid.values
         prob = spots.parent_cell_prob[:, :-1]
         id = spots.parent_cell_id[:, :-1]
-        xy_spots = spots.xy_coords
+        zyx_spots = spots.zyx_coords
         out = self.ini_cov() * self.nu_0
 
         mu_x = mu_bar[id, 0]  # array of size [nS, N] with the x-coord of the centroid of the N closest cells
         mu_y = mu_bar[id, 1]  # array of size [nS, N] with the y-coord of the centroid of the N closest cells
+        mu_z = mu_bar[id, 2]  # array of size [nS, N] with the y-coord of the centroid of the N closest cells
 
         N = mu_x.shape[1]
-        _x = np.tile(xy_spots[:, 0], (N, 1)).T  # array of size [nS, N] populated with the x-coord of the spot
-        _y = np.tile(xy_spots[:, 1], (N, 1)).T  # array of size [nS, N] populated with the y-coord of the spot
+        _x = np.tile(zyx_spots[:, 2], (N, 1)).T  # array of size [nS, N] populated with the x-coord of the spot
+        _y = np.tile(zyx_spots[:, 1], (N, 1)).T  # array of size [nS, N] populated with the y-coord of the spot
+        _z = np.tile(zyx_spots[:, 0], (N, 1)).T  # array of size [nS, N] populated with the z-coord of the spot
         x_centered = _x - mu_x  # subtract the cell centroid x-coord from the spot x-coord
-        y_centered = _y - mu_y  # subtract the cell centroid y-coord from the spot x-coord
+        y_centered = _y - mu_y  # subtract the cell centroid y-coord from the spot y-coord
+        z_centered = _z - mu_z  # subtract the cell centroid y-coord from the spot z-coord
 
         el_00 = prob * x_centered * x_centered  # contribution to the scatter matrix's [0, 0] element
-        el_11 = prob * y_centered * y_centered  # contribution to the scatter matrix's off-diagonal element
-        el_01 = prob * x_centered * y_centered  # contribution to the scatter matrix's [1, 1] element
+        el_11 = prob * y_centered * y_centered  # contribution to the scatter matrix's [1, 1] element
+        el_22 = prob * z_centered * z_centered  # contribution to the scatter matrix's [2, 2] element
+        el_01 = prob * x_centered * y_centered  # contribution to the scatter matrix's [0, 1] element
+        el_02 = prob * x_centered * z_centered  # contribution to the scatter matrix's [0, 2] element
+        el_12 = prob * y_centered * z_centered  # contribution to the scatter matrix's [1, 2] element
 
         # Aggregate all contributions to get the scatter matrix
         agg_00 = npg.aggregate(id.ravel(), el_00.ravel(), size=self.nC)
         agg_11 = npg.aggregate(id.ravel(), el_11.ravel(), size=self.nC)
+        agg_22 = npg.aggregate(id.ravel(), el_22.ravel(), size=self.nC)
         agg_01 = npg.aggregate(id.ravel(), el_01.ravel(), size=self.nC)
+        agg_02 = npg.aggregate(id.ravel(), el_02.ravel(), size=self.nC)
+        agg_12 = npg.aggregate(id.ravel(), el_12.ravel(), size=self.nC)
 
         # Return now the scatter matrix. Some cell might not have any spots nearby. For those empty cells,
         # the scatter matrix will be a squared zero array. That is fine.
         out[:, 0, 0] = agg_00
         out[:, 1, 1] = agg_11
+        out[:, 2, 2] = agg_22
+
         out[:, 0, 1] = agg_01
         out[:, 1, 0] = agg_01
+
+        out[:, 0, 2] = agg_02
+        out[:, 2, 0] = agg_02
+
+        out[:, 1, 2] = agg_12
+        out[:, 2, 1] = agg_12
 
         return out
 
@@ -205,6 +222,7 @@ class Spots(object):
         self.config = config
         self.data = self.read(spots_df)
         self.nS = self.data.shape[0]
+        self.Dist = None
         self.call = None
         self.unique_gene_names = None
         self._gamma_bar = None
@@ -229,9 +247,8 @@ class Spots(object):
         self._log_gamma_bar = val
 
     @property
-    def xy_coords(self):
-        lst = list(zip(*[self.data.x, self.data.y]))
-        return np.array(lst)
+    def zyx_coords(self):
+        return self.data[['z', 'y', 'x']].values
 
     @property
     def parent_cell_prob(self):
@@ -255,7 +272,7 @@ class Spots(object):
         # No need for x_global, y_global to be in the spots_df at first place.
         # Instead of renaming here, you could just use 'x' and 'y' when you
         # created the spots_df
-        spots_df = spots_df.rename(columns={'x_global': 'x', 'y_global': 'y'})
+        spots_df = spots_df.rename(columns={'x_global': 'x', 'y_global': 'y', 'z_global': 'z'})
 
         # remove a gene if it is on the exclude list
         exclude_genes = self.config['exclude_genes']
@@ -264,11 +281,11 @@ class Spots(object):
         return spots_df.rename_axis('spot_id').rename(columns={'target': 'gene_name'})
 
     def cells_nearby(self, cells: Cells) -> np.array:
-        spotYX = self.data[['y', 'x']]
+        # spotYX = self.data[['y', 'x']]
 
         # for each spot find the closest cell (in fact the top nN-closest cells...)
         nbrs = cells.nn()
-        self.Dist, neighbors = nbrs.kneighbors(spotYX)
+        self.Dist, neighbors = nbrs.kneighbors(self.zyx_coords)
 
         # last column is for misreads.
         neighbors[:, -1] = 0
@@ -424,9 +441,9 @@ class SingleCell(object):
                                # otherwise, if they are unknown, this will be set to True and the algorithm will
                                # try to estimate them
         self.config = config
-        self._mean_expression, self._log_mean_expression = self._setup(scdata, genes, self.config)
+        self._mean_expression, self._log_mean_expression = self._setup(scdata, genes)
 
-    def _setup(self, scdata, genes, config):
+    def _setup(self, scdata, genes):
         """
         calcs the mean (and the log-mean) gene counts per cell type. Note that
         some hyperparameter values have been applied before those means are derived.
