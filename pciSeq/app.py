@@ -7,6 +7,7 @@ from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.cell_call.main import VarBayes
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.viewer.utils import splitter_mb
+from PIL import Image, ImageOps, ImageDraw
 from pciSeq import config
 import logging
 
@@ -184,15 +185,54 @@ def downscale(spots, img, ppm):
     return spots, out
 
 
+def expand_z(label_image, spots, ppm):
+    """
+    expands the z-dimension so that all X,Y,Z have the same resolution.
+    Also, it scales up the z-coords of the spots
+    """
+    z, h, w = label_image.shape
+
+    k = int(ppm)
+    depth = z * k
+    temp_img = np.zeros([depth, h, w])
+
+    coo = []
+    for i in range(temp_img.shape[0]):
+        j = divmod(i, k)[0]
+        _img = np.array(Image.fromarray(label_image[j]).resize((width, height), Image.NEAREST), dtype=np.uint32)
+        coo.append(coo_matrix(_img))
+
+    spots.z = spots.z * ppm
+    return coo, spots
+
+
+def truncate_data(label_image, spots, i,  j):
+    spots_out = spots.copy()
+    label_image = label_image[i:j, :, :]
+    spots_out = spots_out[(spots_out.z >= i) & (spots_out.z < j)]
+    spots_out.z = spots_out.z.values - i
+    return label_image, spots_out
+
+
+
+
 if __name__ == "__main__":
     ppm = 6.0121  # pixels per micron
+    width = 5865  # width of the original image
+    height = 7705 # length of the original image
+    z_start = 35
+    z_end = 46
 
     # # read some demo data
     _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'B2A3', 'spots.csv'))
     # _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'B2A3', 'ca1', 'segmentation', 'label_image.coo.npz'))
     label_image = np.load(os.path.join(ROOT_DIR, 'data', 'B2A3', 'B2A3_label_image.npz'))
-    label_image = label_image['arr_0']
-    _coo = [coo_matrix(d) for d in label_image]  # this is already downscaled, ppm = 6.0121
+    label_image = label_image['arr_0']  # this is already downscaled, ppm = 6.0121
+
+    label_image, _iss_spots = truncate_data(label_image, _iss_spots, z_start,  z_end)
+
+    # _coo = [coo_matrix(d) for d in label_image]
+    _coo, _iss_spots = expand_z(label_image, _iss_spots, ppm)
 
     # read some demo data
     # _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'tugrul', 'TO123_S1', 'spots_shifted.csv'))
@@ -206,6 +246,7 @@ if __name__ == "__main__":
     # main task
     # _opts = {'max_iter': 10}
     # my_label_image = np.stack([_coo.toarray() for i in range(10)])
-    _iss_spots, _ = downscale(_iss_spots, None, ppm)
-    fit(_iss_spots, _coo, scRNAseq=_scRNAseq, opts={'ppm': ppm, 'save_data': True})
+    # _iss_spots, _ = downscale(_iss_spots, None, ppm)
+
+    fit(_iss_spots, _coo, scRNAseq=_scRNAseq, opts={'save_data': True})
 
