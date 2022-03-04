@@ -70,7 +70,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.D
     # 3. Get the cell boundaries
     cell_boundaries = extract_borders_dip(coo.toarray().astype(np.uint32), 0, 0, [0])
 
-    assert props_df.shape[0] == cell_boundaries.shape[0] == coo.data.max()
+    assert props_df.shape[0] == cell_boundaries.shape[0] == np.unique(coo.data).shape[0]
     assert set(spots.label[spots.label > 0]) <= set(props_df.label)
 
     cells = props_df.merge(cell_boundaries)
