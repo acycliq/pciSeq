@@ -54,8 +54,8 @@ DEFAULT = {
     'dtype': np.float64,
 
     # Hyperparameters for the gamma-distributed alpha variate
-    'rho_1': 100,  # need to move that into config.py
-    'rho_2': 100,  # need to move that into config.py
+    'rho_1': 100,
+    'rho_2': 100,
 
     # the prior on mean expression follows a Gamma(m * M , m), where M is the starting point (the initial
     # array) of single cell data
@@ -69,6 +69,6 @@ DEFAULT = {
     'save_data': False,
 
     # resolution, pixels per micron
-    'ppm': 3.0,
+    # 'ppm': 3.0,
 }
 
