@@ -12,6 +12,7 @@ import skimage.measure as skmeas
 from typing import Tuple
 from scipy.sparse import coo_matrix, csr_matrix, save_npz, load_npz
 from pciSeq.src.preprocess.cell_borders import extract_borders_par, extract_borders_dip
+from PIL import Image, ImageOps, ImageDraw
 import logging
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -46,6 +47,48 @@ def remap_labels(coo):
     return out
 
 
+def filter_data(spots, coo):
+    assert np.all([coo[i].shape == coo[i+1].shape for i in range(len(coo)-1)])
+    Sx = coo[0].shape[1]
+    Sy = coo[0].shape[0]
+    Sz = len(coo)
+    mask_x = (spots.x >= 0) & (spots.x <= Sx)
+    mask_y = (spots.y >= 0) & (spots.y <= Sy)
+    mask_z = (spots.z >= 0) & (spots.z <= Sz)
+    return spots[mask_x & mask_y & mask_z]
+
+
+def resize_coo(coo, width, height):
+    out = []
+    for c in coo:
+        _img = np.array(Image.fromarray(c.toarray()).resize((width, height), Image.NEAREST), dtype=np.uint32)
+        out.append(coo_matrix(_img))
+    return out
+
+
+def clip_z(coo, spots, z_start, z_end):
+    coo_out = coo[z_start: z_end]
+    spots_out = spots[(spots.z >= z_start) & (spots.z < z_end)]
+    spots_out.z = spots_out.z-z_start
+    return coo_out, spots_out
+
+
+def label_spots(spots, coo):
+    """
+    assigns a label to the spots. The label is the cell_id within which the spots lies
+    If a spot is on the background the label of the spot is zero
+    """
+    spots_list = []
+    for i, d in enumerate(np.unique(spots.z)):
+        # z_plane = spots.z == d
+        z_plane = int(np.floor(d))  # get the closest z-plane
+        spots_z = spots[spots.z == d]  # get all the spots with the same z-coord as d
+        my_coo = coo[z_plane]
+        inc = inside_cell(my_coo.tocsr(), spots_z)
+        spots_list.append(spots_z.assign(label=inc))
+    return pd.concat(spots_list)
+
+
 def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Reads the spots and the label image that are passed in and calculates which cell (if any) encircles any
@@ -71,24 +114,56 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
         assert coo.shape == 2
         coo = [coo]
 
+    ppm = cfg['ppm']
+    width = cfg['width']  # width of the original image
+    height = cfg['height']  # length of the original image
+    z_start = cfg['z_start']
+    z_end = cfg['z_end']
+    logger.info('ppm is: %f' % ppm)
+    logger.info('width is: %f' % width)
+    logger.info('height is: %f' % height)
+    logger.info('z_start is: %f' % z_start)
+    logger.info('z_end is: %f' % z_end)
+
+    # 1. first clip the z-planes. Remove unwanted ones
+    coo, spots = clip_z(coo, spots, z_start, z_end)
+
+    # 2. resize coo to its actual dimensions
+    coo = resize_coo(coo, width, height)
+
+    # 3. filter now the spots
+    spots = filter_data(spots, coo)
+
+    # 4. If a spots is placed withing the cell boundaries,
+    # label it, otherwise the label = 0
+    spots_df = label_spots(spots, coo)
+
+    # 5. Multiply z by ppm so that all X,Y,Z have the same spacing
+    spots_df.z = spots.z * ppm
+
     label_image_3d = np.stack([d.toarray().astype(np.uint32) for d in coo])
     logger.info(' Number of spots passed-in: %d' % spots.shape[0])
     logger.info(' Number of segmented cells: %d' % sum(np.unique(label_image_3d) > 0))
     # logger.info(' Segmentation array implies that image has width: %dpx and height: %dpx' % (coo.shape[1], coo.shape[0]))
-    mask_x = (spots.x >= 0) & (spots.x <= label_image_3d.shape[2])
-    mask_y = (spots.y >= 0) & (spots.y <= label_image_3d.shape[1])
-    mask_z = (spots.z >= 0) & (spots.z <= label_image_3d.shape[0])
-    spots = spots[mask_x & mask_y & mask_z]
-
-    spots_list = []
-    for i, d in enumerate(np.unique(spots.z)):
-        # z_plane = spots.z == d
-        z_plane = int(np.floor(d))  # get the z-plane right below or exactly on the spot.
-        spots_z = spots[spots.z == d]  # get all the spots with the same z-coord as d
-        my_coo = coo[z_plane]
-        inc = inside_cell(my_coo.tocsr(), spots_z)
-        spots_list.append(spots_z.assign(label=inc))
-    spots_df = pd.concat(spots_list)
+    # mask_x = (spots.x >= 0) & (spots.x <= ppm * label_image_3d.shape[2])
+    # mask_y = (spots.y >= 0) & (spots.y <= ppm * label_image_3d.shape[1])
+    # mask_z = (spots.z >= 0) & (spots.z <= ppm * label_image_3d.shape[0])
+    # spots = spots[mask_x & mask_y & mask_z]
+    #
+    # coo_full = []
+    # for c in coo:
+    #     _img = np.array(Image.fromarray(c.toarray()).resize((width, height), Image.NEAREST), dtype=np.uint32)
+    #     coo_full.append(coo_matrix(_img))
+    #
+    # spots_list = []
+    # for i, d in enumerate(np.unique(spots.z)):
+    #     # z_plane = spots.z == d
+    #     z_plane = round(d/ppm)  # get the closest z-plane
+    #     spots_z = spots[spots.z == d]  # get all the spots with the same z-coord as d
+    #     my_coo = coo_full[z_plane]
+    #     inc = inside_cell(my_coo.tocsr(), spots_z)
+    #     spots_list.append(spots_z.assign(label=inc))
+    # spots_df = pd.concat(spots_list)
 
     # 2. Get cell centroids and area
     properties = ['label', 'area', 'centroid', 'filled_image']
