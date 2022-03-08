@@ -69,6 +69,6 @@ DEFAULT = {
     'save_data': False,
 
     # resolution, pixels per micron
-    # 'ppm': 3.0,
+    'ppm': 3.0,
 }
 
