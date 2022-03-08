@@ -219,27 +219,12 @@ def truncate_data(label_image, spots, i,  j, ppm):
 
 
 if __name__ == "__main__":
-    # ppm = 6.0121  # pixels per micron
-    width = 5865  # width of the original image
-    height = 7705 # length of the original image
-    z_start = 35
-    z_end = 46
-
     # # read some demo data
     _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'B2A3', 'spots.csv'))
-    # _iss_spots.z = _iss_spots.z * ppm
-    # _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'B2A3', 'ca1', 'segmentation', 'label_image.coo.npz'))
+
     label_image = np.load(os.path.join(ROOT_DIR, 'data', 'B2A3', 'B2A3_label_image.npz'))
-    label_image = label_image['arr_0']  # this is already downscaled, ppm = 6.0121
-
-    # label_image, _iss_spots = truncate_data(label_image, _iss_spots, z_start,  z_end, ppm)
-
+    label_image = label_image['arr_0']  # this is already downscaled, I downsized to feed it to cellpose (ppm = 6.0121)
     _coo = [coo_matrix(d) for d in label_image]
-    # _, _iss_spots = expand_z(label_image, _iss_spots, ppm)
-
-    # read some demo data
-    # _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'tugrul', 'TO123_S1', 'spots_shifted.csv'))
-    # _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'tugrul', 'TO123_S1', 'label_image.coo.npz'))
 
     _scRNAseq = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),
                             header=None, index_col=0, compression='gzip', dtype=object)
@@ -247,9 +232,5 @@ if __name__ == "__main__":
     _scRNAseq = _scRNAseq.astype(float).astype(np.uint32)
 
     # main task
-    # _opts = {'max_iter': 10}
-    # my_label_image = np.stack([_coo.toarray() for i in range(10)])
-    # _iss_spots, _ = downscale(_iss_spots, None, ppm)
-
     fit(_iss_spots, _coo, scRNAseq=_scRNAseq, opts={'save_data': True})
 

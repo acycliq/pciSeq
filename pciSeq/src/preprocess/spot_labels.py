@@ -115,15 +115,16 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
         coo = [coo]
 
     ppm = cfg['ppm']
-    width = cfg['width']  # width of the original image
-    height = cfg['height']  # length of the original image
-    z_start = cfg['z_start']
+    width = cfg['width']            # width of the original image
+    height = cfg['height']          # length of the original image
+    z_start = cfg['z_start']        # select just a few of the z-stack pages cause the rest are not any good
     z_end = cfg['z_end']
     logger.info('ppm is: %f' % ppm)
     logger.info('width is: %f' % width)
     logger.info('height is: %f' % height)
-    logger.info('z_start is: %f' % z_start)
-    logger.info('z_end is: %f' % z_end)
+    logger.info('The 3d image has been truncated! I am only using pages %d to %d' % (z_start, z_end))
+    # logger.info('z_start is: %f' % z_start)
+    # logger.info('z_end is: %f' % z_end)
 
     # 1. first clip the z-planes. Remove unwanted ones
     coo, spots = clip_z(coo, spots, z_start, z_end)
@@ -145,27 +146,8 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
     logger.info(' Number of spots passed-in: %d' % spots.shape[0])
     logger.info(' Number of segmented cells: %d' % sum(np.unique(label_image_3d) > 0))
     # logger.info(' Segmentation array implies that image has width: %dpx and height: %dpx' % (coo.shape[1], coo.shape[0]))
-    # mask_x = (spots.x >= 0) & (spots.x <= ppm * label_image_3d.shape[2])
-    # mask_y = (spots.y >= 0) & (spots.y <= ppm * label_image_3d.shape[1])
-    # mask_z = (spots.z >= 0) & (spots.z <= ppm * label_image_3d.shape[0])
-    # spots = spots[mask_x & mask_y & mask_z]
-    #
-    # coo_full = []
-    # for c in coo:
-    #     _img = np.array(Image.fromarray(c.toarray()).resize((width, height), Image.NEAREST), dtype=np.uint32)
-    #     coo_full.append(coo_matrix(_img))
-    #
-    # spots_list = []
-    # for i, d in enumerate(np.unique(spots.z)):
-    #     # z_plane = spots.z == d
-    #     z_plane = round(d/ppm)  # get the closest z-plane
-    #     spots_z = spots[spots.z == d]  # get all the spots with the same z-coord as d
-    #     my_coo = coo_full[z_plane]
-    #     inc = inside_cell(my_coo.tocsr(), spots_z)
-    #     spots_list.append(spots_z.assign(label=inc))
-    # spots_df = pd.concat(spots_list)
 
-    # 2. Get cell centroids and area
+    # 6. Get cell centroids and area
     properties = ['label', 'area', 'centroid', 'filled_image']
     props_df = pd.DataFrame(skmeas.regionprops_table(label_image_3d, properties=properties))
     num_slices = props_df.filled_image.apply(img_depth).values
@@ -173,7 +155,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
     props_df = props_df.drop(['filled_image'], axis=1)
     props_df = props_df.rename(columns={"centroid-0": "z_cell", "centroid-1": "y_cell", "centroid-2": "x_cell"})
 
-    # 3. Get the cell boundaries
+    # 7. Get the cell boundaries
     boundaries_list = []
     for i, d in enumerate(coo):
         z_page = d.toarray()
