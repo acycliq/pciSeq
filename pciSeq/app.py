@@ -197,27 +197,29 @@ def expand_z(label_image, spots, ppm):
     temp_img = np.zeros([depth, h, w])
 
     coo = []
-    for i in range(temp_img.shape[0]):
-        j = divmod(i, k)[0]
-        _img = np.array(Image.fromarray(label_image[j]).resize((width, height), Image.NEAREST), dtype=np.uint32)
-        coo.append(coo_matrix(_img))
+    # for i in range(temp_img.shape[0]):
+    #     j = divmod(i, k)[0]
+    #     _img = np.array(Image.fromarray(label_image[j]).resize((width, height), Image.NEAREST), dtype=np.uint32)
+    #     coo.append(coo_matrix(_img))
 
     spots.z = spots.z * ppm
     return coo, spots
 
 
-def truncate_data(label_image, spots, i,  j):
+def truncate_data(label_image, spots, i,  j, ppm):
     spots_out = spots.copy()
-    label_image = label_image[i:j, :, :]
-    spots_out = spots_out[(spots_out.z >= i) & (spots_out.z < j)]
-    spots_out.z = spots_out.z.values - i
+    ii = int(np.floor(i))
+    jj = int(np.ceil(j))
+    label_image = label_image[ii:jj, :, :]
+    spots_out = spots_out[(spots_out.z >= i * ppm) & (spots_out.z < j * ppm)]
+    spots_out.z = spots_out.z.values - (i * ppm)
     return label_image, spots_out
 
 
 
 
 if __name__ == "__main__":
-    ppm = 6.0121  # pixels per micron
+    # ppm = 6.0121  # pixels per micron
     width = 5865  # width of the original image
     height = 7705 # length of the original image
     z_start = 35
@@ -225,14 +227,15 @@ if __name__ == "__main__":
 
     # # read some demo data
     _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'B2A3', 'spots.csv'))
+    # _iss_spots.z = _iss_spots.z * ppm
     # _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'B2A3', 'ca1', 'segmentation', 'label_image.coo.npz'))
     label_image = np.load(os.path.join(ROOT_DIR, 'data', 'B2A3', 'B2A3_label_image.npz'))
     label_image = label_image['arr_0']  # this is already downscaled, ppm = 6.0121
 
-    label_image, _iss_spots = truncate_data(label_image, _iss_spots, z_start,  z_end)
+    # label_image, _iss_spots = truncate_data(label_image, _iss_spots, z_start,  z_end, ppm)
 
-    # _coo = [coo_matrix(d) for d in label_image]
-    _coo, _iss_spots = expand_z(label_image, _iss_spots, ppm)
+    _coo = [coo_matrix(d) for d in label_image]
+    # _, _iss_spots = expand_z(label_image, _iss_spots, ppm)
 
     # read some demo data
     # _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'tugrul', 'TO123_S1', 'spots_shifted.csv'))

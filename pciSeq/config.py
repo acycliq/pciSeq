@@ -69,6 +69,11 @@ DEFAULT = {
     'save_data': False,
 
     # resolution, pixels per micron
-    'ppm': 3.0,
+    'ppm': 6.0121,
+
+    'width': 5865,   # width of the original image
+    'height': 7705,  # length of the original image
+    'z_start': 35,
+    'z_end': 46,
 }
 
