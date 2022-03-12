@@ -183,7 +183,7 @@ def get_label_contours(label_image, label, offset_x, offset_y):
     return contours.tolist()
 
 
-def extract_borders_dip(label_image, offset_x, offset_y, clipped_labels, ppm):
+def extract_borders_dip(label_image, offset_x, offset_y, clipped_labels):
     """
     NOTES: # using Simplify drastically reduces the array that describes the polygon boundaries but you
              might end up with a slightly different polygon. The difference is only on a very few pixels.
@@ -209,7 +209,6 @@ def extract_borders_dip(label_image, offset_x, offset_y, clipped_labels, ppm):
             # p = np.array(c.Polygon())
             p = c.Polygon().Simplify()
             p = p + np.array([offset_x, offset_y])
-            p = np.uint64(p) * ppm  # Do not do np.uint(p * ppm)
             p = np.uint64(p).tolist()
             p.append(p[0])  # append the first pair at the end to close the polygon
             d[np.uint64(c.objectID)] = p
