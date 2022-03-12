@@ -150,7 +150,7 @@ class VarBayes:
             if converged:
                 # np.save('deltas.npy', self.deltas)
                 # np.save('me_arr.npy', self.me_arr)
-                iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config['ppm'])
+                iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
                 break
 
             if i == max_iter-1:

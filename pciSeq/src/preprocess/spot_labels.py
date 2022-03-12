@@ -114,33 +114,9 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
         assert coo.shape == 2
         coo = [coo]
 
-    ppm = cfg['ppm']
-    width = cfg['width']            # width of the original image
-    height = cfg['height']          # length of the original image
-    z_start = cfg['z_start']        # select just a few of the z-stack pages cause the rest are not any good
-    z_end = cfg['z_end']
-    logger.info('ppm is: %f' % ppm)
-    logger.info('width is: %f' % width)
-    logger.info('height is: %f' % height)
-    logger.info('The 3d image has been truncated! I am only using pages %d to %d' % (z_start, z_end))
-    # logger.info('z_start is: %f' % z_start)
-    # logger.info('z_end is: %f' % z_end)
-
-    # 1. first clip the z-planes. Remove unwanted ones
-    coo, spots = clip_z(coo, spots, z_start, z_end)
-
-    # 2. resize coo to its actual dimensions
-    coo = resize_coo(coo, width, height)
-
-    # 3. filter now the spots
-    spots = filter_data(spots, coo)
-
     # 4. If a spots is placed withing the cell boundaries,
     # label it, otherwise the label = 0
     spots_df = label_spots(spots, coo)
-
-    # 5. Multiply z by ppm so that all X,Y,Z have the same spacing
-    spots_df.z = spots.z * ppm
 
     label_image_3d = np.stack([d.toarray().astype(np.uint32) for d in coo])
     logger.info(' Number of spots passed-in: %d' % spots.shape[0])
@@ -157,12 +133,12 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
 
     # 7. Get the cell boundaries
     boundaries_list = []
-    for i, d in enumerate(coo):
-        z_page = d.toarray()
-        b = extract_borders_dip(z_page.astype(np.uint32), 0, 0, [0], cfg['ppm'])
-        b = b.assign(z=i)
-        b = b[['label', 'z', 'coords']]
-        boundaries_list.append(b)
+    i = 0
+    z_page = coo[i].toarray()
+    b = extract_borders_dip(z_page.astype(np.uint32), 0, 0, [0])
+    b = b.assign(z=i)
+    b = b[['label', 'z', 'coords']]
+    boundaries_list.append(b)
     cell_boundaries = pd.concat(boundaries_list)
 
     logger.info('Keeping boundaries for z=0 only')

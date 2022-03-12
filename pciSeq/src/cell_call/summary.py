@@ -8,7 +8,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 logger = logging.getLogger(__name__)
 
 
-def _iss_summary(cells, genes, single_cell, ppm):
+def _iss_summary(cells, genes, single_cell):
     '''
     returns a dataframe summarising the main features of each cell, ie gene counts and cell types
     :param spots:
@@ -40,8 +40,8 @@ def _iss_summary(cells, genes, single_cell, ppm):
     sphere_rotation = []
     for i in range(cells.nC):
         ea = cells.ellipsoid_attributes[i]
-        cov = cells.cov[i] * ppm
-        mu = cells.centroid.values[i] * ppm
+        cov = cells.cov[i]
+        mu = cells.centroid.values[i]
         ellipsis = gaussian_ellipsoid(mu, cov, 3).astype(np.int)
         ellipsoid_border.append(ellipsis.tolist())
         _sphere_scale, _sphere_rotation = gaussian_ellipsoid_props(cov, 3)
@@ -49,11 +49,11 @@ def _iss_summary(cells, genes, single_cell, ppm):
         sphere_rotation.append(_sphere_rotation)
 
     iss_df = pd.DataFrame({'Cell_Num': cells.cell_props['cell_label'].tolist(),
-                           'X': (ppm * cells.centroid.x).tolist(),
-                           'Y': (ppm * cells.centroid.y).tolist(),
-                           'Z': (ppm * cells.centroid.z).tolist(),
-                           'X_0': (ppm * cells.cell_props['x']).tolist(),
-                           'Y_0': (ppm * cells.cell_props['y']).tolist(),
+                           'X': cells.centroid.x.tolist(),
+                           'Y': cells.centroid.y.tolist(),
+                           'Z': cells.centroid.z.tolist(),
+                           'X_0': cells.cell_props['x'].tolist(),
+                           'Y_0': cells.cell_props['y'].tolist(),
                            'Genenames': name_list,
                            'CellGeneCount': count_list,
                            'ClassName': class_name_list,
@@ -78,7 +78,7 @@ def _iss_summary(cells, genes, single_cell, ppm):
     return iss_df
 
 
-def _summary(spots, ppm):
+def _summary(spots):
     # check for duplicates (ie spots with the same coordinates with or without the same gene name).
     # is_duplicate = spots.data.duplicated(subset=['x', 'y'])
 
@@ -92,9 +92,9 @@ def _summary(spots, ppm):
 
     out = pd.DataFrame({'Gene': spots.data.gene_name.tolist(),
                         'Gene_id': spots.gene_id.tolist(),
-                        'x': (ppm * spots.data.x).tolist(),
-                        'y': (ppm * spots.data.y).tolist(),
-                        'z': (ppm * spots.data.z).tolist(),
+                        'x': spots.data.x.tolist(),
+                        'y': spots.data.y.tolist(),
+                        'z': spots.data.z.tolist(),
                         'neighbour': max_nbrs,
                         'neighbour_array': nbrs,
                         'neighbour_prob': p})
@@ -102,13 +102,13 @@ def _summary(spots, ppm):
     return out
 
 
-def collect_data(cells, spots, genes, single_cell, ppm):
+def collect_data(cells, spots, genes, single_cell):
     '''
     Collects data for the viewer
     :param cells:
     :param spots:
     :return:
     '''
-    iss_df = _iss_summary(cells, genes, single_cell, ppm)
-    gene_df = _summary(spots, ppm)
+    iss_df = _iss_summary(cells, genes, single_cell)
+    gene_df = _summary(spots)
     return iss_df, gene_df
