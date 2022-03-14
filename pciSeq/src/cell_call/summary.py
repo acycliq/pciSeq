@@ -1,10 +1,6 @@
-import os
 import numpy as np
 import pandas as pd
-import logging
-
-dir_path = os.path.dirname(os.path.realpath(__file__))
-logger = logging.getLogger(__name__)
+from pciSeq.src.cell_call.log_config import logger
 
 
 def _iss_summary(cells, genes, single_cell):

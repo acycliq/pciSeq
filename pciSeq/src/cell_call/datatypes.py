@@ -1,18 +1,10 @@
-import os
 import sys
-import json
 import numpy as np
 import pandas as pd
-import numpy_groupies as npg
 import scipy
-import gc
 import numexpr as ne
 from sklearn.neighbors import NearestNeighbors
-# from pciSeq.src.cell_call.utils import read_image_objects
-import logging
-
-dir_path = os.path.dirname(os.path.realpath(__file__))
-logger = logging.getLogger(__name__)
+from pciSeq.src.cell_call.log_config import logger
 
 
 class Cells(object):

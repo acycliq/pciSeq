@@ -6,11 +6,9 @@ from typing import Tuple
 from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.cell_call.main import VarBayes
 from pciSeq.src.preprocess.spot_labels import stage_data
-from pciSeq.src.viewer.utils import splitter_mb
 from pciSeq import config
-import logging
+from pciSeq.src.cell_call.log_config import attach_to_log, logger
 
-logger = logging.getLogger(__name__)
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
@@ -144,6 +142,8 @@ def init(opts):
 
 
 if __name__ == "__main__":
+
+    attach_to_log()
 
     # read some demo data
     _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'))
