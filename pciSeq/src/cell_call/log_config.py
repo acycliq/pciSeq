@@ -3,7 +3,6 @@ import logging
 
 # create a default logger
 logger = logging.getLogger('pciSeq')
-logger.info('logger initialised')
 
 
 def attach_to_log(level=logging.DEBUG,
