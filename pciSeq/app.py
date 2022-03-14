@@ -143,6 +143,7 @@ def init(opts):
 
 if __name__ == "__main__":
 
+    # set up the logger
     attach_to_log()
 
     # read some demo data
