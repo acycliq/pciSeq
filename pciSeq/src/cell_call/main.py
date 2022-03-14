@@ -1,17 +1,9 @@
 import numpy as np
-import pandas as pd
-import dask.array as da
 import numpy_groupies as npg
-from typing import Tuple
 from pciSeq.src.cell_call.datatypes import Cells, Spots, Genes, SingleCell, CellType
 from pciSeq.src.cell_call.summary import collect_data
 import pciSeq.src.cell_call.utils as utils
-import os
-import time
-import logging
-
-dir_path = os.path.dirname(os.path.realpath(__file__))
-logger = logging.getLogger(__name__)
+from pciSeq.src.cell_call.log_config import logger
 
 
 class VarBayes:

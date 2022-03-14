@@ -9,7 +9,7 @@ import os
 import pyvips
 import logging
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 
 
 def split_image(im):

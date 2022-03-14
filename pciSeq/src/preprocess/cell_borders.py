@@ -15,12 +15,12 @@ import diplib as dip
 import time
 import logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s:%(levelname)s:%(message)s"
-)
-
-logger = logging.getLogger()
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format="%(asctime)s:%(levelname)s:%(message)s"
+# )
+#
+# logger = logging.getLogger()
 
 
 

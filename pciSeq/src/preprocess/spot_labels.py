@@ -4,17 +4,13 @@ lies within the cell boundaries then the corresponding cell id is recorded.
 Cell centroids and cell areas are also calculated.
 """
 
-import os
 import numpy as np
 import pandas as pd
 import skimage.measure as skmeas
 from typing import Tuple
 from scipy.sparse import coo_matrix, csr_matrix
 from pciSeq.src.preprocess.cell_borders import extract_borders_dip
-import logging
-
-dir_path = os.path.dirname(os.path.realpath(__file__))
-logger = logging.getLogger(__name__)
+from pciSeq.src.cell_call.log_config import logger
 
 
 def inside_cell(label_image, spots) -> np.array:
