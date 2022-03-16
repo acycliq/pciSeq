@@ -118,7 +118,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
     # label it, otherwise the label = 0
     spots_df = label_spots(spots, coo)
 
-    label_image_3d = np.stack([d.toarray().astype(np.uint32) for d in coo])
+    label_image_3d = np.stack([d.toarray().astype(np.uint16) for d in coo])
     logger.info(' Number of spots passed-in: %d' % spots.shape[0])
     logger.info(' Number of segmented cells: %d' % sum(np.unique(label_image_3d) > 0))
     # logger.info(' Segmentation array implies that image has width: %dpx and height: %dpx' % (coo.shape[1], coo.shape[0]))
