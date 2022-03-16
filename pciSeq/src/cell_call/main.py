@@ -105,6 +105,7 @@ class VarBayes:
 
             # 1. For each cell, calc the expected gene counts
             self.geneCount_upd()
+            logger.info('Counts of Id2 assigned to cell_1764 is: %d' % self.cells.geneCount[1764, 6])
 
             # self.alpha_upd()
 
@@ -121,6 +122,7 @@ class VarBayes:
 
             # 4. assign spots to cells
             self.spots_to_cell()
+            logger.info('Id2, spot to cell probs \n %s:' %  self.spots.parent_cell_prob[self.spots.data.gene_name == "Id2"] )
 
             # 5. update gene efficiency
             self.eta_upd()
