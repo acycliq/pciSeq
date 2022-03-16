@@ -105,7 +105,7 @@ class VarBayes:
 
             # 1. For each cell, calc the expected gene counts
             self.geneCount_upd()
-            logger.info('Counts of Id2 assigned to cell_1764 is: %d' % self.cells.geneCount[1764, 6])
+            # logger.info('Counts of Id2 assigned to cell_1764 is: %d' % self.cells.geneCount[1764, 6])
 
             # self.alpha_upd()
 
@@ -427,11 +427,11 @@ class VarBayes:
         delta = 0.5
         # logger.info('Mean shrinkage %4.2f' % delta.mean())
         # logger.info('cell 601 shrinkage %4.2f, %4.2f' % (shrinkage[601], sh[601]))
-        logger.info('cell 601 gene counts %d' % self.cells.total_counts[601])
+        #  logger.info('cell 601 gene counts %d' % self.cells.total_counts[601])
         # logger.info('cell 605 shrinkage %4.2f, %4.2f' % (shrinkage[605], sh[605]))
-        logger.info('cell 605 gene counts %d' % self.cells.total_counts[605])
+        #  logger.info('cell 605 gene counts %d' % self.cells.total_counts[605])
         # logger.info('cell 610 shrinkage %4.2f, %4.2f' % (shrinkage[610], sh[610]))
-        logger.info('cell 610 gene counts %d' % self.cells.total_counts[610])
+        #  logger.info('cell 610 gene counts %d' % self.cells.total_counts[610])
 
         # delta = delta.reshape(self.nC, 1, 1)
         # target = [np.trace(d)/2 * np.eye(2) for d in cov]  # shrinkage target

@@ -220,9 +220,8 @@ def truncate_data(label_image, spots, i,  j, ppm):
 
 if __name__ == "__main__":
     # # read some demo data
-    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'B2A3', 'truncated_data', 'B2A3_spots_truncated.csv'))
-
-    _coo = np.load(os.path.join(ROOT_DIR, 'data', 'B2A3', 'truncated_data', 'B2A3_label_image_truncated.npz'), allow_pickle=True)
+    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'B2A3', 'small_data', 'small_spots.csv'))
+    _coo = np.load(os.path.join(ROOT_DIR, 'data', 'B2A3', 'small_data', 'small_coo_from_page40.npz'), allow_pickle=True)
     _coo = _coo['arr_0']
 
     _scRNAseq = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),

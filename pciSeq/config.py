@@ -17,7 +17,7 @@ DEFAULT = {
     # the ratio of the observed over the theoretical counts for a given gene. rGene controls the variance and
     # Inefficiency is the average of this assumed Gamma distribution
     'rGene': 20,
-    'Inefficiency': 1,
+    'Inefficiency': 0.2,
 
     # If a spot is inside the cell boundaries this bonus will give the likelihood an extra boost
     # in order to make the spot more probable to get assigned to the cell than another spot positioned
@@ -38,7 +38,7 @@ DEFAULT = {
     # the misreads to. Could be seen as the background. Hence, by default the algorithm tries examines
     # whether any of the 3 nearest cells is a possible parent cell to a given cell or whether the spot is
     # a misread
-    'nNeighbors': 6,
+    'nNeighbors': 1,
 
     # A gamma distributed variate from Gamma(rSpot, 1) is applied to the mean expression, hence the counts
     # are distributed according to a Negative Binomial distribution.
