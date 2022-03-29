@@ -1,6 +1,7 @@
 import os
 import json
 import numpy as np
+from scipy.stats import multivariate_normal
 import pandas as pd
 import numpy_groupies as npg
 import scipy
@@ -24,7 +25,7 @@ class Cells(object):
         self.class_names = None
         self._prior = None
         self._cov = self.ini_cov()
-        self.nu_0 = 28  # need to move that into config.py. Degrees of freedom of the Wishart prior. Use the mean gene counts per cell to set nu_0
+        self.nu_0 = 30  # need to move that into config.py. Degrees of freedom of the Wishart prior. Use the mean gene counts per cell to set nu_0
         self.rho_1 = self.config['rho_1']    # need to move that into config.py
         self.rho_2 = self.config['rho_2']   # need to move that into config.py
         self._centroid = self.ini_centroids()
@@ -118,7 +119,10 @@ class Cells(object):
 
     # -------- METHODS -------- #
     def ini_centroids(self):
-        d = {'x': self.cell_props['x'], 'y': self.cell_props['y'], 'z': self.cell_props['z']}
+        d = {'x': self.cell_props['x'],
+             'y': self.cell_props['y'],
+             'z': self.cell_props['z'],
+             }
         df = pd.DataFrame(d)
         return df.copy()
 
@@ -127,8 +131,8 @@ class Cells(object):
         cov = self.mcr * self.mcr * np.eye(dim, dim)
         return np.tile(cov, (self.nC, 1, 1))
 
-    # def dapi_mean_cell_radius(self):
-    #     return np.nanmean(np.sqrt(self.cell_props['area'] / np.pi)) * 0.5
+    def dapi_mean_cell_radius(self):
+        return np.nanmean(np.sqrt(self.cell_props['area'] / np.pi)) * 0.5
 
     def nn(self):
         n = self.config['nNeighbors'] + 1
@@ -152,32 +156,35 @@ class Cells(object):
         mu_bar = self.centroid.values
         prob = spots.parent_cell_prob[:, :-1]
         id = spots.parent_cell_id[:, :-1]
-        zyx_spots = spots.zyx_coords
+        xyz_spots = spots.xyz_coords
         out = self.ini_cov() * self.nu_0
 
         mu_x = mu_bar[id, 0]  # array of size [nS, N] with the x-coord of the centroid of the N closest cells
         mu_y = mu_bar[id, 1]  # array of size [nS, N] with the y-coord of the centroid of the N closest cells
-        mu_z = mu_bar[id, 2]  # array of size [nS, N] with the y-coord of the centroid of the N closest cells
+        mu_z = mu_bar[id, 2]  # array of size [nS, N] with the z-coord of the centroid of the N closest cells
 
         N = mu_x.shape[1]
-        _x = np.tile(zyx_spots[:, 2], (N, 1)).T  # array of size [nS, N] populated with the x-coord of the spot
-        _y = np.tile(zyx_spots[:, 1], (N, 1)).T  # array of size [nS, N] populated with the y-coord of the spot
-        _z = np.tile(zyx_spots[:, 0], (N, 1)).T  # array of size [nS, N] populated with the z-coord of the spot
+        _x = np.tile(xyz_spots[:, 0], (N, 1)).T  # array of size [nS, N] populated with the x-coord of the spot
+        _y = np.tile(xyz_spots[:, 1], (N, 1)).T  # array of size [nS, N] populated with the y-coord of the spot
+        _z = np.tile(xyz_spots[:, 2], (N, 1)).T  # array of size [nS, N] populated with the z-coord of the spot
+
         x_centered = _x - mu_x  # subtract the cell centroid x-coord from the spot x-coord
         y_centered = _y - mu_y  # subtract the cell centroid y-coord from the spot y-coord
         z_centered = _z - mu_z  # subtract the cell centroid y-coord from the spot z-coord
 
         el_00 = prob * x_centered * x_centered  # contribution to the scatter matrix's [0, 0] element
-        el_11 = prob * y_centered * y_centered  # contribution to the scatter matrix's [1, 1] element
-        el_22 = prob * z_centered * z_centered  # contribution to the scatter matrix's [2, 2] element
-        el_01 = prob * x_centered * y_centered  # contribution to the scatter matrix's [0, 1] element
-        el_02 = prob * x_centered * z_centered  # contribution to the scatter matrix's [0, 2] element
-        el_12 = prob * y_centered * z_centered  # contribution to the scatter matrix's [1, 2] element
+        el_11 = prob * y_centered * y_centered  # contribution to the scatter matrix's off-diagonal element
+        el_22 = prob * z_centered * z_centered  # contribution to the scatter matrix's off-diagonal element
+
+        el_01 = prob * x_centered * y_centered  # contribution to the scatter matrix's [1, 1] element
+        el_02 = prob * x_centered * z_centered  # contribution to the scatter matrix's [1, 1] element
+        el_12 = prob * y_centered * z_centered  # contribution to the scatter matrix's [1, 1] element
 
         # Aggregate all contributions to get the scatter matrix
         agg_00 = npg.aggregate(id.ravel(), el_00.ravel(), size=self.nC)
         agg_11 = npg.aggregate(id.ravel(), el_11.ravel(), size=self.nC)
         agg_22 = npg.aggregate(id.ravel(), el_22.ravel(), size=self.nC)
+
         agg_01 = npg.aggregate(id.ravel(), el_01.ravel(), size=self.nC)
         agg_02 = npg.aggregate(id.ravel(), el_02.ravel(), size=self.nC)
         agg_12 = npg.aggregate(id.ravel(), el_12.ravel(), size=self.nC)
@@ -189,12 +196,11 @@ class Cells(object):
         out[:, 2, 2] = agg_22
 
         out[:, 0, 1] = agg_01
-        out[:, 1, 0] = agg_01
-
         out[:, 0, 2] = agg_02
-        out[:, 2, 0] = agg_02
-
         out[:, 1, 2] = agg_12
+
+        out[:, 1, 0] = agg_01
+        out[:, 2, 0] = agg_02
         out[:, 2, 1] = agg_12
 
         return out
@@ -222,7 +228,6 @@ class Spots(object):
         self.config = config
         self.data = self.read(spots_df)
         self.nS = self.data.shape[0]
-        self.Dist = None
         self.call = None
         self.unique_gene_names = None
         self._gamma_bar = None
@@ -247,8 +252,9 @@ class Spots(object):
         self._log_gamma_bar = val
 
     @property
-    def zyx_coords(self):
-        return self.data[['z', 'y', 'x']].values
+    def xyz_coords(self):
+        lst = list(zip(*[self.data.x, self.data.y, self.data.z]))
+        return np.array(lst)
 
     @property
     def parent_cell_prob(self):
@@ -281,11 +287,11 @@ class Spots(object):
         return spots_df.rename_axis('spot_id').rename(columns={'target': 'gene_name'})
 
     def cells_nearby(self, cells: Cells) -> np.array:
-        # spotYX = self.data[['y', 'x']]
+        spotZYX = self.data[['z', 'y', 'x']]
 
         # for each spot find the closest cell (in fact the top nN-closest cells...)
         nbrs = cells.nn()
-        self.Dist, neighbors = nbrs.kneighbors(self.zyx_coords)
+        self.Dist, neighbors = nbrs.kneighbors(spotZYX)
 
         # last column is for misreads.
         neighbors[:, -1] = 0
@@ -329,7 +335,7 @@ class Spots(object):
     def mvn_loglik(self, data, cell_label, cells):
         centroids = cells.centroid.values[cell_label]
         covs = cells.cov[cell_label]
-        # param = list(zip(*[data, centroids, covs]))
+        param = list(zip(*[data, centroids, covs]))
         # out = [self.loglik_contr(p) for i, p in enumerate(param)]
         # out_2 = [multivariate_normal.logpdf(p[0], p[1], p[2]) for i, p in enumerate(param)]
         out = self.multiple_logpdfs(data, centroids, covs)
@@ -444,9 +450,9 @@ class SingleCell(object):
                                # otherwise, if they are unknown, this will be set to True and the algorithm will
                                # try to estimate them
         self.config = config
-        self._mean_expression, self._log_mean_expression = self._setup(scdata, genes)
+        self._mean_expression, self._log_mean_expression = self._setup(scdata, genes, self.config)
 
-    def _setup(self, scdata, genes):
+    def _setup(self, scdata, genes, config):
         """
         calcs the mean (and the log-mean) gene counts per cell type. Note that
         some hyperparameter values have been applied before those means are derived.

@@ -7,7 +7,6 @@ from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.cell_call.main import VarBayes
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.viewer.utils import splitter_mb
-from PIL import Image, ImageOps, ImageDraw
 from pciSeq import config
 import logging
 
@@ -95,7 +94,7 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
 
     # 2. prepare the data
     logger.info(' Preprocessing data')
-    _cells, cellBoundaries, _spots = stage_data(iss_spots, coo, cfg)
+    _cells, cellBoundaries, _spots = stage_data(iss_spots, coo)
 
     # 3. cell typing
     cellData, geneData = cell_type(_cells, _spots, scRNAseq, cfg)
@@ -124,7 +123,6 @@ def write_data(cellData, geneData, cellBoundaries):
     ellipsoidBorders = cellData[['Cell_Num', 'ellipsoid_border']]
     ellipsoidBorders = ellipsoidBorders.rename(columns={'Cell_Num': 'cell_id', 'ellipsoid_border': 'coords'})
 
-    cellData = cellData.drop(['ellipsoid_border'], axis=1)
     cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
     logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
 
@@ -168,61 +166,18 @@ def init(opts):
     return cfg
 
 
-def downscale(spots, img, ppm):
-    spots.x = spots.x/ppm
-    spots.y = spots.y / ppm
-
-    # z, h, w = img.shape
-    # col = np.ceil(h/ppm)
-    # row = np.ceil(w/ppm)
-    # out = skimage.transform.resize(img, (z, col, row))
-
-    d = int(np.floor(ppm))
-    out = None
-    if img is not None:
-        _img = img[:, ::d, ::d]
-        out = [coo_matrix(_img[i, :, :]) for i in range(len(_img))]
-    return spots, out
-
-
-def expand_z(label_image, spots, ppm):
-    """
-    expands the z-dimension so that all X,Y,Z have the same resolution.
-    Also, it scales up the z-coords of the spots
-    """
-    z, h, w = label_image.shape
-
-    k = int(ppm)
-    depth = z * k
-    temp_img = np.zeros([depth, h, w])
-
-    coo = []
-    # for i in range(temp_img.shape[0]):
-    #     j = divmod(i, k)[0]
-    #     _img = np.array(Image.fromarray(label_image[j]).resize((width, height), Image.NEAREST), dtype=np.uint32)
-    #     coo.append(coo_matrix(_img))
-
-    spots.z = spots.z * ppm
-    return coo, spots
-
-
-def truncate_data(label_image, spots, i,  j, ppm):
-    spots_out = spots.copy()
-    ii = int(np.floor(i))
-    jj = int(np.ceil(j))
-    label_image = label_image[ii:jj, :, :]
-    spots_out = spots_out[(spots_out.z >= i * ppm) & (spots_out.z < j * ppm)]
-    spots_out.z = spots_out.z.values - (i * ppm)
-    return label_image, spots_out
-
-
-
-
 if __name__ == "__main__":
+
     # # read some demo data
-    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'B2A3', 'small_data', 'small_spots.csv'))
-    _coo = np.load(os.path.join(ROOT_DIR, 'data', 'B2A3', 'small_data', 'small_coo_from_page40.npz'), allow_pickle=True)
-    _coo = _coo['arr_0']
+    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'B2A3', 'truncated_data', 'B2A3_spots_truncated.csv'))
+    _coo = np.load(os.path.join(ROOT_DIR, 'data', 'B2A3', 'truncated_data', 'B2A3_label_image_truncated.npz'),  allow_pickle=True)['arr_0']
+
+    # _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'B2A3', 'small_data_3d', 'small_spots.csv'))
+    # logger.info('Keep Id2 spots only!')
+    # _iss_spots = _iss_spots[_iss_spots.Gene == 'Id2']
+    # _coo = np.load(os.path.join(ROOT_DIR, 'data', 'B2A3', 'small_data_3d', 'small_coo_from_page40.npz'), allow_pickle=True)['arr_0']
+
+    # read some demo data
 
     _scRNAseq = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),
                             header=None, index_col=0, compression='gzip', dtype=object)
@@ -230,5 +185,6 @@ if __name__ == "__main__":
     _scRNAseq = _scRNAseq.astype(float).astype(np.uint32)
 
     # main task
+    # _opts = {'max_iter': 10}
     fit(_iss_spots, _coo, scRNAseq=_scRNAseq, opts={'save_data': True})
 

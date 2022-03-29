@@ -33,7 +33,7 @@ def read_image_objects(img_obj, cfg):
     logger.info('******  WARNING: area_factor is set to 1.0   ********')
     logger.info('*****************************************************')
     out['rel_radius'] = relCellRadius
-    out['area'] = np.append(np.nan, img_obj.area)
+    out['area'] = np.append(np.nan, img_obj.mean_area_per_slice)
     out['x'] = np.append(-sys.maxsize, img_obj.x.values)
     out['y'] = np.append(-sys.maxsize, img_obj.y.values)
     out['z'] = np.append(-sys.maxsize, img_obj.z.values)
@@ -318,7 +318,7 @@ def gaussian_ellipsoid(mu, cov, sdwidth=None):
     ap[1, :] = y
     ap[2, :] = z
 
-    eigvals, eigvecs = np.linalg.eig(cov)  # eigvecs.dot(eigvals * np.eye(3)).dot(eigvecs.T)
+    eigvals, eigvecs = np.linalg.eig(cov)
     eigvals = sdwidth * np.sqrt(eigvals)
     eigvals = eigvals * np.eye(dims)
 
@@ -334,8 +334,17 @@ def gaussian_ellipsoid_props(cov, sdwidth=None):
     """
     eigvals, eigvecs = np.linalg.eig(cov)
     scaling = sdwidth * np.sqrt(eigvals)
-    rotation = roll_pitch_yaw(eigvecs)
+    # rotation = roll_pitch_yaw(eigvecs)
+    rotation = euler_angles(eigvecs.T)
     return scaling, rotation
+
+
+def euler_angles(r):
+    theta_x = np.arctan2(r[2, 1], r[2, 2])
+    theta_y = np.arcsin(r[2,0])
+    theta_z = np.arctan2(r[1, 0], r[0, 0])
+
+    return [theta_x, theta_y, theta_z]
 
 
 def roll_pitch_yaw(R):
@@ -346,16 +355,14 @@ def roll_pitch_yaw(R):
            R21 , R22 , R23,
            R31 , R32 , R33
         ]
-
     REMARKS:
     1. this implementation is meant to make the mathematics easy to be deciphered
     from the script, not so much on 'optimized' code.
     You can then optimize it to your own style.
-
     2. I have utilized naval rigid body terminology here whereby;
-    2.1 roll -> rotation about x-axis
-    2.2 pitch -> rotation about the y-axis
-    2.3 yaw -> rotation about the z-axis (this is pointing 'upwards')
+    2.1 roll -> rotation about x-axis (DN says: rotation about z-axis)
+    2.2 pitch -> rotation about the y-axis (DN says: rotation about x-axis)
+    2.3 yaw -> rotation about the z-axis (this is pointing 'upwards') (DN says: rotation about y-axis)
     """
     from math import (
         asin, pi, atan2, cos
@@ -395,10 +402,9 @@ def roll_pitch_yaw(R):
             pitch = -pi / 2
             roll = -1 * yaw + atan2(-1 * R12, -1 * R13)
 
-            # convert from radians to degrees
+    # convert from radians to degrees
     roll = roll * 180 / pi
     pitch = pitch * 180 / pi
     yaw = yaw * 180 / pi
 
     return [roll, pitch, yaw]
-

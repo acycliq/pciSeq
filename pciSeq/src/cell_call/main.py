@@ -105,7 +105,6 @@ class VarBayes:
 
             # 1. For each cell, calc the expected gene counts
             self.geneCount_upd()
-            # logger.info('Counts of Id2 assigned to cell_1764 is: %d' % self.cells.geneCount[1764, 6])
 
             # self.alpha_upd()
 
@@ -122,7 +121,6 @@ class VarBayes:
 
             # 4. assign spots to cells
             self.spots_to_cell()
-            logger.info('Id2, spot to cell probs \n %s:' %  self.spots.parent_cell_prob[self.spots.data.gene_name == "Id2"] )
 
             # 5. update gene efficiency
             self.eta_upd()
@@ -164,6 +162,7 @@ class VarBayes:
         '''
         Produces a matrix numCells-by-numGenes where element at position (c,g) keeps the expected
         counts of gene g  in cell c.
+        The top row corresponds to the background and it is filled with zeros only.
         '''
         start = time.time()
 
@@ -283,8 +282,7 @@ class VarBayes:
 
             term_2 = np.einsum('ij, ij -> i', cp, expectedLog)  # same as np.sum(cp * expectedLog, axis=1) but bit faster
 
-            xyz_coords = np.flip(self.spots.zyx_coords, axis=1)
-            loglik = self.spots.mvn_loglik(xyz_coords, sn, self.cells)
+            loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells)
             aSpotCell[:, n] = term_1 + term_2 + loglik
             # logger.info('')
         wSpotCell = aSpotCell  # + self.spots.loglik(self.cells, self.config)
@@ -355,20 +353,20 @@ class VarBayes:
         # get the total gene counts per cell
         N_c = self.cells.total_counts
 
-        zyx_coords = spots.zyx_coords
+        xyz_spots = spots.xyz_coords
         prob = spots.parent_cell_prob
         n = self.cells.config['nNeighbors'] + 1
 
         # mulitply the x coord of the spots by the cell prob
-        a = np.tile(zyx_coords[:, 2], (n, 1)).T * prob
+        a = np.tile(xyz_spots[:, 0], (n, 1)).T * prob
 
         # mulitply the y coord of the spots by the cell prob
-        b = np.tile(zyx_coords[:, 1], (n, 1)).T * prob
+        b = np.tile(xyz_spots[:, 1], (n, 1)).T * prob
 
         # mulitply the z coord of the spots by the cell prob
-        c = np.tile(zyx_coords[:, 0], (n, 1)).T * prob
+        c = np.tile(xyz_spots[:, 2], (n, 1)).T * prob
 
-        # aggregated x, y and z coordinates
+        # aggregated x and y coordinate
         idx = spots.parent_cell_id
         x_agg = npg.aggregate(idx.ravel(), a.ravel(), size=len(N_c))
         y_agg = npg.aggregate(idx.ravel(), b.ravel(), size=len(N_c))
@@ -386,9 +384,11 @@ class VarBayes:
         x_bar = np.nan * np.ones(N_c.shape)
         y_bar = np.nan * np.ones(N_c.shape)
         z_bar = np.nan * np.ones(N_c.shape)
+
         x_bar[N_c > 0] = x_agg[N_c > 0] / N_c[N_c > 0]
         y_bar[N_c > 0] = y_agg[N_c > 0] / N_c[N_c > 0]
         z_bar[N_c > 0] = z_agg[N_c > 0] / N_c[N_c > 0]
+
         # cells with N_c = 0 will end up with x_bar = y_bar = np.nan
         xyz_bar_fitted = np.array(list(zip(x_bar.T, y_bar.T, z_bar.T)))
 

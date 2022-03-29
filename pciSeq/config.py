@@ -17,7 +17,7 @@ DEFAULT = {
     # the ratio of the observed over the theoretical counts for a given gene. rGene controls the variance and
     # Inefficiency is the average of this assumed Gamma distribution
     'rGene': 20,
-    'Inefficiency': 0.2,
+    'Inefficiency': .2,
 
     # If a spot is inside the cell boundaries this bonus will give the likelihood an extra boost
     # in order to make the spot more probable to get assigned to the cell than another spot positioned
@@ -26,7 +26,7 @@ DEFAULT = {
 
     # To account for spots far from the some a uniform distribution is introduced to describe those misreads.
     # By default this uniform distribution has a density of 1e-5 misreads per pixel.
-    'MisreadDensity': 0.00001,
+    'MisreadDensity': 1e-06,
 
     # Gene detection might come with irregularities due to technical errors. A small value is introduced
     # here to account for these errors. It is an additive factor, applied to the single cell expression
@@ -38,7 +38,7 @@ DEFAULT = {
     # the misreads to. Could be seen as the background. Hence, by default the algorithm tries examines
     # whether any of the 3 nearest cells is a possible parent cell to a given cell or whether the spot is
     # a misread
-    'nNeighbors': 1,
+    'nNeighbors': 6,
 
     # A gamma distributed variate from Gamma(rSpot, 1) is applied to the mean expression, hence the counts
     # are distributed according to a Negative Binomial distribution.
@@ -54,8 +54,8 @@ DEFAULT = {
     'dtype': np.float64,
 
     # Hyperparameters for the gamma-distributed alpha variate
-    'rho_1': 100,
-    'rho_2': 100,
+    'rho_1': 100,  # need to move that into config.py
+    'rho_2': 100,  # need to move that into config.py
 
     # the prior on mean expression follows a Gamma(m * M , m), where M is the starting point (the initial
     # array) of single cell data
@@ -67,13 +67,5 @@ DEFAULT = {
 
     # Boolean, if True the output will be saved as tsv files in a folder named 'pciSeq' in your system's temp dir.
     'save_data': False,
-
-    # resolution, pixels per micron
-    'ppm': 6.0121,
-
-    'width': 5865,   # width of the original image
-    'height': 7705,  # length of the original image
-    'z_start': 35,
-    'z_end': 46,
 }
 

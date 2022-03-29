@@ -38,6 +38,7 @@ def _iss_summary(cells, genes, single_cell):
     ellipsoid_border = []
     sphere_scale = []
     sphere_rotation = []
+    cov_list = []
     for i in range(cells.nC):
         ea = cells.ellipsoid_attributes[i]
         cov = cells.cov[i]
@@ -47,13 +48,14 @@ def _iss_summary(cells, genes, single_cell):
         _sphere_scale, _sphere_rotation = gaussian_ellipsoid_props(cov, 3)
         sphere_scale.append(_sphere_scale.tolist())
         sphere_rotation.append(_sphere_rotation)
+        cov_list.append(cov.flatten().tolist())
 
     iss_df = pd.DataFrame({'Cell_Num': cells.cell_props['cell_label'].tolist(),
-                           'X': cells.centroid.x.tolist(),
-                           'Y': cells.centroid.y.tolist(),
-                           'Z': cells.centroid.z.tolist(),
-                           'X_0': cells.cell_props['x'].tolist(),
-                           'Y_0': cells.cell_props['y'].tolist(),
+                           'X': (cells.centroid.x).tolist(),
+                           'Y': (cells.centroid.y).tolist(),
+                           'Z': (cells.centroid.z).tolist(),
+                           'X_0': (cells.cell_props['x']).tolist(),
+                           'Y_0': (cells.cell_props['y']).tolist(),
                            'Genenames': name_list,
                            'CellGeneCount': count_list,
                            'ClassName': class_name_list,
@@ -64,10 +66,11 @@ def _iss_summary(cells, genes, single_cell):
                            'ellipsoid_border': ellipsoid_border,
                            'sphere_scale': sphere_scale,
                            'sphere_rotation': sphere_rotation,
+                           'cov': cov_list
                             },
                           columns=['Cell_Num', 'X', 'Y', 'Z', 'X_0', 'Y_0', 'Genenames', 'CellGeneCount', 'ClassName',
                                    'Prob', 'rho', 'sigma_x', 'sigma_y', 'ellipsoid_border', 'sphere_position',
-                                   'sphere_scale', 'sphere_rotation']
+                                   'sphere_scale', 'sphere_rotation', 'cov']
                           )
     iss_df.set_index(['Cell_Num'])
 
