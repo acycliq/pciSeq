@@ -94,7 +94,7 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
 
     # 2. prepare the data
     logger.info(' Preprocessing data')
-    _cells, cellBoundaries, _spots = stage_data(iss_spots, coo)
+    _cells, cellBoundaries, _spots = stage_data(iss_spots, coo, cfg['ppm'])
 
     # 3. cell typing
     cellData, geneData = cell_type(_cells, _spots, scRNAseq, cfg)
@@ -169,8 +169,13 @@ def init(opts):
 if __name__ == "__main__":
 
     # # read some demo data
-    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'B2A3', 'truncated_data', 'B2A3_spots_truncated.csv'))
-    _coo = np.load(os.path.join(ROOT_DIR, 'data', 'B2A3', 'truncated_data', 'B2A3_label_image_truncated.npz'),  allow_pickle=True)['arr_0']
+    # _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'B2A3', 'truncated_data', 'B2A3_spots_truncated.csv'))
+    # _coo = np.load(os.path.join(ROOT_DIR, 'data', 'B2A3', 'truncated_data', 'B2A3_label_image_truncated.npz'),  allow_pickle=True)['arr_0']
+
+    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', '220308', 'spots_min.csv'))
+    _iss_spots = _iss_spots.assign(z=_iss_spots.z_stack * config.DEFAULT['ppm'])
+    _coo = np.load(os.path.join(ROOT_DIR, 'data',  '220308', 'coo_list.npz'),  allow_pickle=True)['arr_0']
+
 
     # _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'B2A3', 'small_data_3d', 'small_spots.csv'))
     # logger.info('Keep Id2 spots only!')
@@ -187,4 +192,3 @@ if __name__ == "__main__":
     # main task
     # _opts = {'max_iter': 10}
     fit(_iss_spots, _coo, scRNAseq=_scRNAseq, opts={'save_data': True})
-

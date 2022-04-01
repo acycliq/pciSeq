@@ -46,7 +46,7 @@ def remap_labels(coo):
     return out
 
 
-def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def stage_data(spots: pd.DataFrame, coo: coo_matrix, ppm) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Reads the spots and the label image that are passed in and calculates which cell (if any) encircles any
     given spot within its boundaries. It also retrieves the coordinates of the cell boundaries, the cell
@@ -73,10 +73,10 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.D
     # 1. Find which cell the spots lie within
     # yx_coords = spots[['y', 'x']].values.T
     spots = spots.assign(label=np.zeros(spots.shape[0]))
-    for z in np.unique(spots.z):
-        spots_z = spots[spots.z == z]
+    for z in np.unique(spots.z_stack):
+        spots_z = spots[spots.z_stack == z]
         inc = inside_cell(coo[int(z)].tocsr(), spots_z)
-        spots.loc[spots.z == z, 'label'] = inc
+        spots.loc[spots.z_stack == z, 'label'] = inc
         # spots = spots.assign(label=inc)
 
     # 2. Get cell centroids and area
@@ -84,8 +84,9 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.D
     props_df = pd.DataFrame(skmeas.regionprops_table(label_image, properties=properties))
     num_slices = props_df.filled_image.apply(img_depth).values
     props_df = props_df.assign(mean_area_per_slice=props_df.area/num_slices)
+    props_df = props_df.assign(z_cell=props_df['centroid-0'] * ppm)
     props_df = props_df.drop(['filled_image'], axis=1)
-    props_df = props_df.rename(columns={"centroid-0": "z_cell", "centroid-1": "y_cell", "centroid-2": "x_cell"})
+    props_df = props_df.rename(columns={"centroid-1": "y_cell", "centroid-2": "x_cell"})
 
     # 7. Get the cell boundaries
     boundaries_list = []

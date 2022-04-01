@@ -67,5 +67,8 @@ DEFAULT = {
 
     # Boolean, if True the output will be saved as tsv files in a folder named 'pciSeq' in your system's temp dir.
     'save_data': False,
+
+    # pixels per micron
+    'ppm': 6.0121,
 }
 
