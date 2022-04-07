@@ -332,6 +332,8 @@ def gaussian_ellipsoid_props(cov, sdwidth=None):
     """
     get the scaling, rotation of the ellipsoid
     """
+    tol = 1.0e-10
+    cov = np.where(cov < tol, 0, cov)
     eigvals, eigvecs = np.linalg.eig(cov)
     scaling = sdwidth * np.sqrt(eigvals)
     # rotation = roll_pitch_yaw(eigvecs)
