@@ -88,13 +88,13 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
     except Exception as err:
         raise
 
-
     # 1. get the hyperparameters
     cfg = init(opts)
+    logger.info(' Pixels per micron is set to: %f' % cfg['ppm'])
 
     # 2. prepare the data
     logger.info(' Preprocessing data')
-    _cells, cellBoundaries, _spots = stage_data(iss_spots, coo, cfg['ppm'])
+    _cells, cellBoundaries, _spots = stage_data(iss_spots, coo, cfg)
 
     # 3. cell typing
     cellData, geneData = cell_type(_cells, _spots, scRNAseq, cfg)
@@ -166,15 +166,34 @@ def init(opts):
     return cfg
 
 
+# def _reorder_labels(label_image):
+#     """
+#     rearranges the labels so that they are a sequence of integers
+#     """
+#     # label_image = np.stack([d.toarray().astype(np.uint16) for d in coo])
+#     _, idx = np.unique(label_image.flatten(), return_inverse=True)
+#     my_masks = idx.reshape(label_image.shape)
+#     out_1 = [coo_matrix(d) for d in my_masks]
+#     out_2 = [coo_matrix(d.astype(np.uint16)) for d in my_masks]
+#     return [coo_matrix(d) for d in my_masks]
+
 if __name__ == "__main__":
 
     # # read some demo data
     # _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'B2A3', 'truncated_data', 'B2A3_spots_truncated.csv'))
     # _coo = np.load(os.path.join(ROOT_DIR, 'data', 'B2A3', 'truncated_data', 'B2A3_label_image_truncated.npz'),  allow_pickle=True)['arr_0']
 
-    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', '220308', 'spots_min.csv'))
+    # _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', '220308', 'spots_min.csv'))
+    # _iss_spots = _iss_spots.assign(z=_iss_spots.z_stack * config.DEFAULT['ppm'])
+    # _coo = np.load(os.path.join(ROOT_DIR, 'data',  '220308', 'coo_list.npz'),  allow_pickle=True)['arr_0']
+
+    _iss_spots = pd.read_csv(r"E:\data\Anne\220308 50umCF seq atto425 DY520XL MS002\spots_yxz.csv")
+    _iss_spots = _iss_spots.assign(z_stack=_iss_spots.z)
+    _iss_spots = _iss_spots[['y', 'x', 'z_stack', 'Gene']]
     _iss_spots = _iss_spots.assign(z=_iss_spots.z_stack * config.DEFAULT['ppm'])
-    _coo = np.load(os.path.join(ROOT_DIR, 'data',  '220308', 'coo_list.npz'),  allow_pickle=True)['arr_0']
+    _coo = np.load(r"E:\data\Anne\220308 50umCF seq atto425 DY520XL MS002\masks_2D_stiched_fullsize.npz",  allow_pickle=True)['arr_0']
+    _coo = [coo_matrix(d) for d in _coo]
+
 
 
     # _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'B2A3', 'small_data_3d', 'small_spots.csv'))
@@ -191,4 +210,4 @@ if __name__ == "__main__":
 
     # main task
     # _opts = {'max_iter': 10}
-    fit(_iss_spots, _coo, scRNAseq=_scRNAseq, opts={'save_data': True})
+    fit(_iss_spots, _coo, scRNAseq=_scRNAseq, opts={'save_data': True, 'z_stack_min': 18, 'z_stack_max': 43})

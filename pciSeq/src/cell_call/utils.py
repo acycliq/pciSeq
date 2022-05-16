@@ -29,9 +29,9 @@ def read_image_objects(img_obj, cfg):
     out = {}
     # out['area_factor'] = CellAreaFactor
     out['area_factor'] = np.ones(CellAreaFactor.shape[0])
-    logger.info('*****************************************************')
-    logger.info('******  WARNING: area_factor is set to 1.0   ********')
-    logger.info('*****************************************************')
+    # logger.info('*****************************************************')
+    # logger.info('******  WARNING: area_factor is set to 1.0   ********')
+    # logger.info('*****************************************************')
     out['rel_radius'] = relCellRadius
     out['area'] = np.append(np.nan, img_obj.mean_area_per_slice)
     out['x'] = np.append(-sys.maxsize, img_obj.x.values)

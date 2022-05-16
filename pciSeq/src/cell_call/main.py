@@ -144,8 +144,8 @@ class VarBayes:
             # replace p0 with the latest probabilities
             p0 = self.spots.parent_cell_prob
 
-            logger.info('Number of cell per class: %s',
-                        ["{0:0.2f}".format(i) for i in self.cells.classProb.sum(axis=0)])
+            # logger.info('Number of cell per class: %s',
+            #             ["{0:0.2f}".format(i) for i in self.cells.classProb.sum(axis=0)])
 
             if converged:
                 # np.save('deltas.npy', self.deltas)
@@ -293,7 +293,7 @@ class VarBayes:
         # Since the spot-to-cell assignments changed you need to update the gene counts now
         self.geneCount_upd()
         assert np.isfinite(wSpotCell).all(), "wSpotCell array contains non numeric values"
-        logger.info('Spot to cell loglikelihood: %f' % wSpotCell.sum())
+        logger.info(' Spot to cell loglikelihood: %f' % wSpotCell.sum())
         # self.spots.update_cell_prob(pSpotNeighb, self.cells)
         # logger.info('spot ---> cell probabilities updated')
 
@@ -483,14 +483,14 @@ class VarBayes:
 
 # -------------------------------------------------------------------- #
     def dalpha_upd(self):
-        logger.info('Update cell type (marginal) distribution')
+        # logger.info('Update cell type (marginal) distribution')
         zeta = self.cells.classProb.sum(axis=0) # this the class size
         alpha = self.cellTypes.ini_alpha()
         out = zeta + alpha
 
-        logger.info("***************************************************")
-        logger.info("**** Dirichlet alpha is zero if class size <=%d ****" % self.config['min_class_size'])
-        logger.info("***************************************************")
+        # logger.info("***************************************************")
+        # logger.info("**** Dirichlet alpha is zero if class size <=%d ****" % self.config['min_class_size'])
+        # logger.info("***************************************************")
         mask = zeta <= self.config['min_class_size']
         out[mask] = 10e-6
         self.cellTypes.alpha = out

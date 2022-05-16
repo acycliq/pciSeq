@@ -1,19 +1,27 @@
 import setuptools
+import os
 from setuptools import setup
-import json
 
 install_deps = ['numpy', 'pandas', 'sklearn',
                 'numpy_groupies', 'xarray', 'numexpr',
                 'diplib', 'scikit-image', 'opencv-python',
-                'tqdm']
+                'tqdm', 'pyvips']
 
+version = None
+with open(os.path.join('pciSeq', 'src', '_version.py'), 'r') as fid:
+    for line in (line.strip() for line in fid):
+        if line.startswith('__version__'):
+            version = line.split('=')[1].strip().strip('\'')
+            break
+if version is None:
+    raise RuntimeError('Could not determine version')
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name="pciSeq",
-    version="0.0.34",
+    name="pciSeq_3D",
+    version=version,
     license="BSD",
     author="Dimitris Nicoloutsopoulos",
     author_email="dimitris.nicoloutsopoulos@gmail.com",

@@ -53,7 +53,9 @@ def reorder_labels(coo):
     label_image = np.stack([d.toarray().astype(np.uint16) for d in coo])
     _, idx = np.unique(label_image.flatten(), return_inverse=True)
     label_image = idx.reshape(label_image.shape)
-    return [coo_matrix(d.astype(np.uint16)) for d in label_image]
+    ## Need to check what is happening when you change to no.uint16. For example coo[-1].data.sum() is not the same
+    ## when you change to np.uint16
+    return [coo_matrix(d.astype(np.uint64)) for d in label_image]
 
 
 def remove_cells(coo_list):
@@ -64,19 +66,52 @@ def remove_cells(coo_list):
     labels_per_frame = [np.unique(d.data) for d in coo_list]
     label_counts = np.bincount([d for labels in labels_per_frame for d in labels])
     single_page_labels = [d[0] for d in enumerate(label_counts) if d[1] == 1]
+    removed_cells = []
+    _frames = []
     for i, coo in enumerate(coo_list):
         s = set(coo.data).intersection(set(single_page_labels))
         for d in s:
             coo.data[coo.data == d] = 0
-            logger.info('Removed cell:%d from frame: %d' % (d, i))
+            removed_cells.append(d)
+            # logger.info('Removed cell:%d from frame: %d' % (d, i))
+        _frames.append(i)
+    len_c = len(set(removed_cells))
+    len_f = len(set(_frames))
+    logger.info(' Found %d cells that exist on just one single frame. Those cells have been removed from %i frames.' % (len_c, len_f))
     return coo_list
 
-def stage_data(spots: pd.DataFrame, coo: coo_matrix, ppm) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+
+def truncate_data(spots, label_image, z_min, z_max):
+    if z_min is not None and z_max is not None:
+        logger.info(' Truncating masks and spots. Keeping those between frame %d and %d only' % (z_min, z_max))
+        spots = truncate_spots(spots, z_min, z_max)
+        label_image = truncate_zstack(label_image, z_min, z_max)
+    return spots, label_image
+
+
+def truncate_zstack(masks, z_min, z_max):
+    return masks[z_min: z_max+1]
+
+
+def truncate_spots(spots, zmin, zmax):
+    spots_min = spots[(spots.z_stack <= zmax) & (spots.z_stack >= zmin)]
+    spots_min = spots_min.assign(z_stack=spots_min.z_stack - zmin)
+    # out = spots_min.z - zmin
+    return spots_min
+
+
+def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Reads the spots and the label image that are passed in and calculates which cell (if any) encircles any
     given spot within its boundaries. It also retrieves the coordinates of the cell boundaries, the cell
     centroids and the cell area
     """
+    ppm = cfg['ppm']
+    z_min = cfg['z_stack_min']
+    z_max = cfg['z_stack_max']
+    # z_min = 18
+    # z_max = 43
+    spots, coo = truncate_data(spots, coo, z_min, z_max)
     coo = remove_cells(coo)
     coo = reorder_labels(coo)
 
@@ -128,7 +163,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, ppm) -> Tuple[pd.DataFrame,
     boundaries_list.append(b)
     cell_boundaries = pd.concat(boundaries_list)
 
-    logger.info('Keeping boundaries for z=0 only')
+    # logger.info('Keeping boundaries for z=0 only')
     cell_boundaries = cell_boundaries[cell_boundaries.z == 0]  # Select the boundaries on z=0 only
 
     _cells = props_df.rename(columns={'x_cell': 'x', 'y_cell': 'y', 'z_cell': 'z'})
