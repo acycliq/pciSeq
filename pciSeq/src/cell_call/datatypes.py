@@ -291,7 +291,7 @@ class Spots(object):
 
         # for each spot find the closest cell (in fact the top nN-closest cells...)
         nbrs = cells.nn()
-        self.Dist, neighbors = nbrs.kneighbors(spotZYX)
+        self.Dist, neighbors = nbrs.kneighbors(spotZYX.values)
 
         # last column is for misreads.
         neighbors[:, -1] = 0
