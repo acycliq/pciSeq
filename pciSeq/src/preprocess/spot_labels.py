@@ -111,6 +111,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
     z_max = cfg['z_stack_max']
     # z_min = 18
     # z_max = 43
+    spots = spots.assign(z=spots.z_stack * cfg['ppm'])
     spots, coo = truncate_data(spots, coo, z_min, z_max)
     coo = remove_cells(coo)
     coo = reorder_labels(coo)
