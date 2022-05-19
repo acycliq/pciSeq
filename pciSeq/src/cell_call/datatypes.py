@@ -283,6 +283,7 @@ class Spots(object):
 # ----------------------------------------Class: SingleCell--------------------------------------------------- #
 class SingleCell(object):
     def __init__(self, scdata: pd.DataFrame, genes: np.array, config):
+        self.raw_data = self._raw_data(scdata, genes)
         self.config = config
         self._mean_expression, self._log_mean_expression = self._setup(scdata, genes, self.config)
 
@@ -293,9 +294,7 @@ class SingleCell(object):
         These hyperparameters and some bacic cleaning takes part in the functions
         called herein
         """
-        expr = self._raw_data(scdata, genes)
-        self.raw_data = expr
-        me, lme = self._helper(expr.copy())
+        me, lme = self._helper(self.raw_data.copy())
         dtype = self.config['dtype']
 
         assert me.columns[-1] == 'Zero', "Last column should be the Zero class"
