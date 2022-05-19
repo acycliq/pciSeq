@@ -190,7 +190,7 @@ if __name__ == "__main__":
     _iss_spots = pd.read_csv(r"E:\data\Anne\220308 50umCF seq atto425 DY520XL MS002\spots_yxz.csv")
     _iss_spots = _iss_spots.assign(z_stack=_iss_spots.z)
     _iss_spots = _iss_spots[['y', 'x', 'z_stack', 'Gene']]
-    _iss_spots = _iss_spots.assign(z=_iss_spots.z_stack * config.DEFAULT['ppm'])
+    # _iss_spots = _iss_spots.assign(z=_iss_spots.z_stack * config.DEFAULT['ppm'])
     _coo = np.load(r"E:\data\Anne\220308 50umCF seq atto425 DY520XL MS002\masks_2D_stiched_fullsize.npz",  allow_pickle=True)['arr_0']
     _coo = [coo_matrix(d) for d in _coo]
 
