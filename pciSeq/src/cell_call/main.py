@@ -25,7 +25,7 @@ class VarBayes:
     def initialise(self):
         self.cellTypes.ini_prior('uniform')
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
-        self.genes.eta = np.ones(self.nG)
+        self.genes.eta = np.ones(self.nG) * self.config['Inefficiency']
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
@@ -113,7 +113,8 @@ class VarBayes:
         cells = self.cells
         cfg = self.config
         dtype = self.config['dtype']
-        beta = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
+        beta = np.einsum('c, gk, g -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression, self.genes.eta).astype(dtype) + cfg['rSpot']
+        # beta = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
         self.spots.gamma_bar = self.spots.gammaExpectation(rho, beta)
@@ -133,7 +134,7 @@ class VarBayes:
         # gene_gamma = self.genes.eta
         dtype = self.config['dtype']
         # ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.alpha, self.genes.eta, sc.mean_expression.data) + self.config['SpotReg']
-        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], self.genes.eta, self.single_cell.mean_expression).astype(dtype) + self.config['SpotReg']
+        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], self.genes.eta, self.single_cell.mean_expression).astype(dtype)
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
@@ -202,7 +203,7 @@ class VarBayes:
             'The sum of the background spots and the total gene counts should be equal to the number of spots'
 
         classProb = self.cells.classProb
-        mu = self.single_cell.mean_expression + self.config['SpotReg']
+        mu = self.single_cell.mean_expression
         area_factor = self.cells.cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar
 
@@ -220,7 +221,7 @@ class VarBayes:
                                        gamma_bar[:, :, :-1])
         background_counts = self.cells.background_counts
         numer = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
-        denom = self.config['rGene'] + class_total_counts
+        denom = self.config['rGene']/self.config['Inefficiency'] + class_total_counts
         res = numer / denom
 
         # Finally, update gene_gamma
