@@ -106,7 +106,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
     given spot within its boundaries. It also retrieves the coordinates of the cell boundaries, the cell
     centroids and the cell area
     """
-    ppm = cfg['anisotropy']
+    anisotropy = cfg['anisotropy']
     z_min = cfg['z_stack_min']
     z_max = cfg['z_stack_max']
     # z_min = 18
@@ -148,7 +148,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
     props_df = pd.DataFrame(skmeas.regionprops_table(label_image, properties=properties))
     num_slices = props_df.filled_image.apply(img_depth).values
     props_df = props_df.assign(mean_area_per_slice=props_df.area/num_slices)
-    props_df = props_df.assign(z_cell=props_df['centroid-0'] * ppm)
+    props_df = props_df.assign(z_cell=props_df['centroid-0'] * anisotropy)
     props_df = props_df.drop(['filled_image'], axis=1)
     props_df = props_df.rename(columns={"centroid-1": "y_cell", "centroid-2": "x_cell"})
 
