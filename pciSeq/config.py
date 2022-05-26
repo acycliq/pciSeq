@@ -68,8 +68,8 @@ DEFAULT = {
     # Boolean, if True the output will be saved as tsv files in a folder named 'pciSeq' in your system's temp dir.
     'save_data': False,
 
-    # pixels per micron
-    'ppm': 6.0121,
+    # How much to stretch Z so that all X,Y,Z dimensions are in the same scaling
+    'anisotropy': 6.0121,
 
     # if these are not None then the data (spots, and zstack) will be truncated between 'z_stack_min'
     # and 'z_stack_max'

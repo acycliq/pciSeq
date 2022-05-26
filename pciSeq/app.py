@@ -90,7 +90,7 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
 
     # 1. get the hyperparameters
     cfg = init(opts)
-    logger.info(' Pixels per micron is set to: %f' % cfg['ppm'])
+    logger.info(' Anisotropy is set to: %f' % cfg['anisotropy'])
 
     # 2. prepare the data
     logger.info(' Preprocessing data')
@@ -190,7 +190,7 @@ if __name__ == "__main__":
     _iss_spots = pd.read_csv(r"E:\data\Anne\220308 50umCF seq atto425 DY520XL MS002\spots_yxz.csv")
     _iss_spots = _iss_spots.assign(z_stack=_iss_spots.z)
     _iss_spots = _iss_spots[['y', 'x', 'z_stack', 'Gene']]
-    # _iss_spots = _iss_spots.assign(z=_iss_spots.z_stack * config.DEFAULT['ppm'])
+    # _iss_spots = _iss_spots.assign(z=_iss_spots.z_stack * config.DEFAULT['anisotropy'])
     _coo = np.load(r"E:\data\Anne\220308 50umCF seq atto425 DY520XL MS002\masks_2D_stiched_fullsize.npz",  allow_pickle=True)['arr_0']
     _coo = [coo_matrix(d) for d in _coo]
 

@@ -106,12 +106,12 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
     given spot within its boundaries. It also retrieves the coordinates of the cell boundaries, the cell
     centroids and the cell area
     """
-    ppm = cfg['ppm']
+    ppm = cfg['anisotropy']
     z_min = cfg['z_stack_min']
     z_max = cfg['z_stack_max']
     # z_min = 18
     # z_max = 43
-    spots = spots.assign(z=spots.z_stack * cfg['ppm'])
+    spots = spots.assign(z=spots.z_stack * cfg['anisotropy'])
     spots, coo = truncate_data(spots, coo, z_min, z_max)
     coo = remove_cells(coo)
     coo = reorder_labels(coo)
