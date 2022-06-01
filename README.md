@@ -34,7 +34,8 @@ res = pciSeq.fit(spots_df, label_image, scRNA_df, opts)
 You can run a pciSeq demo in google colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/acycliq/pciSeq/blob/master/notebooks/pciSeq.ipynb)
 
 ## Visualizer
-An interactive viewer to interrogate the data runs on this [url](https://acycliq.github.io/ca1/) 
+An interactive viewer to interrogate the data runs on this [url](https://acycliq.github.io/visage/). Instructions about 
+building this viewer with your own data are [here](https://github.com/acycliq/visage).
 
 ## References 
 Qian, X., et al. (2020). Probabilistic cell typing enables fine mapping of closely related cell types in situ. Nat
