@@ -41,12 +41,26 @@ def remap_labels(coo):
     return out
 
 
+def reorder_labels(coo):
+    """
+    rearranges the labels so that they are a sequence of integers
+    """
+    label_image = coo.toarray()
+    _, idx = np.unique(label_image.flatten(), return_inverse=True)
+    return coo_matrix(idx.reshape(label_image.shape))
+
+
 def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Reads the spots and the label image that are passed in and calculates which cell (if any) encircles any
     given spot within its boundaries. It also retrieves the coordinates of the cell boundaries, the cell
     centroids and the cell area
     """
+
+    if coo.data.max() != len(set(coo.data)):
+        logger.info(' The labels in the label image do not seem to be a sequence of successive integers. Relabelling the label image.')
+        coo = reorder_labels(coo)
+
     logger.info(' Number of spots passed-in: %d' % spots.shape[0])
     logger.info(' Number of segmented cells: %d' % len(set(coo.data)))
     logger.info(' Segmentation array implies that image has width: %dpx and height: %dpx' % (coo.shape[1], coo.shape[0]))
