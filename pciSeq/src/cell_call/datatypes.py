@@ -346,6 +346,21 @@ class SingleCell(object):
         lme = np.log(me + self.config['SpotReg'])  # log mean expression
         return me, lme
 
+    def _keep_labels_unique(self, scdata):
+        """
+        In the single cell data you might find cases where two or more rows have the same gene label
+        In these cases keep the row with the highest total gene count
+        """
+
+        # 1. get the row total and assign it to a new column
+        scdata = scdata.assign(total=scdata.sum(axis=1))
+
+        # 2. rank by gene label and total gene count and keep the one with the highest total
+        scdata = scdata.sort_values([0, 'total'], ascending=[True, False]).groupby(0).head(1)
+
+        # 3. Drop the total column and return
+        return scdata.drop(['total'], axis=1)
+
     def _raw_data(self, scdata, genes):
         """
         Reads the raw single data, filters out any genes outside the gene panel and then it
@@ -356,6 +371,9 @@ class SingleCell(object):
 
         logger.info(' Single cell data: Keeping counts for the gene panel of %d only' % len(genes))
         df = scdata.loc[genes]
+
+        # remove any rows with the same gene label
+        df = self._keep_labels_unique(df)
 
         # set the axes labels
         df = self._set_axes(df)
