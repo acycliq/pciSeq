@@ -109,7 +109,7 @@ def write_data(cellData, geneData, cellBoundaries, path):
     cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
     logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
 
-    geneData.to_csv(csos.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
+    geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
     logger.info(' Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
 
     cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
