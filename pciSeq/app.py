@@ -83,7 +83,7 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
 
     # 4. save to filesystem
     if cfg['save_data']:
-        write_data(cellData, geneData, cellBoundaries)
+        write_data(cellData, geneData, cellBoundaries, path=cfg['output_path'])
 
     logger.info(' Done')
     return cellData, geneData
@@ -97,15 +97,19 @@ def cell_type(_cells, _spots, scRNAseq, ini):
     return cellData, geneData
 
 
-def write_data(cellData, geneData, cellBoundaries):
-    out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq')
+def write_data(cellData, geneData, cellBoundaries, path):
+
+    if path[0] == 'default':
+        out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq')
+    else:
+        out_dir = path[0]
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
     cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
     logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
 
-    geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
+    geneData.to_csv(csos.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
     logger.info(' Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
 
     cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
