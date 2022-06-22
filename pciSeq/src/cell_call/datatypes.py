@@ -334,16 +334,17 @@ class SingleCell(object):
         out = df.loc[:, (df != 0).any(axis=0)]
         return out
 
-    def _helper(self, arr):
+    def _helper(self, expr):
         # order by column name
-        arr = arr.sort_index(axis=0).sort_index(axis=1, key=lambda x: x.str.lower())
+        expr = expr.copy().sort_index(axis=0).sort_index(axis=1, key=lambda x: x.str.lower())
 
         # append at the end the Zero class
-        arr['Zero'] = np.zeros([arr.shape[0], 1])
+        expr['Zero'] = np.zeros([expr.shape[0], 1])
 
-        expr = self.config['Inefficiency'] * arr
+        # expr = self.config['Inefficiency'] * arr
         me = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")  # mean expression
-        lme = np.log(me + self.config['SpotReg'])  # log mean expression
+        me = me + self.config['SpotReg']  # add the regularization parameter
+        lme = np.log(me)  # log mean expression
         return me, lme
 
     def _keep_labels_unique(self, scdata):
