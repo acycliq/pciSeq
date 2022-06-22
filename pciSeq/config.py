@@ -4,6 +4,7 @@ hyperparameters for the pciSeq method
 import numpy as np
 
 DEFAULT = {
+
     # list of genes to be excluded during cell-typing, e.g ['Aldoc', 'Id2'] to exclude all spots from Aldoc and Id2
     'exclude_genes': [],
 
@@ -47,6 +48,9 @@ DEFAULT = {
 
     # Boolean, if True the output will be saved as tsv files in a folder named 'pciSeq' in your system's temp dir.
     'save_data': False,
+
+    # output directory 'default' will save to temp location
+    'output_path': ['default'],
 
     # Use either np.float16 or np.float32 to reduce memory usage. In most cases RAM consumption shouldnt
     # need more than 32Gb RAM. If you have a dataset from a full coronal mouse slice with a high number of
