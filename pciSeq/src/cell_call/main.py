@@ -25,7 +25,7 @@ class VarBayes:
     def initialise(self):
         self.cellTypes.ini_prior('uniform')
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
-        self.genes.eta = np.ones(self.nG)
+        self.genes.eta = np.ones(self.nG) * self.config['Inefficiency']
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
@@ -113,7 +113,8 @@ class VarBayes:
         cells = self.cells
         cfg = self.config
         dtype = self.config['dtype']
-        beta = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
+        beta = np.einsum('c, gk, g -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression, self.genes.eta).astype(dtype) + cfg['rSpot']
+        # beta = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
         self.spots.gamma_bar = self.spots.gammaExpectation(rho, beta)
@@ -133,7 +134,7 @@ class VarBayes:
         # gene_gamma = self.genes.eta
         dtype = self.config['dtype']
         # ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.alpha, self.genes.eta, sc.mean_expression.data) + self.config['SpotReg']
-        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], self.genes.eta, self.single_cell.mean_expression).astype(dtype) + self.config['SpotReg']
+        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], self.genes.eta, self.single_cell.mean_expression).astype(dtype)
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
@@ -153,7 +154,6 @@ class VarBayes:
         spot to cell assignment.
         Implements equation (4) of the Qian paper
         """
-        # nN = self.config['nNeighbors'] + 1
         nN = self.nN
         nS = self.spots.data.gene_name.shape[0]
 
@@ -162,24 +162,30 @@ class VarBayes:
         gn = self.spots.data.gene_name.values
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
 
+        ## DN: 22-jun-2022. I think this is missing equation 4, Xiaoyan's paper
+        ## I think we should multiply mu (single cell expression data) by the gene efficiency
+        unames, idx = np.unique(gn, return_inverse=True)
+        assert np.all(unames == self.genes.gene_panel)
+
+        eta = self.genes.eta[idx]
+        expected_counts = np.einsum('sc,s->sc', expected_counts, eta)  # multiply the single cell averages by the gene efficiency
+        ## DN ends
+
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
         for n in range(nN - 1):
             # get the spots' nth-closest cell
             sn = self.spots.parent_cell_id[:, n]
 
             # get the respective cell type probabilities
-            # cp = self.cells.classProb.sel({'cell_id': sn}).data
             cp = self.cells.classProb[sn]
 
             # multiply and sum over cells
-            # term_1 = (expected_spot_counts * cp).sum(axis=1)
             term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
 
             # logger.info('genes.spotNo should be something like spots.geneNo instead!!')
             expectedLog = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
-            # expectedLog = utils.bi2(self.elgamma.data, [nS, nK], sn[:, None], self.spots.data.gene_id.values[:, None])
 
-            term_2 = np.einsum('ij, ij -> i', cp, expectedLog)  # same as np.sum(cp * expectedLog, axis=1) but bit faster
+            term_2 = np.einsum('ij, ij -> i', cp, expectedLog)
             aSpotCell[:, n] = term_1 + term_2
         wSpotCell = aSpotCell + self.spots.loglik(self.cells, self.config)
 
@@ -202,7 +208,7 @@ class VarBayes:
             'The sum of the background spots and the total gene counts should be equal to the number of spots'
 
         classProb = self.cells.classProb
-        mu = self.single_cell.mean_expression + self.config['SpotReg']
+        mu = self.single_cell.mean_expression
         area_factor = self.cells.cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar
 
@@ -220,7 +226,7 @@ class VarBayes:
                                        gamma_bar[:, :, :-1])
         background_counts = self.cells.background_counts
         numer = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
-        denom = self.config['rGene'] + class_total_counts
+        denom = self.config['rGene']/self.config['Inefficiency'] + class_total_counts
         res = numer / denom
 
         # Finally, update gene_gamma
