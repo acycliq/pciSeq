@@ -154,7 +154,6 @@ class VarBayes:
         spot to cell assignment.
         Implements equation (4) of the Qian paper
         """
-        # nN = self.config['nNeighbors'] + 1
         nN = self.nN
         nS = self.spots.data.gene_name.shape[0]
 
@@ -163,24 +162,30 @@ class VarBayes:
         gn = self.spots.data.gene_name.values
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
 
+        ## DN: 22-jun-2022. I think this is missing equation 4, Xiaoyan's paper
+        ## I think we should multiply mu (single cell expression data) by the gene efficiency
+        unames, idx = np.unique(gn, return_inverse=True)
+        assert np.all(unames == self.genes.gene_panel)
+
+        eta = self.genes.eta[idx]
+        expected_counts = np.einsum('sc,s->sc', expected_counts, eta)  # multiply the single cell averages by the gene efficiency
+        ## DN ends
+
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
         for n in range(nN - 1):
             # get the spots' nth-closest cell
             sn = self.spots.parent_cell_id[:, n]
 
             # get the respective cell type probabilities
-            # cp = self.cells.classProb.sel({'cell_id': sn}).data
             cp = self.cells.classProb[sn]
 
             # multiply and sum over cells
-            # term_1 = (expected_spot_counts * cp).sum(axis=1)
             term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
 
             # logger.info('genes.spotNo should be something like spots.geneNo instead!!')
             expectedLog = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
-            # expectedLog = utils.bi2(self.elgamma.data, [nS, nK], sn[:, None], self.spots.data.gene_id.values[:, None])
 
-            term_2 = np.einsum('ij, ij -> i', cp, expectedLog)  # same as np.sum(cp * expectedLog, axis=1) but bit faster
+            term_2 = np.einsum('ij, ij -> i', cp, expectedLog)
             aSpotCell[:, n] = term_1 + term_2
         wSpotCell = aSpotCell + self.spots.loglik(self.cells, self.config)
 
