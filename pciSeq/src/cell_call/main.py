@@ -162,13 +162,13 @@ class VarBayes:
         gn = self.spots.data.gene_name.values
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
 
-        ## DN: 22-jun-2022. I think this is missing equation 4, Xiaoyan's paper
-        ## I think we should multiply mu (single cell expression data) by the gene efficiency
+        ## DN: 22-Jun-2022. I think this is missing from equation 4, Xiaoyan's paper
+        ## I think we should multiply mu (single cell expression averages) by the gene efficiency
         unames, idx = np.unique(gn, return_inverse=True)
         assert np.all(unames == self.genes.gene_panel)
 
         eta = self.genes.eta[idx]
-        expected_counts = np.einsum('sc,s->sc', expected_counts, eta)  # multiply the single cell averages by the gene efficiency
+        expected_counts = np.einsum('sc, s -> sc', expected_counts, eta)  # multiply the single cell averages by the gene efficiency
         ## DN ends
 
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
@@ -229,7 +229,7 @@ class VarBayes:
         denom = self.config['rGene']/self.config['Inefficiency'] + class_total_counts
         res = numer / denom
 
-        # Finally, update gene_gamma
+        # Finally, update gene efficiency
         self.genes.eta = res
 
 
