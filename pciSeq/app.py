@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 import tempfile
+import pickle
 from typing import Tuple
 from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.cell_call.main import VarBayes
@@ -79,11 +80,11 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
     _cells, cellBoundaries, _spots = stage_data(iss_spots, coo)
 
     # 3. cell typing
-    cellData, geneData = cell_type(_cells, _spots, scRNAseq, cfg)
+    cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
 
     # 4. save to filesystem
     if cfg['save_data']:
-        write_data(cellData, geneData, cellBoundaries, path=cfg['output_path'])
+        write_data(cellData, geneData, cellBoundaries, varBayes, path=cfg['output_path'])
 
     logger.info(' Done')
     return cellData, geneData
@@ -94,10 +95,10 @@ def cell_type(_cells, _spots, scRNAseq, ini):
 
     logger.info(' Start cell typing')
     cellData, geneData = varBayes.run()
-    return cellData, geneData
+    return cellData, geneData, varBayes
 
 
-def write_data(cellData, geneData, cellBoundaries, path):
+def write_data(cellData, geneData, cellBoundaries, varBayes, path):
 
     if path[0] == 'default':
         out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq')
@@ -114,6 +115,12 @@ def write_data(cellData, geneData, cellBoundaries, path):
 
     cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
     logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+
+    with open(os.path.join(out_dir, 'pciSeq.pickle'), 'wb') as outf:
+        pickle.dump(varBayes, outf)
+        logger.info(' Saved at %s' % os.path.join(out_dir, 'pciSeq.pickle'))
+
+
 
     # Write to the disk as tsv of 99MB each
     # splitter_mb(cellData, os.path.join(out_dir, 'cellData'), 99)
@@ -161,5 +168,5 @@ if __name__ == "__main__":
 
     # main task
     # _opts = {'max_iter': 10}
-    fit(_iss_spots, _coo, _scRNAseq)
+    fit(_iss_spots, _coo, _scRNAseq, {'save_data': True})
 
