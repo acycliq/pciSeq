@@ -5,7 +5,7 @@ import logging
 logger = logging.getLogger('pciSeq')
 
 
-def attach_to_log(level=logging.DEBUG,
+def attach_to_log(level=logging.INFO,
                   handler=None,
                   loggers=None,
                   colors=True,
