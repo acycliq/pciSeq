@@ -357,7 +357,7 @@ class SingleCell(object):
         scdata = scdata.assign(total=scdata.sum(axis=1))
 
         # 2. rank by gene label and total gene count and keep the one with the highest total
-        scdata = scdata.sort_values([0, 'total'], ascending=[True, False]).groupby(0).head(1)
+        scdata = scdata.sort_values(['gene_name', 'total'], ascending=[True, False]).groupby('gene_name').head(1)
 
         # 3. Drop the total column and return
         return scdata.drop(['total'], axis=1)
@@ -373,11 +373,11 @@ class SingleCell(object):
         logger.info(' Single cell data: Keeping counts for the gene panel of %d only' % len(genes))
         df = scdata.loc[genes]
 
-        # remove any rows with the same gene label
-        df = self._keep_labels_unique(df)
-
         # set the axes labels
         df = self._set_axes(df)
+
+        # remove any rows with the same gene label
+        df = self._keep_labels_unique(df)
 
         df = self._remove_zero_cols(df.copy())
         dfT = df.T
