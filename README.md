@@ -3,6 +3,7 @@ A Python package that implements the cell calling algorithm as described in [[Qi
 <p align="center">
     <img src="viewer/assets/screencast_resized.gif" alt="screenshot"/>
 </p>
+
 ## Installation
 ```
 pip install pciSeq
