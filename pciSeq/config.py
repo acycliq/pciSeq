@@ -59,5 +59,7 @@ DEFAULT = {
     # your machine. Changing the datatype to a float16 or float32 will help keeping RAM usage to a lower
     # level
     'dtype': np.float64,
+
+    'is_3D': False,
 }
 

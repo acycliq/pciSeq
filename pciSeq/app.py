@@ -75,14 +75,17 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
     # 1. get the hyperparameters
     cfg = init(opts)
 
-    # 2. prepare the data
-    logger.info(' Preprocessing data')
-    _cells, cellBoundaries, _spots = stage_data(iss_spots, coo)
+    # 2. validate inputs
+    iss_spots, coo, cfg = validate(iss_spots, coo, scRNAseq, cfg)
 
-    # 3. cell typing
+    # 3. prepare the data
+    logger.info(' Preprocessing data')
+    _cells, cellBoundaries, _spots = stage_data(iss_spots, coo, cfg)
+
+    # 4. cell typing
     cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
 
-    # 4. save to filesystem
+    # 5. save to filesystem
     if cfg['save_data']:
         write_data(cellData, geneData, cellBoundaries, varBayes, path=cfg['output_path'])
 
@@ -150,6 +153,34 @@ def init(opts):
             cfg[item[0]] = val
             logger.info(' %s is set to %s' % (item[0], cfg[item[0]]))
     return cfg
+
+
+def validate(spots, coo, sc, cfg):
+
+    # check if z_stack column is missing
+    if 'z_stack' not in spots.columns or not cfg['is_3D']:
+        spots = spots.assign(z_stack=np.zeros(spots.shape[0]))
+
+    assert isinstance(spots, pd.DataFrame) and set(spots.columns) == set(['Gene', 'x', 'y', 'z_stack']), \
+        "Spots should be passed-in to the fit() method as a dataframe with columnns ['Gene', 'x', 'y']"
+
+    if isinstance(coo, coo_matrix):
+        coo = [coo]
+    assert np.all([isinstance(d, coo_matrix) for d in coo]) and isinstance(coo, list), \
+        "The label image should be passed in as a coo_matrix (if you run pciSed in 2D) or as a list of coo_matrices"
+
+    assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
+
+    if 'ppm' not in cfg:
+        cfg['ppm'] = 1.0
+
+    if 'z_stack_min' not in cfg:
+        cfg['z_stack_min'] = 0
+
+    if 'z_stack_max' not in cfg:
+        cfg['z_stack_max'] = len(coo) - 1
+
+    return spots, coo, cfg
 
 
 if __name__ == "__main__":
