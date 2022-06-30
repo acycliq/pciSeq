@@ -60,6 +60,14 @@ DEFAULT = {
     # level
     'dtype': np.float64,
 
-    'is_3D': False,
+    'is_3D': True,
+
+    # pixels per micron
+    'ppm': 6.0121,
+
+    # if these are not None then the data (spots, and zstack) will be truncated between 'z_stack_min'
+    # and 'z_stack_max'
+    'z_stack_min': None,
+    'z_stack_max': None,
 }
 

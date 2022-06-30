@@ -188,16 +188,30 @@ if __name__ == "__main__":
     # set up the logger
     attach_to_log()
 
-    # read some demo data
-    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'))
-    _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'))
+    # read 2D some demo data
+    # _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'))
+    # _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'))
 
     _scRNAseq = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),
                             header=None, index_col=0, compression='gzip', dtype=object)
     _scRNAseq = _scRNAseq.rename(columns=_scRNAseq.iloc[0], copy=False).iloc[1:]
     _scRNAseq = _scRNAseq.astype(float).astype(np.uint32)
 
+    # read 3D some demo data
+    _iss_spots = pd.read_csv(r"E:\data\Anne\220308 50umCF seq atto425 DY520XL MS002\spots_yxz.csv")
+    _iss_spots = _iss_spots.assign(z_stack=_iss_spots.z)
+    _iss_spots = _iss_spots[['y', 'x', 'z_stack', 'Gene']]
+    # _iss_spots = _iss_spots.assign(z=_iss_spots.z_stack * config.DEFAULT['ppm'])
+    _coo = np.load(r"E:\data\Anne\220308 50umCF seq atto425 DY520XL MS002\masks_2D_stiched_fullsize.npz",  allow_pickle=True)['arr_0']
+    _coo = [coo_matrix(d) for d in _coo]
+
     # main task
     # _opts = {'max_iter': 10}
-    fit(_iss_spots, _coo, _scRNAseq, {'save_data': True})
+    opts={'save_data': True,
+          'Inefficiency': 0.0001,
+          'z_stack_min': 20,
+          'z_stack_max': 33
+          }
+
+    fit(_iss_spots, _coo, _scRNAseq, opts=opts)
 
