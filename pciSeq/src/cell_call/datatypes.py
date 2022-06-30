@@ -21,8 +21,8 @@ class Cells(object):
 
     # -------- PROPERTIES -------- #
     @property
-    def yx_coords(self):
-        coords = [d for d in zip(self.cell_props['y'], self.cell_props['x']) if not np.isnan(d).any()]
+    def zyx_coords(self):
+        coords = [d for d in zip(self.cell_props['z'], self.cell_props['y'], self.cell_props['x']) if not np.isnan(d).any()]
         return np.array(coords)
 
     @property
@@ -60,7 +60,7 @@ class Cells(object):
     def nn(self):
         n = self.config['nNeighbors'] + 1
         # for each spot find the closest cell (in fact the top nN-closest cells...)
-        nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(self.yx_coords)
+        nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(self.zyx_coords)
         return nbrs
 
     # def geneCountsPerKlass(self, single_cell_data, egamma, ini):
@@ -90,13 +90,17 @@ class Cells(object):
         CellAreaFactor = nom / denom
 
         out = {}
-        out['area_factor'] = CellAreaFactor
+        if cfg['is_3D']:
+            out['area_factor'] = np.ones(CellAreaFactor.shape[0])
+        else:
+            out['area_factor'] = CellAreaFactor
         # out['area_factor'] = np.ones(CellAreaFactor.shape)
         # logger.info('Overriden CellAreaFactor = 1')
         out['rel_radius'] = relCellRadius
         out['area'] = np.append(np.nan, img_obj.area)
         out['x'] = np.append(-sys.maxsize, img_obj.x.values)
         out['y'] = np.append(-sys.maxsize, img_obj.y.values)
+        out['z'] = np.append(-sys.maxsize, img_obj.z.values)
         out['cell_label'] = np.append(0, img_obj.label.values)
         # First cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
         # and will be used to get all the misreads. It was given the label=0 and some very small
@@ -179,7 +183,7 @@ class Spots(object):
         # No need for x_global, y_global to be in the spots_df at first place.
         # Instead of renaming here, you could just use 'x' and 'y' when you
         # created the spots_df
-        spots_df = spots_df.rename(columns={'x_global': 'x', 'y_global': 'y'})
+        spots_df = spots_df.rename(columns={'x_global': 'x', 'y_global': 'y', 'z_global': 'z'})
 
         # remove a gene if it is on the exclude list
         exclude_genes = self.config['exclude_genes']
@@ -188,15 +192,18 @@ class Spots(object):
         return spots_df.rename_axis('spot_id').rename(columns={'target': 'gene_name'})
 
     def cells_nearby(self, cells: Cells) -> np.array:
-        spotYX = self.data[['y', 'x']].values
+        spotZYX = self.data[['z', 'y', 'x']]
 
         # for each spot find the closest cell (in fact the top nN-closest cells...)
         nbrs = cells.nn()
-        self.Dist, neighbors = nbrs.kneighbors(spotYX)
+        self.Dist, neighbors = nbrs.kneighbors(spotZYX.values)
 
         # last column is for misreads.
         neighbors[:, -1] = 0
-        return neighbors
+
+        cellProb = np.zeros(neighbors.shape, dtype=np.uint32)
+        cellProb[:, 0] = np.ones(neighbors.shape[0])
+        return neighbors, cellProb
 
     def ini_cellProb(self, neighbors, cfg):
         nS = self.data.shape[0]
