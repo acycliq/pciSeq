@@ -1,6 +1,7 @@
 import sys
 import numpy as np
 import pandas as pd
+import numpy_groupies as npg
 import scipy
 import numexpr as ne
 from sklearn.neighbors import NearestNeighbors
@@ -15,9 +16,15 @@ class Cells(object):
         self.nC = len(self.cell_props['cell_label'])
         self.classProb = None
         self.class_names = None
+        self._prior = None
         self._cov = self.ini_cov()
+        self.nu_0 = 30  # need to move that into config.py. Degrees of freedom of the Wishart prior. Use the mean gene counts per cell to set nu_0
+        self.rho_1 = self.config['rho_1']    # need to move that into config.py
+        self.rho_2 = self.config['rho_2']   # need to move that into config.py
+        self._centroid = self.ini_centroids()
         self._gene_counts = None
         self._background_counts = None
+        self._alpha = None
 
     # -------- PROPERTIES -------- #
     @property
@@ -48,10 +55,74 @@ class Cells(object):
         # tc = self.geneCount.sum(axis=1)
         return self.geneCount.sum(axis=1)
 
+    @property
+    def alpha(self):
+        return self._alpha
+
+    @alpha.setter
+    def alpha(self, val):
+        self._alpha = val
+
+    @property
+    def centroid(self):
+        # lst = list(zip(*[self._centroid['x'], self._centroid['y']]))
+        return self._centroid.copy()
+
+    @centroid.setter
+    def centroid(self, df):
+        assert isinstance(df, pd.DataFrame), 'Input should be a dataframe'
+        assert set(df.columns.values) == {'x', 'y', 'z'}, 'Dataframe columns should be ''x'', ''y'' and ''z'' '
+        self._centroid = df.copy()
+
+    @property
+    def cov(self):
+        return self._cov
+
+    @cov.setter
+    def cov(self, val):
+        self._cov = val
+
+    @property
+    def sigma_x(self):
+        return np.sqrt(self.cov[:, 0, 0])
+
+    @property
+    def sigma_y(self):
+        return np.sqrt(self.cov[:, 1, 1])
+
+    @property
+    def corr(self):
+        sigma_x = np.sqrt(self.cov[:, 0, 0])
+        sigma_y = np.sqrt(self.cov[:, 1, 1])
+        cov_xy = self.cov[:, 0, 1]
+        rho = cov_xy / (sigma_x * sigma_y)
+        return rho
+
+    @property
+    def ellipsoid_attributes(self):
+        """
+        convenience property that returns a list with
+        the ellipoid's centroid, correlation and standard
+        deviation across the x-axis and y-axis
+        """
+        mu = self.centroid.values.tolist()
+        sigma_x = self.sigma_x.tolist()
+        sigma_y = self.sigma_y.tolist()
+        rho = self.corr.tolist()
+        return list(zip(mu, rho, sigma_x, sigma_y))
+
     # -------- METHODS -------- #
+    def ini_centroids(self):
+        d = {'x': self.cell_props['x'],
+             'y': self.cell_props['y'],
+             'z': self.cell_props['z'],
+             }
+        df = pd.DataFrame(d)
+        return df.copy()
+
     def ini_cov(self):
-        mcr = self.dapi_mean_cell_radius()
-        cov = mcr * mcr * np.eye(2, 2)
+        dim = 3
+        cov = self.mcr * self.mcr * np.eye(dim, dim)
         return np.tile(cov, (self.nC, 1, 1))
 
     def dapi_mean_cell_radius(self):
@@ -77,6 +148,60 @@ class Cells(object):
     #     labels = ClassTotPredicted.columns.values[~isZero]
     #     TotPredicted = ClassTotPredicted[labels].sum(axis=1)
     #     return TotPredicted
+
+    def scatter_matrix(self, spots):
+        mu_bar = self.centroid.values
+        prob = spots.parent_cell_prob[:, :-1]
+        id = spots.parent_cell_id[:, :-1]
+        xyz_spots = spots.xyz_coords
+        out = self.ini_cov() * self.nu_0
+
+        mu_x = mu_bar[id, 0]  # array of size [nS, N] with the x-coord of the centroid of the N closest cells
+        mu_y = mu_bar[id, 1]  # array of size [nS, N] with the y-coord of the centroid of the N closest cells
+        mu_z = mu_bar[id, 2]  # array of size [nS, N] with the z-coord of the centroid of the N closest cells
+
+        N = mu_x.shape[1]
+        _x = np.tile(xyz_spots[:, 0], (N, 1)).T  # array of size [nS, N] populated with the x-coord of the spot
+        _y = np.tile(xyz_spots[:, 1], (N, 1)).T  # array of size [nS, N] populated with the y-coord of the spot
+        _z = np.tile(xyz_spots[:, 2], (N, 1)).T  # array of size [nS, N] populated with the z-coord of the spot
+
+        x_centered = _x - mu_x  # subtract the cell centroid x-coord from the spot x-coord
+        y_centered = _y - mu_y  # subtract the cell centroid y-coord from the spot y-coord
+        z_centered = _z - mu_z  # subtract the cell centroid y-coord from the spot z-coord
+
+        el_00 = prob * x_centered * x_centered  # contribution to the scatter matrix's [0, 0] element
+        el_11 = prob * y_centered * y_centered  # contribution to the scatter matrix's off-diagonal element
+        el_22 = prob * z_centered * z_centered  # contribution to the scatter matrix's off-diagonal element
+
+        el_01 = prob * x_centered * y_centered  # contribution to the scatter matrix's [1, 1] element
+        el_02 = prob * x_centered * z_centered  # contribution to the scatter matrix's [1, 1] element
+        el_12 = prob * y_centered * z_centered  # contribution to the scatter matrix's [1, 1] element
+
+        # Aggregate all contributions to get the scatter matrix
+        agg_00 = npg.aggregate(id.ravel(), el_00.ravel(), size=self.nC)
+        agg_11 = npg.aggregate(id.ravel(), el_11.ravel(), size=self.nC)
+        agg_22 = npg.aggregate(id.ravel(), el_22.ravel(), size=self.nC)
+
+        agg_01 = npg.aggregate(id.ravel(), el_01.ravel(), size=self.nC)
+        agg_02 = npg.aggregate(id.ravel(), el_02.ravel(), size=self.nC)
+        agg_12 = npg.aggregate(id.ravel(), el_12.ravel(), size=self.nC)
+
+        # Return now the scatter matrix. Some cell might not have any spots nearby. For those empty cells,
+        # the scatter matrix will be a squared zero array. That is fine.
+        out[:, 0, 0] = agg_00
+        out[:, 1, 1] = agg_11
+        out[:, 2, 2] = agg_22
+
+        out[:, 0, 1] = agg_01
+        out[:, 0, 2] = agg_02
+        out[:, 1, 2] = agg_12
+
+        out[:, 1, 0] = agg_01
+        out[:, 2, 0] = agg_02
+        out[:, 2, 1] = agg_12
+
+        return out
+
 
     def read_image_objects(self, img_obj, cfg):
         meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
@@ -157,8 +282,8 @@ class Spots(object):
         self._log_gamma_bar = val
 
     @property
-    def xy_coords(self):
-        lst = list(zip(*[self.data.x, self.data.y]))
+    def xyz_coords(self):
+        lst = list(zip(*[self.data.x, self.data.y, self.data.z]))
         return np.array(lst)
 
     @property
@@ -237,6 +362,45 @@ class Spots(object):
         mask = np.greater(self.data.label, 0, where=~np.isnan(self.data.label))
         D[mask, 0] = D[mask, 0] + cfg['InsideCellBonus']
         return D
+
+    def mvn_loglik(self, data, cell_label, cells):
+        centroids = cells.centroid.values[cell_label]
+        covs = cells.cov[cell_label]
+        param = list(zip(*[data, centroids, covs]))
+        # out = [self.loglik_contr(p) for i, p in enumerate(param)]
+        # out_2 = [multivariate_normal.logpdf(p[0], p[1], p[2]) for i, p in enumerate(param)]
+        out = self.multiple_logpdfs(data, centroids, covs)
+        return out
+
+    def multiple_logpdfs(self, x, means, covs):
+        """
+        vectorised mvn log likelihood evaluated at multiple pairs of (centroid_1, cov_1), ..., (centroid_N, cov_N)
+        Taken from http://gregorygundersen.com/blog/2020/12/12/group-multivariate-normal-pdf/
+        """
+        # Thankfully, NumPy broadcasts `eigh`.
+        vals, vecs = np.linalg.eigh(covs)
+
+        # Compute the log determinants across the second axis.
+        logdets = np.sum(np.log(vals), axis=1)
+
+        # Invert the eigenvalues.
+        valsinvs = 1. / vals
+
+        # Add a dimension to `valsinvs` so that NumPy broadcasts appropriately.
+        Us = vecs * np.sqrt(valsinvs)[:, None]
+        devs = x - means
+
+        # Use `einsum` for matrix-vector multiplications across the first dimension.
+        devUs = np.einsum('ni,nij->nj', devs, Us)
+
+        # Compute the Mahalanobis distance by squaring each term and summing.
+        mahas = np.sum(np.square(devUs), axis=1)
+
+        # Compute and broadcast scalar normalizers.
+        dim = len(vals[0])
+        log2pi = np.log(2 * np.pi)
+
+        return -0.5 * (dim * log2pi + mahas + logdets)
 
     def zero_class_counts(self, geneNo, pCellZero):
         """
@@ -400,7 +564,9 @@ class CellType(object):
     def __init__(self, single_cell):
         assert single_cell.classes[-1] == 'Zero', "Last label should be the Zero class"
         self._names = single_cell.classes
-        self._prior = None
+        # self._prior = None
+        self._alpha = None
+        self._pi = np.append(.5 * np.ones(self.nK - 1) / (self.nK - 1), 0.5)
 
     @property
     def names(self):
@@ -412,24 +578,55 @@ class CellType(object):
         return len(self.names)
 
     @property
-    def prior(self):
-        return self._prior
+    def alpha(self):
+        return self._alpha
 
-    @prior.setter
-    def prior(self, val):
-        self._prior = val
+    @alpha.setter
+    def alpha(self, val):
+        self._alpha = val
 
     @property
-    def log_prior(self):
-        return np.log(self.prior)
+    def pi_bar(self):
+        return self.alpha / self.alpha.sum()
+
+    @property
+    def logpi_bar(self):
+        return scipy.special.psi(self.alpha) - scipy.special.psi(self.alpha.sum())
+
+    def size(self, cells):
+        """
+        calcs the size of a cell class, ie how many members (ie cells) each cell type has
+        """
+        return cells.classProb.sum(axis=0)
 
     def ini_prior(self, ini_family):
         if ini_family == 'uniform':
             self.prior = np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
-        else:
-            raise Exception('Method not implemented yet. Please pass "uniform" when you call ini_prior() ')
+        elif ini_family == 'dirichlet':
+            self._dirichlet()
 
 
+
+    def _rnd_dirichlet(self, nC):
+        """
+        generates a sample from the dirichlet distribution
+        """
+        np.random.seed(2021)
+        K = self.nK-1
+        rd = np.random.dirichlet([nC / K] * K)
+        return rd
+
+    def _dirichlet(self):
+        """
+        sets the initial dirichlet prior
+        """
+        assert self.names[-1] == 'Zero', 'Last class should be the Zero class'
+        self._alpha = self.ini_alpha()
+        u = np.ones(self.nK - 1)
+        self._pi = np.append(.5 * np.ones(len(u)) / len(u), 0.5)
+
+    def ini_alpha(self):
+        return np.append(np.ones(self.nK - 1), sum(np.ones(self.nK - 1)))
 
 
 

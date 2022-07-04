@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import numpy_groupies as npg
 from pciSeq.src.cell_call.datatypes import Cells, Spots, Genes, SingleCell, CellType
 from pciSeq.src.cell_call.summary import collect_data
@@ -23,12 +24,17 @@ class VarBayes:
                                                         # misread spots. (ie cell at position nN is the background)
 
     def initialise(self):
-        self.cellTypes.ini_prior('uniform')
-        self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
+        if self.config['is_3D']:
+            self.cellTypes.ini_prior('dirichlet')
+            self.cells.classProb = np.tile(self.cellTypes.pi_bar, (self.nC, 1))
+        else:
+            self.cellTypes.ini_prior('uniform')
+            self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
         self.genes.eta = np.ones(self.nG) * self.config['Inefficiency']
         self.spots.parent_cell_id, self.spots.parent_cell_prob = self.spots.cells_nearby(self.cells)
-        self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
+        # self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
+        self.cellTypes.alpha = self.cellTypes.ini_alpha()
 
     # -------------------------------------------------------------------- #
     def run(self):
@@ -46,11 +52,21 @@ class VarBayes:
             # 2. calc expected gamma
             self.gamma_upd()
 
+            if self.config['is_3D']:
+                self.gaussian_upd()
+
             # 3. assign cells to cell types
             self.cell_to_cellType()
 
+            # update cell type weights
+            if self.config['is_3D']:
+                self.dalpha_upd()
+
             # 4. assign spots to cells
-            self.spots_to_cell()
+            if self.config['is_3D']:
+                self.spots_to_cell_3D()
+            else:
+                self.spots_to_cell_2D()
 
             # 5. update gene efficiency
             self.eta_upd()
@@ -138,7 +154,10 @@ class VarBayes:
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
-        wCellClass = np.sum(contr, axis=1) + self.cellTypes.log_prior
+        if self.config['is_3D']:
+            wCellClass = np.sum(contr, axis=1) + self.cellTypes.logpi_bar
+        else:
+            wCellClass = np.sum(contr, axis=1) + np.log(self.cellTypes.prior)
         pCellClass = utils.softmax(wCellClass, axis=1)
 
         ## self.cells.classProb = pCellClass
@@ -149,7 +168,7 @@ class VarBayes:
         # return pCellClass
 
     # -------------------------------------------------------------------- #
-    def spots_to_cell(self):
+    def spots_to_cell_2D(self):
         """
         spot to cell assignment.
         Implements equation (4) of the Qian paper
@@ -198,6 +217,56 @@ class VarBayes:
         # logger.info('spot ---> cell probabilities updated')
 
     # -------------------------------------------------------------------- #
+    def spots_to_cell_3D(self):
+        """
+        spot to cell assignment.
+        Implements equation (4) of the Qian paper
+        """
+        # nN = self.config['nNeighbors'] + 1
+        nN = self.nN
+        nS = self.spots.data.gene_name.shape[0]
+
+        # initialise array with the misread density
+        aSpotCell = np.zeros([nS, nN]) + np.log(self.config['MisreadDensity'])
+        gn = self.spots.data.gene_name.values
+        expected_counts = self.single_cell.log_mean_expression.loc[gn].values
+
+        # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
+        for n in range(nN - 1):
+            # get the spots' nth-closest cell
+            sn = self.spots.parent_cell_id[:, n]
+
+            # get the respective cell type probabilities
+            # cp = self.cells.classProb.sel({'cell_id': sn}).data
+            cp = self.cells.classProb[sn]
+
+            # multiply and sum over cells
+            # term_1 = (expected_spot_counts * cp).sum(axis=1)
+            term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
+
+            # logger.info('genes.spotNo should be something like spots.geneNo instead!!')
+            expectedLog = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
+            # expectedLog = utils.bi2(self.elgamma.data, [nS, nK], sn[:, None], self.spots.data.gene_id.values[:, None])
+
+            term_2 = np.einsum('ij, ij -> i', cp,
+                               expectedLog)  # same as np.sum(cp * expectedLog, axis=1) but bit faster
+
+            loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells)
+            aSpotCell[:, n] = term_1 + term_2 + loglik
+            # logger.info('')
+        wSpotCell = aSpotCell  # + self.spots.loglik(self.cells, self.config)
+
+        # update the prob a spot belongs to a neighboring cell
+        pSpotNeighb = utils.softmax(wSpotCell, axis=1)
+        self.spots.parent_cell_prob = pSpotNeighb
+        # Since the spot-to-cell assignments changed you need to update the gene counts now
+        self.geneCount_upd()
+        assert np.isfinite(wSpotCell).all(), "wSpotCell array contains non numeric values"
+        logger.info(' Spot to cell loglikelihood: %f' % wSpotCell.sum())
+        # self.spots.update_cell_prob(pSpotNeighb, self.cells)
+        # logger.info('spot ---> cell probabilities updated')
+
+    # -------------------------------------------------------------------- #
     def eta_upd(self):
         """
         Calcs the expected eta
@@ -231,6 +300,120 @@ class VarBayes:
 
         # Finally, update gene efficiency
         self.genes.eta = res
+
+    # -------------------------------------------------------------------- #
+    def gaussian_upd(self):
+        self.centroid_upd()
+        self.cov_upd()
+
+    # -------------------------------------------------------------------- #
+    def centroid_upd(self):
+        spots = self.spots
+
+        # get the total gene counts per cell
+        N_c = self.cells.total_counts
+
+        xyz_spots = spots.xyz_coords
+        prob = spots.parent_cell_prob
+        n = self.cells.config['nNeighbors'] + 1
+
+        # mulitply the x coord of the spots by the cell prob
+        a = np.tile(xyz_spots[:, 0], (n, 1)).T * prob
+
+        # mulitply the y coord of the spots by the cell prob
+        b = np.tile(xyz_spots[:, 1], (n, 1)).T * prob
+
+        # mulitply the z coord of the spots by the cell prob
+        c = np.tile(xyz_spots[:, 2], (n, 1)).T * prob
+
+        # aggregated x and y coordinate
+        idx = spots.parent_cell_id
+        x_agg = npg.aggregate(idx.ravel(), a.ravel(), size=len(N_c))
+        y_agg = npg.aggregate(idx.ravel(), b.ravel(), size=len(N_c))
+        z_agg = npg.aggregate(idx.ravel(), c.ravel(), size=len(N_c))
+
+        # x_agg = np.zeros(N_c.shape)
+        # mask = np.arange(len(_x_agg))
+        # x_agg[mask] = _x_agg
+        #
+        # y_agg = np.zeros(N_c.shape)
+        # mask = np.arange(len(_y_agg))
+        # y_agg[mask] = _y_agg
+
+        # get the estimated cell centers
+        x_bar = np.nan * np.ones(N_c.shape)
+        y_bar = np.nan * np.ones(N_c.shape)
+        z_bar = np.nan * np.ones(N_c.shape)
+
+        x_bar[N_c > 0] = x_agg[N_c > 0] / N_c[N_c > 0]
+        y_bar[N_c > 0] = y_agg[N_c > 0] / N_c[N_c > 0]
+        z_bar[N_c > 0] = z_agg[N_c > 0] / N_c[N_c > 0]
+
+        # cells with N_c = 0 will end up with x_bar = y_bar = np.nan
+        xyz_bar_fitted = np.array(list(zip(x_bar.T, y_bar.T, z_bar.T)))
+
+        # if you have a value for the estimated centroid use that, otherwise
+        # use the initial (starting values) centroids
+        ini_cent = self.cells.ini_centroids()
+        xyz_bar = np.array(tuple(zip(*[ini_cent['x'], ini_cent['y'], ini_cent['z']])))
+
+        # # sanity check. NaNs or Infs should appear together
+        # assert np.all(np.isfinite(x_bar) == np.isfinite(y_bar))
+        # use the fitted centroids where possible otherwise use the initial ones
+        xyz_bar[np.isfinite(x_bar)] = xyz_bar_fitted[np.isfinite(x_bar)]
+        self.cells.centroid = pd.DataFrame(xyz_bar, columns=['x', 'y', 'z'])
+        # print(np.array(list(zip(x_bar.T, y_bar.T))))
+
+    # -------------------------------------------------------------------- #
+    def cov_upd(self):
+        spots = self.spots
+
+        # first get the scatter matrix
+        S = self.cells.scatter_matrix(spots)  # sample sum of squares
+        cov_0 = self.cells.ini_cov()
+        nu_0 = self.cells.nu_0
+        S_0 = cov_0 * nu_0  # prior sum of squarea
+        N_c = self.cells.total_counts
+        d = 2
+        denom = np.ones([self.nC, 1, 1])
+        denom[:, 0, 0] = N_c + nu_0
+        # Note: need to add code to handle the case N_c + nu_0 <= d + 2
+        cov = (S + S_0) / denom
+
+        # delta = self.cells.ledoit_wolf(self.spots, cov)
+        # stein = self.cells.stein(cov)
+        # delta = self.cells.rblw(cov)
+
+        delta = 0.5
+        # logger.info('Mean shrinkage %4.2f' % delta.mean())
+        # logger.info('cell 601 shrinkage %4.2f, %4.2f' % (shrinkage[601], sh[601]))
+        #  logger.info('cell 601 gene counts %d' % self.cells.total_counts[601])
+        # logger.info('cell 605 shrinkage %4.2f, %4.2f' % (shrinkage[605], sh[605]))
+        #  logger.info('cell 605 gene counts %d' % self.cells.total_counts[605])
+        # logger.info('cell 610 shrinkage %4.2f, %4.2f' % (shrinkage[610], sh[610]))
+        #  logger.info('cell 610 gene counts %d' % self.cells.total_counts[610])
+
+        # delta = delta.reshape(self.nC, 1, 1)
+        # target = [np.trace(d)/2 * np.eye(2) for d in cov]  # shrinkage target
+        cov = delta * cov_0 + (1 - delta) * cov
+        # cov = delta * target + (1 - delta) * cov
+        self.cells.cov = cov
+
+# -------------------------------------------------------------------- #
+    def dalpha_upd(self):
+        # logger.info('Update cell type (marginal) distribution')
+        zeta = self.cells.classProb.sum(axis=0) # this the class size
+        alpha = self.cellTypes.ini_alpha()
+        out = zeta + alpha
+
+        # logger.info("***************************************************")
+        # logger.info("**** Dirichlet alpha is zero if class size <=%d ****" % self.config['min_class_size'])
+        # logger.info("***************************************************")
+        mask = zeta <= self.config['min_class_size']
+        out[mask] = 10e-6
+        self.cellTypes.alpha = out
+
+
 
 
 

@@ -27,7 +27,8 @@ DEFAULT = {
 
     # To account for spots far from the some a uniform distribution is introduced to describe those misreads.
     # By default this uniform distribution has a density of 1e-5 misreads per pixel.
-    'MisreadDensity': 0.00001,
+    # 'MisreadDensity': 0.00001,  # use this for 2d
+    'MisreadDensity': 1e-06,    # use that for 3d
 
     # Gene detection might come with irregularities due to technical errors. A small value is introduced
     # here to account for these errors. It is an additive factor, applied to the single cell expression
@@ -69,5 +70,14 @@ DEFAULT = {
     # and 'z_stack_max'
     'z_stack_min': None,
     'z_stack_max': None,
+
+    # Hyperparameters for the gamma-distributed alpha variate
+    'rho_1': 100,
+    'rho_2': 100,
+
+    # used by the Dirichlet distribution. If a class size is smaller than 'min_class_size' then it will be
+    # assigned a weight of almost zero
+    'min_class_size': 5,
+
 }
 
