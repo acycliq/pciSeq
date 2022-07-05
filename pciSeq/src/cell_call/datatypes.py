@@ -326,6 +326,7 @@ class Spots(object):
         # last column is for misreads.
         neighbors[:, -1] = 0
 
+        # make an array assigning 100% prob of any given cell belonging to its closest neighbour
         cellProb = np.zeros(neighbors.shape, dtype=np.uint32)
         cellProb[:, 0] = np.ones(neighbors.shape[0])
         return neighbors, cellProb
