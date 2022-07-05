@@ -174,11 +174,11 @@ class VarBayes:
         Implements equation (4) of the Qian paper
         """
         nN = self.nN
-        nS = self.spots.data.gene_name.shape[0]
+        nS = self.spots.data.Gene.shape[0]
 
         # initialise array with the misread density
         aSpotCell = np.zeros([nS, nN])
-        gn = self.spots.data.gene_name.values
+        gn = self.spots.data.Gene.values
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
 
         ## DN: 22-Jun-2022. I think this is missing from equation 4, Xiaoyan's paper
@@ -224,11 +224,11 @@ class VarBayes:
         """
         # nN = self.config['nNeighbors'] + 1
         nN = self.nN
-        nS = self.spots.data.gene_name.shape[0]
+        nS = self.spots.data.Gene.shape[0]
 
         # initialise array with the misread density
         aSpotCell = np.zeros([nS, nN]) + np.log(self.config['MisreadDensity'])
-        gn = self.spots.data.gene_name.values
+        gn = self.spots.data.Gene.values
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
 
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads

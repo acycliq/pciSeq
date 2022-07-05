@@ -61,7 +61,7 @@ def _summary(spots):
     nbrs = [neighbors[i, :].tolist() for i in range(num_rows)]
     max_nbrs = [neighbors[i, idx].tolist() for i in range(num_rows) for idx in [np.argmax(cell_prob[i, :])]]
 
-    out = pd.DataFrame({'Gene': spots.data.gene_name.tolist(),
+    out = pd.DataFrame({'Gene': spots.data.Gene.tolist(),
                         'Gene_id': spots.gene_id.tolist(),
                         'x': spots.data.x.tolist(),
                         'y': spots.data.y.tolist(),

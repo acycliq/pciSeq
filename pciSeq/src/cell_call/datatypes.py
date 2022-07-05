@@ -238,7 +238,7 @@ class Genes(object):
     def __init__(self, spots):
         # self.gamma = np.ones(len(spots.unique_gene_names))
         # self.gamma = None
-        self.gene_panel = np.unique(spots.data.gene_name.values)
+        self.gene_panel = np.unique(spots.data.Gene.values)
         self._eta = None
         self.nG = len(self.gene_panel)
 
@@ -262,7 +262,7 @@ class Spots(object):
         self.unique_gene_names = None
         self._gamma_bar = None
         self._log_gamma_bar = None
-        [_, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True, return_counts=True)
+        [_, self.gene_id, self.counts_per_gene] = np.unique(self.data.Gene.values, return_inverse=True, return_counts=True)
 
     # -------- PROPERTIES -------- #
     @property
@@ -308,13 +308,13 @@ class Spots(object):
         # No need for x_global, y_global to be in the spots_df at first place.
         # Instead of renaming here, you could just use 'x' and 'y' when you
         # created the spots_df
-        spots_df = spots_df.rename(columns={'x_global': 'x', 'y_global': 'y', 'z_global': 'z'})
+        # spots_df = spots_df.rename(columns={'x_global': 'x', 'y_global': 'y', 'z_global': 'z'})
 
         # remove a gene if it is on the exclude list
         exclude_genes = self.config['exclude_genes']
-        gene_mask = [True if d not in exclude_genes else False for d in spots_df.target]
+        gene_mask = [True if d not in exclude_genes else False for d in spots_df.Gene]
         spots_df = spots_df.loc[gene_mask]
-        return spots_df.rename_axis('spot_id').rename(columns={'target': 'gene_name'})
+        return spots_df.rename_axis('spot_id')
 
     def cells_nearby(self, cells: Cells) -> np.array:
         spotZYX = self.data[['z', 'y', 'x']]
