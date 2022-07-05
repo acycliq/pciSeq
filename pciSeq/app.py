@@ -216,6 +216,6 @@ if __name__ == "__main__":
              'nNeighbors': 6,
           }
 
-    fit(_iss_spots_2D, _coo_2D, _scRNAseq, opts=opts_2D)
-    # fit(_iss_spots_3D, _coo_3D, _scRNAseq, opts=opts_3D)
+    # fit(_iss_spots_2D, _coo_2D, _scRNAseq, opts=opts_2D)
+    fit(_iss_spots_3D, _coo_3D, _scRNAseq, opts=opts_3D)
 
