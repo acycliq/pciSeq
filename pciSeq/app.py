@@ -161,7 +161,7 @@ def validate(spots, coo, sc, cfg):
     if 'z_stack' not in spots.columns or not cfg['is_3D']:
         spots = spots.assign(z_stack=np.zeros(spots.shape[0]))
 
-    assert isinstance(spots, pd.DataFrame) and set(spots.columns) == set(['Gene', 'x', 'y', 'z_stack']), \
+    assert isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y', 'z_stack'}, \
         "Spots should be passed-in to the fit() method as a dataframe with columnns ['Gene', 'x', 'y']"
 
     if isinstance(coo, coo_matrix):
@@ -171,14 +171,14 @@ def validate(spots, coo, sc, cfg):
 
     assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
 
-    if 'ppm' not in cfg:
-        cfg['ppm'] = 1.0
+    if 'anisotropy' not in cfg:
+        cfg['anisotropy'] = 1.0
 
-    if 'z_stack_min' not in cfg:
-        cfg['z_stack_min'] = 0
+    if 'from_plane_num' not in cfg:
+        cfg['from_plane_num'] = 0
 
-    if 'z_stack_max' not in cfg:
-        cfg['z_stack_max'] = len(coo) - 1
+    if 'to_plane_num' not in cfg:
+        cfg['to_plane_num'] = len(coo) - 1
 
     return spots, coo, cfg
 
@@ -209,8 +209,8 @@ if __name__ == "__main__":
     opts_2D = {'save_data': True, 'nNeighbors': 3, 'MisreadDensity': 0.00001,'is_3D': False}
     opts_3D={'save_data': True,
              'Inefficiency': 0.0001,
-             'z_stack_min': 20,
-             'z_stack_max': 33,
+             'from_plane_num': 20,
+             'to_plane_num': 33,
              'MisreadDensity': 1e-06,
              'is_3D': True,
              'nNeighbors': 6,

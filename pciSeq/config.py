@@ -64,12 +64,12 @@ DEFAULT = {
     'is_3D': True,
 
     # pixels per micron
-    'ppm': 6.0121,
+    'anisotropy': 6.0121,
 
-    # if these are not None then the data (spots, and zstack) will be truncated between 'z_stack_min'
-    # and 'z_stack_max'
-    'z_stack_min': None,
-    'z_stack_max': None,
+    # if these are not None then the data (spots, and zstack) will be truncated between 'from_plane_num'
+    # and 'to_plane_num'
+    'from_plane_num': None,
+    'to_plane_num': None,
 
     # Hyperparameters for the gamma-distributed alpha variate
     'rho_1': 100,

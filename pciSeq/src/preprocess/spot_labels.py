@@ -144,9 +144,9 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
     centroids and the cell area
     """
     if cfg['is_3D']:
-        z_min = cfg['z_stack_min']
-        z_max = cfg['z_stack_max']
-        spots = spots.assign(z=spots.z_stack * cfg['ppm'])
+        z_min = cfg['from_plane_num']
+        z_max = cfg['to_plane_num']
+        spots = spots.assign(z=spots.z_stack * cfg['anisotropy'])
         spots, coo = truncate_data(spots, coo, z_min, z_max)
         coo = remove_cells(coo)
     else:
@@ -189,7 +189,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
         'centroid-0':  centroid_0.values,
         'y_cell': y_cell.values,
         'x_cell': x_cell.values,
-        'z_cell': centroid_0.values * cfg['ppm'],
+        'z_cell': centroid_0.values * cfg['anisotropy'],
         'area': mean_area_per_slice.values, # mean area per slice
     })
 
