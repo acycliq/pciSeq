@@ -596,12 +596,9 @@ class CellType(object):
 
     @property
     def prior(self):
-        if self.config['is_3D']:
-            return self.pi_bar
-        else:
+        if not self.config['is_3D']:
             assert set(self.pi_bar) == {0.5, 0.5 / (self.nK - 1)}
-            # return np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
-            return self.pi_bar
+        return self.pi_bar
 
     @property
     def log_prior(self):
