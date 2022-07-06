@@ -562,12 +562,12 @@ class SingleCell(object):
 
 # ---------------------------------------- Class: CellType --------------------------------------------------- #
 class CellType(object):
-    def __init__(self, single_cell):
+    def __init__(self, single_cell, config):
         assert single_cell.classes[-1] == 'Zero', "Last label should be the Zero class"
         self._names = single_cell.classes
+        self.config = config
         # self._prior = None
         self._alpha = None
-        self._pi = np.append(.5 * np.ones(self.nK - 1) / (self.nK - 1), 0.5)
 
     @property
     def names(self):
@@ -594,37 +594,31 @@ class CellType(object):
     def logpi_bar(self):
         return scipy.special.psi(self.alpha) - scipy.special.psi(self.alpha.sum())
 
+    @property
+    def prior(self):
+        if self.config['is_3D']:
+            return self.pi_bar
+        else:
+            assert set(self.pi_bar) == {0.5, 0.5 / (self.nK - 1)}
+            # return np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
+            return self.pi_bar
+
+    @property
+    def log_prior(self):
+        if self.config['is_3D']:
+            return self.logpi_bar
+        else:
+            assert set(self.pi_bar) == {0.5, 0.5 / (self.nK - 1)}
+            return np.log(self.prior)
+
     def size(self, cells):
         """
         calcs the size of a cell class, ie how many members (ie cells) each cell type has
         """
         return cells.classProb.sum(axis=0)
 
-    def ini_prior(self, ini_family):
-        if ini_family == 'uniform':
-            self.prior = np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
-        elif ini_family == 'dirichlet':
-            self._dirichlet()
-
-
-
-    def _rnd_dirichlet(self, nC):
-        """
-        generates a sample from the dirichlet distribution
-        """
-        np.random.seed(2021)
-        K = self.nK-1
-        rd = np.random.dirichlet([nC / K] * K)
-        return rd
-
-    def _dirichlet(self):
-        """
-        sets the initial dirichlet prior
-        """
-        assert self.names[-1] == 'Zero', 'Last class should be the Zero class'
-        self._alpha = self.ini_alpha()
-        u = np.ones(self.nK - 1)
-        self._pi = np.append(.5 * np.ones(len(u)) / len(u), 0.5)
+    def ini_prior(self):
+        self.alpha = self.ini_alpha()
 
     def ini_alpha(self):
         return np.append(np.ones(self.nK - 1), sum(np.ones(self.nK - 1)))

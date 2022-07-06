@@ -14,7 +14,7 @@ class VarBayes:
         self.spots = Spots(_spots_df, config)
         self.genes = Genes(self.spots)
         self.single_cell = SingleCell(scRNAseq, self.genes.gene_panel, self.config)
-        self.cellTypes = CellType(self.single_cell)
+        self.cellTypes = CellType(self.single_cell, config)
         self.nC = self.cells.nC                         # number of cells
         self.nG = self.genes.nG                         # number of genes
         self.nK = self.cellTypes.nK                     # number of classes
@@ -24,17 +24,20 @@ class VarBayes:
                                                         # misread spots. (ie cell at position nN is the background)
 
     def initialise(self):
-        if self.config['is_3D']:
-            self.cellTypes.ini_prior('dirichlet')
-            self.cells.classProb = np.tile(self.cellTypes.pi_bar, (self.nC, 1))
-        else:
-            self.cellTypes.ini_prior('uniform')
-            self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
+
+        self.cellTypes.ini_prior()
+        self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
+        # if self.config['is_3D']:
+        #     # self.cellTypes.ini_prior('dirichlet')
+        #     self.cells.classProb = np.tile(self.cellTypes.pi_bar, (self.nC, 1))
+        # else:
+        #     # self.cellTypes.ini_prior('uniform')
+        #     self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
         self.genes.eta = np.ones(self.nG) * self.config['Inefficiency']
         self.spots.parent_cell_id, _ = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)  # assign a spot to a cell if it is within its cell boundaries
         self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
-        self.cellTypes.alpha = self.cellTypes.ini_alpha()
+        # self.cellTypes.alpha = self.cellTypes.ini_alpha()
 
     # -------------------------------------------------------------------- #
     def run(self):
@@ -154,10 +157,11 @@ class VarBayes:
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
-        if self.config['is_3D']:
-            wCellClass = np.sum(contr, axis=1) + self.cellTypes.logpi_bar
-        else:
-            wCellClass = np.sum(contr, axis=1) + np.log(self.cellTypes.prior)
+        wCellClass = np.sum(contr, axis=1) + self.cellTypes.log_prior
+        # if self.config['is_3D']:
+        #     wCellClass = np.sum(contr, axis=1) + self.cellTypes.logpi_bar
+        # else:
+        #     wCellClass = np.sum(contr, axis=1) + np.log(self.cellTypes.prior)
         pCellClass = utils.softmax(wCellClass, axis=1)
 
         ## self.cells.classProb = pCellClass
