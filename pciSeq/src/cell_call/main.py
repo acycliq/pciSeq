@@ -24,20 +24,12 @@ class VarBayes:
                                                         # misread spots. (ie cell at position nN is the background)
 
     def initialise(self):
-
         self.cellTypes.ini_prior()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
-        # if self.config['is_3D']:
-        #     # self.cellTypes.ini_prior('dirichlet')
-        #     self.cells.classProb = np.tile(self.cellTypes.pi_bar, (self.nC, 1))
-        # else:
-        #     # self.cellTypes.ini_prior('uniform')
-        #     self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
         self.genes.eta = np.ones(self.nG) * self.config['Inefficiency']
         self.spots.parent_cell_id, _ = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)  # assign a spot to a cell if it is within its cell boundaries
         self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
-        # self.cellTypes.alpha = self.cellTypes.ini_alpha()
 
     # -------------------------------------------------------------------- #
     def run(self):
@@ -66,10 +58,7 @@ class VarBayes:
                 self.dalpha_upd()
 
             # 4. assign spots to cells
-            if self.config['is_3D']:
-                self.spots_to_cell_3D()
-            else:
-                self.spots_to_cell_2D()
+            self.spots_to_cell()
 
             # 5. update gene efficiency
             self.eta_upd()
@@ -195,6 +184,7 @@ class VarBayes:
         ## DN ends
 
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
+        my_D = np.zeros([nS, nN])
         for n in range(nN - 1):
             # get the spots' nth-closest cell
             sn = self.spots.parent_cell_id[:, n]
@@ -210,6 +200,11 @@ class VarBayes:
 
             term_2 = np.einsum('ij, ij -> i', cp, expectedLog)
             aSpotCell[:, n] = term_1 + term_2
+            # my_D[:, n] = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells)
+            my_covs = self.cells.cov[sn] * np.diag([1,1,1])
+
+            # my_D[:, n] = self.spots.multiple_logpdfs(self.spots.xyz_coords[:, :2],  self.cells.centroid.values[sn][:, :2], my_covs[:,:2,:2])
+            my_D[:, n] = self.spots.multiple_logpdfs(self.spots.xyz_coords,  self.cells.centroid.values[sn], my_covs)
         wSpotCell = aSpotCell + self.spots.loglik(self.cells, self.config)
 
         # update the prob a spot belongs to a neighboring cell
@@ -221,7 +216,7 @@ class VarBayes:
         # logger.info('spot ---> cell probabilities updated')
 
     # -------------------------------------------------------------------- #
-    def spots_to_cell_3D(self):
+    def spots_to_cell(self):
         """
         spot to cell assignment.
         Implements equation (4) of the Qian paper
@@ -230,22 +225,32 @@ class VarBayes:
         nN = self.nN
         nS = self.spots.data.Gene.shape[0]
 
+        misread_density_adj_factor = -1 * np.log(2 * np.pi* self.cells.mcr**2)/2
+        misread_density_adj = np.exp(misread_density_adj_factor) * self.config['MisreadDensity']
         # initialise array with the misread density
-        aSpotCell = np.zeros([nS, nN]) + np.log(self.config['MisreadDensity'])
+        wSpotCell = np.zeros([nS, nN]) + np.log(misread_density_adj)
         gn = self.spots.data.Gene.values
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
 
+        ## DN: 22-Jun-2022. I think this is missing from equation 4, Xiaoyan's paper
+        ## I think we should multiply mu (single cell expression averages) by the gene efficiency
+        unames, idx = np.unique(gn, return_inverse=True)
+        assert np.all(unames == self.genes.gene_panel)
+
+        eta = self.genes.eta[idx]
+        expected_counts = np.einsum('sc, s -> sc', expected_counts, eta)  # multiply the single cell averages by the gene efficiency
+        ## DN ends
+
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
+        my_D = np.zeros([nS, nN])
         for n in range(nN - 1):
             # get the spots' nth-closest cell
             sn = self.spots.parent_cell_id[:, n]
 
             # get the respective cell type probabilities
-            # cp = self.cells.classProb.sel({'cell_id': sn}).data
             cp = self.cells.classProb[sn]
 
             # multiply and sum over cells
-            # term_1 = (expected_spot_counts * cp).sum(axis=1)
             term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
 
             # logger.info('genes.spotNo should be something like spots.geneNo instead!!')
@@ -256,9 +261,8 @@ class VarBayes:
                                expectedLog)  # same as np.sum(cp * expectedLog, axis=1) but bit faster
 
             loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells)
-            aSpotCell[:, n] = term_1 + term_2 + loglik
-            # logger.info('')
-        wSpotCell = aSpotCell  # + self.spots.loglik(self.cells, self.config)
+            my_D[:, n] = loglik
+            wSpotCell[:, n] = term_1 + term_2 + loglik
 
         # update the prob a spot belongs to a neighboring cell
         pSpotNeighb = utils.softmax(wSpotCell, axis=1)
