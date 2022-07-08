@@ -455,7 +455,10 @@ class Spots(object):
 # ----------------------------------------Class: SingleCell--------------------------------------------------- #
 class SingleCell(object):
     def __init__(self, scdata: pd.DataFrame, genes: np.array, config):
-        self.raw_data = self._raw_data(scdata, genes)
+        self.isMissing = None  # Will be set to False is single cell data are assumed known and given as an input
+                               # otherwise, if they are unknown, this will be set to True and the algorithm will
+                               # try to estimate them
+        # self.raw_data = self._raw_data(scdata, genes)
         self.config = config
         self._mean_expression, self._log_mean_expression = self._setup(scdata, genes, self.config)
 
@@ -466,7 +469,18 @@ class SingleCell(object):
         These hyperparameters and some bacic cleaning takes part in the functions
         called herein
         """
-        me, lme = self._helper(self.raw_data.copy())
+        if scdata is None:
+            logger.info('Single Cell data are missing. We will try to estimate it')
+            logger.info('Starting point is a diagonal array')
+            # expr = self._naive(scdata, genes)
+            expr = self._diag(genes)
+            self.isMissing = True
+        else:
+            expr = self._raw_data(scdata, genes)
+            self.isMissing = False
+
+        self.raw_data = expr
+        me, lme = self._helper(expr.copy())
         dtype = self.config['dtype']
 
         assert me.columns[-1] == 'Zero', "Last column should be the Zero class"
@@ -519,6 +533,27 @@ class SingleCell(object):
         lme = np.log(me)  # log mean expression
         return me, lme
 
+    def _gene_expressions(self, fitted, scale):
+        """
+        Finds the expected mean gene counts. The prior *IS NOT* taken
+        into account. We use data evidence only
+        Ffor the zero class only the prior is used *AND NOT* data
+        evidence.
+        """
+        m = self.config['m']
+        a = fitted + m * (self.raw_data + self.config['SpotReg'])
+        b = scale + m
+        me = a / b
+        lme = scipy.special.psi(a) - np.log(b)
+
+        # the expressions for the zero class are a 0.0 plus the regularition param
+        zero_col = np.zeros(me.shape[0]) + self.config['SpotReg']
+        me = me.assign(Zero=zero_col)
+        # For the mean of the log-expressions, again only the prior is used for the Zero class
+        zero_col_2 = scipy.special.psi(m * zero_col) - np.log(m)
+        lme = lme.assign(Zero=zero_col_2)
+        return me, lme
+
     def _keep_labels_unique(self, scdata):
         """
         In the single cell data you might find cases where two or more rows have the same gene label
@@ -558,6 +593,21 @@ class SingleCell(object):
         out = dfT.groupby(dfT.index.values).agg('mean').T
         logger.info(' Grouped single cell data have %d genes and %d cell types' % (out.shape[0], out.shape[1]))
         return out
+
+    def _diag(self, genes):
+        logger.info('******************************************************')
+        logger.info('*************** DIAGONAL SINGLE CELL DATA ***************')
+        logger.info('******************************************************')
+        nG = len(genes)
+        # nK = 71
+        mgc = 15
+        arr = mgc * np.eye(nG)
+        # labels = ["label_" + str(d) for d in range(arr.shape[1])]
+        labels = [s + '_class' for s in genes]
+        df = pd.DataFrame(arr).set_index(genes)
+        df.columns = labels
+
+        return df
 
 
 # ---------------------------------------- Class: CellType --------------------------------------------------- #

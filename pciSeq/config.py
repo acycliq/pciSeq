@@ -75,6 +75,10 @@ DEFAULT = {
     'rho_1': 100,
     'rho_2': 100,
 
+    # the prior on mean expression follows a Gamma(m * M , m), where M is the starting point (the initial
+    # array) of single cell data
+    'm': 1,
+
     # used by the Dirichlet distribution. If a class size is smaller than 'min_class_size' then it will be
     # assigned a weight of almost zero
     'min_class_size': 5,
