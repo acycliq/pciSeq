@@ -1,6 +1,8 @@
 import sys
 import numpy as np
 import pandas as pd
+import sqlite3
+import datetime
 import numpy_groupies as npg
 import scipy
 import numexpr as ne
@@ -202,7 +204,6 @@ class Cells(object):
 
         return out
 
-
     def read_image_objects(self, img_obj, cfg):
         meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
         relCellRadius = np.sqrt(img_obj.area / np.pi) / meanCellRadius
@@ -233,6 +234,57 @@ class Cells(object):
 
         return out, meanCellRadius
 
+
+    # def export(self, iter, con):
+    #     if iter == 0:
+    #         self.export_cell_props(iter, con)
+    #     df = pd.DataFrame(data=self.geneCount, index=np.arange(self.geneCount.shape[0]),
+    #                  columns=self.class_names)
+    #     df.index.name = 'cell_label'
+    #     df['utc'] = datetime.datetime.utcnow()
+    #     df.to_sql(name='geneCount', con=con, if_exists='append')
+
+
+    # def export_cell_props(self, iter, con):
+        # with con:
+        #     con.execute("""
+        #         CREATE TABLE USER (
+        #             id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        #             name TEXT,
+        #             age INTEGER
+        #         );
+        #     """)
+        #
+        # sql = 'INSERT INTO USER_2 (id, name, age) values(?, ?, ?)'
+        # data = [
+        #     (1, 'Alice', 21),
+        #     (2, 'Bob', 22),
+        #     (3, 'Chris', 23)
+        # ]
+        # with con:
+        #     try:
+        #         con.executemany(sql, data)
+        #     except sqlite3.OperationalError:
+        #         with con:
+        #             con.execute("""
+        #                 CREATE TABLE USER_2 (
+        #                     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        #                     name TEXT,
+        #                     age INTEGER
+        #                 );
+        #             """)
+        #         con.executemany(sql, data)
+
+
+        # df = pd.DataFrame(self.cell_props)
+        # # df['iteration'] = iter
+        # df['utc'] = datetime.datetime.utcnow()
+        # df.to_sql(name='cell_props_2', con=con, if_exists='append')
+        # print('ok')
+    def export_class_prob(self, conn, iter_num, has_converged):
+        pass
+
+
 # ----------------------------------------Class: Genes--------------------------------------------------- #
 class Genes(object):
     def __init__(self, spots):
@@ -249,6 +301,20 @@ class Genes(object):
     @eta.setter
     def eta(self, val):
         self._eta = val
+
+    def db_save(self, con, run, converged):
+        self.db_gene_efficiency(con, run, converged)
+
+    def db_gene_efficiency(self, con, run, converged):
+        df = pd.DataFrame(data=self.eta, index=self.gene_panel, columns=['gene_efficiency'])
+        df.index.name = 'gene'
+        df['iteration'] = run
+        df['has_converged'] = converged
+        df['utc'] = datetime.datetime.utcnow()
+        df = df.reset_index()
+        df.to_sql(name='gene_efficiency', con=con, if_exists='append', index=False)
+        con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_gene_iteration ON gene_efficiency("gene", "iteration");')
+
 
 # ----------------------------------------Class: Spots--------------------------------------------------- #
 class Spots(object):
@@ -669,6 +735,20 @@ class CellType(object):
 
     def ini_alpha(self):
         return np.append(np.ones(self.nK - 1), sum(np.ones(self.nK - 1)))
+
+    def db_save(self, con, run, converged):
+        self.db_cell_type_prior(con, run, converged)
+
+    def db_cell_type_prior(self, con, run, converged):
+        df = pd.DataFrame(data=self.pi_bar, index=self.names, columns=['weight'])
+        df.index.name = 'class'
+        df['iteration'] = run
+        df['has_converged'] = converged
+        df['utc'] = datetime.datetime.utcnow()
+        df = df.reset_index()
+        df.to_sql(name='cell_type_prior', con=con, if_exists='append', index=False)
+        con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_class_iteration ON cell_type_prior("class", "iteration");')
+
 
 
 
