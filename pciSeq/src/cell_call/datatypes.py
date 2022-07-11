@@ -517,6 +517,22 @@ class Spots(object):
         else:
             return scipy.special.psi(r) - np.log(beta).astype(dtype)
 
+    def db_save(self, conn, run, has_converged, db_opts):
+        self.db_save_spots(conn, has_converged)
+
+    def db_save_spots(self, con, converged):
+        # spots are persistent, they do not change. Just save it once
+        try:
+            df = pd.DataFrame(data=self.data[['x', 'y', 'z', 'label', 'Gene']], columns=['x', 'y', 'z', 'label', 'Gene'])
+            df = df.set_index('Gene')
+            df['has_converged'] = converged
+            df['utc'] = datetime.datetime.utcnow()
+            df = df.reset_index()
+            df.to_sql(name='spots', con=con, if_exists='fail', index=False)
+            con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_class_iteration ON spots("Gene");')
+        except ValueError:
+            pass
+
 
 # ----------------------------------------Class: SingleCell--------------------------------------------------- #
 class SingleCell(object):

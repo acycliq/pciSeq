@@ -499,8 +499,10 @@ class VarBayes(object):
         self.db_save_geneCounts(self.iter_num, self.has_converged, db_opts)
         self.db_save_class_prob(self.iter_num, self.has_converged, db_opts)
         self.db_save_parent_cell_prob(self.iter_num, self.has_converged, db_opts)
+        self.db_save_parent_cell_id(self.iter_num, self.has_converged, db_opts)
         self.genes.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
         self.cellTypes.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
+        self.spots.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
 
     # -------------------------------------------------------------------- #
     def db_save_geneCounts(self, iter, has_converged, db_opts):
@@ -536,6 +538,17 @@ class VarBayes(object):
         df['utc'] = datetime.datetime.utcnow()
         df.to_sql(name='parent_cell_prob', con=self.conn, if_exists=db_opts['if_table_exists'])
         self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_cell_ID_iteration ON parent_cell_prob("spot_id", "iteration");')
+
+    # -------------------------------------------------------------------- #
+    def db_save_parent_cell_id(self, iter_num, has_converged, db_opts):
+        df = pd.DataFrame(data=self.spots.parent_cell_id,
+                          index=np.arange(self.nS))
+        df.index.name = 'spot_id'
+        df['iteration'] = iter_num
+        df['has_converged'] = has_converged
+        df['utc'] = datetime.datetime.utcnow()
+        df.to_sql(name='parent_cell_id', con=self.conn, if_exists=db_opts['if_table_exists'])
+        self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_cell_ID_iteration ON parent_cell_id("spot_id", "iteration");')
 
     # -------------------------------------------------------------------- #
     def db_connect(self, dbpath):
