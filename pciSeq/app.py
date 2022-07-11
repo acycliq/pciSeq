@@ -100,7 +100,7 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
     cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
 
     # 5. save to the filesystem
-    if cfg['save_data']:
+    if cfg['save_data'] and varBayes.has_converged:
         write_data(cellData, geneData, cellBoundaries, varBayes, path=cfg['output_path'])
 
     varBayes.conn.close()
