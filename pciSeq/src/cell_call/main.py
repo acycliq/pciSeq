@@ -27,8 +27,7 @@ class VarBayes(object):
                                                     # cell of any given spot. The last cell will be used for the
                                                     # misread spots. (ie cell at position nN is the background)
 
-        # self.conn = self.db_connect(':memory:')
-        self.conn = self.db_connect('pciSeq.db')
+        self.conn = self.db_connect(':memory:')  # or use 'pciSeq.db' to create a db on the filesystem
         self.iter_num = None
         self.has_converged = False
 
