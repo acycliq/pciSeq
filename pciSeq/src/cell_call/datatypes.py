@@ -93,12 +93,21 @@ class Cells(object):
         return np.sqrt(self.cov[:, 1, 1])
 
     @property
+    def sigma_z(self):
+        return np.sqrt(self.cov[:, 2, 2])
+
+    @property
     def corr(self):
         sigma_x = np.sqrt(self.cov[:, 0, 0])
         sigma_y = np.sqrt(self.cov[:, 1, 1])
+        sigma_z = np.sqrt(self.cov[:, 2, 2])
         cov_xy = self.cov[:, 0, 1]
-        rho = cov_xy / (sigma_x * sigma_y)
-        return rho
+        cov_xz = self.cov[:, 0, 2]
+        cov_yz = self.cov[:, 1, 2]
+        rho_xy = cov_xy / (sigma_x * sigma_y)
+        rho_xz = cov_xz / (sigma_x * sigma_z)
+        rho_yz = cov_yz / (sigma_y * sigma_z)
+        return [rho_xy, rho_xz, rho_yz]
 
     @property
     def ellipsoid_attributes(self):
