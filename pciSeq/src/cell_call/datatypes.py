@@ -169,15 +169,15 @@ class Cells(object):
 
         x_centered = _x - mu_x  # subtract the cell centroid x-coord from the spot x-coord
         y_centered = _y - mu_y  # subtract the cell centroid y-coord from the spot y-coord
-        z_centered = _z - mu_z  # subtract the cell centroid y-coord from the spot z-coord
+        z_centered = _z - mu_z  # subtract the cell centroid z-coord from the spot z-coord
 
         el_00 = prob * x_centered * x_centered  # contribution to the scatter matrix's [0, 0] element
-        el_11 = prob * y_centered * y_centered  # contribution to the scatter matrix's off-diagonal element
-        el_22 = prob * z_centered * z_centered  # contribution to the scatter matrix's off-diagonal element
+        el_11 = prob * y_centered * y_centered  # contribution to the scatter matrix's [1, 1] element
+        el_22 = prob * z_centered * z_centered  # contribution to the scatter matrix's [2, 2] element
 
-        el_01 = prob * x_centered * y_centered  # contribution to the scatter matrix's [1, 1] element
-        el_02 = prob * x_centered * z_centered  # contribution to the scatter matrix's [1, 1] element
-        el_12 = prob * y_centered * z_centered  # contribution to the scatter matrix's [1, 1] element
+        el_01 = prob * x_centered * y_centered  # contribution to the scatter matrix's [0, 1] element
+        el_02 = prob * x_centered * z_centered  # contribution to the scatter matrix's [0, 2] element
+        el_12 = prob * y_centered * z_centered  # contribution to the scatter matrix's [1, 2] element
 
         # Aggregate all contributions to get the scatter matrix
         agg_00 = npg.aggregate(id.ravel(), el_00.ravel(), size=self.nC)
