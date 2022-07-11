@@ -99,10 +99,11 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
     # 4. cell typing
     cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
 
-    # 5. save to filesystem
+    # 5. save to the filesystem
     if cfg['save_data']:
         write_data(cellData, geneData, cellBoundaries, varBayes, path=cfg['output_path'])
 
+    varBayes.conn.close()
     logger.info(' Done')
     return cellData, geneData
 
@@ -133,9 +134,10 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, path):
     cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
     logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
-    with open(os.path.join(out_dir, 'pciSeq.pickle'), 'wb') as outf:
-        pickle.dump(varBayes, outf)
-        logger.info(' Saved at %s' % os.path.join(out_dir, 'pciSeq.pickle'))
+    export_db_tables(out_dir, varBayes.conn)
+    # with open(os.path.join(out_dir, 'pciSeq.pickle'), 'wb') as outf:
+    #     pickle.dump(varBayes, outf)
+    #     logger.info(' Saved at %s' % os.path.join(out_dir, 'pciSeq.pickle'))
 
 
 
@@ -143,6 +145,21 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, path):
     # splitter_mb(cellData, os.path.join(out_dir, 'cellData'), 99)
     # splitter_mb(geneData, os.path.join(out_dir, 'geneData'), 99)
     # splitter_mb(cellBoundaries, os.path.join(out_dir, 'cellBoundaries'), 99)
+
+
+def export_db_tables(out_dir, con):
+    str = "SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY name;"
+    tables = con.execute(str).fetchall()
+    for table in tables:
+        export_db_table(table[0], out_dir, con)
+
+
+def export_db_table(table_name, out_dir, con):
+    query_str = "SELECT * FROM %s where has_converged = 1 " % table_name
+    df = pd.read_sql_query(query_str, con)
+    fname = os.path.join(out_dir, table_name + '.csv')
+    df.to_csv(fname, index=False)
+    logger.info(' Saved at %s' % fname)
 
 
 def init(opts):
@@ -231,6 +248,6 @@ if __name__ == "__main__":
              'nNeighbors': 6,
           }
 
-    # fit(_iss_spots_2D, _coo_2D, _scRNAseq, opts=opts_2D)
-    fit(_iss_spots_3D, _coo_3D, scRNAseq=None, opts=opts_3D)
+    fit(_iss_spots_2D, _coo_2D, scRNAseq=_scRNAseq, opts=opts_2D)
+    # fit(_iss_spots_3D, _coo_3D, scRNAseq=_scRNAseq, opts=opts_3D)
 

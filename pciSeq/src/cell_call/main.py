@@ -93,7 +93,6 @@ class VarBayes(object):
             if i == max_iter - 1:
                 logger.info(' Loop exhausted. Exiting with convergence status: %s' % has_converged)
 
-        self.conn.close()
         return iss_df, gene_df
 
     # -------------------------------------------------------------------- #
