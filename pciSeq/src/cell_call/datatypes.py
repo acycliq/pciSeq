@@ -302,17 +302,17 @@ class Genes(object):
     def eta(self, val):
         self._eta = val
 
-    def db_save(self, con, run, converged):
-        self.db_gene_efficiency(con, run, converged)
+    def db_save(self, con, run, converged, db_opts):
+        self.db_gene_efficiency(con, run, converged, db_opts)
 
-    def db_gene_efficiency(self, con, run, converged):
+    def db_gene_efficiency(self, con, run, converged, db_opts):
         df = pd.DataFrame(data=self.eta, index=self.gene_panel, columns=['gene_efficiency'])
         df.index.name = 'gene'
         df['iteration'] = run
         df['has_converged'] = converged
         df['utc'] = datetime.datetime.utcnow()
         df = df.reset_index()
-        df.to_sql(name='gene_efficiency', con=con, if_exists='append', index=False)
+        df.to_sql(name='gene_efficiency', con=con, if_exists=db_opts['if_table_exists'], index=False)
         con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_gene_iteration ON gene_efficiency("gene", "iteration");')
 
 
@@ -736,17 +736,17 @@ class CellType(object):
     def ini_alpha(self):
         return np.append(np.ones(self.nK - 1), sum(np.ones(self.nK - 1)))
 
-    def db_save(self, con, run, converged):
-        self.db_cell_type_prior(con, run, converged)
+    def db_save(self, con, run, converged, db_opts):
+        self.db_cell_type_prior(con, run, converged, db_opts)
 
-    def db_cell_type_prior(self, con, run, converged):
+    def db_cell_type_prior(self, con, run, converged, db_opts):
         df = pd.DataFrame(data=self.pi_bar, index=self.names, columns=['weight'])
         df.index.name = 'class'
         df['iteration'] = run
         df['has_converged'] = converged
         df['utc'] = datetime.datetime.utcnow()
         df = df.reset_index()
-        df.to_sql(name='cell_type_prior', con=con, if_exists='append', index=False)
+        df.to_sql(name='cell_type_prior', con=con, if_exists=db_opts['if_table_exists'], index=False)
         con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_class_iteration ON cell_type_prior("class", "iteration");')
 
 

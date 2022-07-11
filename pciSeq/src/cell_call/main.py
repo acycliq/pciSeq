@@ -26,9 +26,9 @@ class VarBayes(object):
         self.nN = self.config['nNeighbors'] + 1     # number of closest nearby cells, candidates for being parent
                                                     # cell of any given spot. The last cell will be used for the
                                                     # misread spots. (ie cell at position nN is the background)
-        # self.conn = sqlite3.connect(':memory:')
-        self.conn = self.db_connect(':memory:')
-        # self.conn = self.db_connect('pciSeq.db')
+
+        # self.conn = self.db_connect(':memory:')
+        self.conn = self.db_connect('pciSeq.db')
         self.iter_num = None
         self.has_converged = False
 
@@ -496,14 +496,15 @@ class VarBayes(object):
 
     # -------------------------------------------------------------------- #
     def _db_save(self):
-        self.db_save_geneCounts(self.iter_num, self.has_converged)
-        self.db_save_class_prob(self.iter_num, self.has_converged)
-        self.db_save_parent_cell_prob(self.iter_num, self.has_converged)
-        self.genes.db_save(self.conn, self.iter_num, self.has_converged)
-        self.cellTypes.db_save(self.conn, self.iter_num, self.has_converged)
+        db_opts = {'if_table_exists': 'replace'}  # choose between 'fail', 'replace', 'append'
+        self.db_save_geneCounts(self.iter_num, self.has_converged, db_opts)
+        self.db_save_class_prob(self.iter_num, self.has_converged, db_opts)
+        self.db_save_parent_cell_prob(self.iter_num, self.has_converged, db_opts)
+        self.genes.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
+        self.cellTypes.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
 
     # -------------------------------------------------------------------- #
-    def db_save_geneCounts(self, iter, has_converged):
+    def db_save_geneCounts(self, iter, has_converged, db_opts):
         df = pd.DataFrame(data=self.cells.geneCount,
                               index=np.arange(self.nC),
                               columns=self.genes.gene_panel)
@@ -511,11 +512,11 @@ class VarBayes(object):
         df['iteration'] = iter
         df['has_converged'] = has_converged
         df['utc'] = datetime.datetime.utcnow()
-        df.to_sql(name='geneCount', con=self.conn, if_exists='append')
+        df.to_sql(name='geneCount', con=self.conn, if_exists=db_opts['if_table_exists'])
         self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON geneCount("cell_label", "iteration");')
 
     # -------------------------------------------------------------------- #
-    def db_save_class_prob(self, iter, has_converged):
+    def db_save_class_prob(self, iter, has_converged, db_opts):
         df = pd.DataFrame(data=self.cells.classProb,
                           index=np.arange(self.nC),
                           columns=self.cellTypes.names)
@@ -523,18 +524,18 @@ class VarBayes(object):
         df['iteration'] = iter
         df['has_converged'] = has_converged
         df['utc'] = datetime.datetime.utcnow()
-        df.to_sql(name='classProb', con=self.conn, if_exists='append')
+        df.to_sql(name='classProb', con=self.conn, if_exists=db_opts['if_table_exists'])
         self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON classProb("cell_label", "iteration");')
 
     # -------------------------------------------------------------------- #
-    def db_save_parent_cell_prob(self, iter_num, has_converged):
+    def db_save_parent_cell_prob(self, iter_num, has_converged, db_opts):
         df = pd.DataFrame(data=self.spots.parent_cell_prob,
                           index=np.arange(self.nS))
         df.index.name = 'spot_id'
         df['iteration'] = iter_num
         df['has_converged'] = has_converged
         df['utc'] = datetime.datetime.utcnow()
-        df.to_sql(name='parent_cell_prob', con=self.conn, if_exists='append')
+        df.to_sql(name='parent_cell_prob', con=self.conn, if_exists=db_opts['if_table_exists'])
         self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_cell_ID_iteration ON parent_cell_prob("spot_id", "iteration");')
 
     # -------------------------------------------------------------------- #
