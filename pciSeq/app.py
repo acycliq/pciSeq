@@ -103,6 +103,12 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
     if cfg['save_data'] and varBayes.has_converged:
         write_data(cellData, geneData, cellBoundaries, varBayes, path=cfg['output_path'])
 
+    if cfg['launch_viewer']:
+        if cfg['is_3D']:
+            pass
+        else:
+            pass
+
     varBayes.conn.close()
     logger.info(' Done')
     return cellData, geneData

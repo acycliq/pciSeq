@@ -83,5 +83,7 @@ DEFAULT = {
     # assigned a weight of almost zero
     'min_class_size': 5,
 
+    'launch_viewer': True,
+
 }
 
