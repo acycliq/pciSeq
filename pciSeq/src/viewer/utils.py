@@ -6,6 +6,7 @@ import json
 import os
 import glob
 import csv
+import subprocess
 import logging
 
 logger = logging.getLogger(__name__)
@@ -250,6 +251,20 @@ def _round_data(df, name):
 
 def _round_data2(df, name):
     return [list(map(_format, x)) for x in df[name]]
+
+
+def clone_repo(repo_url, target_dir):
+    """
+    Clones the repo at repo_url and saves it to target_dir`
+    """
+    args = ['git', 'clone', '--depth=1', repo_url, target_dir]
+    res = subprocess.Popen(args, stdout=subprocess.PIPE)
+    output, _error = res.communicate()
+
+    if not _error:
+        print(output)
+    else:
+        print(_error)
 
 
 
