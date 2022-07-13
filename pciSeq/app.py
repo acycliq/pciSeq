@@ -161,7 +161,10 @@ def export_db_tables(out_dir, con):
 
 
 def export_db_table(table_name, out_dir, con):
-    query_str = "SELECT * FROM %s where has_converged = 1 " % table_name
+    if table_name == 'spots':
+        query_str = "SELECT * FROM %s " % table_name
+    else:
+        query_str = "SELECT * FROM %s where has_converged = 1 " % table_name
     df = pd.read_sql_query(query_str, con)
     fname = os.path.join(out_dir, table_name + '.csv')
     df.to_csv(fname, index=False)

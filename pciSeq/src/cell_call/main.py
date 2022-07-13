@@ -89,7 +89,7 @@ class VarBayes(object):
                 break
 
             if i == max_iter - 1:
-                logger.info(' Loop exhausted. Exiting with convergence status: %s' % has_converged)
+                logger.info(' Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
 
         return iss_df, gene_df
 
@@ -493,14 +493,15 @@ class VarBayes(object):
 
     # -------------------------------------------------------------------- #
     def _db_save(self):
-        db_opts = {'if_table_exists': 'replace'}  # choose between 'fail', 'replace', 'append'
+        db_opts = {'if_table_exists': 'replace'}  # choose between 'fail', 'replace', 'append'. Appending might make sense only if you want to see how estimates change from one loop to the next
         self.db_save_geneCounts(self.iter_num, self.has_converged, db_opts)
         self.db_save_class_prob(self.iter_num, self.has_converged, db_opts)
         self.db_save_parent_cell_prob(self.iter_num, self.has_converged, db_opts)
         self.db_save_parent_cell_id(self.iter_num, self.has_converged, db_opts)
         self.genes.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
         self.cellTypes.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
-        self.spots.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
+        self.spots.db_save(self.conn)
+        self.single_cell.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
 
     # -------------------------------------------------------------------- #
     def db_save_geneCounts(self, iter, has_converged, db_opts):

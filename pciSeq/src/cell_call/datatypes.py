@@ -526,15 +526,14 @@ class Spots(object):
         else:
             return scipy.special.psi(r) - np.log(beta).astype(dtype)
 
-    def db_save(self, conn, run, has_converged, db_opts):
-        self.db_save_spots(conn, has_converged)
+    def db_save(self, conn):
+        self.db_save_spots(conn)
 
-    def db_save_spots(self, con, converged):
+    def db_save_spots(self, con):
         # spots are persistent, they do not change. Just save it once
         try:
             df = pd.DataFrame(data=self.data[['x', 'y', 'z', 'label', 'Gene']], columns=['x', 'y', 'z', 'label', 'Gene'])
             df = df.set_index('Gene')
-            df['has_converged'] = converged
             df['utc'] = datetime.datetime.utcnow()
             df = df.reset_index()
             df.to_sql(name='spots', con=con, if_exists='fail', index=False)
@@ -699,6 +698,24 @@ class SingleCell(object):
         df.columns = labels
 
         return df
+
+    def db_save(self, conn, run, converged, db_opts):
+        self.db_save_mean_expressions(conn, run, converged, db_opts)
+
+    def db_save_mean_expressions(self, con, run, converged, db_opts):
+        """
+        pushing the average expressions to the db. Most of the times, these are persistent data, therefore
+        appending the columns, 'iteration' and 'has_converged' will not make a lot of sense unless single
+        cell data are missing, hence they will be estimated on the fly
+        """
+        df = self.mean_expression.copy()
+        df['utc'] = datetime.datetime.utcnow()
+        df['iteration'] = run
+        df['has_converged'] = converged
+        df = df.reset_index()
+        df.to_sql(name='mean_expression', con=con, if_exists=db_opts['if_table_exists'], index=False)
+        con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_gene_iteration ON spots("gene_name", "iteration");')
+
 
 
 # ---------------------------------------- Class: CellType --------------------------------------------------- #
