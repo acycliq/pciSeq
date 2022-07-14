@@ -57,14 +57,14 @@ class VarBayes(object):
             # 2. calc expected gamma
             self.gamma_upd()
 
-            if self.config['is_3D']:
+            if self.config['relax_segmentation'] or self.config['is_3D']:
                 self.gaussian_upd()
 
             # 3. assign cells to cell types
             self.cell_to_cellType()
 
             # update cell type weights
-            if self.config['is_3D']:
+            if self.config['relax_segmentation'] or self.config['is_3D']:
                 self.dalpha_upd()
 
             # 4. assign spots to cells
@@ -85,7 +85,7 @@ class VarBayes(object):
 
             if self.has_converged:
                 self.db_save()
-                iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
+                iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config)
                 break
 
             if i == max_iter - 1:

@@ -61,7 +61,7 @@ DEFAULT = {
     # level
     'dtype': np.float64,
 
-    'is_3D': True,
+    'is_3D': False,
 
     # pixels per micron
     'anisotropy': 6.0121,
@@ -84,6 +84,8 @@ DEFAULT = {
     'min_class_size': 5,
 
     'launch_viewer': True,
+
+    'relax_segmentation': True,
 
 }
 

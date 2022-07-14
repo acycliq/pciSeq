@@ -265,3 +265,31 @@ def load_from_url(url):
     return filename
 
 
+def gaussian_ellipsoid(mu, cov, sdwidth=None):
+    if sdwidth is None:
+        sdwidth = 1
+
+    # cov_00 = sigma_x * sigma_x
+    # cov_10 = rho * sigma_x * sigma_y
+    # cov_11 = sigma_y * sigma_y
+    # cov = np.array([[cov_00, cov_10], [cov_10, cov_11]])
+    mu = np.array(mu)
+
+    npts = 40
+    tt = np.linspace(0, 2 * np.pi, npts)
+    ap = np.zeros((2, npts))
+    x = np.cos(tt)
+    y = np.sin(tt)
+    ap[0, :] = x
+    ap[1, :] = y
+
+    eigvals, eigvecs = np.linalg.eig(cov)
+    eigvals = sdwidth * np.sqrt(eigvals)
+    eigvals = eigvals * np.eye(2)
+
+    vd = eigvecs.dot(eigvals)
+    out = vd.dot(ap) + mu.reshape(2, -1)
+
+    return np.array(list(zip(*out)))
+
+

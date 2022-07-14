@@ -1,9 +1,10 @@
 import numpy as np
 import pandas as pd
+from pciSeq.src.cell_call.utils import gaussian_ellipsoid
 from pciSeq.src.cell_call.log_config import logger
 
 
-def _iss_summary(cells, genes, single_cell):
+def _iss_summary(cells, genes, single_cell, cfg):
     '''
     returns a dataframe summarising the main features of each cell, ie gene counts and cell types
     :param spots:
@@ -30,6 +31,15 @@ def _iss_summary(cells, genes, single_cell):
     class_name_list = [class_names[isProb_nonZero[n]].tolist() for n in range(N)]
     prob_list = [class_prob[n, isProb_nonZero[n]].tolist() for n in range(N)]
 
+    ellipsoid_border = []
+    if not cfg['is_3D']  and cfg['relax_segmentation']:
+        for i in range(cells.nC):
+            # ea = cells.ellipsoid_attributes[i]
+            mu = cells.centroid.iloc[i].tolist()
+            cov = cells.cov[i]
+            ellipsis = gaussian_ellipsoid(mu[:2], cov[:2, :2], 3).astype(np.int)
+            ellipsoid_border.append(ellipsis.tolist())
+
     iss_df = pd.DataFrame({'Cell_Num': cells.cell_props['cell_label'].tolist(),
                            'X': cells.cell_props['x'].tolist(),
                            'Y': cells.cell_props['y'].tolist(),
@@ -40,6 +50,9 @@ def _iss_summary(cells, genes, single_cell):
                             },
                            columns=['Cell_Num', 'X', 'Y', 'Genenames', 'CellGeneCount', 'ClassName', 'Prob']
                            )
+    if len(ellipsoid_border) > 0:
+        iss_df = iss_df.assign(ellipsoid_border = ellipsoid_border)
+
     iss_df.set_index(['Cell_Num'])
 
     # Ignore the first row. It is the pseudocell to keep the misreads (ie the background)
@@ -72,13 +85,13 @@ def _summary(spots):
     return out
 
 
-def collect_data(cells, spots, genes, single_cell):
+def collect_data(cells, spots, genes, single_cell, cfg):
     '''
     Collects data for the viewer
     :param cells:
     :param spots:
     :return:
     '''
-    iss_df = _iss_summary(cells, genes, single_cell)
+    iss_df = _iss_summary(cells, genes, single_cell, cfg)
     gene_df = _summary(spots)
     return iss_df, gene_df

@@ -104,7 +104,7 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
         write_data(cellData, geneData, cellBoundaries, varBayes, path=cfg['output_path'])
 
     if cfg['launch_viewer']:
-        if cfg['is_3D']:
+        if cfg['relax_segmentation'] or cfg['is_3D']:
             pass
         else:
             pass
@@ -139,6 +139,13 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, path):
 
     cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
     logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+
+    if 'ellipsoid_border' in cellData.columns:
+        ellipsoidBorders = cellData[['Cell_Num', 'ellipsoid_border']]
+        ellipsoidBorders = ellipsoidBorders.rename(columns={'Cell_Num': 'cell_id', 'ellipsoid_border': 'coords'})
+
+        ellipsoidBorders.to_csv(os.path.join(out_dir, 'ellipsoidBorders.tsv'), sep='\t', index=False)
+        logger.info('Saved at %s' % (os.path.join(out_dir, 'ellipsoidBorders.tsv')))
 
     export_db_tables(out_dir, varBayes.conn)
     # with open(os.path.join(out_dir, 'pciSeq.pickle'), 'wb') as outf:
@@ -198,7 +205,7 @@ def init(opts):
 def validate(spots, coo, sc, cfg):
 
     # check if z_stack column is missing
-    if 'z_stack' not in spots.columns or not cfg['is_3D']:
+    if 'z_stack' not in spots.columns or not cfg['is_3D'] or not cfg['relax_segmentation']:
         spots = spots.assign(z_stack=np.zeros(spots.shape[0]))
 
     assert isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y', 'z_stack'}, \
@@ -212,7 +219,7 @@ def validate(spots, coo, sc, cfg):
     if sc is not None:
         assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
 
-    if 'anisotropy' not in cfg:
+    if 'anisotropy' not in cfg or not cfg['is_3D']:
         cfg['anisotropy'] = 1.0
 
     if 'from_plane_num' not in cfg:

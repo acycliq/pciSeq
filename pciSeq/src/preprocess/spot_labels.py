@@ -147,8 +147,9 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
         z_min = cfg['from_plane_num']
         z_max = cfg['to_plane_num']
         spots = spots.assign(z=spots.z_stack * cfg['anisotropy'])
-        spots, coo = truncate_data(spots, coo, z_min, z_max)
-        coo = remove_cells(coo)
+        if cfg['is_3D']:
+            spots, coo = truncate_data(spots, coo, z_min, z_max)
+            coo = remove_cells(coo)
     else:
         spots = spots.assign(z=spots.z_stack)
 
@@ -194,8 +195,11 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
     })
 
     # 3. Get the cell boundaries, Only needed for the 2D case
-    if not cfg['is_3D'] or not cfg['relax_segmentation']:
+    if not cfg['is_3D'] or cfg['relax_segmentation']:
         _cell_boundaries = extract_borders_dip(coo[0].toarray().astype(np.uint32), 0, 0, [0])
+        # If you relax the segmentation constraint then do the ellipsoid borders as well
+        if cfg['relax_segmentation']:
+           pass
     else:
         _cell_boundaries = None
 

@@ -119,7 +119,7 @@ class Cells(object):
         mu = self.centroid.values.tolist()
         sigma_x = self.sigma_x.tolist()
         sigma_y = self.sigma_y.tolist()
-        rho = self.corr.tolist()
+        rho = self.corr
         return list(zip(mu, rho, sigma_x, sigma_y))
 
     # -------- METHODS -------- #
@@ -225,7 +225,7 @@ class Cells(object):
         CellAreaFactor = nom / denom
 
         out = {}
-        if cfg['is_3D']:
+        if cfg['relax_segmentation'] or cfg['is_3D']:
             out['area_factor'] = np.ones(CellAreaFactor.shape[0])
         else:
             out['area_factor'] = CellAreaFactor
@@ -754,13 +754,13 @@ class CellType(object):
 
     @property
     def prior(self):
-        if not self.config['is_3D']:
+        if not self.config['is_3D'] or not self.config['relax_segmentation']:
             assert set(self.pi_bar) == {0.5, 0.5 / (self.nK - 1)}
         return self.pi_bar
 
     @property
     def log_prior(self):
-        if self.config['is_3D']:
+        if self.config['is_3D'] or self.config['relax_segmentation']:
             return self.logpi_bar
         else:
             assert set(self.pi_bar) == {0.5, 0.5 / (self.nK - 1)}
