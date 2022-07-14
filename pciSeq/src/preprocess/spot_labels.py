@@ -9,7 +9,7 @@ import pandas as pd
 from typing import Tuple
 from scipy.sparse import coo_matrix, csr_matrix
 from pciSeq.src.preprocess.cell_borders import extract_borders_dip
-from pciSeq_3D.src.preprocess.regionprops import regionprops
+from pciSeq.src.preprocess.regionprops import regionprops
 from pciSeq.src.cell_call.log_config import logger
 
 
@@ -143,7 +143,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
     given spot within its boundaries. It also retrieves the coordinates of the cell boundaries, the cell
     centroids and the cell area
     """
-    if cfg['is_3D']:
+    if cfg['is_3D'] or cfg['relax_segmentation']:
         z_min = cfg['from_plane_num']
         z_max = cfg['to_plane_num']
         spots = spots.assign(z=spots.z_stack * cfg['anisotropy'])
@@ -194,7 +194,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
     })
 
     # 3. Get the cell boundaries, Only needed for the 2D case
-    if not cfg['is_3D']:
+    if not cfg['is_3D'] or not cfg['relax_segmentation']:
         _cell_boundaries = extract_borders_dip(coo[0].toarray().astype(np.uint32), 0, 0, [0])
     else:
         _cell_boundaries = None

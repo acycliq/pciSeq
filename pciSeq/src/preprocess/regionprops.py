@@ -122,7 +122,7 @@ def regionprops(labels, intensity=None, properties=DEFAULT_PROPERTIES, core_dims
             )
         else:
             d = dims[0]
-            if labels_arr[d].data.size > 0:
+            if np.any(labels[0].data > 0):
                 frame_props = d_regionprops(
                     labels_arr[d].toarray(), None, properties, other_cols
                 )
