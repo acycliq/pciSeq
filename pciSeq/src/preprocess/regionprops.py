@@ -96,7 +96,7 @@ def regionprops(labels, intensity=None, properties=DEFAULT_PROPERTIES, core_dims
     Returns
     -------
     regionprops_df : dask.DataFrame
-        Lazily constructed dataframe containing columns for each specifified
+        Lazily constructed dataframe containing columns for each specified
         property.
     """
 
