@@ -124,10 +124,11 @@ class Cells(object):
 
     # -------- METHODS -------- #
     def ini_centroids(self):
-        d = {'x': self.cell_props['x'],
-             'y': self.cell_props['y'],
-             'z': self.cell_props['z'],
-             }
+        d = {
+            'x': self.cell_props['x'],
+            'y': self.cell_props['y'],
+            'z': self.cell_props['z'],
+        }
         df = pd.DataFrame(d)
         return df.copy()
 
@@ -244,52 +245,6 @@ class Cells(object):
         return out, meanCellRadius
 
 
-    # def export(self, iter, con):
-    #     if iter == 0:
-    #         self.export_cell_props(iter, con)
-    #     df = pd.DataFrame(data=self.geneCount, index=np.arange(self.geneCount.shape[0]),
-    #                  columns=self.class_names)
-    #     df.index.name = 'cell_label'
-    #     df['utc'] = datetime.datetime.utcnow()
-    #     df.to_sql(name='geneCount', con=con, if_exists='append')
-
-
-    # def export_cell_props(self, iter, con):
-        # with con:
-        #     con.execute("""
-        #         CREATE TABLE USER (
-        #             id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-        #             name TEXT,
-        #             age INTEGER
-        #         );
-        #     """)
-        #
-        # sql = 'INSERT INTO USER_2 (id, name, age) values(?, ?, ?)'
-        # data = [
-        #     (1, 'Alice', 21),
-        #     (2, 'Bob', 22),
-        #     (3, 'Chris', 23)
-        # ]
-        # with con:
-        #     try:
-        #         con.executemany(sql, data)
-        #     except sqlite3.OperationalError:
-        #         with con:
-        #             con.execute("""
-        #                 CREATE TABLE USER_2 (
-        #                     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-        #                     name TEXT,
-        #                     age INTEGER
-        #                 );
-        #             """)
-        #         con.executemany(sql, data)
-
-
-        # df = pd.DataFrame(self.cell_props)
-        # # df['iteration'] = iter
-        # df['utc'] = datetime.datetime.utcnow()
-        # df.to_sql(name='cell_props_2', con=con, if_exists='append')
-        # print('ok')
     def export_class_prob(self, conn, iter_num, has_converged):
         pass
 
