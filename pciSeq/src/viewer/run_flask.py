@@ -65,7 +65,7 @@ def flask_app_start(config):
 
     @flask_app.route("/")
     def index():
-        return render_template("genes_datatable.html", data=config)
+        return render_template("genes_datatable.html", data=None)
 
     Timer(1, get_browser, [port]).start()
     flask_app.run(port=port)
