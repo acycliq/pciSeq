@@ -137,15 +137,19 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, path):
     geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
     logger.info(' Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
 
-    cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-    logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+    # cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
+    # logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
     if 'ellipsoid_border' in cellData.columns:
-        ellipsoidBorders = cellData[['Cell_Num', 'ellipsoid_border']]
-        ellipsoidBorders = ellipsoidBorders.rename(columns={'Cell_Num': 'cell_id', 'ellipsoid_border': 'coords'})
+        cellBoundaries = cellData[['Cell_Num', 'ellipsoid_border']]
+        cellBoundaries = cellBoundaries.rename(columns={'Cell_Num': 'cell_id', 'ellipsoid_border': 'coords'})
 
-        ellipsoidBorders.to_csv(os.path.join(out_dir, 'ellipsoidBorders.tsv'), sep='\t', index=False)
-        logger.info('Saved at %s' % (os.path.join(out_dir, 'ellipsoidBorders.tsv')))
+        cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
+        logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+    else:
+        cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
+        logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+
 
     export_db_tables(out_dir, varBayes.conn)
     # with open(os.path.join(out_dir, 'pciSeq.pickle'), 'wb') as outf:
