@@ -61,15 +61,15 @@ DEFAULT = {
     # level
     'dtype': np.float64,
 
-    'is_3D': False,
+    'is_3D': True,
 
     # pixels per micron
-    'anisotropy': 6.0121,
+    '3D:anisotropy': 6.0121,
 
     # if these are not None then the data (spots, and zstack) will be truncated between 'from_plane_num'
     # and 'to_plane_num'
-    'from_plane_num': None,
-    'to_plane_num': None,
+    '3D:from_plane_num': None,
+    '3D:to_plane_num': None,
 
     # Hyperparameters for the gamma-distributed alpha variate
     'rho_1': 100,
@@ -85,7 +85,7 @@ DEFAULT = {
 
     'launch_viewer': True,
 
-    'relax_segmentation': True,
+    'relax_segmentation': False,
 
 }
 

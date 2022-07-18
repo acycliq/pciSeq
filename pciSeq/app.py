@@ -219,14 +219,14 @@ def validate(spots, coo, sc, cfg):
     if sc is not None:
         assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
 
-    if 'anisotropy' not in cfg or not cfg['is_3D']:
-        cfg['anisotropy'] = 1.0
+    if '3D:anisotropy' not in cfg or not cfg['is_3D']:
+        cfg['3D:anisotropy'] = 1.0
 
-    if 'from_plane_num' not in cfg:
-        cfg['from_plane_num'] = 0
+    if '3D:from_plane_num' not in cfg:
+        cfg['3D:from_plane_num'] = 0
 
-    if 'to_plane_num' not in cfg:
-        cfg['to_plane_num'] = len(coo) - 1
+    if '3D:to_plane_num' not in cfg:
+        cfg['3D:to_plane_num'] = len(coo) - 1
 
     return spots, coo, cfg
 
@@ -257,8 +257,8 @@ if __name__ == "__main__":
     opts_2D = {'save_data': True, 'nNeighbors': 3, 'MisreadDensity': 0.00001,'is_3D': False}
     opts_3D={'save_data': True,
              'Inefficiency': 0.0001,
-             'from_plane_num': 20,
-             'to_plane_num': 33,
+             '3D:from_plane_num': 20,
+             '3D:to_plane_num': 33,
              'MisreadDensity': 1e-05,
              'is_3D': True,
              'nNeighbors': 6,
