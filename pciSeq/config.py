@@ -61,7 +61,7 @@ DEFAULT = {
     # level
     'dtype': np.float64,
 
-    'is_3D': True,
+    'is_3D': False,
 
     # pixels per micron
     '3D:anisotropy': 6.0121,
