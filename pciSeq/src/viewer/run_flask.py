@@ -13,11 +13,9 @@ import random
 from threading import Timer
 import logging
 
-logger = logging.getLogger()
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s:%(levelname)s:%(message)s"
-    )
+
+logging.basicConfig(filename='record.log', level=logging.INFO,
+                    format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -35,9 +33,9 @@ def get_browser(port_num):
     else:
         chrome_path = None
 
-    logger.info('Platform is %s' % my_os)
+    print('Platform is %s' % my_os)
     if chrome_path:
-        logger.info('Chrome path: %s' % chrome_path)
+        print('Chrome path: %s' % chrome_path)
 
     if chrome_path and os.path.isfile(chrome_path):
         webbrowser.register('chrome', None, webbrowser.BackgroundBrowser(chrome_path),  preferred=True)
@@ -46,7 +44,7 @@ def get_browser(port_num):
         wb = webbrowser.open_new(url)
 
     if not wb:
-        logger.info('Could not open browser')
+        print('Could not open browser')
 
 
 def open_browser():
@@ -60,15 +58,16 @@ def flask_app_start(config):
     # pciSeq/src/viewer/run_flask.py
     flask_app = Flask(__name__,
                 static_url_path='',         # remove the static folder path
-                static_folder=r'..\..\..\viewer',   # set here the path of the folder to be served. The js files referenced in your html file are with respect to this folder. Adjust the paths in your html file (look for the <script src="some/path/file.js"></script> tag, so that the js libraries will be parsed
-                template_folder=r'D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq\viewer')  # set here the path to the folder where your html page lives. Absolute and relative paths both work fine
-
+                static_folder=r'D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq\pciSeq\static\2D\viewer',   # set here the path of the folder to be served. The js files referenced in your html file are with respect to this folder. Adjust the paths in your html file (look for the <script src="some/path/file.js"></script> tag, so that the js libraries will be parsed
+                template_folder=r'../../static/2D/')  # set here the path to the folder where your html page lives. Absolute and relative paths both work fine
+    # D:\Home\Dimitris\OneDrive - UniversityCollegeLondon\dev\Python\pciSeq\pciSeq\src\viewer\run_flask.py
+    flask_app.config['EXPLAIN_TEMPLATE_LOADING'] = True
     @flask_app.route("/")
     def index():
-        return render_template("genes_datatable.html", data=None)
+        return render_template("index.html", data=None)
 
     Timer(1, get_browser, [port]).start()
-    flask_app.run(port=port)
+    flask_app.run(port=port, debug=False)
 
 
 def mk_ini(cellData, geneData):

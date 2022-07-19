@@ -5,6 +5,7 @@ import numpy as np
 
 DEFAULT = {
 
+
     # list of genes to be excluded during cell-typing, e.g ['Aldoc', 'Id2'] to exclude all spots from Aldoc and Id2
     'exclude_genes': [],
 
@@ -61,7 +62,11 @@ DEFAULT = {
     # level
     'dtype': np.float64,
 
+    'launch_viewer': True,
+
     'is_3D': False,
+
+    'relax_segmentation': False,
 
     # pixels per micron
     '3D:anisotropy': 6.0121,
@@ -72,8 +77,8 @@ DEFAULT = {
     '3D:to_plane_num': None,
 
     # Hyperparameters for the gamma-distributed alpha variate
-    'rho_1': 100,
-    'rho_2': 100,
+    'relax_segmentation: rho_1': 100,
+    'relax_segmentation: rho_2': 100,
 
     # the prior on mean expression follows a Gamma(m * M , m), where M is the starting point (the initial
     # array) of single cell data
@@ -83,9 +88,9 @@ DEFAULT = {
     # assigned a weight of almost zero
     'min_class_size': 5,
 
-    'launch_viewer': True,
 
-    'relax_segmentation': False,
+
+
 
 }
 
