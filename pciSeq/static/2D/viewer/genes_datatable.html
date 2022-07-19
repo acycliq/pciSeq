@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gene Panel</title>
+
+    <!--jquery -->
+    <script src="https://code.jquery.com/jquery-3.3.1.js"></script>
+
+    <!-- datatables -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.19/css/jquery.dataTables.min.css">
+    <script src="https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"></script>
+
+    <link type="text/css" href="//gyrocode.github.io/jquery-datatables-checkboxes/1.2.11/css/dataTables.checkboxes.css"
+          rel="stylesheet"/>
+    <script type="text/javascript"
+            src="//gyrocode.github.io/jquery-datatables-checkboxes/1.2.11/js/dataTables.checkboxes.min.js"></script>
+
+
+    <script src="js/glyphPaths.js"></script>
+    <script src="js/glyphConfig.js"></script>
+
+    <style>
+        html, body {
+            width: 98%;
+            height: 100%;
+            /*overflow: hidden;*/
+        }
+    </style>
+</head>
+<body>
+
+
+
+    <table id="example" class="display" cellspacing="0" width="100%">
+        <thead>
+        <tr>
+            <th></th>
+            <th>Gene Name</th>
+<!--            <th>Taxonomy</th>-->
+            <th>Glyph Name</th>
+            <th>Glyph Color</th>
+            <th>Glyph</th>
+        </tr>
+        </thead>
+    </table>
+    <hr>
+
+
+<script>
+    sessionStorage['dtCompleted'] =  0;
+    var table;
+    $(document).ready(function () {
+        var gene_panel = JSON.parse(sessionStorage.getItem('gene_panel'));
+        var legendData = glyphSettings().filter(d => gene_panel.includes(d.gene))
+          .map((d,i) => {return [i, d.gene, d.glyphName, d.color]});
+        table = $('#example').DataTable({
+            'data': legendData,
+            'columnDefs': [
+                {
+                    'targets': 0,
+                    'checkboxes': {
+                        'selectRow': true,
+                        'selectCallback': onSelect(),
+                    },
+                    'createdCell': function (td, cellData, rowData, row, col) {
+                        if (localStorage['updated_state'] && JSON.parse(localStorage['updated_state']).selected){
+                            var selection = JSON.parse(localStorage['updated_state']).selected;
+                            if ( selection.indexOf(rowData[1]) > -1 ){
+                                this.api().cell(td).checkboxes.select();
+                            }
+                        }
+                        else{
+                            this.api().cell(td).checkboxes.select();
+                        }
+                    },
+                }
+            ],
+            'columns': [
+                {"data": 0, "orderable": true}, //checkboxes
+                {"data": 1, "orderable": true}, //Gene Name
+                {"data": 2, "orderable": true}, //Glyph Name
+                {"data": 3, "orderable": true}, //Glyph Color
+                {
+                    "render": function (data, type, JsonResultRow, meta) {
+                        var canv = document.createElement('canvas');
+                        canv.id = JsonResultRow[1]; // gene name will be the id
+                        canv.width = 14;
+                        canv.height = 14;
+                        return canv.outerHTML;
+                    }
+                }
+            ],
+
+            'deferRender': true,
+            'select': 'multi',
+            'paging': false,
+            'initComplete': function(legendData) {
+                // sessionStorage['start_legend'] = JSON.stringify({'selected': table.columns(1).data()[0], 'deselected': [] });
+                sessionStorage['dtCompleted'] = 1
+            }
+            // 'order': [[1, 'asc']]
+        });
+
+
+        legendData.forEach(d => {
+            // console.log(d);
+            var c = document.getElementById(d[1]); //d[1] is the gene name which is also the id of the canvas element
+            var ctx = c.getContext("2d");
+            var p = {x: 7, y: 7};
+            var r = ['star5','star6'].includes(d[2])? 7: 5; //controls the glyph size
+
+            ctx = ctxPath(d[2], ctx, p, r);
+            ctx.strokeStyle = d[3]; //color
+            ctx.lineWidth = 1;
+            ctx.stroke()
+        })
+
+    });
+
+
+    function getPreviousSelection(table){
+
+        if (localStorage['updated_state'] && JSON.parse(localStorage['updated_state']).selected){
+            var u =  JSON.parse(localStorage['updated_state']);
+            var x = {'selected': u.selected, 'deselected': u.deselected };
+            sessionStorage['previous_state'] = JSON.stringify(x);
+        }
+        else if (!sessionStorage['previous_state']){
+            var x = {'selected': table.columns(1).data()[0], 'deselected': [] };
+            sessionStorage['previous_state'] = JSON.stringify(x);
+        }
+        return JSON.parse(sessionStorage['previous_state'])
+    }
+
+
+    function onSelect() {
+        console.log('I dont think the outer function is needed anynore')
+        return function () {
+            // var genePanel = table.columns(1).data()[0];
+            // var _previousLegend = {'selected': genePanel, 'deselected': [] };
+            var cookie = +sessionStorage['dtCompleted']; // cookie is a misnomer here!
+            if (cookie){
+                console.log('ok');
+                var genePanel = table.columns(1).data()[0];
+                var previous_state = getPreviousSelection(table);
+                var selectedRows = table.columns().checkboxes.selected()[0];
+
+                var selectedGenes = selectedRows.map(d => table.rows(d).data()[0][1]);
+                var deSelectedGenes = genePanel.filter(d => !selectedGenes.includes(d));
+
+                var enter = selectedGenes.filter(d => previous_state.deselected.includes(d));
+                var exit = deSelectedGenes.filter(d => previous_state.selected.includes(d));
+
+                 var updated_state = {'enter': enter, 'exit': exit, 'selected': selectedGenes, 'deselected': deSelectedGenes };
+
+                 sessionStorage['previous_state'] = JSON.stringify( {'selected': selectedGenes, 'deselected': deSelectedGenes});
+
+                 console.log('local storage updated');
+                 localStorage['updated_state'] = JSON.stringify(updated_state);
+            }
+            else{
+                console.log('not on')
+            }
+        }
+    }
+
+</script>
+
+
+</body>
+</html>
