@@ -32,3 +32,4 @@ viewer/img
 /.eggs/
 /build/
 /pciSeq.egg-info/
+/other_files/
