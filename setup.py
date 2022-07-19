@@ -39,14 +39,15 @@ setup(
     extras_require={
         'interactive': ['matplotlib>=2.2.0', 'jupyter'],
     },
-    # include_package_data=True,
+    include_package_data=True,
+    package_data={'': ['static/*']},
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
-     entry_points = {
-        'console_scripts': [
-          'pciSeq = pciSeq.__main__:main']
-     }
+     # entry_points = {
+     #    'console_scripts': [
+     #      'pciSeq = pciSeq.__main__:main']
+     # }
 )
