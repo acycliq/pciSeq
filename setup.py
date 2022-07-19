@@ -40,7 +40,7 @@ setup(
         'interactive': ['matplotlib>=2.2.0', 'jupyter'],
     },
     include_package_data=True,
-    package_data={'': ['static/*']},
+    package_data={'': ['static/*', 'data/*']},
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: BSD License",
