@@ -58,7 +58,7 @@ def flask_app_start(config):
     # pciSeq/src/viewer/run_flask.py
     flask_app = Flask(__name__,
                 static_url_path='',         # remove the static folder path
-                static_folder=r'D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq\pciSeq\static\2D\viewer',   # set here the path of the folder to be served. The js files referenced in your html file are with respect to this folder. Adjust the paths in your html file (look for the <script src="some/path/file.js"></script> tag, so that the js libraries will be parsed
+                static_folder=r'D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq\pciSeq\static\2D',   # set here the path of the folder to be served. The js files referenced in your html file are with respect to this folder. Adjust the paths in your html file (look for the <script src="some/path/file.js"></script> tag, so that the js libraries will be parsed
                 template_folder=r'../../static/2D/')  # set here the path to the folder where your html page lives. Absolute and relative paths both work fine
     # D:\Home\Dimitris\OneDrive - UniversityCollegeLondon\dev\Python\pciSeq\pciSeq\src\viewer\run_flask.py
     flask_app.config['EXPLAIN_TEMPLATE_LOADING'] = True
