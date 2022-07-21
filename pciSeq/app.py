@@ -2,12 +2,15 @@ import os
 import pandas as pd
 import numpy as np
 import tempfile
+from distutils.dir_util import copy_tree
+import sysconfig
 import pickle
 from typing import Tuple
 from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.cell_call.main import VarBayes
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq import config
+import shutil
 from pciSeq.src.cell_call.log_config import attach_to_log, logger
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -100,14 +103,14 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
     cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
 
     # 5. save to the filesystem
-    if cfg['save_data'] and varBayes.has_converged:
-        write_data(cellData, geneData, cellBoundaries, varBayes, path=cfg['output_path'])
+    if (cfg['save_data'] and varBayes.has_converged) or cfg['launch_viewer']:
+        write_data(cellData, geneData, cellBoundaries, varBayes, cfg)
 
     if cfg['launch_viewer']:
-        if cfg['relax_segmentation'] or cfg['is_3D']:
+        if cfg['is_3D']:
             pass
         else:
-            pass
+            copy_viewer_code(cfg)
 
     varBayes.conn.close()
     logger.info(' Done')
@@ -122,15 +125,25 @@ def cell_type(_cells, _spots, scRNAseq, ini):
     return cellData, geneData, varBayes
 
 
-def write_data(cellData, geneData, cellBoundaries, varBayes, path):
-
+def get_out_dir(path, sub_folder=''):
     if path[0] == 'default':
-        out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq')
+        out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq', sub_folder)
     else:
-        out_dir = path[0]
+        out_dir = os.path.join(path[0], sub_folder)
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
+    return out_dir
 
+
+def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
+    viewer_data_dir = get_out_dir(cfg['output_path'], 'data')
+    export_data(cellData, geneData, cellBoundaries, viewer_data_dir)
+
+    debug_data_dir = get_out_dir(cfg['output_path'], 'debug')
+    export_db_tables(debug_data_dir, varBayes.conn)
+
+
+def export_data(cellData, geneData, cellBoundaries, out_dir):
     cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
     logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
 
@@ -151,7 +164,7 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, path):
         logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
 
-    export_db_tables(out_dir, varBayes.conn)
+
     # with open(os.path.join(out_dir, 'pciSeq.pickle'), 'wb') as outf:
     #     pickle.dump(varBayes, outf)
     #     logger.info(' Saved at %s' % os.path.join(out_dir, 'pciSeq.pickle'))
@@ -233,6 +246,17 @@ def validate(spots, coo, sc, cfg):
         cfg['3D:to_plane_num'] = len(coo) - 1
 
     return spots, coo, cfg
+
+
+def copy_viewer_code(cfg):
+    site_packages_dir = sysconfig.get_path('purelib')
+    pciSeq_dir = os.path.join(site_packages_dir, 'pciSeq')
+    dim = '3D' if cfg['is_3D'] else '2D'
+    src = os.path.join(pciSeq_dir, 'static', dim)
+    dst = get_out_dir(cfg['output_path'], '')
+
+    shutil.copytree(src, dst, dirs_exist_ok=True)
+    logger.info('copied from %s to %s' % (src, dst))
 
 
 if __name__ == "__main__":

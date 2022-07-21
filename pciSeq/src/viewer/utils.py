@@ -1,5 +1,6 @@
 """ Functions to manipulate flat files (split or minify them) """
 from typing import Union
+from distutils.dir_util import copy_tree
 import pandas as pd
 import numpy as np
 import json
@@ -265,6 +266,15 @@ def clone_repo(repo_url, target_dir):
         print(output)
     else:
         print(_error)
+
+
+def get_static_files(root):
+    out = []
+    for path, subdirs, files in os.walk(root):
+        for name in files:
+            out.append(os.path.join(path, name))
+
+    return [d.strip('./pciSeq/') for d in out if (d.endswith('.html') or d.endswith('.js') or d.endswith('.css'))]
 
 
 
