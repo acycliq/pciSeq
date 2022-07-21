@@ -1,5 +1,5 @@
 # pciSeq: Probabilistic Cell typing by In situ Sequencing
-A Python package that implements the cell calling algorithm as described in [[Qian, X., et al. Nature Methods (2020)]](https://www.nature.com/articles/s41592-019-0631-4)
+A Python package that implements the cell calling algorithm as described in [Qian, X., et al. Nature Methods (2020)](https://www.nature.com/articles/s41592-019-0631-4)
 <p align="center">
     <img src="viewer/assets/screencast_resized.gif" alt="screenshot"/>
 </p>
@@ -8,7 +8,7 @@ A Python package that implements the cell calling algorithm as described in [[Qi
 ```
 pip install pciSeq
 ```
-Requirement: Python >= 3.7
+Requirement: Python >= 3.8
 
 ## Usage
 You need to create two `pandas dataframes` for the spots and the single cell data and a `coo_matrix` for the label image (which in 
