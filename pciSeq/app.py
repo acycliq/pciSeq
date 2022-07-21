@@ -2,11 +2,13 @@ import os
 import pandas as pd
 import numpy as np
 import tempfile
+import json
 from distutils.dir_util import copy_tree
 import sysconfig
 import pickle
 from typing import Tuple
 from scipy.sparse import coo_matrix, save_npz, load_npz
+from pciSeq.src.viewer.run_flask import flask_app_start
 from pciSeq.src.cell_call.main import VarBayes
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq import config
@@ -110,11 +112,39 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
         if cfg['is_3D']:
             pass
         else:
-            copy_viewer_code(cfg)
+            dst = copy_viewer_code(cfg)
+            make_config_js(dst)
+            flask_app_start()
 
     varBayes.conn.close()
     logger.info(' Done')
     return cellData, geneData
+
+
+def make_config_js(dst):
+    cellData_tsv = os.path.join(dst, 'data', 'cellData.tsv')
+    geneData_tsv = os.path.join(dst, 'data', 'geneData.tsv')
+    cellBoundaries_tsv = os.path.join(dst, 'data', 'cellBoundaries.tsv')
+
+    roi_dict = {"x0": 0, "x1": 7602, "y0": 0, "y1": 5471}
+    cellData_dict = {"mediaLink": "../../data/cellData.tsv", "size": str(os.path.getsize(cellData_tsv))}
+    geneData_dict = {"mediaLink": "../../data/geneData.tsv", "size": str(os.path.getsize(geneData_tsv))}
+    cellBoundaries_dict = {"mediaLink": "../../data/cellBoundaries.tsv", "size": str(os.path.getsize(cellBoundaries_tsv))}
+
+    appDict = {
+        'roi': roi_dict,
+        'zoomLevels': 10,
+        'tiles': "https://storage.googleapis.com/ca1-data/img/262144px/{z}/{y}/{x}.jpg",
+        'cellData': cellData_dict,
+        'geneData': geneData_dict,
+        'cellBoundaries': cellBoundaries_dict,
+    }
+
+    config_str = "function config() { return %s }" % json.dumps(appDict)
+    config = os.path.join(dst, 'viewer', 'js', 'config.js')
+    with open(config, 'w') as data:
+        data.write(str(config_str))
+    logger.info(' viewer config saved at %s' % config)
 
 
 def cell_type(_cells, _spots, scRNAseq, ini):
@@ -256,7 +286,8 @@ def copy_viewer_code(cfg):
     dst = get_out_dir(cfg['output_path'], '')
 
     shutil.copytree(src, dst, dirs_exist_ok=True)
-    logger.info('copied from %s to %s' % (src, dst))
+    logger.info(' viewer code (%s) copied from %s to %s' % (dim, src, dst))
+    return dst
 
 
 if __name__ == "__main__":
