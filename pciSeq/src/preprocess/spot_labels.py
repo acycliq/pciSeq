@@ -205,6 +205,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
 
     _cells = props_df.rename(columns={'x_cell': 'x', 'y_cell': 'y', 'z_cell': 'z'})
     _spots = spots[['x', 'y', 'z', 'label', 'Gene']]
+    _cell_boundaries = _cell_boundaries.rename(columns={'label': 'cell_id'})
 
     return _cells, _cell_boundaries, _spots
 
