@@ -1,6 +1,7 @@
 import setuptools
 import os
 from setuptools import setup
+from pciSeq.src.viewer.utils import get_static_files
 
 install_deps = ['numpy', 'pandas', 'sklearn',
                 'numpy_groupies', 'xarray', 'numexpr',
@@ -40,7 +41,7 @@ setup(
         'interactive': ['matplotlib>=2.2.0', 'jupyter'],
     },
     include_package_data=True,
-    package_data={'': ['static/*', 'data/*']},
+    package_data={'pciSeq': get_static_files('./pciSeq/static')},
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: BSD License",
