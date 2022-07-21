@@ -1,6 +1,5 @@
-import setuptools
 import os
-from setuptools import setup
+from setuptools import setup, find_packages
 from pciSeq.src.viewer.utils import get_static_files
 
 install_deps = ['numpy', 'pandas', 'sklearn',
@@ -34,7 +33,7 @@ setup(
     #   'pytest-runner',
     #   'setuptools_scm',
     # ],
-    packages=setuptools.find_packages(),
+    packages=find_packages(),
     # use_scm_version=True,
     install_requires=install_deps,
     extras_require={
