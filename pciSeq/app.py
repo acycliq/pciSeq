@@ -114,7 +114,7 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
         else:
             dst = copy_viewer_code(cfg)
             make_config_js(dst)
-            flask_app_start()
+            flask_app_start(dst)
 
     varBayes.conn.close()
     logger.info(' Done')

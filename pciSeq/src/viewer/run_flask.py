@@ -11,11 +11,11 @@ import webbrowser
 import platform
 import random
 from threading import Timer
-import logging
+from pciSeq.src.cell_call.log_config import logger
 
 
-logging.basicConfig(filename='record.log', level=logging.INFO,
-                    format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
+# logging.basicConfig(filename='record.log', level=logging.INFO,
+#                     format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -51,15 +51,15 @@ def open_browser():
     webbrowser.open_new('http://127.0.0.1:5000/')
 
 
-def flask_app_start():
-    template_dir = os.path.abspath('../../../viewer')
+def flask_app_start(dir):
+    logger.info(' Launching viewer. Serving directory %s ' % dir)
     port = 5000 + random.randint(0, 999)
     # viewer / genes_datatable.html
     # pciSeq/src/viewer/run_flask.py
     flask_app = Flask(__name__,
                 static_url_path='',         # remove the static folder path
-                static_folder=r'C:\Users\skgtdni\AppData\Local\Temp\pciSeq',   # set here the path of the folder to be served. The js files referenced in your html file are with respect to this folder. Adjust the paths in your html file (look for the <script src="some/path/file.js"></script> tag, so that the js libraries will be parsed
-                template_folder=r'C:\Users\skgtdni\AppData\Local\Temp\pciSeq')  # set here the path to the folder where your html page lives. Absolute and relative paths both work fine
+                static_folder=dir,   # set here the path of the folder to be served. The js files referenced in your html file are with respect to this folder. Adjust the paths in your html file (look for the <script src="some/path/file.js"></script> tag, so that the js libraries will be parsed
+                template_folder=dir)  # set here the path to the folder where your html page lives. Absolute and relative paths both work fine
     # D:\Home\Dimitris\OneDrive - UniversityCollegeLondon\dev\Python\pciSeq\pciSeq\src\viewer\run_flask.py
     flask_app.config['EXPLAIN_TEMPLATE_LOADING'] = True
     @flask_app.route("/")
