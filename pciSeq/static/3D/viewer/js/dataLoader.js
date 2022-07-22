@@ -1,5 +1,5 @@
 function data_loader(workPackage) {
-    var worker = new Worker("./streaming-tsv-parser.js");
+    var worker = new Worker("viewer/js/streaming-tsv-parser.js");
     var data = [],
         agg_data,
         previous_avg = 0;
