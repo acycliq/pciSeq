@@ -251,6 +251,10 @@ def init(opts):
 
 def validate(spots, coo, sc, cfg):
 
+    # make sure relax_segmentation is always True when 3D
+    if cfg['is_3D']:
+        cfg['relax_segmentation'] = True
+
     # check if z_stack column is missing
     if 'z_stack' not in spots.columns or not cfg['is_3D'] or not cfg['relax_segmentation']:
         spots = spots.assign(z_stack=np.zeros(spots.shape[0]))
@@ -315,7 +319,7 @@ if __name__ == "__main__":
     # main task
     opts_2D = {'save_data': True, 'nNeighbors': 3, 'MisreadDensity': 0.00001,'is_3D': False}
     opts_3D={'save_data': True,
-             'Inefficiency': 0.0001,
+             'Inefficiency': 0.00001,
              '3D:from_plane_num': 20,
              '3D:to_plane_num': 33,
              'MisreadDensity': 1e-05,
@@ -323,6 +327,6 @@ if __name__ == "__main__":
              'nNeighbors': 6,
           }
 
-    fit(_iss_spots_2D, _coo_2D, scRNAseq=_scRNAseq, opts=opts_2D)
-    # fit(_iss_spots_3D, _coo_3D, scRNAseq=_scRNAseq, opts=opts_3D)
+    # fit(_iss_spots_2D, _coo_2D, scRNAseq=_scRNAseq, opts=opts_2D)
+    fit(_iss_spots_3D, _coo_3D, scRNAseq=_scRNAseq, opts=opts_3D)
 
