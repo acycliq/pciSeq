@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from pciSeq.src.cell_call.utils import gaussian_ellipsoid
+from pciSeq.src.cell_call.utils import gaussian_ellipsoid, gaussian_ellipsoid_props
 from pciSeq.src.cell_call.log_config import logger
 
 
@@ -32,7 +32,21 @@ def _iss_summary(cells, genes, single_cell, cfg):
     prob_list = [class_prob[n, isProb_nonZero[n]].tolist() for n in range(N)]
 
     ellipsoid_border = []
-    if not cfg['is_3D']  and cfg['relax_segmentation']:
+    sphere_scale = []
+    sphere_rotation = []
+    cov_list = []
+    if cfg['is_3D']:
+        sphere_scale = []
+        sphere_rotation = []
+        cov_list = []
+        for i in range(cells.nC):
+            cov = cells.cov[i]
+            _sphere_scale, _sphere_rotation = gaussian_ellipsoid_props(cov, 3)
+            sphere_scale.append(_sphere_scale.tolist())
+            sphere_rotation.append(_sphere_rotation)
+            cov_list.append(cov.flatten().tolist())
+
+    if not cfg['is_3D'] and cfg['relax_segmentation']:
         for i in range(cells.nC):
             # ea = cells.ellipsoid_attributes[i]
             mu = cells.centroid.iloc[i].tolist()
@@ -50,6 +64,18 @@ def _iss_summary(cells, genes, single_cell, cfg):
                             },
                            columns=['Cell_Num', 'X', 'Y', 'Genenames', 'CellGeneCount', 'ClassName', 'Prob']
                            )
+    if np.any(cells.cell_props['z']):
+        iss_df = iss_df.assign(Z=cells.cell_props['z'].tolist())
+
+    if len(sphere_scale) > 0:
+        iss_df = iss_df.assign(sphere_scale = sphere_scale)
+
+    if len(sphere_rotation) > 0:
+        iss_df = iss_df.assign(sphere_rotation = sphere_rotation)
+
+    if len(cov_list) > 0:
+        iss_df = iss_df.assign(cov = cov_list)
+
     if len(ellipsoid_border) > 0:
         iss_df = iss_df.assign(ellipsoid_border = ellipsoid_border)
 
@@ -81,6 +107,9 @@ def _summary(spots):
                         'neighbour': max_nbrs,
                         'neighbour_array': nbrs,
                         'neighbour_prob': p})
+
+    if np.any(spots.data.z):
+        out = out.assign(z=spots.data.z.tolist())
 
     return out
 
