@@ -110,7 +110,8 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
 
     if cfg['launch_viewer']:
         if cfg['is_3D']:
-            pass
+            dst = copy_viewer_code(cfg)
+            flask_app_start(dst)
         else:
             dst = copy_viewer_code(cfg)
             make_config_js(dst)
@@ -311,6 +312,7 @@ if __name__ == "__main__":
     # read 3D some demo data
     _iss_spots_3D = pd.read_csv(r"E:\data\Anne\220308 50umCF seq atto425 DY520XL MS002\spots_yxz.csv")
     _iss_spots_3D = _iss_spots_3D.assign(z_stack=_iss_spots_3D.z)
+    # _iss_spots_3D = _iss_spots_3D.assign(z_stack=np.random.randint(32, 34, _iss_spots_3D.shape[0]))
     _iss_spots_3D = _iss_spots_3D[['y', 'x', 'z_stack', 'Gene']]
 
     _coo_3D = np.load(r"E:\data\Anne\220308 50umCF seq atto425 DY520XL MS002\masks_2D_stiched_fullsize.npz",  allow_pickle=True)['arr_0']
@@ -319,9 +321,9 @@ if __name__ == "__main__":
     # main task
     opts_2D = {'save_data': True, 'nNeighbors': 3, 'MisreadDensity': 0.00001,'is_3D': False}
     opts_3D={'save_data': True,
-             'Inefficiency': 0.00001,
-             '3D:from_plane_num': 20,
-             '3D:to_plane_num': 33,
+             'Inefficiency': 0.2,
+             '3D:from_plane_num': 18,
+             '3D:to_plane_num': 43,
              'MisreadDensity': 1e-05,
              'is_3D': True,
              'nNeighbors': 6,
