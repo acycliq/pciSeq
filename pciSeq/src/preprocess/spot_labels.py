@@ -128,6 +128,19 @@ def truncate_spots(spots, zmin, zmax):
     return spots_min
 
 
+def remove_oob(spots, img_shape):
+    """
+    removes out of bounds spots (if any...)
+    """
+    mask_x = (spots.x >= 0) & (spots.x <= img_shape[1])
+    mask_y = (spots.y >= 0) & (spots.y <= img_shape[0])
+    return spots[mask_x & mask_y]
+
+
+def attach_z(spots, cfg):
+    return spots.assign(z=spots.z_stack * cfg['anisotropy'])
+
+
 def weighted_average(df,data_col,weight_col,by_col):
     df['_data_times_weight'] = df[data_col]*df[weight_col]
     df['_weight_where_notnull'] = df[weight_col]*pd.notnull(df[data_col])
@@ -135,6 +148,15 @@ def weighted_average(df,data_col,weight_col,by_col):
     result = g['_data_times_weight'].sum() / g['_weight_where_notnull'].sum()
     del df['_data_times_weight'], df['_weight_where_notnull']
     return result
+
+
+def get_img_shape(coo):
+    img_shape = set([d.shape for d in coo])
+    assert len(img_shape) == 1, 'pages do not have the same shape'
+    img_shape = img_shape.pop()
+    w = img_shape[1]
+    h = img_shape[0]
+    return [w, h]
 
 
 def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -146,24 +168,21 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
     if cfg['is_3D'] or cfg['relax_segmentation']:
         z_min = cfg['3D:from_plane_num']
         z_max = cfg['3D:to_plane_num']
-        spots = spots.assign(z=spots.z_stack * cfg['3D:anisotropy'])
         if cfg['is_3D']:
             spots, coo = truncate_data(spots, coo, z_min, z_max)
             coo = remove_cells(coo)
-    else:
-        spots = spots.assign(z=spots.z_stack)
 
     coo = reorder_labels(coo)
+    [w, h] = get_img_shape(coo)
+    spots = remove_oob(spots.copy(), [w, h])
+    spots = attach_z(spots, cfg)
 
-    img_shape = set([d.shape for d in coo])
-    assert len(img_shape) == 1, 'pages do not have the same shape'
-    img_shape = img_shape.pop()
     logger.info(' Number of spots passed-in: %d' % spots.shape[0])
     logger.info(' Number of segmented cells: %d' % max([d.data.max() for d in coo if len(d.data) > 0]))
     logger.info(' Segmentation array implies that image has width: %dpx and height: %dpx' % (list(img_shape)[1], list(img_shape)[0]))
-    mask_x = (spots.x >= 0) & (spots.x <= img_shape[1])
-    mask_y = (spots.y >= 0) & (spots.y <= img_shape[0])
-    spots = spots[mask_x & mask_y]
+    # mask_x = (spots.x >= 0) & (spots.x <= img_shape[1])
+    # mask_y = (spots.y >= 0) & (spots.y <= img_shape[0])
+    # spots = spots[mask_x & mask_y]
 
     # 1. Find which cell the spots lie within
     spots = spots.assign(label=np.zeros(spots.shape[0]))
