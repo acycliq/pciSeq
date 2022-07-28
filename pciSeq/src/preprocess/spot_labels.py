@@ -97,7 +97,20 @@ def truncate_spots(spots, zmin, zmax):
     spots_min = spots[(spots.z_stack <= zmax) & (spots.z_stack >= zmin)]
     spots_min = spots_min.assign(z_stack=spots_min.z_stack - zmin)
     # out = spots_min.z - zmin
-    return spots_min
+    return spots_min.reset_index(drop=True)
+
+
+def remove_oob(spots, label_image):
+    """
+    removes out of bounds spots (if any...)
+    """
+    mask_x = (spots.x >= 0) & (spots.x <= label_image.shape[2])
+    mask_y = (spots.y >= 0) & (spots.y <= label_image.shape[1])
+    return spots[mask_x & mask_y]
+
+
+def attach_z(spots, cfg):
+    return spots.assign(z=spots.z_stack * cfg['anisotropy'])
 
 
 def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -111,18 +124,17 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
     z_max = cfg['z_stack_max']
     # z_min = 18
     # z_max = 43
-    spots = spots.assign(z=spots.z_stack * cfg['anisotropy'])
+
     spots, coo = truncate_data(spots, coo, z_min, z_max)
     coo = remove_cells(coo)
     coo = reorder_labels(coo)
 
     label_image = np.stack([d.toarray().astype(np.uint16) for d in coo])
+    spots = remove_oob(spots.copy(), label_image)
+    spots = attach_z(spots, cfg)
     logger.info(' Number of spots passed-in: %d' % spots.shape[0])
-    logger.info(' Number of segmented cells: %d' % sum(np.unique(label_image) > 0) )
+    logger.info(' Number of segmented cells: %d' % sum(np.unique(label_image) > 0))
     logger.info(' Segmentation array implies that image has width: %dpx and height: %dpx' % (label_image.shape[2], label_image.shape[1]))
-    mask_x = (spots.x >= 0) & (spots.x <= label_image.shape[2])
-    mask_y = (spots.y >= 0) & (spots.y <= label_image.shape[1])
-    spots = spots[mask_x & mask_y]
 
     # Debugging code!
     # resuffle
