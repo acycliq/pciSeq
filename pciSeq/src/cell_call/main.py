@@ -243,7 +243,7 @@ class VarBayes(object):
         # initialise array with the misread density
         wSpotCell = np.zeros([nS, nN]) + np.log(misread_density_adj)
         gn = self.spots.data.gene_name.values
-        expected_counts = self.single_cell.log_mean_expression.loc[gn].values
+        sc_mean = self.single_cell.log_mean_expression.loc[gn].values
         logeta_bar = self.genes.logeta_bar[self.spots.gene_id]
 
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
@@ -256,14 +256,11 @@ class VarBayes(object):
             cp = self.cells.classProb[sn]
 
             # multiply and sum over cells
-            term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
+            term_1 = np.einsum('ij, ij -> i', sc_mean, cp)
 
-            # logger.info('genes.spotNo should be something like spots.geneNo instead!!')
-            expectedLog = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
-            # expectedLog = utils.bi2(self.elgamma.data, [nS, nK], sn[:, None], self.spots.data.gene_id.values[:, None])
+            log_gamma_bar = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
 
-            term_2 = np.einsum('ij, ij -> i', cp, expectedLog)  # same as np.sum(cp * expectedLog, axis=1) but bit faster
-
+            term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
             loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells)
             my_D[:, n] = loglik
             wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik
