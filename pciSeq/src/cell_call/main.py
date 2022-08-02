@@ -34,7 +34,7 @@ class VarBayes(object):
     def initialise(self):
         self.cellTypes.ini_prior()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
-        self.genes.eta = np.ones(self.nG) * self.config['Inefficiency']
+        self.genes.init_eta(1, 1/self.config['Inefficiency'])
         self.spots.parent_cell_id, _ = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id,
                                                               self.config)  # assign a spot to a cell if it is within its cell boundaries
@@ -137,9 +137,10 @@ class VarBayes(object):
         cells = self.cells
         cfg = self.config
         dtype = self.config['dtype']
-        beta = np.einsum('c, gk, g -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression,
-                         self.genes.eta).astype(dtype) + cfg['rSpot']
-        # beta = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
+        beta = np.einsum('c, gk, g -> cgk',
+                         cells.cell_props['area_factor'],
+                         self.single_cell.mean_expression,
+                         self.genes.eta_bar).astype(dtype) + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
         self.spots.gamma_bar = self.spots.gammaExpectation(rho, beta)
@@ -148,7 +149,7 @@ class VarBayes(object):
     # -------------------------------------------------------------------- #
     def cell_to_cellType(self):
         """
-        return a an array of size numCells-by-numCellTypes where element in position [i,j]
+        return an array of size numCells-by-numCellTypes where element in position [i,j]
         keeps the probability that cell i has cell type j
         Implements equation (2) of the Qian paper
         :param spots:
@@ -159,8 +160,11 @@ class VarBayes(object):
         # gene_gamma = self.genes.eta
         dtype = self.config['dtype']
         # ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.alpha, self.genes.eta, sc.mean_expression.data) + self.config['SpotReg']
-        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], self.genes.eta,
-                              self.single_cell.mean_expression).astype(dtype)
+        ScaledExp = np.einsum('c, g, gk -> cgk',
+                              self.cells.cell_props['area_factor'],
+                              self.genes.eta_bar,
+                              self.single_cell.mean_expression
+                              ).astype(dtype)
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
@@ -185,11 +189,11 @@ class VarBayes(object):
         Implements equation (4) of the Qian paper
         """
         nN = self.nN
-        nS = self.spots.data.Gene.shape[0]
+        nS = self.spots.data.gene_name.shape[0]
 
         # initialise array with the misread density
         aSpotCell = np.zeros([nS, nN])
-        gn = self.spots.data.Gene.values
+        gn = self.spots.data.gene_name.values
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
 
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
@@ -232,14 +236,15 @@ class VarBayes(object):
         """
         # nN = self.config['nNeighbors'] + 1
         nN = self.nN
-        nS = self.spots.data.Gene.shape[0]
+        nS = self.spots.data.gene_name.shape[0]
 
         misread_density_adj_factor = -1 * np.log(2 * np.pi * self.cells.mcr ** 2) / 2
         misread_density_adj = np.exp(misread_density_adj_factor) * self.config['MisreadDensity']
         # initialise array with the misread density
         wSpotCell = np.zeros([nS, nN]) + np.log(misread_density_adj)
-        gn = self.spots.data.Gene.values
+        gn = self.spots.data.gene_name.values
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
+        logeta_bar = self.genes.logeta_bar[self.spots.gene_id]
 
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
         my_D = np.zeros([nS, nN])
@@ -261,7 +266,7 @@ class VarBayes(object):
 
             loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells)
             my_D[:, n] = loglik
-            wSpotCell[:, n] = term_1 + term_2 + loglik
+            wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik
 
         # update the prob a spot belongs to a neighboring cell
         pSpotNeighb = utils.softmax(wSpotCell, axis=1)
@@ -301,12 +306,11 @@ class VarBayes(object):
                                        area_factor,
                                        gamma_bar[:, :, :-1])
         background_counts = self.cells.background_counts
-        numer = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
-        denom = self.config['rGene'] / self.config['Inefficiency'] + class_total_counts
-        res = numer / denom
+        alpha = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
+        beta = self.config['rGene'] / self.config['Inefficiency'] + class_total_counts
 
         # Finally, update gene efficiency
-        self.genes.eta = res
+        self.genes.calc_eta(alpha, beta)
 
     # -------------------------------------------------------------------- #
     def gaussian_upd(self):
@@ -433,7 +437,7 @@ class VarBayes(object):
         area_factor = self.cells.cell_props['area_factor'][1:]
 
         numer = np.einsum('ck, cg -> gk', classProb, geneCount)
-        denom = np.einsum('ck, c, cgk, g -> gk', classProb, area_factor, gamma_bar, self.genes.eta)
+        denom = np.einsum('ck, c, cgk, g -> gk', classProb, area_factor, gamma_bar, self.genes.eta_bar)
 
         # set the hyperparameter for the gamma prior
         # m = 1

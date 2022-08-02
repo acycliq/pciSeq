@@ -252,25 +252,36 @@ class Cells(object):
 # ----------------------------------------Class: Genes--------------------------------------------------- #
 class Genes(object):
     def __init__(self, spots):
-        # self.gamma = np.ones(len(spots.unique_gene_names))
-        # self.gamma = None
-        self.gene_panel = np.unique(spots.data.Gene.values)
-        self._eta = None
+        self.gene_panel = np.unique(spots.data.gene_name.values)
+        self._eta_bar = None
+        self._logeta_bar = None
         self.nG = len(self.gene_panel)
 
     @property
     def eta(self):
-        return self._eta
+        raise Exception
 
-    @eta.setter
-    def eta(self, val):
-        self._eta = val
+    @property
+    def eta_bar(self):
+        return self._eta_bar
 
-    def db_save(self, con, run, converged, db_opts):
-        self.db_gene_efficiency(con, run, converged, db_opts)
+    @property
+    def logeta_bar(self):
+        return self._logeta_bar
+
+    def init_eta(self, a, b):
+        self._eta_bar = np.ones(self.nG) * (a / b)
+        self._logeta_bar = np.ones(self.nG) * self._digamma(a, b)
+
+    def calc_eta(self, a, b):
+        self._eta_bar = a/b
+        self._logeta_bar = self._digamma(a, b)
+
+    def _digamma(self, a, b):
+        return scipy.special.psi(a) - np.log(b)
 
     def db_gene_efficiency(self, con, run, converged, db_opts):
-        df = pd.DataFrame(data=self.eta, index=self.gene_panel, columns=['gene_efficiency'])
+        df = pd.DataFrame(data=self.eta_bar, index=self.gene_panel, columns=['gene_efficiency'])
         df.index.name = 'gene'
         df['iteration'] = run
         df['has_converged'] = converged
@@ -292,7 +303,7 @@ class Spots(object):
         self.unique_gene_names = None
         self._gamma_bar = None
         self._log_gamma_bar = None
-        [_, self.gene_id, self.counts_per_gene] = np.unique(self.data.Gene.values, return_inverse=True, return_counts=True)
+        [_, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True, return_counts=True)
 
     # -------- PROPERTIES -------- #
     @property
@@ -342,9 +353,9 @@ class Spots(object):
 
         # remove a gene if it is on the exclude list
         exclude_genes = self.config['exclude_genes']
-        gene_mask = [True if d not in exclude_genes else False for d in spots_df.Gene]
+        gene_mask = [True if d not in exclude_genes else False for d in spots_df.gene_name]
         spots_df = spots_df.loc[gene_mask]
-        return spots_df.rename_axis('spot_id')
+        return spots_df
 
     def cells_nearby(self, cells: Cells) -> np.array:
         spotZYX = self.data[['z', 'y', 'x']]

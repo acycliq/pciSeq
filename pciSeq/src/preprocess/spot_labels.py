@@ -238,7 +238,9 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
         _cell_boundaries = None
 
     _cells = props_df.rename(columns={'x_cell': 'x', 'y_cell': 'y', 'z_cell': 'z'})
-    _spots = spots[['x', 'y', 'z', 'label', 'Gene']]
+    _spots = spots[['x', 'y', 'z', 'label', 'Gene']]\
+        .rename_axis('spot_id')\
+        .rename(columns={'Gene': 'gene_name'})
 
     return _cells, _cell_boundaries, _spots
 
