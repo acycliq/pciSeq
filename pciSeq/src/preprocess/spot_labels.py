@@ -86,6 +86,19 @@ def reorder_labels(label_image):
     return out
 
 
+def reorder_labels_old(coo):
+    """
+    rearranges the labels so that they are a sequence of integers
+    """
+    label_image = np.stack([d.toarray().astype(np.uint16) for d in coo])
+    _, idx = np.unique(label_image.flatten(), return_inverse=True)
+    label_image = idx.reshape(label_image.shape)
+    ## Need to check what is happening when you change to no.uint16. For example coo[-1].data.sum() is not the same
+    ## when you change to np.uint16
+    return [coo_matrix(d.astype(np.uint64)) for d in label_image]
+
+
+
 def remove_cells(coo_list):
     """
     removes cells that exist on just one single frame of the
@@ -125,7 +138,7 @@ def truncate_spots(spots, zmin, zmax):
     spots_min = spots[(spots.z_stack <= zmax) & (spots.z_stack >= zmin)]
     spots_min = spots_min.assign(z_stack=spots_min.z_stack - zmin)
     # out = spots_min.z - zmin
-    return spots_min
+    return spots_min.reset_index(drop=True)
 
 
 def remove_oob(spots, img_shape):
@@ -138,7 +151,7 @@ def remove_oob(spots, img_shape):
 
 
 def attach_z(spots, cfg):
-    return spots.assign(z=spots.z_stack * cfg['anisotropy'])
+    return spots.assign(z=spots.z_stack * cfg['3D:anisotropy'])
 
 
 def weighted_average(df,data_col,weight_col,by_col):
@@ -156,7 +169,7 @@ def get_img_shape(coo):
     img_shape = img_shape.pop()
     w = img_shape[1]
     h = img_shape[0]
-    return [w, h]
+    return [h, w]
 
 
 def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -165,21 +178,21 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
     given spot within its boundaries. It also retrieves the coordinates of the cell boundaries, the cell
     centroids and the cell area
     """
-    if cfg['is_3D'] or cfg['relax_segmentation']:
+    if cfg['is_3D']:
         z_min = cfg['3D:from_plane_num']
         z_max = cfg['3D:to_plane_num']
-        if cfg['is_3D']:
-            spots, coo = truncate_data(spots, coo, z_min, z_max)
-            coo = remove_cells(coo)
+        spots, coo = truncate_data(spots, coo, z_min, z_max)
+        coo = remove_cells(coo)
 
-    coo = reorder_labels(coo)
-    [w, h] = get_img_shape(coo)
-    spots = remove_oob(spots.copy(), [w, h])
+    # coo_1 = reorder_labels(coo)
+    coo = reorder_labels_old(coo)
+    [h, w] = get_img_shape(coo)
+    spots = remove_oob(spots.copy(), [h, w])
     spots = attach_z(spots, cfg)
 
     logger.info(' Number of spots passed-in: %d' % spots.shape[0])
     logger.info(' Number of segmented cells: %d' % max([d.data.max() for d in coo if len(d.data) > 0]))
-    logger.info(' Segmentation array implies that image has width: %dpx and height: %dpx' % (list(img_shape)[1], list(img_shape)[0]))
+    logger.info(' Segmentation array implies that image has width: %dpx and height: %dpx' % (w, h))
     # mask_x = (spots.x >= 0) & (spots.x <= img_shape[1])
     # mask_y = (spots.y >= 0) & (spots.y <= img_shape[0])
     # spots = spots[mask_x & mask_y]
@@ -198,7 +211,8 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
     centroid_0 = weighted_average(props, 'dim-0', 'area', 'label')
     y_cell = weighted_average(props, 'centroid-0', 'area', 'label')
     x_cell = weighted_average(props, 'centroid-1', 'area', 'label')
-    mean_area_per_slice = weighted_average(props, 'area', 'area', 'label')
+    _mean_area_per_slice = weighted_average(props, 'area', 'area', 'label')
+    mean_area_per_slice = props.groupby('label').mean()['area'] ## REMOVE THIS WHEN DONE
 
     assert np.all(centroid_0.index == y_cell.index)
     assert np.all(centroid_0.index == x_cell.index)
