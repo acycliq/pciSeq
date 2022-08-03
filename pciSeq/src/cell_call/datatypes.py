@@ -107,19 +107,34 @@ class Cells(object):
 # ----------------------------------------Class: Genes--------------------------------------------------- #
 class Genes(object):
     def __init__(self, spots):
-        # self.gamma = np.ones(len(spots.unique_gene_names))
-        # self.gamma = None
         self.gene_panel = np.unique(spots.data.gene_name.values)
-        self._eta = None
+        self._eta_bar = None
+        self._logeta_bar = None
         self.nG = len(self.gene_panel)
 
     @property
     def eta(self):
-        return self._eta
+        raise Exception
 
-    @eta.setter
-    def eta(self, val):
-        self._eta = val
+    @property
+    def eta_bar(self):
+        return self._eta_bar
+
+    @property
+    def logeta_bar(self):
+        return self._logeta_bar
+
+    def init_eta(self, a, b):
+        self._eta_bar = np.ones(self.nG) * (a / b)
+        self._logeta_bar = np.ones(self.nG) * self._digamma(a, b)
+
+    def calc_eta(self, a, b):
+        self._eta_bar = a/b
+        self._logeta_bar = self._digamma(a, b)
+
+    def _digamma(self, a, b):
+        return scipy.special.psi(a) - np.log(b)
+
 
 # ----------------------------------------Class: Spots--------------------------------------------------- #
 class Spots(object):

@@ -25,7 +25,7 @@ class VarBayes:
     def initialise(self):
         self.cellTypes.ini_prior('uniform')
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
-        self.genes.eta = np.ones(self.nG) * self.config['Inefficiency']
+        self.genes.init_eta(1, 1 / self.config['Inefficiency'])
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
@@ -113,7 +113,7 @@ class VarBayes:
         cells = self.cells
         cfg = self.config
         dtype = self.config['dtype']
-        beta = np.einsum('c, gk, g -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression, self.genes.eta).astype(dtype) + cfg['rSpot']
+        beta = np.einsum('c, gk, g -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression, self.genes.eta_bar).astype(dtype) + cfg['rSpot']
         # beta = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
@@ -134,7 +134,7 @@ class VarBayes:
         # gene_gamma = self.genes.eta
         dtype = self.config['dtype']
         # ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.alpha, self.genes.eta, sc.mean_expression.data) + self.config['SpotReg']
-        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], self.genes.eta, self.single_cell.mean_expression).astype(dtype)
+        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], self.genes.eta_bar, self.single_cell.mean_expression).astype(dtype)
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
@@ -157,19 +157,10 @@ class VarBayes:
         nN = self.nN
         nS = self.spots.data.gene_name.shape[0]
 
-        # initialise array with the misread density
         aSpotCell = np.zeros([nS, nN])
         gn = self.spots.data.gene_name.values
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
-
-        ## DN: 22-Jun-2022. I think this is missing from equation 4, Xiaoyan's paper
-        ## I think we should multiply mu (single cell expression averages) by the gene efficiency
-        unames, idx = np.unique(gn, return_inverse=True)
-        assert np.all(unames == self.genes.gene_panel)
-
-        eta = self.genes.eta[idx]
-        expected_counts = np.einsum('sc, s -> sc', expected_counts, eta)  # multiply the single cell averages by the gene efficiency
-        ## DN ends
+        logeta_bar = self.genes.logeta_bar[self.spots.gene_id]
 
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
         for n in range(nN - 1):
@@ -183,19 +174,17 @@ class VarBayes:
             term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
 
             # logger.info('genes.spotNo should be something like spots.geneNo instead!!')
-            expectedLog = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
+            log_gamma_bar = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
 
-            term_2 = np.einsum('ij, ij -> i', cp, expectedLog)
-            aSpotCell[:, n] = term_1 + term_2
+            term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
+            aSpotCell[:, n] = term_1 + term_2 + logeta_bar
         wSpotCell = aSpotCell + self.spots.loglik(self.cells, self.config)
 
         # update the prob a spot belongs to a neighboring cell
-        pSpotNeighb = utils.softmax(wSpotCell, axis=1)
-        self.spots.parent_cell_prob = pSpotNeighb
+        self.spots.parent_cell_prob = utils.softmax(wSpotCell, axis=1)
+
         # Since the spot-to-cell assignments changed you need to update the gene counts now
         self.geneCount_upd()
-        # self.spots.update_cell_prob(pSpotNeighb, self.cells)
-        # logger.info('spot ---> cell probabilities updated')
 
     # -------------------------------------------------------------------- #
     def eta_upd(self):
@@ -225,12 +214,13 @@ class VarBayes:
                                        area_factor,
                                        gamma_bar[:, :, :-1])
         background_counts = self.cells.background_counts
-        numer = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
-        denom = self.config['rGene']/self.config['Inefficiency'] + class_total_counts
-        res = numer / denom
+        alpha = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
+        beta = self.config['rGene']/self.config['Inefficiency'] + class_total_counts
+        # res = num / denom
 
-        # Finally, update gene efficiency
-        self.genes.eta = res
+        # Finally, update gene_gamma
+        self.genes.calc_eta(alpha, beta)
+        # self.genes.eta_bar = res.values
 
 
 
