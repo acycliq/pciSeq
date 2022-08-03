@@ -263,6 +263,11 @@ class VarBayes(object):
             term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
             loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells)
             my_D[:, n] = loglik
+
+            # if 2D, add the bonus for the spots inside the boundaries.
+            if not self.config['is_3D']:
+                loglik = loglik + self.inside_bonus(sn)
+
             wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik
 
         # update the prob a spot belongs to a neighboring cell
@@ -274,6 +279,12 @@ class VarBayes(object):
         logger.info(' Spot to cell loglikelihood: %f' % wSpotCell.sum())
         # self.spots.update_cell_prob(pSpotNeighb, self.cells)
         # logger.info('spot ---> cell probabilities updated')
+
+    def inside_bonus(self, cell_id):
+        mask = self.spots.data.label.values == cell_id
+        bonus = self.config['InsideCellBonus']
+        return np.where(mask, bonus, 0)
+
 
     # -------------------------------------------------------------------- #
     def eta_upd(self):
