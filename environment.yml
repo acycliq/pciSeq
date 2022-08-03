@@ -1,0 +1,38 @@
+name: pciSeq
+channels:
+  - conda-forge
+dependencies:
+  - ca-certificates=2022.6.15=h5b45459_0
+  - intel-openmp=2022.1.0=h57928b3_3787
+  - joblib=1.1.0=pyhd8ed1ab_0
+  - libblas=3.9.0=15_win64_mkl
+  - libcblas=3.9.0=15_win64_mkl
+  - liblapack=3.9.0=15_win64_mkl
+  - m2w64-gcc-libgfortran=5.3.0=6
+  - m2w64-gcc-libs=5.3.0=7
+  - m2w64-gcc-libs-core=5.3.0=7
+  - m2w64-gmp=6.1.0=2
+  - m2w64-libwinpthread-git=5.0.0.4634.697f757=2
+  - mkl=2022.1.0=h6a75c08_874
+  - msys2-conda-epoch=20160418=1
+  - numpy=1.21.6=py37h2830a78_0
+  - numpy_groupies=0.9.17=pyhd8ed1ab_0
+  - openssl=3.0.5=h8ffe710_1
+  - pandas=1.3.4=py37h9386db6_1
+  - pip=22.2.1=pyhd8ed1ab_0
+  - python=3.7.12=h900ac77_100_cpython
+  - python-dateutil=2.8.2=pyhd8ed1ab_0
+  - python_abi=3.7=2_cp37m
+  - pytz=2022.1=pyhd8ed1ab_0
+  - scikit-learn=1.0.2=py37hcabfae0_0
+  - scipy=1.7.3=py37hb6553fb_0
+  - setuptools=59.8.0=py37h03978a9_1
+  - six=1.16.0=pyh6c4a22f_0
+  - sqlite=3.39.2=h8ffe710_0
+  - tbb=2021.5.0=h2d74725_1
+  - threadpoolctl=3.1.0=pyh8a188c0_0
+  - ucrt=10.0.20348.0=h57928b3_0
+  - vc=14.2=hb210afc_6
+  - vs2015_runtime=14.29.30037=h902a5da_6
+  - wheel=0.37.1=pyhd8ed1ab_0
+prefix: C:\ProgramData\Anaconda3\envs\pciSeq
