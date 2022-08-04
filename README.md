@@ -6,7 +6,7 @@ A Python package that implements the cell calling algorithm as described in [[Qi
 
 ## Installation
 ```
-pip install pciSeq
+python -m pip install pciSeq
 ```
 Requirement: Python >= 3.7
 
