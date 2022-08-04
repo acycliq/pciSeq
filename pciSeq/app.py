@@ -326,7 +326,7 @@ if __name__ == "__main__":
              'MisreadDensity': 1e-05,
              'is_3D': True,
              'nNeighbors': 6,
-             'CellCallTolerance': 0.10,
+             'CellCallTolerance': 0.02,
           }
 
     # fit(_iss_spots_2D, _coo_2D, scRNAseq=_scRNAseq, opts=opts_2D)
