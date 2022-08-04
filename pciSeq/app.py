@@ -57,7 +57,7 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
             Name: Genenames, dtype: Object, array-like of the genes assinged to the cell
             Name: CellGeneCount, dtype: Object,array-like of the corresponding gene counts
             Name: ClassName, dtype: Object, array-like of the genes probable classes for the cell
-            Name: Prob, dtype: Object, array-like array-like of the corresponding cell class probabilities
+            Name: Prob, dtype: Object, array-like of the corresponding cell class probabilities
 
     geneData : pandas.DataFrame
         Index:
