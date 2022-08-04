@@ -10,6 +10,16 @@ pip install pciSeq
 ```
 Requirement: Python >= 3.7
 
+If you want to work with the source code you can download the repo and then replicate the python environment by
+```
+conda env create -n pciSeq -f /path/to/environment.yml
+```
+
+That will create a conda environment with the name `pciSeq` containing all the necessary packages to run the algorithm. To activate it run 
+```
+conda activate pciSeq
+```
+or, if you open the project in your IDE, then in your project settings, switch your interpreter to the interpreter of the `pciSeq` env. 
 ## Usage
 You need to create two `pandas dataframes` for the spots and the single cell data and a `coo_matrix` for the label image (which in 
 most cases will be the output of some image segmentation application). Then you pass them into the `pciSeq.fit()` method as follows: 
