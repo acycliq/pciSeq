@@ -1,33 +1,28 @@
-import os
-import json
+import sys
 import numpy as np
-from scipy.stats import multivariate_normal
 import pandas as pd
+import sqlite3
+import datetime
 import numpy_groupies as npg
 import scipy
-import gc
 import numexpr as ne
 from sklearn.neighbors import NearestNeighbors
-from pciSeq.src.cell_call.utils import read_image_objects
-import logging
-
-dir_path = os.path.dirname(os.path.realpath(__file__))
-logger = logging.getLogger(__name__)
+from pciSeq.src.cell_call.log_config import logger
 
 
 class Cells(object):
     # Get rid of the properties where not necessary!!
     def __init__(self, _cells_df, config):
         self.config = config
-        self.cell_props, self.mcr = read_image_objects(_cells_df, config)
+        self.cell_props, self.mcr = self.read_image_objects(_cells_df, config)
         self.nC = len(self.cell_props['cell_label'])
         self.classProb = None
         self.class_names = None
         self._prior = None
         self._cov = self.ini_cov()
         self.nu_0 = 30  # need to move that into config.py. Degrees of freedom of the Wishart prior. Use the mean gene counts per cell to set nu_0
-        self.rho_1 = self.config['rho_1']    # need to move that into config.py
-        self.rho_2 = self.config['rho_2']   # need to move that into config.py
+        self.rho_1 = self.config['relax_segmentation: rho_1']
+        self.rho_2 = self.config['relax_segmentation: rho_2']
         self._centroid = self.ini_centroids()
         self._gene_counts = None
         self._background_counts = None
@@ -53,11 +48,13 @@ class Cells(object):
 
     @background_counts.setter
     def background_counts(self, val):
-        assert val[1:, :].sum() == 0, 'Input array must be zero everywhere apart from the top row'
-        self._background_counts = val[0, :]
+        # assert val[1:, :].sum() == 0, 'Input array must be zero everywhere apart from the top row'
+        # self._background_counts = val[0, :]
+        self._background_counts = val
 
     @property
     def total_counts(self):
+        # tc = self.geneCount.sum(axis=1)
         return self.geneCount.sum(axis=1)
 
     @property
@@ -96,12 +93,21 @@ class Cells(object):
         return np.sqrt(self.cov[:, 1, 1])
 
     @property
+    def sigma_z(self):
+        return np.sqrt(self.cov[:, 2, 2])
+
+    @property
     def corr(self):
         sigma_x = np.sqrt(self.cov[:, 0, 0])
         sigma_y = np.sqrt(self.cov[:, 1, 1])
+        sigma_z = np.sqrt(self.cov[:, 2, 2])
         cov_xy = self.cov[:, 0, 1]
-        rho = cov_xy / (sigma_x * sigma_y)
-        return rho
+        cov_xz = self.cov[:, 0, 2]
+        cov_yz = self.cov[:, 1, 2]
+        rho_xy = cov_xy / (sigma_x * sigma_y)
+        rho_xz = cov_xz / (sigma_x * sigma_z)
+        rho_yz = cov_yz / (sigma_y * sigma_z)
+        return [rho_xy, rho_xz, rho_yz]
 
     @property
     def ellipsoid_attributes(self):
@@ -113,16 +119,16 @@ class Cells(object):
         mu = self.centroid.values.tolist()
         sigma_x = self.sigma_x.tolist()
         sigma_y = self.sigma_y.tolist()
-        rho = self.corr.tolist()
+        rho = self.corr
         return list(zip(mu, rho, sigma_x, sigma_y))
-
 
     # -------- METHODS -------- #
     def ini_centroids(self):
-        d = {'x': self.cell_props['x'],
-             'y': self.cell_props['y'],
-             'z': self.cell_props['z'],
-             }
+        d = {
+            'x': self.cell_props['x'],
+            'y': self.cell_props['y'],
+            'z': self.cell_props['z'],
+        }
         df = pd.DataFrame(d)
         return df.copy()
 
@@ -140,17 +146,20 @@ class Cells(object):
         nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(self.zyx_coords)
         return nbrs
 
-    def geneCountsPerKlass(self, single_cell_data, egamma, ini):
-        temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.cell_props['area_factor'], egamma)
-
-        # total counts predicted by all cells of each class (nG, nK)
-        ClassTotPredicted = temp * (single_cell_data.mean_expression + ini['SpotReg'])
-
-        # total of each gene
-        isZero = ClassTotPredicted.columns == 'Zero'
-        labels = ClassTotPredicted.columns.values[~isZero]
-        TotPredicted = ClassTotPredicted[labels].sum(axis=1)
-        return TotPredicted
+    # def geneCountsPerKlass(self, single_cell_data, egamma, ini):
+    #     # ********************************************
+    #     # DEPRECATED. Replaced by a simple einsum call
+    #     # ********************************************
+    #     temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.cell_props['area_factor'], egamma)
+    #
+    #     # total counts predicted by all cells of each class (nG, nK)
+    #     ClassTotPredicted = temp * (single_cell_data.mean_expression + ini['SpotReg'])
+    #
+    #     # total of each gene
+    #     isZero = ClassTotPredicted.columns == 'Zero'
+    #     labels = ClassTotPredicted.columns.values[~isZero]
+    #     TotPredicted = ClassTotPredicted[labels].sum(axis=1)
+    #     return TotPredicted
 
     def scatter_matrix(self, spots):
         mu_bar = self.centroid.values
@@ -170,15 +179,15 @@ class Cells(object):
 
         x_centered = _x - mu_x  # subtract the cell centroid x-coord from the spot x-coord
         y_centered = _y - mu_y  # subtract the cell centroid y-coord from the spot y-coord
-        z_centered = _z - mu_z  # subtract the cell centroid y-coord from the spot z-coord
+        z_centered = _z - mu_z  # subtract the cell centroid z-coord from the spot z-coord
 
         el_00 = prob * x_centered * x_centered  # contribution to the scatter matrix's [0, 0] element
-        el_11 = prob * y_centered * y_centered  # contribution to the scatter matrix's off-diagonal element
-        el_22 = prob * z_centered * z_centered  # contribution to the scatter matrix's off-diagonal element
+        el_11 = prob * y_centered * y_centered  # contribution to the scatter matrix's [1, 1] element
+        el_22 = prob * z_centered * z_centered  # contribution to the scatter matrix's [2, 2] element
 
-        el_01 = prob * x_centered * y_centered  # contribution to the scatter matrix's [1, 1] element
-        el_02 = prob * x_centered * z_centered  # contribution to the scatter matrix's [1, 1] element
-        el_12 = prob * y_centered * z_centered  # contribution to the scatter matrix's [1, 1] element
+        el_01 = prob * x_centered * y_centered  # contribution to the scatter matrix's [0, 1] element
+        el_02 = prob * x_centered * z_centered  # contribution to the scatter matrix's [0, 2] element
+        el_12 = prob * y_centered * z_centered  # contribution to the scatter matrix's [1, 2] element
 
         # Aggregate all contributions to get the scatter matrix
         agg_00 = npg.aggregate(id.ravel(), el_00.ravel(), size=self.nC)
@@ -205,20 +214,82 @@ class Cells(object):
 
         return out
 
+    def read_image_objects(self, img_obj, cfg):
+        meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
+        relCellRadius = np.sqrt(img_obj.area / np.pi) / meanCellRadius
+
+        # append 1 for the misreads
+        relCellRadius = np.append(1, relCellRadius)
+
+        nom = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
+        denom = np.exp(-0.5) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
+        CellAreaFactor = nom / denom
+
+        out = {}
+        if cfg['relax_segmentation'] or cfg['is_3D']:
+            out['area_factor'] = np.ones(CellAreaFactor.shape[0])
+        else:
+            out['area_factor'] = CellAreaFactor
+        # out['area_factor'] = np.ones(CellAreaFactor.shape)
+        # logger.info('Overriden CellAreaFactor = 1')
+        out['rel_radius'] = relCellRadius
+        out['area'] = np.append(np.nan, img_obj.area)
+        out['x'] = np.append(-sys.maxsize, img_obj.x.values)
+        out['y'] = np.append(-sys.maxsize, img_obj.y.values)
+        out['z'] = np.append(-sys.maxsize, img_obj.z.values)
+        out['cell_label'] = np.append(0, img_obj.label.values)
+        # First cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
+        # and will be used to get all the misreads. It was given the label=0 and some very small
+        # negative coords
+
+        return out, meanCellRadius
+
+
+    def export_class_prob(self, conn, iter_num, has_converged):
+        pass
+
+
 # ----------------------------------------Class: Genes--------------------------------------------------- #
 class Genes(object):
     def __init__(self, spots):
         self.gene_panel = np.unique(spots.data.gene_name.values)
-        self._eta = None
+        self._eta_bar = None
+        self._logeta_bar = None
         self.nG = len(self.gene_panel)
 
     @property
     def eta(self):
-        return self._eta
+        raise Exception
 
-    @eta.setter
-    def eta(self, val):
-        self._eta = val
+    @property
+    def eta_bar(self):
+        return self._eta_bar
+
+    @property
+    def logeta_bar(self):
+        return self._logeta_bar
+
+    def init_eta(self, a, b):
+        self._eta_bar = np.ones(self.nG) * (a / b)
+        self._logeta_bar = np.ones(self.nG) * self._digamma(a, b)
+
+    def calc_eta(self, a, b):
+        self._eta_bar = a/b
+        self._logeta_bar = self._digamma(a, b)
+
+    def _digamma(self, a, b):
+        return scipy.special.psi(a) - np.log(b)
+
+    def db_gene_efficiency(self, con, run, converged, db_opts):
+        df = pd.DataFrame(data=self.eta_bar, index=self.gene_panel, columns=['gene_efficiency'])
+        df.index.name = 'gene'
+        df['iteration'] = run
+        df['has_converged'] = converged
+        df['utc'] = datetime.datetime.utcnow()
+        df = df.reset_index()
+        df.to_sql(name='gene_efficiency', con=con, if_exists=db_opts['if_table_exists'], index=False)
+        con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_gene_iteration ON gene_efficiency("gene", "iteration");')
+
 
 # ----------------------------------------Class: Spots--------------------------------------------------- #
 class Spots(object):
@@ -278,13 +349,13 @@ class Spots(object):
         # No need for x_global, y_global to be in the spots_df at first place.
         # Instead of renaming here, you could just use 'x' and 'y' when you
         # created the spots_df
-        spots_df = spots_df.rename(columns={'x_global': 'x', 'y_global': 'y', 'z_global': 'z'})
+        # spots_df = spots_df.rename(columns={'x_global': 'x', 'y_global': 'y', 'z_global': 'z'})
 
         # remove a gene if it is on the exclude list
         exclude_genes = self.config['exclude_genes']
-        gene_mask = [True if d not in exclude_genes else False for d in spots_df.target]
+        gene_mask = [True if d not in exclude_genes else False for d in spots_df.gene_name]
         spots_df = spots_df.loc[gene_mask]
-        return spots_df.rename_axis('spot_id').rename(columns={'target': 'gene_name'})
+        return spots_df
 
     def cells_nearby(self, cells: Cells) -> np.array:
         spotZYX = self.data[['z', 'y', 'x']]
@@ -296,6 +367,7 @@ class Spots(object):
         # last column is for misreads.
         neighbors[:, -1] = 0
 
+        # make an array assigning 100% prob of any given cell belonging to its closest neighbour
         cellProb = np.zeros(neighbors.shape, dtype=np.uint32)
         cellProb[:, 0] = np.ones(neighbors.shape[0])
         return neighbors, cellProb
@@ -319,11 +391,12 @@ class Spots(object):
         return pSpotNeighb
 
     def loglik(self, cells, cfg):
-        area = cells.cell_props['area'][1:]
-        mcr = np.mean(np.sqrt(area / np.pi)) * 0.5  # This is the meanCellRadius
-
+        # area = cells.cell_props['area'][1:]
+        # mcr = np.mean(np.sqrt(area / np.pi)) * 0.5  # This is the meanCellRadius
+        mcr = cells.mcr
+        dim = 2  # dimensions of the normal distribution: Bivariate
         # Assume a bivariate normal and calc the likelihood
-        D = -self.Dist ** 2 / (2 * mcr ** 2) - np.log(2 * np.pi * mcr ** 2)
+        D = -self.Dist ** 2 / (2 * mcr ** 2) - dim/2 * np.log(2 * np.pi * mcr ** 2)
 
         # last column (nN-closest) keeps the misreads,
         D[:, -1] = np.log(cfg['MisreadDensity'])
@@ -371,29 +444,6 @@ class Spots(object):
 
         return -0.5 * (dim * log2pi + mahas + logdets)
 
-    def loglik_contr(self, param):
-        """
-        Contribution of a single datapoint to the bivariate Normal distribution loglikelihood
-        Should be the same as multivariate_normal.logpdf(param[0], param[1], param[2])
-        """
-        x = param[0]
-        mu = param[1]
-        sigma = param[2]
-        k = 2  # dimensionality of a point
-
-        x = x.reshape([2, -1])
-        mu = mu.reshape([2, -1])
-        assert x.shape == mu.shape == (2, 1), 'Datapoint should have dimension (2, 1)'
-        assert sigma.shape == (2, 2), 'Covariance matrix should have shape: (2, 2)'
-
-        sigma_inv = np.linalg.inv(sigma)
-        a = - k / 2 * np.log(2 * np.pi)
-        b = - 0.5 * np.log(np.linalg.det(sigma))
-        c = - 0.5 * np.einsum('ji, jk, ki -> i', x - mu, sigma_inv, x - mu)
-        assert len(c) == 1, 'Should be an array with just one element'
-        out = a + b + c[0]
-        return out
-
     def zero_class_counts(self, geneNo, pCellZero):
         """
         Gene counts for the zero expressing class
@@ -412,12 +462,12 @@ class Spots(object):
         return TotPredictedZ
 
     def gammaExpectation(self, rho, beta):
-        """
+        '''
         :param r:
         :param b:
         :return: Expectetation of a rv X following a Gamma(r,b) distribution with pdf
         f(x;\alpha ,\beta )= \frac{\beta^r}{\Gamma(r)} x^{r-1}e^{-\beta x}
-        """
+        '''
 
         # sanity check
         # assert (np.all(rho.coords['cell_id'].data == beta.coords['cell_id'])), 'rho and beta are not aligned'
@@ -442,6 +492,21 @@ class Spots(object):
         else:
             return scipy.special.psi(r) - np.log(beta).astype(dtype)
 
+    def db_save(self, conn):
+        self.db_save_spots(conn)
+
+    def db_save_spots(self, con):
+        # spots are persistent, they do not change. Just save it once
+        try:
+            df = pd.DataFrame(data=self.data[['x', 'y', 'z', 'label', 'Gene']], columns=['x', 'y', 'z', 'label', 'Gene'])
+            df = df.set_index('Gene')
+            df['utc'] = datetime.datetime.utcnow()
+            df = df.reset_index()
+            df.to_sql(name='spots', con=con, if_exists='fail', index=False)
+            con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_class_iteration ON spots("Gene");')
+        except ValueError:
+            pass
+
 
 # ----------------------------------------Class: SingleCell--------------------------------------------------- #
 class SingleCell(object):
@@ -449,6 +514,7 @@ class SingleCell(object):
         self.isMissing = None  # Will be set to False is single cell data are assumed known and given as an input
                                # otherwise, if they are unknown, this will be set to True and the algorithm will
                                # try to estimate them
+        # self.raw_data = self._raw_data(scdata, genes)
         self.config = config
         self._mean_expression, self._log_mean_expression = self._setup(scdata, genes, self.config)
 
@@ -510,29 +576,54 @@ class SingleCell(object):
         out = df.loc[:, (df != 0).any(axis=0)]
         return out
 
-    def _helper(self, arr):
-        # order my column name
-        arr = arr.sort_index(axis=0).sort_index(axis=1, key=lambda x: x.str.lower())
+    def _helper(self, expr):
+        # order by column name
+        expr = expr.copy().sort_index(axis=0).sort_index(axis=1, key=lambda x: x.str.lower())
 
         # append at the end the Zero class
-        arr['Zero'] = np.zeros([arr.shape[0], 1])
+        expr['Zero'] = np.zeros([expr.shape[0], 1])
 
-        # arr = arr.sort_index(axis=0).sort_index(axis=1)
-        expr = arr
+        # expr = self.config['Inefficiency'] * arr
         me = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")  # mean expression
-        lme = np.log(me + self.config['SpotReg'])  # log mean expression
+        me = me + self.config['SpotReg']  # add the regularization parameter
+        lme = np.log(me)  # log mean expression
         return me, lme
 
     def _gene_expressions(self, fitted, scale):
+        """
+        Finds the expected mean gene counts. The prior *IS NOT* taken
+        into account. We use data evidence only
+        Ffor the zero class only the prior is used *AND NOT* data
+        evidence.
+        """
         m = self.config['m']
-        a = fitted + m * self.raw_data
+        a = fitted + m * (self.raw_data + self.config['SpotReg'])
         b = scale + m
         me = a / b
         lme = scipy.special.psi(a) - np.log(b)
-        zero_col = np.zeros(me.shape[0])
+
+        # the expressions for the zero class are a 0.0 plus the regularition param
+        zero_col = np.zeros(me.shape[0]) + self.config['SpotReg']
         me = me.assign(Zero=zero_col)
-        lme = lme.assign(Zero=np.log(zero_col + self.config['SpotReg']))
+        # For the mean of the log-expressions, again only the prior is used for the Zero class
+        zero_col_2 = scipy.special.psi(m * zero_col) - np.log(m)
+        lme = lme.assign(Zero=zero_col_2)
         return me, lme
+
+    def _keep_labels_unique(self, scdata):
+        """
+        In the single cell data you might find cases where two or more rows have the same gene label
+        In these cases keep the row with the highest total gene count
+        """
+
+        # 1. get the row total and assign it to a new column
+        scdata = scdata.assign(total=scdata.sum(axis=1))
+
+        # 2. rank by gene label and total gene count and keep the one with the highest total
+        scdata = scdata.sort_values(['gene_name', 'total'], ascending=[True, False]).groupby('gene_name').head(1)
+
+        # 3. Drop the total column and return
+        return scdata.drop(['total'], axis=1)
 
     def _raw_data(self, scdata, genes):
         """
@@ -548,41 +639,16 @@ class SingleCell(object):
         # set the axes labels
         df = self._set_axes(df)
 
+        # remove any rows with the same gene label
+        df = self._keep_labels_unique(df)
+
         df = self._remove_zero_cols(df.copy())
         dfT = df.T
 
         logger.info(' Single cell data: Grouping gene counts by cell type. Aggregating function is the mean.')
         out = dfT.groupby(dfT.index.values).agg('mean').T
+        logger.info(' Grouped single cell data have %d genes and %d cell types' % (out.shape[0], out.shape[1]))
         return out
-
-    def _naive(self, scdata, genes):
-        logger.info('******************************************************')
-        logger.info('*************** NAIVE SINGLE CELL DATA ***************')
-        logger.info('******************************************************')
-        nG = len(genes)
-        nK = 71
-        mgc = 15  # how many gene counts a cell has on average
-        # mgc = 160
-        arr = np.zeros([nG, nK])
-        arr[:, 0::2] = mgc / nG
-        # arr = np.ones([nG, nK]) * mgc / nG
-        labels = ["label_" + str(d) for d in range(arr.shape[1])]
-        df = pd.DataFrame(arr).set_index(genes)
-        df.columns = labels
-        return df
-
-    def _zeros(self, scdata, genes):
-        logger.info('******************************************************')
-        logger.info('*************** ZEROS SINGLE CELL DATA ***************')
-        logger.info('******************************************************')
-        nG = len(genes)
-        nK = 71
-        arr = np.zeros([nG, nK])
-        labels = ["label_" + str(d) for d in range(arr.shape[1])]
-        df = pd.DataFrame(arr).set_index(genes)
-        df.columns = labels
-
-        return df
 
     def _diag(self, genes):
         logger.info('******************************************************')
@@ -599,14 +665,33 @@ class SingleCell(object):
 
         return df
 
+    def db_save(self, conn, run, converged, db_opts):
+        self.db_save_mean_expressions(conn, run, converged, db_opts)
 
+    def db_save_mean_expressions(self, con, run, converged, db_opts):
+        """
+        pushing the average expressions to the db. Most of the times, these are persistent data, therefore
+        appending the columns, 'iteration' and 'has_converged' will not make a lot of sense unless single
+        cell data are missing, hence they will be estimated on the fly
+        """
+        df = self.mean_expression.copy()
+        df['utc'] = datetime.datetime.utcnow()
+        df['iteration'] = run
+        df['has_converged'] = converged
+        df = df.reset_index()
+        df.to_sql(name='mean_expression', con=con, if_exists=db_opts['if_table_exists'], index=False)
+        con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_gene_iteration ON spots("gene_name", "iteration");')
+
+
+
+# ---------------------------------------- Class: CellType --------------------------------------------------- #
 class CellType(object):
-    def __init__(self, single_cell):
+    def __init__(self, single_cell, config):
         assert single_cell.classes[-1] == 'Zero', "Last label should be the Zero class"
         self._names = single_cell.classes
+        self.config = config
         # self._prior = None
         self._alpha = None
-        self._pi = np.append(.5 * np.ones(self.nK - 1) / (self.nK - 1), 0.5)
 
     @property
     def names(self):
@@ -633,46 +718,44 @@ class CellType(object):
     def logpi_bar(self):
         return scipy.special.psi(self.alpha) - scipy.special.psi(self.alpha.sum())
 
+    @property
+    def prior(self):
+        if not self.config['is_3D'] or not self.config['relax_segmentation']:
+            assert set(self.pi_bar) == {0.5, 0.5 / (self.nK - 1)}
+        return self.pi_bar
+
+    @property
+    def log_prior(self):
+        if self.config['is_3D'] or self.config['relax_segmentation']:
+            return self.logpi_bar
+        else:
+            assert set(self.pi_bar) == {0.5, 0.5 / (self.nK - 1)}
+            return np.log(self.prior)
+
     def size(self, cells):
         """
         calcs the size of a cell class, ie how many members (ie cells) each cell type has
         """
         return cells.classProb.sum(axis=0)
 
-    def ini_prior(self, ini_family):
-        if ini_family == 'uniform':
-            self.prior = np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
-        elif ini_family == 'dirichlet':
-            self._dirichlet()
-
-
-
-    def _rnd_dirichlet(self, nC):
-        """
-        generates a sample from the dirichlet distribution
-        """
-        np.random.seed(2021)
-        K = self.nK-1
-        rd = np.random.dirichlet([nC / K] * K)
-        return rd
-
-    def _dirichlet(self):
-        """
-        sets the initial dirichlet prior
-        """
-        assert self.names[-1] == 'Zero', 'Last class should be the Zero class'
-        self._alpha = self.ini_alpha()
-        u = np.ones(self.nK - 1)
-        self._pi = np.append(.5 * np.ones(len(u)) / len(u), 0.5)
+    def ini_prior(self):
+        self.alpha = self.ini_alpha()
 
     def ini_alpha(self):
         return np.append(np.ones(self.nK - 1), sum(np.ones(self.nK - 1)))
 
+    def db_save(self, con, run, converged, db_opts):
+        self.db_cell_type_prior(con, run, converged, db_opts)
 
-
-
-
-
+    def db_cell_type_prior(self, con, run, converged, db_opts):
+        df = pd.DataFrame(data=self.pi_bar, index=self.names, columns=['weight'])
+        df.index.name = 'class'
+        df['iteration'] = run
+        df['has_converged'] = converged
+        df['utc'] = datetime.datetime.utcnow()
+        df = df.reset_index()
+        df.to_sql(name='cell_type_prior', con=con, if_exists=db_opts['if_table_exists'], index=False)
+        con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_class_iteration ON cell_type_prior("class", "iteration");')
 
 
 

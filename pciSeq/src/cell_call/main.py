@@ -1,93 +1,44 @@
+import os
 import numpy as np
 import pandas as pd
-import dask.array as da
 import numpy_groupies as npg
-from typing import Tuple
+import sqlite3
+import datetime
 from pciSeq.src.cell_call.datatypes import Cells, Spots, Genes, SingleCell, CellType
 from pciSeq.src.cell_call.summary import collect_data
 import pciSeq.src.cell_call.utils as utils
-import os
-import time
-import pickle
-import logging
+from pciSeq.src.cell_call.log_config import logger
 
-dir_path = os.path.dirname(os.path.realpath(__file__))
-logger = logging.getLogger(__name__)
 
-# Note: 21-Feb-2020
-# I think there are TWO  bugs.
-#
-# ********** BUG 1 **********
-# I should be using: mean_expression = mean_expression + config['SpotReg']
-# instead of adding the SpotReg value every time I am calling mean_expression.
-# The ScaledExp calculation, in the code below, for example is not correct because the config['SpotReg'] constant
-# should not be added at the very end but should be moved inside the parentheses and added directly to
-# the sc.mean_expression array
-#
-# ********** BUG 2 **********
-# Gene efficiency (eta) is not also handled properly. For eta to have a gamma distribution gamma(r, r/eta_0) with
-# mean=0.2 and variance 20 the hyperparameter should be r = 0.002 and r/eta_0 = 0.002/0.2 = 0.01.
-# The mean value (ie 0.2) is applied on the single cell gene expression right after we have calculated the mean
-# class expression.
-# Then, in the rest of the code, gene efficiency is initialised as a vector of ones. While the vector eta is
-# getting multiplied with the mean expression counts when we derive the cell to cell class assignment, we do not
-# do the same when we calculate the gamma (equation 3 in the NMETH paper. We multiply the mean class expression
-# by the cell area factor and the gene efficiency is missing (see ScaledMean in matlab code)
-# I think It would better to:
-# NOT multiply the mean class expressions counts by 0.2 and the initialise eta as a vector of ones
-# BUT instead:
-# do not scale down the single cell gene expression data by 0.2 at the very beginning
-# initialise eta as a vector 0.2*np.ones([Ng, 1])
-# include eta in the calculations equations 2 and 3 and
-
-class VarBayes:
+class VarBayes(object):
     def __init__(self, _cells_df, _spots_df, scRNAseq, config):
         self.config = config
         self.cells = Cells(_cells_df, config)
         self.spots = Spots(_spots_df, config)
         self.genes = Genes(self.spots)
         self.single_cell = SingleCell(scRNAseq, self.genes.gene_panel, self.config)
-        self.cellTypes = CellType(self.single_cell)
-        self.nC = self.cells.nC                         # number of cells
-        self.nG = self.genes.nG                         # number of genes
-        self.nK = self.cellTypes.nK                     # number of classes
-        self.nS = self.spots.nS                         # number of spots
-        self.nN = self.config['nNeighbors'] + 1         # number of closest nearby cells, candidates for being parent
-                                                        # cell of any given spot. The last cell will be used for the
-                                                        # misread spots. (ie cell at position nN is the background)
-        self.me_arr = np.tile(np.zeros([self.nG, self.nK]), (self.config['max_iter'], 1, 1))  # Keep here the estimated single cell expression matrix
-        self.deltas = np.zeros(self.config['max_iter']) * np.nan # Keep here the diff between successive iterations
+        self.cellTypes = CellType(self.single_cell, config)
+        self.cells.class_names = self.single_cell.classes
+        self.nC = self.cells.nC  # number of cells
+        self.nG = self.genes.nG  # number of genes
+        self.nK = self.cellTypes.nK  # number of classes
+        self.nS = self.spots.nS  # number of spots
+        self.nN = self.config['nNeighbors'] + 1     # number of the closest nearby cells, candidates for being parent
+                                                    # cell of any given spot. The last cell will be used for the
+                                                    # misread spots. (ie cell at position nN is the background)
+
+        self.conn = self.db_connect(':memory:')  # or use 'pciSeq.db' to create a db on the filesystem
+        self.iter_num = None
+        self.has_converged = False
 
     def initialise(self):
-        # self.cells.prior = np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
-        # self.cellTypes.prior = np.append(0.5 * self.rnd_dirichlet(), 0.5)
-        self.cellTypes.ini_prior('dirichlet')
-        self.cells.classProb = np.tile(self.cellTypes.pi_bar, (self.nC, 1))
-        self.genes.eta = np.ones(self.nG) * self.config['Inefficiency']
-        self.spots.parent_cell_id, self.spots.parent_cell_prob = self.spots.cells_nearby(self.cells)
+        self.cellTypes.ini_prior()
+        self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
+        self.genes.init_eta(1, 1/self.config['Inefficiency'])
+        self.spots.parent_cell_id, _ = self.spots.cells_nearby(self.cells)
+        self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id,
+                                                              self.config)  # assign a spot to a cell if it is within its cell boundaries
         self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
-        # self.cells.alpha = np.ones(self.nC) * self.cells.rho_1 / self.cells.rho_2
-
-    def rnd_dirichlet(self):
-        """
-        generates a sample from the dirichlet distribution
-        """
-        np.random.seed(2021)
-        K = self.nK-1
-        rd = np.random.dirichlet([self.nC / K] * K)
-        return rd
-
-    def rnd_dirichlet_tweaked(self):
-        """
-        generates a sample from the dirichlet distribution
-        """
-        K = self.nK-1
-        out = np.zeros(K)
-        idx = [0, 1,  17, 3,  30, 35,  42,  45, 56, 58,  60,  69,  80, 89,  9]
-
-        out[idx] = np.random.dirichlet([self.nC / len(idx)] * len(idx))
-
-        return out
 
     # -------------------------------------------------------------------- #
     def run(self):
@@ -96,28 +47,25 @@ class VarBayes:
         gene_df = None
         max_iter = self.config['max_iter']
 
-        # make a list to keep the main attributes of the fitted bivariate normal (centroids, correlation etc...)
-        # ellipsoid_attr = [self.cells.ellipsoid_attributes]
-
         self.initialise()
         for i in range(max_iter):
-            # ellipsoid_attr.append(self.cells.ellipsoid_attributes)
+            self.iter_num = i
 
             # 1. For each cell, calc the expected gene counts
             self.geneCount_upd()
 
-            # self.alpha_upd()
-
             # 2. calc expected gamma
             self.gamma_upd()
 
-            self.gaussian_upd()
+            if self.config['relax_segmentation'] or self.config['is_3D']:
+                self.gaussian_upd()
 
             # 3. assign cells to cell types
             self.cell_to_cellType()
 
             # update cell type weights
-            self.dalpha_upd()
+            if self.config['relax_segmentation'] or self.config['is_3D']:
+                self.dalpha_upd()
 
             # 4. assign spots to cells
             self.spots_to_cell()
@@ -129,69 +77,57 @@ class VarBayes:
             if self.single_cell.isMissing:
                 self.mu_upd()
 
-            converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
+            self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
             logger.info(' Iteration %d, mean prob change %f' % (i, delta))
-            # self.deltas[i] = delta
-            # self.me_arr[i] = self.single_cell.mean_expression
-            # obj = os.path.join('E:\pickle_dump\septal', 'obj_' + str(i))
-            # pickle.dump(self, open(obj, "wb"))
-            # if i % 10 == 0 or i == max_iter:
-            #     np.save('deltas.npy', self.deltas)
-            #     np.save('me_arr.npy', self.me_arr)
-            #     logger.info('Saved deltas.npy and me_arr.npy to %s' % os.getcwd())
-
 
             # replace p0 with the latest probabilities
             p0 = self.spots.parent_cell_prob
 
-            # logger.info('Number of cell per class: %s',
-            #             ["{0:0.2f}".format(i) for i in self.cells.classProb.sum(axis=0)])
-
-            if converged:
-                # np.save('deltas.npy', self.deltas)
-                # np.save('me_arr.npy', self.me_arr)
-                iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
+            if self.has_converged:
+                self.db_save()
+                iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config)
                 break
 
-            if i == max_iter-1:
-                logger.info(' Loop exhausted. Exiting with convergence status: %s' % converged)
+            if i == max_iter - 1:
+                logger.info(' Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
+
         return iss_df, gene_df
 
     # -------------------------------------------------------------------- #
     def geneCount_upd(self):
-        '''
+        """
         Produces a matrix numCells-by-numGenes where element at position (c,g) keeps the expected
         counts of gene g  in cell c.
-        The top row corresponds to the background and it is filled with zeros only.
-        '''
-        start = time.time()
+        """
+        # make an array nS-by-nN and fill it with the spots id
+        gene_ids = np.tile(self.spots.gene_id, (self.nN, 1)).T
 
-        # nN = self.cells.config['nNeighbors'] + 1
-        CellGeneCount = np.zeros([self.nC, self.nG])
+        # flatten it
+        gene_ids = gene_ids.ravel()
 
-        # name = spots.gene_panel.index.values
-        spot_id = self.spots.gene_id
-        for n in range(self.nN):
-            c = self.spots.parent_cell_id[:, n]
-            group_idx = np.vstack((c[None, :], spot_id[None, :]))
-            a = self.spots.parent_cell_prob[:, n]
-            accumarray = npg.aggregate(group_idx, a, func="sum", size=(self.nC, self.nG))
-            if n == self.nN - 1:
-                # the last neighbouring cell is for the misreads
-                self.cells.background_counts = accumarray
-            else:
-                CellGeneCount = CellGeneCount + accumarray
+        # make corresponding arrays for cell_id and probs
+        cell_ids = self.spots.parent_cell_id.ravel()
+        probs = self.spots.parent_cell_prob.ravel()
 
-        end = time.time()
-        # print('time in geneCount: ', end - start)
-        # CellGeneCount = xr.DataArray(CellGeneCount, coords=[_id, name], dims=['cell_id', 'gene_name'])
-        # self.CellGeneCount = CellGeneCount
+        # make the array to be used as index in the group-by operation
+        group_idx = np.vstack((cell_ids, gene_ids))
 
-        # print(self.background_counts.sum())
-        # print(CellGeneCount.sum(axis=1).sum())
-        # assert self.background_counts.sum() + CellGeneCount.sum(axis=1).sum() == spots.data.shape[0], \
+        # For each cell aggregate the number of spots from the same gene.
+        # It will produce an array of size nC-by-nG where the entry at (c,g)
+        # is the gene counts of gene g within cell c
+        N_cg = npg.aggregate(group_idx, probs, size=(self.nC, self.nG))
+
+        # assert N_cg.sum() == self.spots.data.shape[0], \
         #     "The sum of the background spots and the cell gene counts should be equal to the total number of spots"
-        self.cells.geneCount = CellGeneCount
+
+        # make output. This part needs to be rewritten
+        out = np.zeros([self.nC, self.nG])
+        out[1:, :] = N_cg[1:, :]
+
+        # cell at position zero is the background
+        self.cells.background_counts = N_cg[0, :]
+        # Actual cells are on non-zero positions
+        self.cells.geneCount = out
 
     # -------------------------------------------------------------------- #
     def gamma_upd(self):
@@ -201,26 +137,19 @@ class VarBayes:
         cells = self.cells
         cfg = self.config
         dtype = self.config['dtype']
-        # beta = np.einsum('c, gk -> cgk', self.cells.alpha, self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
-        beta = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
+        beta = np.einsum('c, gk, g -> cgk',
+                         cells.cell_props['area_factor'],
+                         self.single_cell.mean_expression,
+                         self.genes.eta_bar).astype(dtype) + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
-        # beta = cfg['rSpot'] + scaled_mean
 
         self.spots.gamma_bar = self.spots.gammaExpectation(rho, beta)
         self.spots.log_gamma_bar = self.spots.logGammaExpectation(rho, beta)
 
-        # del rho
-        # del beta
-        # gc.collect()
-        # del gc.garbage[:]
-        # self.spots.gamma_bar = expected_gamma
-        # self.spots.log_gamma_bar = expected_loggamma
-        # # return expected_gamma, expected_loggamma
-
     # -------------------------------------------------------------------- #
     def cell_to_cellType(self):
         """
-        return a an array of size numCells-by-numCellTypes where element in position [i,j]
+        return an array of size numCells-by-numCellTypes where element in position [i,j]
         keeps the probability that cell i has cell type j
         Implements equation (2) of the Qian paper
         :param spots:
@@ -231,22 +160,73 @@ class VarBayes:
         # gene_gamma = self.genes.eta
         dtype = self.config['dtype']
         # ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.alpha, self.genes.eta, sc.mean_expression.data) + self.config['SpotReg']
-        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], self.genes.eta, self.single_cell.mean_expression + self.config['SpotReg']).astype(dtype)
+        ScaledExp = np.einsum('c, g, gk -> cgk',
+                              self.cells.cell_props['area_factor'],
+                              self.genes.eta_bar,
+                              self.single_cell.mean_expression
+                              ).astype(dtype)
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
-        wCellClass = np.sum(contr, axis=1) + self.cellTypes.logpi_bar
-        assert np.isfinite(wCellClass).all(), "wCellClass array contains non numeric values"
+        wCellClass = np.sum(contr, axis=1) + self.cellTypes.log_prior
+        # if self.config['is_3D']:
+        #     wCellClass = np.sum(contr, axis=1) + self.cellTypes.logpi_bar
+        # else:
+        #     wCellClass = np.sum(contr, axis=1) + np.log(self.cellTypes.prior)
         pCellClass = utils.softmax(wCellClass, axis=1)
-        assert np.isfinite(pCellClass).all(), "pCellClass array contains non numeric values"
 
         ## self.cells.classProb = pCellClass
         # logger.info('Cell 0 is classified as %s with prob %4.8f' % (
         #     self.cells.class_names[np.argmax(wCellClass[0, :])], pCellClass[0, np.argmax(wCellClass[0, :])]))
         # logger.info('cell ---> cell class probabilities updated')
-
         self.cells.classProb = pCellClass
         # return pCellClass
+
+    # -------------------------------------------------------------------- #
+    def spots_to_cell_2D(self):
+        """
+        spot to cell assignment.
+        Implements equation (4) of the Qian paper
+        """
+        nN = self.nN
+        nS = self.spots.data.gene_name.shape[0]
+
+        # initialise array with the misread density
+        aSpotCell = np.zeros([nS, nN])
+        gn = self.spots.data.gene_name.values
+        expected_counts = self.single_cell.log_mean_expression.loc[gn].values
+
+        # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
+        my_D = np.zeros([nS, nN])
+        for n in range(nN - 1):
+            # get the spots' nth-closest cell
+            sn = self.spots.parent_cell_id[:, n]
+
+            # get the respective cell type probabilities
+            cp = self.cells.classProb[sn]
+
+            # multiply and sum over cells
+            term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
+
+            # logger.info('genes.spotNo should be something like spots.geneNo instead!!')
+            expectedLog = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
+
+            term_2 = np.einsum('ij, ij -> i', cp, expectedLog)
+            aSpotCell[:, n] = term_1 + term_2
+            # my_D[:, n] = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells)
+            my_covs = self.cells.cov[sn] * np.diag([1, 1, 1])
+
+            # my_D[:, n] = self.spots.multiple_logpdfs(self.spots.xyz_coords[:, :2],  self.cells.centroid.values[sn][:, :2], my_covs[:,:2,:2])
+            my_D[:, n] = self.spots.multiple_logpdfs(self.spots.xyz_coords, self.cells.centroid.values[sn], my_covs)
+        wSpotCell = aSpotCell + self.spots.loglik(self.cells, self.config)
+
+        # update the prob a spot belongs to a neighboring cell
+        pSpotNeighb = utils.softmax(wSpotCell, axis=1)
+        self.spots.parent_cell_prob = pSpotNeighb
+        # Since the spot-to-cell assignments changed you need to update the gene counts now
+        self.geneCount_upd()
+        # self.spots.update_cell_prob(pSpotNeighb, self.cells)
+        # logger.info('spot ---> cell probabilities updated')
 
     # -------------------------------------------------------------------- #
     def spots_to_cell(self):
@@ -258,34 +238,37 @@ class VarBayes:
         nN = self.nN
         nS = self.spots.data.gene_name.shape[0]
 
+        misread_density_adj_factor = -1 * np.log(2 * np.pi * self.cells.mcr ** 2) / 2
+        misread_density_adj = np.exp(misread_density_adj_factor) * self.config['MisreadDensity']
         # initialise array with the misread density
-        aSpotCell = np.zeros([nS, nN]) + np.log(self.config['MisreadDensity'])
+        wSpotCell = np.zeros([nS, nN]) + np.log(misread_density_adj)
         gn = self.spots.data.gene_name.values
-        expected_counts = self.single_cell.log_mean_expression.loc[gn].values
+        sc_mean = self.single_cell.log_mean_expression.loc[gn].values
+        logeta_bar = self.genes.logeta_bar[self.spots.gene_id]
 
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
+        my_D = np.zeros([nS, nN])
         for n in range(nN - 1):
             # get the spots' nth-closest cell
             sn = self.spots.parent_cell_id[:, n]
 
             # get the respective cell type probabilities
-            # cp = self.cells.classProb.sel({'cell_id': sn}).data
             cp = self.cells.classProb[sn]
 
             # multiply and sum over cells
-            # term_1 = (expected_spot_counts * cp).sum(axis=1)
-            term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
+            term_1 = np.einsum('ij, ij -> i', sc_mean, cp)
 
-            # logger.info('genes.spotNo should be something like spots.geneNo instead!!')
-            expectedLog = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
-            # expectedLog = utils.bi2(self.elgamma.data, [nS, nK], sn[:, None], self.spots.data.gene_id.values[:, None])
+            log_gamma_bar = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
 
-            term_2 = np.einsum('ij, ij -> i', cp, expectedLog)  # same as np.sum(cp * expectedLog, axis=1) but bit faster
-
+            term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
             loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells)
-            aSpotCell[:, n] = term_1 + term_2 + loglik
-            # logger.info('')
-        wSpotCell = aSpotCell  # + self.spots.loglik(self.cells, self.config)
+            my_D[:, n] = loglik
+
+            # if 2D, add the bonus for the spots inside the boundaries.
+            if not self.config['is_3D']:
+                loglik = loglik + self.inside_bonus(sn)
+
+            wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik
 
         # update the prob a spot belongs to a neighboring cell
         pSpotNeighb = utils.softmax(wSpotCell, axis=1)
@@ -297,6 +280,12 @@ class VarBayes:
         # self.spots.update_cell_prob(pSpotNeighb, self.cells)
         # logger.info('spot ---> cell probabilities updated')
 
+    def inside_bonus(self, cell_id):
+        mask = self.spots.data.label.values == cell_id
+        bonus = self.config['InsideCellBonus']
+        return np.where(mask, bonus, 0)
+
+
     # -------------------------------------------------------------------- #
     def eta_upd(self):
         """
@@ -307,39 +296,29 @@ class VarBayes:
         assert round(grand_total) == self.spots.data.shape[0], \
             'The sum of the background spots and the total gene counts should be equal to the number of spots'
 
-        zero_prob = self.cells.classProb[:, -1]  # probability a cell being a zero expressing cell
+        classProb = self.cells.classProb
+        mu = self.single_cell.mean_expression
+        area_factor = self.cells.cell_props['area_factor']
+        gamma_bar = self.spots.gamma_bar
+
+        zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
         zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
-        class_total_counts = self.cells.geneCountsPerKlass(self.single_cell, self.spots.gamma_bar, self.config)
 
-        # TotPredictedB = np.bincount(self.spots.gene_id, self.spots.adj_cell_prob[:, -1].data)
-        # assert np.all(TotPredictedB == self.cells.background_counts)
+        # Calcs the sum in the Gamma distribution (equation 5). The zero class
+        # is excluded from the sum, hence the arrays in the einsum below stop at :-1
+        # Note. I also think we should exclude the "cell" that is meant to keep the
+        # misreads, ie exclude the background
+        class_total_counts = np.einsum('ck, gk, c, cgk -> g',
+                                       classProb[:, :-1],
+                                       mu.values[:, :-1],
+                                       area_factor,
+                                       gamma_bar[:, :, :-1])
         background_counts = self.cells.background_counts
-        nom = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
-        denom = self.config['rGene']/self.config['Inefficiency'] + class_total_counts
-        res = nom / denom
+        alpha = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
+        beta = self.config['rGene'] / self.config['Inefficiency'] + class_total_counts
 
-        # Finally, update gene_gamma
-        self.genes.eta = res.values
-
-    # -------------------------------------------------------------------- #
-    def alpha_upd(self):
-        ## manual way to do the denom, useful for debugging
-        ## Pick up a cell, lets say the first one and get the ids of its most likely cell types
-        # mask = np.argsort(-1 * self.classProb[1, :])
-
-        ## select the top 3 most likely cell types
-        # mask = mask[: 3]
-        ## find the theoretical gene counts that this particular cell should have
-        # out = np.einsum('cg, g, gc, c -> ', gamma_bar[1, :, mask], genes.eta, sc.mean_expression.data[:, mask], self.classProb[1, mask])
-
-        N_c = self.cells.total_counts
-        zeta_bar = self.cells.classProb
-        mu = self.single_cell.mean_expression  # need to add constant too!
-
-        denom = np.einsum('gk, ck, cgk, g -> c', mu, zeta_bar, self.spots.gamma_bar, self.genes.eta)
-        alpha_bar = (N_c + self.cells.rho_1) / (denom + self.cells.rho_2)
-        logger.info('alpha range: %s ' % [alpha_bar.min(), alpha_bar.max()])
-        self.cells.alpha = alpha_bar
+        # Finally, update gene efficiency
+        self.genes.calc_eta(alpha, beta)
 
     # -------------------------------------------------------------------- #
     def gaussian_upd(self):
@@ -412,7 +391,7 @@ class VarBayes:
         S = self.cells.scatter_matrix(spots)  # sample sum of squares
         cov_0 = self.cells.ini_cov()
         nu_0 = self.cells.nu_0
-        S_0 = cov_0 * nu_0 # prior sum of squarea
+        S_0 = cov_0 * nu_0  # prior sum of squarea
         N_c = self.cells.total_counts
         d = 2
         denom = np.ones([self.nC, 1, 1])
@@ -435,11 +414,11 @@ class VarBayes:
 
         # delta = delta.reshape(self.nC, 1, 1)
         # target = [np.trace(d)/2 * np.eye(2) for d in cov]  # shrinkage target
-        cov = delta*cov_0 + (1-delta)*cov
+        cov = delta * cov_0 + (1 - delta) * cov
         # cov = delta * target + (1 - delta) * cov
         self.cells.cov = cov
 
-# -------------------------------------------------------------------- #
+    # -------------------------------------------------------------------- #
     def mu_upd(self):
         logger.info('Update single cell data')
         # make an array nS-by-nN and fill it with the spots id
@@ -466,7 +445,7 @@ class VarBayes:
         area_factor = self.cells.cell_props['area_factor'][1:]
 
         numer = np.einsum('ck, cg -> gk', classProb, geneCount)
-        denom = np.einsum('ck, c, cgk, g -> gk', classProb, area_factor, gamma_bar, self.genes.eta)
+        denom = np.einsum('ck, c, cgk, g -> gk', classProb, area_factor, gamma_bar, self.genes.eta_bar)
 
         # set the hyperparameter for the gamma prior
         # m = 1
@@ -477,14 +456,14 @@ class VarBayes:
         # mu_gk = (numer + m * self.single_cell.raw_data) / (denom + m)
         me, lme = self.single_cell._gene_expressions(numer, denom)
         self.single_cell._mean_expression = me
-        self.single_cell._log_mean_expression = np.log(me + self.config['SpotReg'])
+        self.single_cell._log_mean_expression = lme
 
         logger.info('Singe cell data updated')
 
-# -------------------------------------------------------------------- #
+    # -------------------------------------------------------------------- #
     def dalpha_upd(self):
         # logger.info('Update cell type (marginal) distribution')
-        zeta = self.cells.classProb.sum(axis=0) # this the class size
+        zeta = self.cells.classProb.sum(axis=0)  # this the class size
         alpha = self.cellTypes.ini_alpha()
         out = zeta + alpha
 
@@ -495,8 +474,74 @@ class VarBayes:
         out[mask] = 10e-6
         self.cellTypes.alpha = out
 
+    # -------------------------------------------------------------------- #
+    def db_save(self):
+        try:
+            self._db_save()
+        except:
+            self.conn.close()
+            raise
 
+    # -------------------------------------------------------------------- #
+    def _db_save(self):
+        db_opts = {'if_table_exists': 'replace'}  # choose between 'fail', 'replace', 'append'. Appending might make sense only if you want to see how estimates change from one loop to the next
+        self.db_save_geneCounts(self.iter_num, self.has_converged, db_opts)
+        self.db_save_class_prob(self.iter_num, self.has_converged, db_opts)
+        self.db_save_parent_cell_prob(self.iter_num, self.has_converged, db_opts)
+        self.db_save_parent_cell_id(self.iter_num, self.has_converged, db_opts)
+        self.genes.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
+        self.cellTypes.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
+        self.spots.db_save(self.conn)
+        self.single_cell.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
 
+    # -------------------------------------------------------------------- #
+    def db_save_geneCounts(self, iter, has_converged, db_opts):
+        df = pd.DataFrame(data=self.cells.geneCount,
+                              index=np.arange(self.nC),
+                              columns=self.genes.gene_panel)
+        df.index.name = 'cell_label'
+        df['iteration'] = iter
+        df['has_converged'] = has_converged
+        df['utc'] = datetime.datetime.utcnow()
+        df.to_sql(name='geneCount', con=self.conn, if_exists=db_opts['if_table_exists'])
+        self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON geneCount("cell_label", "iteration");')
 
+    # -------------------------------------------------------------------- #
+    def db_save_class_prob(self, iter, has_converged, db_opts):
+        df = pd.DataFrame(data=self.cells.classProb,
+                          index=np.arange(self.nC),
+                          columns=self.cellTypes.names)
+        df.index.name = 'cell_label'
+        df['iteration'] = iter
+        df['has_converged'] = has_converged
+        df['utc'] = datetime.datetime.utcnow()
+        df.to_sql(name='classProb', con=self.conn, if_exists=db_opts['if_table_exists'])
+        self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON classProb("cell_label", "iteration");')
 
+    # -------------------------------------------------------------------- #
+    def db_save_parent_cell_prob(self, iter_num, has_converged, db_opts):
+        df = pd.DataFrame(data=self.spots.parent_cell_prob,
+                          index=np.arange(self.nS))
+        df.index.name = 'spot_id'
+        df['iteration'] = iter_num
+        df['has_converged'] = has_converged
+        df['utc'] = datetime.datetime.utcnow()
+        df.to_sql(name='parent_cell_prob', con=self.conn, if_exists=db_opts['if_table_exists'])
+        self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_cell_ID_iteration ON parent_cell_prob("spot_id", "iteration");')
 
+    # -------------------------------------------------------------------- #
+    def db_save_parent_cell_id(self, iter_num, has_converged, db_opts):
+        df = pd.DataFrame(data=self.spots.parent_cell_id,
+                          index=np.arange(self.nS))
+        df.index.name = 'spot_id'
+        df['iteration'] = iter_num
+        df['has_converged'] = has_converged
+        df['utc'] = datetime.datetime.utcnow()
+        df.to_sql(name='parent_cell_id', con=self.conn, if_exists=db_opts['if_table_exists'])
+        self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_cell_ID_iteration ON parent_cell_id("spot_id", "iteration");')
+
+    # -------------------------------------------------------------------- #
+    def db_connect(self, dbpath):
+        if os.path.isfile(dbpath):
+            os.remove(dbpath)
+        return sqlite3.connect(dbpath)

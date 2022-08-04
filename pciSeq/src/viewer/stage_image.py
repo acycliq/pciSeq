@@ -4,12 +4,12 @@ Look also at https://stackoverflow.com/questions/10853119/chop-image-into-tiles-
 for an alternative (and probably better way)
 It also creates the pyramid tiles for the viewer
 '''
-import pyvips
 import shutil
 import os
+import pyvips
 import logging
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 
 
 def split_image(im):
@@ -65,6 +65,13 @@ def map_image_size(z):
 
 
 def tile_maker(z_depth, out_dir, img_path):
+    """
+    Makes a pyramid of tiles.
+    z_depth: (int) Specifies how many zoom levels will be produced
+    out_dir: (str) The path to the folder where the output (the pyramid of map tiles) will be saved to. If the folder
+                   does not exist, it will be created automatically
+    img_path: (str) The path to the image
+    """
     # img_path = os.path.join(dir_path, 'demo_data', 'background_boundaries.tif')
 
     dim = map_image_size(z_depth)

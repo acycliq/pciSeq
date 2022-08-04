@@ -18,11 +18,11 @@ import math
 from matplotlib import pyplot as plt
 import logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s:%(levelname)s:%(message)s"
-)
-logger = logging.getLogger()
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format="%(asctime)s:%(levelname)s:%(message)s"
+# )
+# logger = logging.getLogger()
 
 
 

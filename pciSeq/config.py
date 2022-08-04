@@ -4,11 +4,13 @@ hyperparameters for the pciSeq method
 import numpy as np
 
 DEFAULT = {
+
+
     # list of genes to be excluded during cell-typing, e.g ['Aldoc', 'Id2'] to exclude all spots from Aldoc and Id2
     'exclude_genes': [],
 
     # Maximum number of loops allowed for the Variational Bayes to run
-    'max_iter': 10000,
+    'max_iter': 1000,
 
     # Convergence achieved if assignment probabilities between two successive loops is less than the tolerance
     'CellCallTolerance': 0.02,
@@ -17,7 +19,7 @@ DEFAULT = {
     # the ratio of the observed over the theoretical counts for a given gene. rGene controls the variance and
     # Inefficiency is the average of this assumed Gamma distribution
     'rGene': 20,
-    'Inefficiency': .2,
+    'Inefficiency': 0.2,
 
     # If a spot is inside the cell boundaries this bonus will give the likelihood an extra boost
     # in order to make the spot more probable to get assigned to the cell than another spot positioned
@@ -26,7 +28,8 @@ DEFAULT = {
 
     # To account for spots far from the some a uniform distribution is introduced to describe those misreads.
     # By default this uniform distribution has a density of 1e-5 misreads per pixel.
-    'MisreadDensity': 1e-06,
+    # 'MisreadDensity': 0.00001,  # use this for 2d
+    'MisreadDensity': 1e-06,    # use that for 3d
 
     # Gene detection might come with irregularities due to technical errors. A small value is introduced
     # here to account for these errors. It is an additive factor, applied to the single cell expression
@@ -38,12 +41,18 @@ DEFAULT = {
     # the misreads to. Could be seen as the background. Hence, by default the algorithm tries examines
     # whether any of the 3 nearest cells is a possible parent cell to a given cell or whether the spot is
     # a misread
-    'nNeighbors': 6,
+    'nNeighbors': 3,
 
     # A gamma distributed variate from Gamma(rSpot, 1) is applied to the mean expression, hence the counts
     # are distributed according to a Negative Binomial distribution.
     # The value for rSpot will control the variance/dispersion of the counts
     'rSpot': 2,
+
+    # Boolean, if True the output will be saved as tsv files in a folder named 'pciSeq' in your system's temp dir.
+    'save_data': False,
+
+    # output directory 'default' will save to temp location
+    'output_path': ['default'],
 
     # Use either np.float16 or np.float32 to reduce memory usage. In most cases RAM consumption shouldnt
     # need more than 32Gb RAM. If you have a dataset from a full coronal mouse slice with a high number of
@@ -53,9 +62,23 @@ DEFAULT = {
     # level
     'dtype': np.float64,
 
+    'launch_viewer': True,
+
+    'is_3D': True,
+
+    'relax_segmentation': False,
+
+    # pixels per micron
+    '3D:anisotropy': 6.0121,
+
+    # if these are not None then the data (spots, and zstack) will be truncated between 'from_plane_num'
+    # and 'to_plane_num'
+    '3D:from_plane_num': None,
+    '3D:to_plane_num': None,
+
     # Hyperparameters for the gamma-distributed alpha variate
-    'rho_1': 100,
-    'rho_2': 100,
+    'relax_segmentation: rho_1': 100,
+    'relax_segmentation: rho_2': 100,
 
     # the prior on mean expression follows a Gamma(m * M , m), where M is the starting point (the initial
     # array) of single cell data
@@ -65,15 +88,9 @@ DEFAULT = {
     # assigned a weight of almost zero
     'min_class_size': 5,
 
-    # Boolean, if True the output will be saved as tsv files in a folder named 'pciSeq' in your system's temp dir.
-    'save_data': False,
 
-    # How much to stretch Z so that all X,Y,Z dimensions are in the same scaling
-    'anisotropy': 6.0121,
 
-    # if these are not None then the data (spots, and zstack) will be truncated between 'z_stack_min'
-    # and 'z_stack_max'
-    'z_stack_min': None,
-    'z_stack_max': None,
+
+
 }
 

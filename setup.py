@@ -1,6 +1,6 @@
-import setuptools
 import os
-from setuptools import setup
+from setuptools import setup, find_packages
+from pciSeq.src.viewer.utils import get_static_files
 
 install_deps = ['numpy', 'pandas', 'sklearn',
                 'numpy_groupies', 'xarray', 'numexpr',
@@ -20,7 +20,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name="pciSeq_3D",
+    name="pciSeq",
     version=version,
     license="BSD",
     author="Dimitris Nicoloutsopoulos",
@@ -33,20 +33,21 @@ setup(
     #   'pytest-runner',
     #   'setuptools_scm',
     # ],
-    packages=setuptools.find_packages(),
+    packages=find_packages(),
     # use_scm_version=True,
     install_requires=install_deps,
     extras_require={
         'interactive': ['matplotlib>=2.2.0', 'jupyter'],
     },
-    # include_package_data=True,
+    include_package_data=True,
+    package_data={'pciSeq': get_static_files('./pciSeq/static')},
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
-     entry_points = {
-        'console_scripts': [
-          'pciSeq = pciSeq.__main__:main']
-     }
+     # entry_points = {
+     #    'console_scripts': [
+     #      'pciSeq = pciSeq.__main__:main']
+     # }
 )

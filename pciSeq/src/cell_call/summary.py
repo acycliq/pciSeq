@@ -1,14 +1,10 @@
-import os
 import numpy as np
 import pandas as pd
 from pciSeq.src.cell_call.utils import gaussian_ellipsoid, gaussian_ellipsoid_props
-import logging
-
-dir_path = os.path.dirname(os.path.realpath(__file__))
-logger = logging.getLogger(__name__)
+from pciSeq.src.cell_call.log_config import logger
 
 
-def _iss_summary(cells, genes, single_cell):
+def _iss_summary(cells, genes, single_cell, cfg):
     '''
     returns a dataframe summarising the main features of each cell, ie gene counts and cell types
     :param spots:
@@ -39,39 +35,50 @@ def _iss_summary(cells, genes, single_cell):
     sphere_scale = []
     sphere_rotation = []
     cov_list = []
-    for i in range(cells.nC):
-        ea = cells.ellipsoid_attributes[i]
-        cov = cells.cov[i]
-        mu = cells.centroid.values[i]
-        ellipsis = gaussian_ellipsoid(mu, cov, 3).astype(np.int)
-        ellipsoid_border.append(ellipsis.tolist())
-        _sphere_scale, _sphere_rotation = gaussian_ellipsoid_props(cov, 3)
-        sphere_scale.append(_sphere_scale.tolist())
-        sphere_rotation.append(_sphere_rotation)
-        cov_list.append(cov.flatten().tolist())
+    if cfg['is_3D']:
+        sphere_scale = []
+        sphere_rotation = []
+        cov_list = []
+        for i in range(cells.nC):
+            cov = cells.cov[i]
+            _sphere_scale, _sphere_rotation = gaussian_ellipsoid_props(cov, 3)
+            sphere_scale.append(_sphere_scale.tolist())
+            sphere_rotation.append(_sphere_rotation)
+            cov_list.append(cov.flatten().tolist())
+
+    if not cfg['is_3D'] and cfg['relax_segmentation']:
+        for i in range(cells.nC):
+            # ea = cells.ellipsoid_attributes[i]
+            mu = cells.centroid.iloc[i].tolist()
+            cov = cells.cov[i]
+            ellipsis = gaussian_ellipsoid(mu[:2], cov[:2, :2], 3).astype(np.int)
+            ellipsoid_border.append(ellipsis.tolist())
 
     iss_df = pd.DataFrame({'Cell_Num': cells.cell_props['cell_label'].tolist(),
-                           'X': (cells.centroid.x).tolist(),
-                           'Y': (cells.centroid.y).tolist(),
-                           'Z': (cells.centroid.z).tolist(),
-                           'X_0': (cells.cell_props['x']).tolist(),
-                           'Y_0': (cells.cell_props['y']).tolist(),
+                           'X': cells.cell_props['x'].tolist(),
+                           'Y': cells.cell_props['y'].tolist(),
                            'Genenames': name_list,
                            'CellGeneCount': count_list,
                            'ClassName': class_name_list,
-                           'Prob': prob_list,
-                           'rho': cells.corr.tolist(),
-                           'sigma_x': cells.sigma_x.tolist(),
-                           'sigma_y': cells.sigma_y.tolist(),
-                           'ellipsoid_border': ellipsoid_border,
-                           'sphere_scale': sphere_scale,
-                           'sphere_rotation': sphere_rotation,
-                           'cov': cov_list
+                           'Prob': prob_list
                             },
-                          columns=['Cell_Num', 'X', 'Y', 'Z', 'X_0', 'Y_0', 'Genenames', 'CellGeneCount', 'ClassName',
-                                   'Prob', 'rho', 'sigma_x', 'sigma_y', 'ellipsoid_border', 'sphere_position',
-                                   'sphere_scale', 'sphere_rotation', 'cov']
-                          )
+                           columns=['Cell_Num', 'X', 'Y', 'Genenames', 'CellGeneCount', 'ClassName', 'Prob']
+                           )
+    if np.any(cells.cell_props['z']):
+        iss_df = iss_df.assign(Z=cells.cell_props['z'].tolist())
+
+    if len(sphere_scale) > 0:
+        iss_df = iss_df.assign(sphere_scale = sphere_scale)
+
+    if len(sphere_rotation) > 0:
+        iss_df = iss_df.assign(sphere_rotation = sphere_rotation)
+
+    if len(cov_list) > 0:
+        iss_df = iss_df.assign(cov = cov_list)
+
+    if len(ellipsoid_border) > 0:
+        iss_df = iss_df.assign(ellipsoid_border = ellipsoid_border)
+
     iss_df.set_index(['Cell_Num'])
 
     # Ignore the first row. It is the pseudocell to keep the misreads (ie the background)
@@ -97,21 +104,23 @@ def _summary(spots):
                         'Gene_id': spots.gene_id.tolist(),
                         'x': spots.data.x.tolist(),
                         'y': spots.data.y.tolist(),
-                        'z': spots.data.z.tolist(),
                         'neighbour': max_nbrs,
                         'neighbour_array': nbrs,
                         'neighbour_prob': p})
 
+    if np.any(spots.data.z):
+        out = out.assign(z=spots.data.z.tolist())
+
     return out
 
 
-def collect_data(cells, spots, genes, single_cell):
+def collect_data(cells, spots, genes, single_cell, cfg):
     '''
     Collects data for the viewer
     :param cells:
     :param spots:
     :return:
     '''
-    iss_df = _iss_summary(cells, genes, single_cell)
+    iss_df = _iss_summary(cells, genes, single_cell, cfg)
     gene_df = _summary(spots)
     return iss_df, gene_df

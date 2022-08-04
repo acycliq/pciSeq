@@ -12,14 +12,14 @@ credentials.py
 .ipynb_checkpoints
 
 # exclude pyramid of the png tiles used by the viewer
-dashboard/data/mouse/img/default_98genes/16384px/
-dashboard/data/mouse/img/default/32768px/
+viewer/data/mouse/img/default_98genes/16384px/
+viewer/data/mouse/img/default/32768px/
 
 
 gsf-save*.*
 *.7z
 *.png
-dashboard/img
+viewer/img
 
 /pciSeq/data/mouse/ca1/background_image/mouse/background_boundaries.tif
 /pciSeq/data/mouse/ca1/background_image/mouse/.ipynb_checkpoints/
@@ -32,6 +32,4 @@ dashboard/img
 /.eggs/
 /build/
 /pciSeq.egg-info/
-/pciSeq/src/viewer/pciSeq/data/mouse/ca1/background_image/mouse/map_tiles/262144px/
-/pciSeq/src/viewer/dashboard/img/
-/dashboard/data/img/
+/other_files/

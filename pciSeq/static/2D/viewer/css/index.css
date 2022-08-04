@@ -1,0 +1,498 @@
+body {
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+}
+
+html {
+    /*prevents that annoying scroll bar from showing up*/
+    overflow-y: hidden;
+}
+
+/*#preloader {*/
+/*    position: fixed;*/
+/*    top: 0;*/
+/*    left: 0;*/
+/*    right: 0;*/
+/*    bottom: 0;*/
+/*    background-color: #000000;*/
+/*    !* change if the mask should have another color then white *!*/
+/*    z-index: 1100;*/
+/*    !* makes sure it stays on top *!*/
+/*}*/
+
+#status {
+    width: 200px;
+    height: 200px;
+    position: absolute;
+    left: 50%;
+    /* centers the loading animation horizontally one the screen */
+    top: 50%;
+    /* centers the loading animation vertically one the screen */
+    background-image: url('./OD80myK.gif');
+    /* path to your loading animation */
+    background-repeat: no-repeat;
+    background-position: center;
+    margin: -100px 0 0 -100px;
+    /* is width and height divided by two */
+}
+
+/*fullscreen map*/
+html, body, #mymap {
+    height: 100%;
+    width: 100%;
+}
+
+[class*="popup_block_"] {
+    position: absolute;
+    bottom: 85px;
+    left: 50px;
+    zIndex: 1002;
+    background-color: white;
+    padding: 8px;
+    border: 1px solid #ccc;
+}
+
+.leaflet-container {
+    background: #000000;
+}
+
+th {
+    font-size: 12px;
+}
+
+td {
+    font-size: 11px;
+}
+
+
+/*piemarkers settings*/
+.piemarker .leaflet-popup-tip-container {
+    display: none;
+}
+
+.piemarker .leaflet-popup-close-button {
+    display: none;
+}
+
+.piemarker .leaflet-popup-content {
+    margin: 0px 0px;
+}
+
+.piemarker .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+    background: none;
+    color: #333;
+    box-shadow: 0 0px 0px rgba(0, 0, 0, 0.0);
+}
+
+.piemarker {
+    margin-bottom: -10px;
+}
+
+
+/*mouse coordinates control settings*/
+.leaflet-verticalcenter {
+    /********************************************/
+    /* Same as .leaflet-top and .leaflet-bottom */
+    position: absolute;
+    z-index: 1000;
+    pointer-events: none;
+    /********************************************/
+    top: 50%;
+    transform: translateY(-50%);
+    padding-top: 10px;
+}
+
+.leaflet-verticalcenter .leaflet-control {
+    margin-bottom: 10px;
+}
+
+
+.leaflet-horizontalcenter {
+    /********************************************/
+    /* Same as .leaflet-top and .leaflet-bottom */
+    position: absolute;
+    z-index: 1000;
+    pointer-events: none;
+    /********************************************/
+    left: 50%;
+    transform: translateX(-50%);
+    padding-left: 10px;
+}
+
+
+/*Info popup control settings*/
+.info {
+    padding: 6px 8px;
+    font: 14px/16px Apercu-Light, Verdana, Geneva, sans-serif;
+    background: white;
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+}
+
+.info h4 {
+    font-family: Apercu-Light, Verdana, Geneva, sans-serif;
+    margin: 0 0 5px;
+    color: #065581;
+}
+
+table {
+    border-collapse: collapse;
+}
+
+/*Summary popup control settings*/
+.summary {
+    padding: 6px 8px;
+    font: 14px/16px Apercu-Light, Verdana, Geneva, sans-serif;
+    background: white;
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+}
+
+.summary h4 {
+    font-family: Apercu-Light, Verdana, Geneva, sans-serif;
+    margin: 0 0 5px;
+    color: #065581;
+}
+
+/*dtTable control settings*/
+#dtTable {
+    padding: 6px 8px;
+    font: 14px/16px Apercu-Light, Verdana, Geneva, sans-serif;
+    background: white;
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+}
+
+#dtTable h4 {
+    font-family: Verdana, Geneva, sans-serif;
+    margin: 0 0 5px;
+    color: #065581;
+}
+
+/*styling for the glyphs' tooltip*/
+.myCSSClass {
+    font-size: 15px;
+    font-weight: bold;
+    padding: 20px !important;
+    background: none;
+    border: none;
+    color: #FFCE00;
+    /*text-shadow: 0px 0px 10px black;*/
+    box-shadow: none;
+    outline: none;
+}
+
+/*.leaflet-tooltip-left.myCSSClass::before {*/
+/*    border-left-color: cyan;*/
+/*}*/
+
+/*.leaflet-tooltip-right.myCSSClass::before {*/
+/*    border-right-color: cyan;*/
+/*}*/
+
+.leaflet-tooltip-left.myCSSClass::before {
+    border-left-color: transparent;
+}
+
+.leaflet-tooltip-right.myCSSClass::before {
+    border-right-color: transparent;
+}
+
+
+/*styling for the popup on the glyphs*/
+.spotPopupCustom .leaflet-popup-tip-container {
+    display: none;
+}
+
+.spotPopupCustom .leaflet-popup-content {
+    margin: 0px 0px;
+}
+
+.spotPopupCustom .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+    background: #d7d7d7;
+    color: #333;
+    opacity: 1.0;
+    box-shadow: 0 0px 0px rgba(0, 0, 0, 0.0);
+}
+
+.spotPopupCustom {
+    margin-bottom: 20px;
+}
+
+.spotPopupCustom a.leaflet-popup-close-button {
+    color: #777777;
+}
+
+
+/*styling for the donut popup*/
+.piePopupCustom {
+    /*style goes here*/
+}
+
+
+/*Donut chart settings*/
+path.slice {
+    stroke: #3d4a57;
+    /*stroke-dasharray: 10,5;*/
+    /*stroke-linecap: butt;*/
+    stroke-width: 1px;
+}
+
+polyline {
+    opacity: .3;
+    stroke: black;
+    stroke-width: 2px;
+    fill: none;
+}
+
+.sliceLabels {
+    font-family: sans-serif;
+    font-size: 10px;
+    opacity: 1;
+
+}
+
+.text {
+    font-size: 16pt;
+    font-family: Arial;
+}
+
+.toolTip {
+    font-family: Apercu-Light, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    position: absolute;
+    /*display: none;*/
+    width: auto;
+    height: auto;
+    background: none repeat scroll 0 0 white;
+    border: 0 none;
+    border-radius: 8px 8px 8px 8px;
+    border-radius: 8px 8px 8px 8px;
+    box-shadow: -3px 3px 15px #888888;
+    color: black;
+    font: 12px sans-serif;
+    padding: 5px;
+    text-align: center;
+    z-index: 1000;
+}
+
+/*Donut chart settings*/
+
+
+table.no-spacing {
+    border-spacing: 0; /* Removes the cell spacing via CSS */
+    border-collapse: collapse; /* Optional - if you don't want to have double border where cells touch */
+}
+
+table.no-spacing td {
+    font-family: sans-serif;
+    font-size: 10px;
+}
+
+.dataTables_wrapper {
+    font-size: 10px
+}
+
+.dataTables {
+"pageLength": 5
+}
+
+
+.myTitle {
+    padding: 4px 6px;
+    font: 14px/16px Apercu-Light, Verdana, Geneva, sans-serif;
+    background: white;
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+}
+
+.myTitle h4 {
+    font-family: Apercu-Light, Verdana, Geneva, sans-serif;
+    margin: 0 0 5px;
+    color: #065581;
+}
+
+/*Set the label color because it is overwitten by bootstrap*/
+.label {
+    color: #2B292E;
+}
+
+
+.myTitle {
+    position: relative;
+}
+
+.myTitle img {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    height: 85%
+}
+
+
+.infoTitle {
+    position: relative;
+}
+
+.infoTitle img {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    height: 85%
+}
+
+.map-content {
+    position: absolute;
+    z-index: 1000;
+    padding: 4px 7px 5px;
+    border-top: 1px solid #777;
+    border-left: 1px solid #777;
+    border-right: 2px solid #444;
+    border-bottom: 2px solid #444;
+    line-height: 1.6;
+    font-size: 1em;
+    /*font-family: Apercu-Light;*/
+    background: white;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    border-radius: 5px;
+}
+
+#legend {
+    top: 9px;
+    left: 172px;
+    cursor: pointer;
+}
+
+#hideDapiAndPanels {
+    top: 9px;
+    left: 50px;
+    cursor: text;
+}
+
+#webgl{
+    top: 9px;
+    left: 350px;
+    cursor: pointer;
+    pointer-events: none;
+    display: none;
+}
+.greenDot {
+  height: 10px;
+  width: 10px;
+  background-color: #0ecc18;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.redDot {
+  height: 10px;
+  width: 10px;
+  background-color: #cc0008;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.blinking {
+  -webkit-animation: 1s blink ease infinite;
+  -moz-animation: 1s blink ease infinite;
+  -ms-animation: 1s blink ease infinite;
+  -o-animation: 1s blink ease infinite;
+  animation: 1s blink ease infinite;
+
+}
+
+@keyframes blink {
+  from, to {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@-moz-keyframes blink {
+  from, to {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@-webkit-keyframes blink {
+  from, to {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@-ms-keyframes blink {
+  from, to {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@-o-keyframes blink {
+  from, to {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+div.b {
+    font-size: 20px;
+    font-family: "Helvetica Neue";
+    color: #EDEEF5;
+}
+
+div.a {
+    /*font-size: 20px;*/
+    /*font-family: "Helvetica Neue";*/
+    color: #AACCFF;
+}
+
+
+/*#chart-container > div {*/
+/*    position: absolute;*/
+/*    top: 0;*/
+/*    bottom: 0;*/
+/*    right: 0;*/
+/*    left: 0;*/
+/*    text-align: middle;*/
+/*    vertical-align: middle;*/
+/*}*/
+
+/*.loading {*/
+/*    display: flex;*/
+/*    flex-direction: column;*/
+/*    justify-content: center;*/
+/*    align-items: center;*/
+/*    !*background-color: rgba(125, 185, 222, 1.0);*!*/
+/*    !*background-color: rgba(250, 214, 137, 1.0);*!*/
+/*    background-color: rgba(252, 250, 242, 1.0);*/
+/*}*/
+
+/*.loading span {*/
+/*    flex: 1;*/
+/*    text-align: center;*/
+/*    font-size: 3em;*/
+/*}*/
+
+/*#container {*/
+/*    margin: 20px;*/
+/*    width: 200px;*/
+/*    height: 200px;*/
+/*    position: relative;*/
+/*}*/

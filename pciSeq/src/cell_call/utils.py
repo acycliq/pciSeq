@@ -12,37 +12,34 @@ import glob
 import logging
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 
 
-def read_image_objects(img_obj, cfg):
-    meanCellRadius = np.mean(np.sqrt(img_obj.mean_area_per_slice / np.pi)) * 0.5
-    relCellRadius = np.sqrt(img_obj.mean_area_per_slice / np.pi) / meanCellRadius
-
-    # append 1 for the misreads
-    relCellRadius = np.append(1, relCellRadius)
-
-    nom = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
-    denom = np.exp(-0.5) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
-    CellAreaFactor = nom / denom
-
-    out = {}
-    # out['area_factor'] = CellAreaFactor
-    out['area_factor'] = np.ones(CellAreaFactor.shape[0])
-    # logger.info('*****************************************************')
-    # logger.info('******  WARNING: area_factor is set to 1.0   ********')
-    # logger.info('*****************************************************')
-    out['rel_radius'] = relCellRadius
-    out['area'] = np.append(np.nan, img_obj.mean_area_per_slice)
-    out['x'] = np.append(-sys.maxsize, img_obj.x.values)
-    out['y'] = np.append(-sys.maxsize, img_obj.y.values)
-    out['z'] = np.append(-sys.maxsize, img_obj.z.values)
-    out['cell_label'] = np.append(0, img_obj.label.values)
-    # First cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
-    # and will be used to get all the misreads. It was given the label=0 and some very small
-    # negative coords
-
-    return out, meanCellRadius
+# def read_image_objects(img_obj, cfg):
+#     meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
+#     relCellRadius = np.sqrt(img_obj.area / np.pi) / meanCellRadius
+#
+#     # append 1 for the misreads
+#     relCellRadius = np.append(1, relCellRadius)
+#
+#     nom = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
+#     denom = np.exp(-0.5) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
+#     CellAreaFactor = nom / denom
+#
+#     out = {}
+#     out['area_factor'] = CellAreaFactor
+#     # out['area_factor'] = np.ones(CellAreaFactor.shape)
+#     # logger.info('Overriden CellAreaFactor = 1')
+#     out['rel_radius'] = relCellRadius
+#     out['area'] = np.append(np.nan, img_obj.area)
+#     out['x'] = np.append(-sys.maxsize, img_obj.x.values)
+#     out['y'] = np.append(-sys.maxsize, img_obj.y.values)
+#     out['cell_label'] = np.append(0, img_obj.label.values)
+#     # First cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
+#     # and will be used to get all the misreads. It was given the label=0 and some very small
+#     # negative coords
+#
+#     return out
 
 
 def negBinLoglik(x, r, p):
@@ -269,35 +266,6 @@ def load_from_url(url):
 
 
 def gaussian_ellipsoid(mu, cov, sdwidth=None):
-    """
-    NOTE: NP NEED TO RECONSTRUCT THE COV MATRIX FROM THE VARIANCES.
-    THE COVARIANCE MATRIX IS ALREADY AVAILABLE, YOU SHOULD PASS THAT
-    INSTEAD OF THE SIGMAS AND RHO.
-    Draws an ellipsoid for a given covariance matrix cov
-    and mean vector mu
-
-    Example
-    cov_1 = [[1, 0.5], [0.5, 1]]
-    means_1 = [1, 1]
-
-    cov_2 = [[1, -0.7], [-0.7, 1]]
-    means_2 = [2, 1.5]
-
-    cov_3 = [[1, 0], [0, 1]]
-    means_3 = [0, 0]
-
-    ellipsis_1 = gaussian_ellipsoid(cov_1, means_1)
-    ellipsis_2 = gaussian_ellipsoid(cov_2, means_2)
-    ellipsis_3 = gaussian_ellipsoid(cov_3, means_3)
-    ellipsis_3b = gaussian_ellipsoid(cov_3, means_3, sdwidth=2)
-    ellipsis_3c = gaussian_ellipsoid(cov_3, means_3, sdwidth=3)
-
-    plt.plot(ellipsis_1[0], ellipsis_1[1], c='b')
-    plt.plot(ellipsis_2[0], ellipsis_2[1], c='r')
-    plt.plot(ellipsis_3[0], ellipsis_3[1], c='g')
-    plt.plot(ellipsis_3b[0], ellipsis_3b[1], c='g')
-    plt.plot(ellipsis_3c[0], ellipsis_3c[1], c='g')
-    """
     if sdwidth is None:
         sdwidth = 1
 
@@ -305,25 +273,22 @@ def gaussian_ellipsoid(mu, cov, sdwidth=None):
     # cov_10 = rho * sigma_x * sigma_y
     # cov_11 = sigma_y * sigma_y
     # cov = np.array([[cov_00, cov_10], [cov_10, cov_11]])
-    # mu = np.array(mu)
+    mu = np.array(mu)
 
     npts = 40
-    dims = 3  # Number of dimensions of the mutivariate normal
-    tt = np.linspace(0, dims * np.pi, npts)
-    ap = np.zeros((dims, npts))
+    tt = np.linspace(0, 2 * np.pi, npts)
+    ap = np.zeros((2, npts))
     x = np.cos(tt)
     y = np.sin(tt)
-    z = np.sin(tt)
     ap[0, :] = x
     ap[1, :] = y
-    ap[2, :] = z
 
     eigvals, eigvecs = np.linalg.eig(cov)
     eigvals = sdwidth * np.sqrt(eigvals)
-    eigvals = eigvals * np.eye(dims)
+    eigvals = eigvals * np.eye(2)
 
     vd = eigvecs.dot(eigvals)
-    out = vd.dot(ap) + mu.reshape(dims, -1)
+    out = vd.dot(ap) + mu.reshape(2, -1)
 
     return np.array(list(zip(*out)))
 
@@ -349,64 +314,3 @@ def euler_angles(r):
     return [theta_x, theta_y, theta_z]
 
 
-def roll_pitch_yaw(R):
-    """
-    Illustration of the rotation matrix / sometimes called 'orientation' matrix
-    R = [
-           R11 , R12 , R13,
-           R21 , R22 , R23,
-           R31 , R32 , R33
-        ]
-    REMARKS:
-    1. this implementation is meant to make the mathematics easy to be deciphered
-    from the script, not so much on 'optimized' code.
-    You can then optimize it to your own style.
-    2. I have utilized naval rigid body terminology here whereby;
-    2.1 roll -> rotation about x-axis (DN says: rotation about z-axis)
-    2.2 pitch -> rotation about the y-axis (DN says: rotation about x-axis)
-    2.3 yaw -> rotation about the z-axis (this is pointing 'upwards') (DN says: rotation about y-axis)
-    """
-    from math import (
-        asin, pi, atan2, cos
-    )
-    R11 = R[0,0]
-    R12 = R[0,1]
-    R13 = R[0,2]
-
-    R21 = R[1,0]
-    R22 = R[1,1]
-    R23 = R[1,2]
-
-    R31 = R[2, 0]
-    R32 = R[2, 1]
-    R33 = R[2, 2]
-
-
-    if R31 != 1 and R31 != -1:
-        pitch_1 = -1 * asin(R31)
-        pitch_2 = pi - pitch_1
-        roll_1 = atan2(R32 / cos(pitch_1), R33 / cos(pitch_1))
-        roll_2 = atan2(R32 / cos(pitch_2), R33 / cos(pitch_2))
-        yaw_1 = atan2(R21 / cos(pitch_1), R11 / cos(pitch_1))
-        yaw_2 = atan2(R21 / cos(pitch_2), R11 / cos(pitch_2))
-
-        # IMPORTANT NOTE here, there is more than one solution but we choose the first for this case for simplicity !
-        # You can insert your own domain logic here on how to handle both solutions appropriately (see the reference publication link for more info).
-        pitch = pitch_1
-        roll = roll_1
-        yaw = yaw_1
-    else:
-        yaw = 0  # anything (we default this to zero)
-        if R31 == -1:
-            pitch = pi / 2
-            roll = yaw + atan2(R12, R13)
-        else:
-            pitch = -pi / 2
-            roll = -1 * yaw + atan2(-1 * R12, -1 * R13)
-
-    # convert from radians to degrees
-    roll = roll * 180 / pi
-    pitch = pitch * 180 / pi
-    yaw = yaw * 180 / pi
-
-    return [roll, pitch, yaw]

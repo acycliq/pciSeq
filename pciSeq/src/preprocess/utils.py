@@ -8,12 +8,7 @@ from collections import defaultdict
 import logging
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s:%(levelname)s:%(message)s"
-)
-
-logger = logging.getLogger()
+# logger = logging.getLogger(__name__)
 # logger.disabled = True
 
 
