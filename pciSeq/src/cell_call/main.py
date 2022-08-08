@@ -83,6 +83,7 @@ class VarBayes(object):
             # replace p0 with the latest probabilities
             p0 = self.spots.parent_cell_prob
 
+            self.db_save()
             if self.has_converged:
                 self.db_save()
                 iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config)

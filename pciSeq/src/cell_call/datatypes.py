@@ -280,6 +280,9 @@ class Genes(object):
     def _digamma(self, a, b):
         return scipy.special.psi(a) - np.log(b)
 
+    def db_save(self, con, run, converged, db_opts):
+        self.db_gene_efficiency(con, run, converged, db_opts)
+
     def db_gene_efficiency(self, con, run, converged, db_opts):
         df = pd.DataFrame(data=self.eta_bar, index=self.gene_panel, columns=['gene_efficiency'])
         df.index.name = 'gene'
@@ -498,12 +501,12 @@ class Spots(object):
     def db_save_spots(self, con):
         # spots are persistent, they do not change. Just save it once
         try:
-            df = pd.DataFrame(data=self.data[['x', 'y', 'z', 'label', 'Gene']], columns=['x', 'y', 'z', 'label', 'Gene'])
-            df = df.set_index('Gene')
+            df = pd.DataFrame(data=self.data[['x', 'y', 'z', 'label', 'gene_name']], columns=['x', 'y', 'z', 'label', 'gene_name'])
+            df = df.set_index('gene_name')
             df['utc'] = datetime.datetime.utcnow()
             df = df.reset_index()
             df.to_sql(name='spots', con=con, if_exists='fail', index=False)
-            con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_class_iteration ON spots("Gene");')
+            con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_class_iteration ON spots("gene_name");')
         except ValueError:
             pass
 
