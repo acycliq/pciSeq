@@ -251,11 +251,27 @@ class Cells(object):
 
 # ----------------------------------------Class: Genes--------------------------------------------------- #
 class Genes(object):
-    def __init__(self, spots):
+    def __init__(self, spots, con):
         self.gene_panel = np.unique(spots.data.gene_name.values)
         self._eta_bar = None
         self._logeta_bar = None
         self.nG = len(self.gene_panel)
+        self.con = con
+        self.con.executescript("CREATE TABLE gene_efficiency (gene varchar,"
+                               "gene_efficiency,"
+                               "iteration,"
+                               "has_converged,utc"
+                               ")"
+                               )
+        self.con.executescript('''
+            CREATE TRIGGER gene_efficiency_row
+            AFTER INSERT ON gene_efficiency
+            WHEN (SELECT count(*) FROM gene_efficiency) > 0
+            BEGIN
+                SELECT RAISE (FAIL, 'full');
+            END;
+        ''')
+        self.con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_gene_iteration ON gene_efficiency("gene", "iteration");')
 
     @property
     def eta(self):
@@ -290,8 +306,12 @@ class Genes(object):
         df['has_converged'] = converged
         df['utc'] = datetime.datetime.utcnow()
         df = df.reset_index()
-        df.to_sql(name='gene_efficiency', con=con, if_exists=db_opts['if_table_exists'], index=False)
-        con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_gene_iteration ON gene_efficiency("gene", "iteration");')
+        try:
+            df.to_sql(name='gene_efficiency', con=con, if_exists=db_opts['if_table_exists'], index=False)
+            # con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_gene_iteration ON gene_efficiency("gene", "iteration");')
+        except sqlite3.IntegrityError as e:
+            logger.info('Couldnt insert')
+        print('ok')
 
 
 # ----------------------------------------Class: Spots--------------------------------------------------- #
@@ -683,7 +703,7 @@ class SingleCell(object):
         df['has_converged'] = converged
         df = df.reset_index()
         df.to_sql(name='mean_expression', con=con, if_exists=db_opts['if_table_exists'], index=False)
-        con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_gene_iteration ON spots("gene_name", "iteration");')
+        con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_gene_iteration ON mean_expression("gene_name", "iteration");')
 
 
 

@@ -13,9 +13,11 @@ from pciSeq.src.cell_call.log_config import logger
 class VarBayes(object):
     def __init__(self, _cells_df, _spots_df, scRNAseq, config):
         self.config = config
+        # self.conn = self.db_connect(':memory:')
+        self.conn = self.db_connect('pciSeq.db')# or use 'pciSeq.db' to create a db on the filesystem
         self.cells = Cells(_cells_df, config)
         self.spots = Spots(_spots_df, config)
-        self.genes = Genes(self.spots)
+        self.genes = Genes(self.spots, self.conn)
         self.single_cell = SingleCell(scRNAseq, self.genes.gene_panel, self.config)
         self.cellTypes = CellType(self.single_cell, config)
         self.cells.class_names = self.single_cell.classes
@@ -27,7 +29,6 @@ class VarBayes(object):
                                                     # cell of any given spot. The last cell will be used for the
                                                     # misread spots. (ie cell at position nN is the background)
 
-        self.conn = self.db_connect(':memory:')  # or use 'pciSeq.db' to create a db on the filesystem
         self.iter_num = None
         self.has_converged = False
 
@@ -485,7 +486,7 @@ class VarBayes(object):
 
     # -------------------------------------------------------------------- #
     def _db_save(self):
-        db_opts = {'if_table_exists': 'replace'}  # choose between 'fail', 'replace', 'append'. Appending might make sense only if you want to see how estimates change from one loop to the next
+        db_opts = {'if_table_exists': 'append'}  # choose between 'fail', 'replace', 'append'. Appending might make sense only if you want to see how estimates change from one loop to the next
         self.db_save_geneCounts(self.iter_num, self.has_converged, db_opts)
         self.db_save_class_prob(self.iter_num, self.has_converged, db_opts)
         self.db_save_parent_cell_prob(self.iter_num, self.has_converged, db_opts)
