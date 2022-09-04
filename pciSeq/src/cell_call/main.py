@@ -85,7 +85,6 @@ class VarBayes(object):
 
             self.db_save()
             if self.has_converged:
-                self.db_save()
                 iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config)
                 break
 
