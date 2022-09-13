@@ -263,14 +263,14 @@ class Genes(object):
                                "has_converged,utc"
                                ")"
                                )
-        self.con.executescript('''
-            CREATE TRIGGER gene_efficiency_row
-            AFTER INSERT ON gene_efficiency
-            WHEN (SELECT count(*) FROM gene_efficiency) > 0
-            BEGIN
-                SELECT RAISE (FAIL, 'full');
-            END;
-        ''')
+        # self.con.executescript('''
+        #     CREATE TRIGGER gene_efficiency_row
+        #     AFTER INSERT ON gene_efficiency
+        #     WHEN (SELECT count(*) FROM gene_efficiency) > 0
+        #     BEGIN
+        #         SELECT RAISE (FAIL, 'full');
+        #     END;
+        # ''')
         self.con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_gene_iteration ON gene_efficiency("gene", "iteration");')
 
     @property
