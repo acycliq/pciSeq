@@ -14,6 +14,20 @@ DB_FILE = pathlib.Path(__file__).resolve().parent.parent.parent.joinpath("pciSeq
 
 
 conn = db_connect(DB_FILE, remove_if_exists=False)
+cell_type_prior = pd.read_sql("select * from cell_type_prior", conn)
+cell_types = cell_type_prior[cell_type_prior.iteration==0]['class'].values
+
+gene_efficiency = pd.read_sql("select * from gene_efficiency", conn)
+
+class_prob = pd.read_sql("select * from classProb", conn)
+class_prob = class_prob[class_prob.iteration == 0]
+class_prob = class_prob.set_index('cell_label')
+class_prob = class_prob[cell_types]
+class_prob = class_prob.stack().reset_index()
+class_prob.columns = ['cell_label', 'cell_type', 'prob']
+class_prob = class_prob[class_prob.cell_label > 0]
+temp = class_prob.prob.values * 10000
+class_prob.prob = temp.astype(np.int)/100
 st.set_page_config(
     page_title="Real-Time Data Science Dashboard",
     page_icon="✅",
@@ -42,57 +56,47 @@ step = 1
 while True:
     try:
         sql_str = sql_query("gene_efficiency")
-        data = pd.read_sql(sql_str, conn)
-        data_2 = pd.read_sql(sql_query("classProb"), conn)
-        data_2 = data_2.set_index('cell_label')
-        cell_types = [col for col in data_2.columns if data_2[col].dtype in ['float64']]
-        data_2 = data_2[cell_types]
-        mask = data_2.drop(['Zero'], axis=1).max(axis=1) > 0.02
-        data_2 = data_2[mask]
-        data_2 = data_2.stack().reset_index()
-        data_2.columns = ['cell_label', 'cell_type', 'prob']
+        gene_efficiency = pd.read_sql(sql_str, conn)
+
+        sql_str = sql_query("cell_type_prior")
+        cell_type_prior = pd.read_sql(sql_str, conn)
+
         # print(data)
-        iter = data.iteration
+        iter = gene_efficiency.iteration
         assert len(np.unique(iter)) == 1
-        i = data.iteration.max()
+        i = gene_efficiency.iteration.max()
         if i % step == 0:
             print('iteration: %d' % i)
             with placeholder.container():
                 # create two columns for charts
                 fig_col1, fig_col2 = st.columns(2)
                 with fig_col1:
-                    st.markdown("### Chart Num %d" % i)
-                    # bar_chart = alt.Chart(source).mark_bar().encode(
-                    #     x="sum(Price ($)):Q",
-                    #     y=alt.Y("Month:N", sort="-x")
-                    # )
-                    bar_chart = alt.Chart(data).mark_bar().encode(
-                        x=alt.X('gene:N', title='Cell Type'),
-                        y='gene_efficiency:Q',
+                    st.markdown("### Gene efficiency at iteration %d" % i)
+                    bar_chart_1 = alt.Chart(gene_efficiency).mark_bar().encode(
+                        y=alt.Y('gene:N', title='Cell Type'),
+                        x='gene_efficiency:Q',
                         color=alt.Color('class:N', legend=None),
                         tooltip=[
                             alt.Tooltip('gene:N', title='Date'),
                             alt.Tooltip('gene_efficiency:Q', title='Max Temp')
                         ]
-                    ).properties(width=400, height=550)
-                    fig1 = st.altair_chart(bar_chart, use_container_width=True)
+                    ).properties(height=1200)
+                    fig1 = st.altair_chart(bar_chart_1, use_container_width=True)
                     # fig2 = px.histogram(data_frame=df, x="age_new")
                     # st.write(fig1)
 
-                    heatmap = alt.Chart(
-                        data_2,
-                        title="2010 Daily High Temperature (F) in Seattle, WA"
-                    ).mark_rect().encode(
-                        x='cell_label:N',
-                        y='cell_type:N',
-                        color=alt.Color('prob:Q', scale=alt.Scale(scheme="inferno")),
+                with fig_col2:
+                    st.markdown("### Cell class weight at iteration %d" % i)
+                    bar_chart_2 = alt.Chart(cell_type_prior).mark_bar().encode(
+                        y=alt.Y('class:N', title='Cell Type'),
+                        x='weight:Q',
+                        color=alt.Color('class:N', legend=None),
                         tooltip=[
-                            alt.Tooltip('cell_label:N', title='Cell Label'),
-                            alt.Tooltip('cell_type:N', title='Cell Type'),
-                            alt.Tooltip('prob:Q', title='Prob'),
+                            alt.Tooltip('class:N'),
+                            alt.Tooltip('weight:Q')
                         ]
-                    ).properties(width=550)
-                    fig2 = st.altair_chart(heatmap, use_container_width=True)
+                    ).properties(height=1200)
+                    fig2 = st.altair_chart(bar_chart_2, use_container_width=True)
 
 
         # wait 1 sec before pingin the db again
