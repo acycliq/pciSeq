@@ -43,7 +43,8 @@ def sql_query(table_name):
 
 df = px.data.tips()
 # dashboard title
-st.title("pciSeq: Diagnostics.")
+title = st.title("Convergence monitor.")
+
 
 # creating a single-element container
 placeholder = st.empty()
@@ -52,7 +53,10 @@ source = pd.DataFrame({
     "Price ($)": [10, 15, 20],
     "Month": ["January", "February", "March"]
 })
-step = 1
+step = 3
+previous_iteration = -1
+# st.header("refreshing every %d iterations" % step)
+
 while True:
     try:
         sql_str = sql_query("gene_efficiency")
@@ -65,7 +69,10 @@ while True:
         iter = gene_efficiency.iteration
         assert len(np.unique(iter)) == 1
         i = gene_efficiency.iteration.max()
-        if i % step == 0:
+        if previous_iteration == i:
+            print('do nothing')
+        elif i % step == 0:
+            title.title("Convergence monitor: iteration %d, step: %d" % (i, step))
             print('iteration: %d' % i)
             with placeholder.container():
                 # create two columns for charts
@@ -97,6 +104,7 @@ while True:
                         ]
                     ).properties(height=1200)
                     fig2 = st.altair_chart(bar_chart_2, use_container_width=True)
+            previous_iteration = i
 
 
         # wait 1 sec before pingin the db again
