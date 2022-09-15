@@ -1,33 +1,19 @@
-import plotly.express as px  # interactive charts
 import streamlit as st  # 🎈 data web app development
 import numpy as np
 import pandas as pd
 import time
 import pathlib
-from pciSeq.src.cell_call.utils import db_connect
+from pciSeq.src.cell_call.utils import db_connect, get_db_tables
 import altair as alt
-import asyncio
-import datetime
-from pciSeq.app import run_me
+import sys
+import os
+
 
 DB_FILE = pathlib.Path(__file__).resolve().parent.parent.parent.joinpath("pciSeq.db").resolve()
 
+conn = None
+checked_tables = False
 
-conn = db_connect(DB_FILE, remove_if_exists=False)
-cell_type_prior = pd.read_sql("select * from cell_type_prior", conn)
-cell_types = cell_type_prior[cell_type_prior.iteration==0]['class'].values
-
-gene_efficiency = pd.read_sql("select * from gene_efficiency", conn)
-
-class_prob = pd.read_sql("select * from classProb", conn)
-class_prob = class_prob[class_prob.iteration == 0]
-class_prob = class_prob.set_index('cell_label')
-class_prob = class_prob[cell_types]
-class_prob = class_prob.stack().reset_index()
-class_prob.columns = ['cell_label', 'cell_type', 'prob']
-class_prob = class_prob[class_prob.cell_label > 0]
-temp = class_prob.prob.values * 10000
-class_prob.prob = temp.astype(np.int)/100
 st.set_page_config(
     page_title="Real-Time Data Science Dashboard",
     page_icon="✅",
@@ -41,7 +27,6 @@ def sql_query(table_name):
     return sql_str
 
 
-df = px.data.tips()
 # dashboard title
 title = st.title("Convergence monitor.")
 
@@ -49,16 +34,27 @@ title = st.title("Convergence monitor.")
 # creating a single-element container
 placeholder = st.empty()
 
-source = pd.DataFrame({
-    "Price ($)": [10, 15, 20],
-    "Month": ["January", "February", "March"]
-})
-step = 3
+step = 1
 previous_iteration = -1
-# st.header("refreshing every %d iterations" % step)
+
+
+def query_tables(tables, con):
+    db_tables = get_db_tables(con)
+    if set(tables) != set(db_tables):
+        sys.exit(1)
+
 
 while True:
     try:
+        if conn is None:
+            assert os.path.isfile(DB_FILE)
+            conn = db_connect(DB_FILE, remove_if_exists=False)
+        if not checked_tables:
+            set_tables = {"gene_efficiency", "cell_type_prior"}
+            set_db = set(get_db_tables(conn))
+            assert set_tables.issubset(set_db)
+            checked_tables = True
+
         sql_str = sql_query("gene_efficiency")
         gene_efficiency = pd.read_sql(sql_str, conn)
 
@@ -106,26 +102,13 @@ while True:
                     fig2 = st.altair_chart(bar_chart_2, use_container_width=True)
             previous_iteration = i
 
-
         # wait 1 sec before pingin the db again
         time.sleep(1)
 
+    except AssertionError:
+        print('..wait...')
+        time.sleep(1)
+        pass
     except Exception as error:
         print(error)
 
-
-
-# for seconds in range(200):
-#     df['random_bill'] = 100 * np.random.random_sample(df.shape[0])
-#     with placeholder.container():
-#         # create two columns for charts
-#         fig_col1, fig_col2 = st.columns(2)
-#         with fig_col1:
-#             st.markdown("### Chart Num %d" % seconds)
-#             fig1 = px.histogram(df, x="random_bill")
-#             # fig2 = px.histogram(data_frame=df, x="age_new")
-#             st.write(fig1)
-#
-#
-#     # st.dataframe(df)
-#     time.sleep(1)
