@@ -84,7 +84,7 @@ _clip_poly['VS6MsBrain_F5_VS6libary_V10_LH_03-17-21']['region_1'] = [[37998,4278
 _clip_poly['MsBrain_BM2_VS6_V11_JH_05-01-2021']['region_0'] = [[60980,35049], [60199,33911], [59345,32630], [59162,30739], [60336,29019], [64016,25139], [68699,21208], [69766,20452], [44386,17362], [20607,17749], [23068,20069], [26084,24823], [28265,28718], [28107,30470], [27288,32606], [26304,33551], [39050,33419], [43952,31377], [49611,33388]]
 _clip_poly['MsBrain_BM2_VS6_V11_JH_05-01-2021']['region_1'] = [[61348,31190], [60199,30078], [58942,28368], [58820,26507], [59858,23854], [61032,21433], [64601,16568], [39783,17401], [18122,23333], [21056,25682], [23949,29254], [26189,32666], [26213,35606], [25301,37315], [39939,35417], [41946,31286], [47674,33916]]
 _clip_poly['MsBrain_BM3_VS6_V11_JH_04-30-2021']['region_0'] = [[46786,29567], [49524,27972], [51852,26297], [54003,23508], [55939,20108], [57899,15968], [35539,14827], [13073,20299], [18740,25386], [22776,28836], [25315,30008], [28682,31434], [37025,27449]]
-_clip_poly['VS6_MsBrain_A3_VS6library_V3_LH_02-07-21'][""] = [[37693,21476], [30794,33047], [45664,36969], [61343,47656], [61330,45348], [61757,43883], [62895,40909], [65091,36608], [66198,33330], [66727,32084], [48653,26960]]
+_clip_poly['VS6_MsBrain_A3_VS6library_V3_LH_02-07-21']["region_0"] = [[37693,21476], [30794,33047], [45664,36969], [61343,47656], [61330,45348], [61757,43883], [62895,40909], [65091,36608], [66198,33330], [66727,32084], [48653,26960]]
 
 _rotation = defaultdict(dict)
 _rotation["MsBrain_Eg1_VS6_JH_V6_05-02-2021"]["region_0"] = 9,
@@ -114,10 +114,10 @@ _rotation["VS6_MsBrain_B3_VS6library_V10_LH_02-07-21"]["region_0"] = 4,
 _rotation["VS6_MsBrain_B3_VS6library_V10_LH_02-07-21"]["region_1"] = 0,
 
 ## DUMMY ROTATION IS USED HERE -  NEED TO ADD PROPER VALUES
-_rotation['VS6MsBrain_C1_VS6libary_V3_LH_03-14-21']['region_0'] = 'XXX',
-_rotation['VS6MsBrain_C1_VS6libary_V3_LH_03-14-21']['region_1'] = 'XXX',
-_rotation['VS6MsBrain_C2_VS6libary_V1_LH_03-14-21']['region_0'] = 'XXX',
-_rotation['VS6MsBrain_C2_VS6libary_V1_LH_03-14-21']['region_1'] = 'XXX',
+_rotation['VS6MsBrain_C1_VS6libary_V3_LH_03-14-21']['region_0'] = -32,
+_rotation['VS6MsBrain_C1_VS6libary_V3_LH_03-14-21']['region_1'] = -23,
+_rotation['VS6MsBrain_C2_VS6libary_V1_LH_03-14-21']['region_0'] = 152,
+_rotation['VS6MsBrain_C2_VS6libary_V1_LH_03-14-21']['region_1'] = 155,
 _rotation['VS6MsBrain_C3_VS6libary_V10_LH_03-15-21']['region_0'] = 'XXX',
 _rotation['VS6MsBrain_C3_VS6libary_V10_LH_03-15-21']['region_1'] = 'XXX',
 _rotation['VS6MsBrain_C4_VS6libary_V1_LH_03-17-21']['region_0'] = 'XXX',
@@ -126,8 +126,8 @@ _rotation['VS6MsBrain_C5_VS6libary_V3_LH_03-17-21']['region_0'] = 'XXX',
 _rotation['VS6MsBrain_C5_VS6libary_V3_LH_03-17-21']['region_1'] = 'XXX',
 
 # MERFISH FF
-_rotation['VS6MsBrain_F1_VS6libary_V10_LH_03-19-21']['region_0'] = 'XXX',
-_rotation['VS6MsBrain_F1_VS6libary_V10_LH_03-19-21']['region_1'] = 'XXX',
+_rotation['VS6MsBrain_F1_VS6libary_V10_LH_03-19-21']['region_0'] = 153,
+_rotation['VS6MsBrain_F1_VS6libary_V10_LH_03-19-21']['region_1'] = 155,
 _rotation['VS6MsBrain_F2_VS6libary_V3_LH_03-21-21']['region_0'] = 'XXX',
 _rotation['VS6MsBrain_F2_VS6libary_V3_LH_03-21-21']['region_1'] = 'XXX',
 _rotation['VS6MsBrain_F3_VS6libary_V10_LH_03-21-21']['region_0'] = 'XXX',
@@ -141,4 +141,4 @@ _rotation['VS6MsBrain_F5_VS6libary_V10_LH_03-17-21']['region_1'] = 118,
 _rotation['MsBrain_BM2_VS6_V11_JH_05-01-2021']['region_0'] = 'XXX',
 _rotation['MsBrain_BM2_VS6_V11_JH_05-01-2021']['region_1'] = 'XXX',
 _rotation['MsBrain_BM3_VS6_V11_JH_04-30-2021']['region_0'] = 'XXX',
-_rotation['VS6_MsBrain_A3_VS6library_V3_LH_02-07-21'][""] = 'XXX',
+_rotation['VS6_MsBrain_A3_VS6library_V3_LH_02-07-21']["region_0"] = -21,
