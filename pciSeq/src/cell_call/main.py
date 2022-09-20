@@ -14,7 +14,8 @@ class VarBayes(object):
     def __init__(self, _cells_df, _spots_df, scRNAseq, config):
         self.config = config
         # self.conn = self.db_connect(':memory:')
-        self.conn = self.db_connect('pciSeq.db')# or use 'pciSeq.db' to create a db on the filesystem
+        # self.conn = self.db_connect("file:memdb1?mode=memory&cache=shared")
+        self.conn = utils.db_connect('pciSeq.db')# or use 'pciSeq.db' to create a db on the filesystem
         self.cells = Cells(_cells_df, config)
         self.spots = Spots(_spots_df, config)
         self.genes = Genes(self.spots, self.conn)
@@ -542,8 +543,3 @@ class VarBayes(object):
         df.to_sql(name='parent_cell_id', con=self.conn, if_exists=db_opts['if_table_exists'])
         self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_cell_ID_iteration ON parent_cell_id("spot_id", "iteration");')
 
-    # -------------------------------------------------------------------- #
-    def db_connect(self, dbpath):
-        if os.path.isfile(dbpath):
-            os.remove(dbpath)
-        return sqlite3.connect(dbpath)

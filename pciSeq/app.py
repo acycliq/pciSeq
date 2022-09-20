@@ -10,6 +10,7 @@ from typing import Tuple
 from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.viewer.run_flask import flask_app_start
 from pciSeq.src.cell_call.main import VarBayes
+from pciSeq.src.cell_call.utils import get_db_tables
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq import config
 import shutil
@@ -209,11 +210,9 @@ def export_data(cellData, geneData, cellBoundaries, out_dir):
 
 
 def export_db_tables(out_dir, con):
-    str = "SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY name;"
-    tables = con.execute(str).fetchall()
+    tables = get_db_tables(con)
     for table in tables:
         export_db_table(table[0], out_dir, con)
-
 
 def export_db_table(table_name, out_dir, con):
     if table_name == 'spots':
@@ -295,8 +294,7 @@ def copy_viewer_code(cfg):
     return dst
 
 
-if __name__ == "__main__":
-
+def run_me():
     # set up the logger
     attach_to_log()
 
@@ -309,7 +307,7 @@ if __name__ == "__main__":
     _scRNAseq = _scRNAseq.rename(columns=_scRNAseq.iloc[0], copy=False).iloc[1:]
     _scRNAseq = _scRNAseq.astype(float).astype(np.uint32)
 
-    # read 3D some demo data
+    # # read 3D some demo data
     _iss_spots_3D = pd.read_csv(r"E:\data\Anne\220308 50umCF seq atto425 DY520XL MS002\spots_yxz.csv")
     _iss_spots_3D = _iss_spots_3D.assign(z_stack=_iss_spots_3D.z)
     _iss_spots_3D = _iss_spots_3D[['y', 'x', 'z_stack', 'Gene']]
@@ -332,3 +330,5 @@ if __name__ == "__main__":
     # fit(_iss_spots_2D, _coo_2D, scRNAseq=_scRNAseq, opts=opts_2D)
     fit(_iss_spots_3D, _coo_3D, scRNAseq=_scRNAseq, opts=opts_3D)
 
+if __name__ == "__main__":
+    run_me()
