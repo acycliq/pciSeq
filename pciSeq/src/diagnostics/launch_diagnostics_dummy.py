@@ -88,8 +88,9 @@ async def do_something(con):
 if __name__ == "__main__":
     try:
         asyncio.run(main())
-    except:
-        pass
+    except RuntimeError as e:
+        if str(e) == "RuntimeError: Event loop stopped before Future completed":
+            pass
     # do_something()
 
     # loop = asyncio.get_event_loop()
