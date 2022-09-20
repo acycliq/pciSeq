@@ -36,7 +36,7 @@ async def do_some_iterations(con):
 
 
 async def main():
-    con = sqlite3.connect('my_db.db')
+    con = sqlite3.connect("file:memdb1?mode=memory&cache=shared")
     await asyncio.gather(
         do_some_iterations(con),
         do_something(con)

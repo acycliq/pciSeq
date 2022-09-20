@@ -9,7 +9,7 @@ title = st.title("Convergence monitor.")
 while True:
     try:
         if os.path.exists('my_db.db'):
-            con = sqlite3.connect(r'my_db.db')
+            con = sqlite3.connect("file:memdb1?mode=memory&cache=shared")
             df = pd.read_sql_query("SELECT * FROM spots ", con)
             # print(df)
 
