@@ -5,28 +5,14 @@ from streamlit.server.server import Server
 import tornado.ioloop
 import sqlite3
 import pandas as pd
-from multiprocessing import Process, Queue
 from datetime import datetime
-from tornado.platform.asyncio import AsyncIOLoop
-from streamlit import config as _config
-import nest_asyncio
 
-# nest_asyncio.apply()
 
 dirname = os.path.dirname(__file__)
 filename = os.path.join(dirname, 'diagnostics_dummy.py')
 
-# _config.set_option("server.headless", True)
-args = []
-
-
 
 async def do_some_iterations(con):
-    # con = sqlite3.connect("file:memdb1?mode=memory&cache=shared", uri=True)
-    # df = pd.DataFrame({'x': [11, 21, 31], 'y': ['a', 'b', 'c']})
-    # df.to_sql(name='spots', con=con, if_exists='replace', index=False)
-    # con.close()
-    # print('Database created')
     for i in range(10):
         print(datetime.now().time())
         df = pd.DataFrame({'run': [i]})
@@ -69,9 +55,6 @@ def run(
     server.start(streamlit.bootstrap._on_server_start)
 
     print('im here')
-    # Start the ioloop. This function will not return until the
-    # server is shut down.
-    # ioloop.start()
 
 
 async def do_something(con):
@@ -91,13 +74,3 @@ if __name__ == "__main__":
     except RuntimeError as e:
         if str(e) == "RuntimeError: Event loop stopped before Future completed":
             pass
-    # do_something()
-
-    # loop = asyncio.get_event_loop()
-    # # Blocking call which returns when the display_date() coroutine is done
-    # loop.run_until_complete(do_some_iterations())
-    # print('End')
-    # loop.close()
-    # print('End')
-
-# streamlit.bootstrap.run(filename, '', args, flag_options={})
