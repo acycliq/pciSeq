@@ -28,19 +28,14 @@ def run(
     server = Server(ioloop, main_script_path, command_line)
     server.start(streamlit.bootstrap._on_server_start)
 
-    print('im here')
-
 
 async def launch_dashboard():
-    print('do...')
     dirname = os.path.dirname(__file__)
     filename = os.path.join(dirname, 'diagnostics.py')
 
     # _config.set_option("server.headless", True)
     args = []
     run(filename, '', args, flag_options={})
-    print('...somethinggg')
-
 
 
 if __name__ == "__main__":
@@ -50,4 +45,3 @@ if __name__ == "__main__":
     # _config.set_option("server.headless", True)
     args = []
     streamlit.bootstrap.run(filename, '', args, flag_options={})
-    print('...somethinggg')
