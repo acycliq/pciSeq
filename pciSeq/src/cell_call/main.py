@@ -52,25 +52,10 @@ class VarBayes(object):
 
     # -------------------------------------------------------------------- #
 
-    async def print_time(self, con):
-        # for i in range(10):
-        while True:
-            print(datetime.datetime.now().time())
-            # df = pd.DataFrame({'run': [i]})
-            # df.to_sql(name='spots', con=con, if_exists='replace', index=False)
-            await asyncio.sleep(1)
-
-    async def print_int(self):
-        col_1 = []
-        col_2 = []
-        for i in range(10):
-            col_1.append(i)
-            col_2.append(2 * i)
-            print(i)
-            await asyncio.sleep(1)
-        return pd.DataFrame({'col_1': col_1, 'col_2': col_2})
-
     async def main(self):
+        """
+        opens the diagnostics dashboard and start the cell calling algorithm asynchronously
+        """
         asyncio.create_task(launch_dashboard())
         out = await self.run()
         return out
@@ -80,14 +65,6 @@ class VarBayes(object):
         result = loop.run_until_complete(self.main())
         return result
 
-    # async def do_something(con):
-    #     for i in range(10):
-    #         print(datetime.datetime.now().time())
-    #         df = pd.DataFrame({'run': [i]})
-    #         df.to_sql(name='spots', con=con, if_exists='replace', index=False)
-    #         await asyncio.sleep(1)
-    #     print('... Cool!')
-
     async def run(self):
         p0 = None
         iss_df = None
@@ -95,45 +72,8 @@ class VarBayes(object):
         max_iter = self.config['max_iter']
 
         self.initialise()
-        for i in range(10):
-            df = pd.DataFrame({'run': [i]})
-            df.to_sql(name='dummy_table', con=self.conn, if_exists='replace', index=False)
-
-            self.iter_num = i
-
-            # 1. For each cell, calc the expected gene counts
-            self.geneCount_upd()
-
-            # 2. calc expected gamma
-            self.gamma_upd()
-
-            if self.config['relax_segmentation'] or self.config['is_3D']:
-                self.gaussian_upd()
-
-            # 3. assign cells to cell types
-            self.cell_to_cellType()
-
-            # update cell type weights
-            if self.config['relax_segmentation'] or self.config['is_3D']:
-                self.dalpha_upd()
-
-            # 4. assign spots to cells
-            self.spots_to_cell()
-
-            # 5. update gene efficiency
-            self.eta_upd()
-
-            # 6. Update single cell data
-            if self.single_cell.isMissing:
-                self.mu_upd()
-
-            self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
-            logger.info(' Iteration %d, mean prob change %f' % (i, delta))
-
-            # replace p0 with the latest probabilities
-            p0 = self.spots.parent_cell_prob
-
-            self.db_save()
+        for i in range(max_iter):
+            p0 = await self.inner_loop(i, p0)
             if self.has_converged:
                 # self.db_save()
                 iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config)
@@ -145,6 +85,49 @@ class VarBayes(object):
             await asyncio.sleep(4)
 
         return iss_df, gene_df
+
+    # -------------------------------------------------------------------- #
+    async def inner_loop(self, i, p0):
+        df = pd.DataFrame({'run': [i]})
+        df.to_sql(name='dummy_table', con=self.conn, if_exists='replace', index=False)
+
+        self.iter_num = i
+
+        # 1. For each cell, calc the expected gene counts
+        self.geneCount_upd()
+
+        # 2. calc expected gamma
+        self.gamma_upd()
+
+        if self.config['relax_segmentation'] or self.config['is_3D']:
+            self.gaussian_upd()
+
+        # 3. assign cells to cell types
+        self.cell_to_cellType()
+
+        # update cell type weights
+        if self.config['relax_segmentation'] or self.config['is_3D']:
+            self.dalpha_upd()
+
+        # 4. assign spots to cells
+        self.spots_to_cell()
+
+        # 5. update gene efficiency
+        self.eta_upd()
+
+        # 6. Update single cell data
+        if self.single_cell.isMissing:
+            self.mu_upd()
+
+        self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
+        logger.info(' Iteration %d, mean prob change %f' % (i, delta))
+
+        # replace p0 with the latest probabilities
+        p0 = self.spots.parent_cell_prob
+
+        self.db_save()
+
+        return p0
 
     # -------------------------------------------------------------------- #
     def geneCount_upd(self):
