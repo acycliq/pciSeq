@@ -326,7 +326,7 @@ def run_me():
              'MisreadDensity': 1e-05,
              'is_3D': True,
              'nNeighbors': 6,
-             'CellCallTolerance': 0.92,
+             'CellCallTolerance': 0.72,
           }
 
     # fit(_iss_spots_2D, _coo_2D, scRNAseq=_scRNAseq, opts=opts_2D)

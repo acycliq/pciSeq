@@ -13,6 +13,7 @@ from pciSeq.src.cell_call.summary import collect_data
 import pciSeq.src.cell_call.utils as utils
 from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 # from pciSeq.src.diagnostics.launch_diagnostics_dummy import launch_dashboard
+import pciSeq.src.diagnostics.config as diagnostics_cfg
 from pciSeq.src.cell_call.log_config import logger
 
 
@@ -21,7 +22,8 @@ class VarBayes(object):
         self.config = config
         # self.conn = self.db_connect(':memory:')
         # self.conn = utils.db_connect("file:memdb1?mode=memory&cache=shared")
-        self.conn = utils.db_connect(r"D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq\pciSeq\pciSeq.db")  # or use 'pciSeq.db' to create a db on the filesystem
+        # self.conn = utils.db_connect(r"D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq\pciSeq\pciSeq.db")  # or use 'pciSeq.db' to create a db on the filesystem
+        self.conn = utils.db_connect(diagnostics_cfg.SETTINGS['DB_URL'])
         self.cells = Cells(_cells_df, config)
         self.spots = Spots(_spots_df, config)
         self.genes = Genes(self.spots, self.conn)
