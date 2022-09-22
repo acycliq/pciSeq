@@ -345,3 +345,13 @@ def db_connect(dbpath, remove_if_exists=True):
     return sqlite3.connect(dbpath, uri = True)
 
 
+def get_out_dir(path, sub_folder=''):
+    if path[0] == 'default':
+        out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq', sub_folder)
+    else:
+        out_dir = os.path.join(path[0], sub_folder)
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+    return out_dir
+
+
