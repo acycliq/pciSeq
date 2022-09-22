@@ -11,10 +11,10 @@ while True:
     try:
         con = sqlite3.connect("file:memdb1?mode=memory&cache=shared")
         # con = sqlite3.connect('my_db.db')
-        tables = {"spots"}
+        tables = {"my_spots"}
         db_tables = set(get_db_tables(con))
         if tables.issubset(db_tables):
-            df = pd.read_sql_query("SELECT * FROM spots ", con)
+            df = pd.read_sql_query("SELECT * FROM my_spots ", con)
             st.dataframe(df)
             time.sleep(1)
     except RuntimeError as e:

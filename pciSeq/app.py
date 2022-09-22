@@ -153,7 +153,9 @@ def cell_type(_cells, _spots, scRNAseq, ini):
     varBayes = VarBayes(_cells, _spots, scRNAseq, ini)
 
     logger.info(' Start cell typing')
-    cellData, geneData = varBayes.run()
+    cellData, geneData = varBayes.run_async()
+    print(cellData)
+    print(geneData)
     return cellData, geneData, varBayes
 
 
@@ -324,7 +326,7 @@ def run_me():
              'MisreadDensity': 1e-05,
              'is_3D': True,
              'nNeighbors': 6,
-             'CellCallTolerance': 0.02,
+             'CellCallTolerance': 0.92,
           }
 
     # fit(_iss_spots_2D, _coo_2D, scRNAseq=_scRNAseq, opts=opts_2D)

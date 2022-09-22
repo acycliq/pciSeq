@@ -19,15 +19,16 @@ async def do_some_iterations(con):
         df.to_sql(name='spots', con=con, if_exists='replace', index=False)
         await asyncio.sleep(1)
     print('... Cool!')
+    print(df)
+    return df
 
 
 async def main():
     con = sqlite3.connect("file:memdb1?mode=memory&cache=shared")
     # con = sqlite3.connect('my_db.db')
-    await asyncio.gather(
-        do_some_iterations(con),
-        do_something(con)
-    )
+    asyncio.create_task(launch_dashboard(con))
+    out = await do_some_iterations(con)
+    return out
 
 
 def run(
@@ -57,7 +58,7 @@ def run(
     print('im here')
 
 
-async def do_something(con):
+async def launch_dashboard(con):
     print('do...')
     dirname = os.path.dirname(__file__)
     filename = os.path.join(dirname, 'diagnostics_dummy.py')
@@ -70,7 +71,9 @@ async def do_something(con):
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        loop = asyncio.get_event_loop()
+        result = loop.run_until_complete(main())
+        print(result)
     except RuntimeError as e:
         if str(e) == "RuntimeError: Event loop stopped before Future completed":
             pass

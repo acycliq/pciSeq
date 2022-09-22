@@ -4,9 +4,14 @@ import pandas as pd
 import numpy_groupies as npg
 import sqlite3
 import datetime
+import asyncio
+import streamlit.bootstrap
+from streamlit.server.server import Server
+import tornado.ioloop
 from pciSeq.src.cell_call.datatypes import Cells, Spots, Genes, SingleCell, CellType
 from pciSeq.src.cell_call.summary import collect_data
 import pciSeq.src.cell_call.utils as utils
+from pciSeq.src.diagnostics.launch_diagnostics_dummy import launch_dashboard, do_some_iterations
 from pciSeq.src.cell_call.log_config import logger
 
 
@@ -15,7 +20,7 @@ class VarBayes(object):
         self.config = config
         # self.conn = self.db_connect(':memory:')
         # self.conn = self.db_connect("file:memdb1?mode=memory&cache=shared")
-        self.conn = utils.db_connect('pciSeq.db')# or use 'pciSeq.db' to create a db on the filesystem
+        self.conn = utils.db_connect('pciSeq.db')  # or use 'pciSeq.db' to create a db on the filesystem
         self.cells = Cells(_cells_df, config)
         self.spots = Spots(_spots_df, config)
         self.genes = Genes(self.spots, self.conn)
@@ -26,9 +31,9 @@ class VarBayes(object):
         self.nG = self.genes.nG  # number of genes
         self.nK = self.cellTypes.nK  # number of classes
         self.nS = self.spots.nS  # number of spots
-        self.nN = self.config['nNeighbors'] + 1     # number of the closest nearby cells, candidates for being parent
-                                                    # cell of any given spot. The last cell will be used for the
-                                                    # misread spots. (ie cell at position nN is the background)
+        self.nN = self.config['nNeighbors'] + 1  # number of the closest nearby cells, candidates for being parent
+        # cell of any given spot. The last cell will be used for the
+        # misread spots. (ie cell at position nN is the background)
 
         self.iter_num = None
         self.has_converged = False
@@ -36,63 +41,108 @@ class VarBayes(object):
     def initialise(self):
         self.cellTypes.ini_prior()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
-        self.genes.init_eta(1, 1/self.config['Inefficiency'])
+        self.genes.init_eta(1, 1 / self.config['Inefficiency'])
         self.spots.parent_cell_id, _ = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id,
                                                               self.config)  # assign a spot to a cell if it is within its cell boundaries
         self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
 
     # -------------------------------------------------------------------- #
-    def run(self):
+
+    async def print_time(self, con):
+        # for i in range(10):
+        while True:
+            print(datetime.datetime.now().time())
+            # df = pd.DataFrame({'run': [i]})
+            # df.to_sql(name='spots', con=con, if_exists='replace', index=False)
+            await asyncio.sleep(1)
+
+    async def print_int(self):
+        col_1 = []
+        col_2 = []
+        for i in range(10):
+            col_1.append(i)
+            col_2.append(2 * i)
+            print(i)
+            await asyncio.sleep(1)
+        return pd.DataFrame({'col_1': col_1, 'col_2': col_2})
+
+    async def main(self):
+        con = sqlite3.connect("file:memdb1?mode=memory&cache=shared")
+        # con = sqlite3.connect('my_db.db')
+        asyncio.create_task(launch_dashboard(con))
+        out = await self.run()
+        return out
+
+    def run_async(self):
+        loop = asyncio.get_event_loop()
+        result = loop.run_until_complete(self.main())
+        return result
+
+    async def do_something(con):
+        for i in range(10):
+            print(datetime.datetime.now().time())
+            df = pd.DataFrame({'run': [i]})
+            df.to_sql(name='spots', con=con, if_exists='replace', index=False)
+            await asyncio.sleep(1)
+        print('... Cool!')
+
+    async def run(self):
         p0 = None
-        iss_df = None
-        gene_df = None
+        iss_df = [1, 2, 3, 4]
+        gene_df = [5, 6, 7, 8, 9, 10]
         max_iter = self.config['max_iter']
 
         self.initialise()
-        for i in range(max_iter):
-            self.iter_num = i
+        con = sqlite3.connect("file:memdb1?mode=memory&cache=shared")
+        for i in range(10):
+            df = pd.DataFrame({'run': [i]})
+            df.to_sql(name='my_spots', con=con, if_exists='replace', index=False)
+            #
+            # self.iter_num = i
+            #
+            # # 1. For each cell, calc the expected gene counts
+            # self.geneCount_upd()
+            #
+            # # 2. calc expected gamma
+            # self.gamma_upd()
+            #
+            # if self.config['relax_segmentation'] or self.config['is_3D']:
+            #     self.gaussian_upd()
+            #
+            # # 3. assign cells to cell types
+            # self.cell_to_cellType()
+            #
+            # # update cell type weights
+            # if self.config['relax_segmentation'] or self.config['is_3D']:
+            #     self.dalpha_upd()
+            #
+            # # 4. assign spots to cells
+            # self.spots_to_cell()
+            #
+            # # 5. update gene efficiency
+            # self.eta_upd()
+            #
+            # # 6. Update single cell data
+            # if self.single_cell.isMissing:
+            #     self.mu_upd()
+            #
+            # self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
+            # logger.info(' Iteration %d, mean prob change %f' % (i, delta))
+            #
+            # # replace p0 with the latest probabilities
+            # p0 = self.spots.parent_cell_prob
+            #
+            # self.db_save()
+            # if self.has_converged:
+            #     # self.db_save()
+            #     iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config)
+            #     break
+            #
+            # if i == max_iter - 1:
+            #     logger.info(' Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
 
-            # 1. For each cell, calc the expected gene counts
-            self.geneCount_upd()
-
-            # 2. calc expected gamma
-            self.gamma_upd()
-
-            if self.config['relax_segmentation'] or self.config['is_3D']:
-                self.gaussian_upd()
-
-            # 3. assign cells to cell types
-            self.cell_to_cellType()
-
-            # update cell type weights
-            if self.config['relax_segmentation'] or self.config['is_3D']:
-                self.dalpha_upd()
-
-            # 4. assign spots to cells
-            self.spots_to_cell()
-
-            # 5. update gene efficiency
-            self.eta_upd()
-
-            # 6. Update single cell data
-            if self.single_cell.isMissing:
-                self.mu_upd()
-
-            self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
-            logger.info(' Iteration %d, mean prob change %f' % (i, delta))
-
-            # replace p0 with the latest probabilities
-            p0 = self.spots.parent_cell_prob
-
-            self.db_save()
-            if self.has_converged:
-                self.db_save()
-                iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config)
-                break
-
-            if i == max_iter - 1:
-                logger.info(' Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
+            await asyncio.sleep(1)
 
         return iss_df, gene_df
 
@@ -287,7 +337,6 @@ class VarBayes(object):
         mask = self.spots.data.label.values == cell_id
         bonus = self.config['InsideCellBonus']
         return np.where(mask, bonus, 0)
-
 
     # -------------------------------------------------------------------- #
     def eta_upd(self):
@@ -487,7 +536,8 @@ class VarBayes(object):
 
     # -------------------------------------------------------------------- #
     def _db_save(self):
-        db_opts = {'if_table_exists': 'append'}  # choose between 'fail', 'replace', 'append'. Appending might make sense only if you want to see how estimates change from one loop to the next
+        db_opts = {
+            'if_table_exists': 'append'}  # choose between 'fail', 'replace', 'append'. Appending might make sense only if you want to see how estimates change from one loop to the next
         self.db_save_geneCounts(self.iter_num, self.has_converged, db_opts)
         self.db_save_class_prob(self.iter_num, self.has_converged, db_opts)
         self.db_save_parent_cell_prob(self.iter_num, self.has_converged, db_opts)
@@ -500,14 +550,15 @@ class VarBayes(object):
     # -------------------------------------------------------------------- #
     def db_save_geneCounts(self, iter, has_converged, db_opts):
         df = pd.DataFrame(data=self.cells.geneCount,
-                              index=np.arange(self.nC),
-                              columns=self.genes.gene_panel)
+                          index=np.arange(self.nC),
+                          columns=self.genes.gene_panel)
         df.index.name = 'cell_label'
         df['iteration'] = iter
         df['has_converged'] = has_converged
         df['utc'] = datetime.datetime.utcnow()
         df.to_sql(name='geneCount', con=self.conn, if_exists=db_opts['if_table_exists'])
-        self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON geneCount("cell_label", "iteration");')
+        self.conn.execute(
+            'CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON geneCount("cell_label", "iteration");')
 
     # -------------------------------------------------------------------- #
     def db_save_class_prob(self, iter, has_converged, db_opts):
@@ -519,7 +570,8 @@ class VarBayes(object):
         df['has_converged'] = has_converged
         df['utc'] = datetime.datetime.utcnow()
         df.to_sql(name='classProb', con=self.conn, if_exists=db_opts['if_table_exists'])
-        self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON classProb("cell_label", "iteration");')
+        self.conn.execute(
+            'CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON classProb("cell_label", "iteration");')
 
     # -------------------------------------------------------------------- #
     def db_save_parent_cell_prob(self, iter_num, has_converged, db_opts):
@@ -530,7 +582,8 @@ class VarBayes(object):
         df['has_converged'] = has_converged
         df['utc'] = datetime.datetime.utcnow()
         df.to_sql(name='parent_cell_prob', con=self.conn, if_exists=db_opts['if_table_exists'])
-        self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_cell_ID_iteration ON parent_cell_prob("spot_id", "iteration");')
+        self.conn.execute(
+            'CREATE UNIQUE INDEX IF NOT EXISTS ix_cell_ID_iteration ON parent_cell_prob("spot_id", "iteration");')
 
     # -------------------------------------------------------------------- #
     def db_save_parent_cell_id(self, iter_num, has_converged, db_opts):
@@ -541,5 +594,5 @@ class VarBayes(object):
         df['has_converged'] = has_converged
         df['utc'] = datetime.datetime.utcnow()
         df.to_sql(name='parent_cell_id', con=self.conn, if_exists=db_opts['if_table_exists'])
-        self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_cell_ID_iteration ON parent_cell_id("spot_id", "iteration");')
-
+        self.conn.execute(
+            'CREATE UNIQUE INDEX IF NOT EXISTS ix_cell_ID_iteration ON parent_cell_id("spot_id", "iteration");')
