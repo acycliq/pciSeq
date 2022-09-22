@@ -19,7 +19,7 @@ conn = None
 checked_tables = False
 
 st.set_page_config(
-    page_title="Real-Time Data Science Dashboard",
+    page_title="Diagnostics: pciSeq",
     page_icon="✅",
     layout="wide",
 )
@@ -53,6 +53,7 @@ while True:
         if conn is None:
             assert os.path.isfile(DB_FILE)
             conn = db_connect(DB_FILE, remove_if_exists=False)
+            logger('Connection to %s established' % DB_FILE)
         if not checked_tables:
             set_tables = {"gene_efficiency", "cell_type_prior"}
             set_db = set(get_db_tables(conn))
@@ -70,10 +71,11 @@ while True:
         assert len(np.unique(iter)) == 1
         i = gene_efficiency.iteration.max()
         if previous_iteration == i:
-            logger.info('do nothing')
+            pass
+            # logger.info('do nothing')
         elif i % step == 0:
             title.title("Convergence monitor")
-            logger.info('iteration: %d' % i)
+            # logger.info('iteration: %d' % i)
             with placeholder.container():
                 # create two columns for charts
                 fig_col1, fig_col2 = st.columns(2)
