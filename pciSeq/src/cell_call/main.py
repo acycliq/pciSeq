@@ -24,6 +24,7 @@ class VarBayes(object):
         # self.conn = utils.db_connect("file:memdb1?mode=memory&cache=shared")
         # self.conn = utils.db_connect(r"D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq\pciSeq\pciSeq.db")  # or use 'pciSeq.db' to create a db on the filesystem
         self.conn = utils.db_connect(diagnostics_cfg.SETTINGS['DB_URL'])
+        logger.info('Connection made to %s' % diagnostics_cfg.SETTINGS['DB_URL'])
         self.cells = Cells(_cells_df, config)
         self.spots = Spots(_spots_df, config)
         self.genes = Genes(self.spots, self.conn)
@@ -51,7 +52,6 @@ class VarBayes(object):
         self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
 
     # -------------------------------------------------------------------- #
-
     async def main(self):
         """
         opens the diagnostics dashboard and start the cell calling algorithm asynchronously
@@ -88,9 +88,6 @@ class VarBayes(object):
 
     # -------------------------------------------------------------------- #
     async def inner_loop(self, i, p0):
-        df = pd.DataFrame({'run': [i]})
-        df.to_sql(name='dummy_table', con=self.conn, if_exists='replace', index=False)
-
         self.iter_num = i
 
         # 1. For each cell, calc the expected gene counts
@@ -520,7 +517,7 @@ class VarBayes(object):
     # -------------------------------------------------------------------- #
     def _db_save(self):
         db_opts = {
-            'if_table_exists': 'append'}  # choose between 'fail', 'replace', 'append'. Appending might make sense only if you want to see how estimates change from one loop to the next
+            'if_table_exists': 'replace'}  # choose between 'fail', 'replace', 'append'. Appending might make sense only if you want to see how estimates change from one loop to the next
         self.db_save_geneCounts(self.iter_num, self.has_converged, db_opts)
         self.db_save_class_prob(self.iter_num, self.has_converged, db_opts)
         self.db_save_parent_cell_prob(self.iter_num, self.has_converged, db_opts)
