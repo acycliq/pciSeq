@@ -11,7 +11,8 @@ import tornado.ioloop
 from pciSeq.src.cell_call.datatypes import Cells, Spots, Genes, SingleCell, CellType
 from pciSeq.src.cell_call.summary import collect_data
 import pciSeq.src.cell_call.utils as utils
-from pciSeq.src.diagnostics.launch_diagnostics_dummy import launch_dashboard, do_some_iterations
+from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
+# from pciSeq.src.diagnostics.launch_diagnostics_dummy import launch_dashboard
 from pciSeq.src.cell_call.log_config import logger
 
 
@@ -19,8 +20,8 @@ class VarBayes(object):
     def __init__(self, _cells_df, _spots_df, scRNAseq, config):
         self.config = config
         # self.conn = self.db_connect(':memory:')
-        # self.conn = self.db_connect("file:memdb1?mode=memory&cache=shared")
-        self.conn = utils.db_connect('pciSeq.db')  # or use 'pciSeq.db' to create a db on the filesystem
+        # self.conn = utils.db_connect("file:memdb1?mode=memory&cache=shared")
+        self.conn = utils.db_connect(r"D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq\pciSeq\pciSeq.db")  # or use 'pciSeq.db' to create a db on the filesystem
         self.cells = Cells(_cells_df, config)
         self.spots = Spots(_spots_df, config)
         self.genes = Genes(self.spots, self.conn)
@@ -68,9 +69,7 @@ class VarBayes(object):
         return pd.DataFrame({'col_1': col_1, 'col_2': col_2})
 
     async def main(self):
-        con = sqlite3.connect("file:memdb1?mode=memory&cache=shared")
-        # con = sqlite3.connect('my_db.db')
-        asyncio.create_task(launch_dashboard(con))
+        asyncio.create_task(launch_dashboard())
         out = await self.run()
         return out
 
@@ -79,70 +78,69 @@ class VarBayes(object):
         result = loop.run_until_complete(self.main())
         return result
 
-    async def do_something(con):
-        for i in range(10):
-            print(datetime.datetime.now().time())
-            df = pd.DataFrame({'run': [i]})
-            df.to_sql(name='spots', con=con, if_exists='replace', index=False)
-            await asyncio.sleep(1)
-        print('... Cool!')
+    # async def do_something(con):
+    #     for i in range(10):
+    #         print(datetime.datetime.now().time())
+    #         df = pd.DataFrame({'run': [i]})
+    #         df.to_sql(name='spots', con=con, if_exists='replace', index=False)
+    #         await asyncio.sleep(1)
+    #     print('... Cool!')
 
     async def run(self):
         p0 = None
-        iss_df = [1, 2, 3, 4]
-        gene_df = [5, 6, 7, 8, 9, 10]
+        iss_df = None
+        gene_df = None
         max_iter = self.config['max_iter']
 
         self.initialise()
-        con = sqlite3.connect("file:memdb1?mode=memory&cache=shared")
         for i in range(10):
             df = pd.DataFrame({'run': [i]})
-            df.to_sql(name='my_spots', con=con, if_exists='replace', index=False)
-            #
-            # self.iter_num = i
-            #
-            # # 1. For each cell, calc the expected gene counts
-            # self.geneCount_upd()
-            #
-            # # 2. calc expected gamma
-            # self.gamma_upd()
-            #
-            # if self.config['relax_segmentation'] or self.config['is_3D']:
-            #     self.gaussian_upd()
-            #
-            # # 3. assign cells to cell types
-            # self.cell_to_cellType()
-            #
-            # # update cell type weights
-            # if self.config['relax_segmentation'] or self.config['is_3D']:
-            #     self.dalpha_upd()
-            #
-            # # 4. assign spots to cells
-            # self.spots_to_cell()
-            #
-            # # 5. update gene efficiency
-            # self.eta_upd()
-            #
-            # # 6. Update single cell data
-            # if self.single_cell.isMissing:
-            #     self.mu_upd()
-            #
-            # self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
-            # logger.info(' Iteration %d, mean prob change %f' % (i, delta))
-            #
-            # # replace p0 with the latest probabilities
-            # p0 = self.spots.parent_cell_prob
-            #
-            # self.db_save()
-            # if self.has_converged:
-            #     # self.db_save()
-            #     iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config)
-            #     break
-            #
-            # if i == max_iter - 1:
-            #     logger.info(' Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
+            df.to_sql(name='dummy_table', con=self.conn, if_exists='replace', index=False)
 
-            await asyncio.sleep(1)
+            self.iter_num = i
+
+            # 1. For each cell, calc the expected gene counts
+            self.geneCount_upd()
+
+            # 2. calc expected gamma
+            self.gamma_upd()
+
+            if self.config['relax_segmentation'] or self.config['is_3D']:
+                self.gaussian_upd()
+
+            # 3. assign cells to cell types
+            self.cell_to_cellType()
+
+            # update cell type weights
+            if self.config['relax_segmentation'] or self.config['is_3D']:
+                self.dalpha_upd()
+
+            # 4. assign spots to cells
+            self.spots_to_cell()
+
+            # 5. update gene efficiency
+            self.eta_upd()
+
+            # 6. Update single cell data
+            if self.single_cell.isMissing:
+                self.mu_upd()
+
+            self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
+            logger.info(' Iteration %d, mean prob change %f' % (i, delta))
+
+            # replace p0 with the latest probabilities
+            p0 = self.spots.parent_cell_prob
+
+            self.db_save()
+            if self.has_converged:
+                # self.db_save()
+                iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config)
+                break
+
+            if i == max_iter - 1:
+                logger.info(' Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
+
+            await asyncio.sleep(4)
 
         return iss_df, gene_df
 
@@ -544,8 +542,8 @@ class VarBayes(object):
         self.db_save_parent_cell_id(self.iter_num, self.has_converged, db_opts)
         self.genes.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
         self.cellTypes.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
-        self.spots.db_save(self.conn)
-        self.single_cell.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
+        # self.spots.db_save(self.conn)
+        # self.single_cell.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
 
     # -------------------------------------------------------------------- #
     def db_save_geneCounts(self, iter, has_converged, db_opts):

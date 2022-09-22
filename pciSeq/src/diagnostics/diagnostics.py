@@ -9,7 +9,9 @@ import sys
 import os
 
 
-DB_FILE = pathlib.Path(__file__).resolve().parent.parent.parent.joinpath("pciSeq.db").resolve()
+# DB_FILE = pathlib.Path(__file__).resolve().parent.parent.parent.joinpath("pciSeq.db").resolve()
+DB_FILE = r"D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq\pciSeq\pciSeq.db"
+# DB_FILE = "file:memdb1?mode=memory&cache=shared"
 
 conn = None
 checked_tables = False

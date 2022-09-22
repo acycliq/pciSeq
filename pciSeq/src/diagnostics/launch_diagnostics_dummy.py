@@ -58,7 +58,7 @@ def run(
     print('im here')
 
 
-async def launch_dashboard(con):
+async def launch_dashboard():
     print('do...')
     dirname = os.path.dirname(__file__)
     filename = os.path.join(dirname, 'diagnostics_dummy.py')
