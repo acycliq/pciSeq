@@ -311,7 +311,6 @@ class Genes(object):
             # con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_gene_iteration ON gene_efficiency("gene", "iteration");')
         except sqlite3.IntegrityError as e:
             logger.info('Couldnt insert')
-        print('ok')
 
 
 # ----------------------------------------Class: Spots--------------------------------------------------- #
