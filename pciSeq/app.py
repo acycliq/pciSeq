@@ -13,6 +13,7 @@ from pciSeq.src.cell_call.main import VarBayes
 from pciSeq.src.cell_call.utils import get_db_tables
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq import config
+from pciSeq.src.cell_call.utils import get_out_dir
 import shutil
 from pciSeq.src.cell_call.log_config import attach_to_log, logger
 
@@ -159,14 +160,14 @@ def cell_type(_cells, _spots, scRNAseq, ini):
     return cellData, geneData, varBayes
 
 
-def get_out_dir(path, sub_folder=''):
-    if path[0] == 'default':
-        out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq', sub_folder)
-    else:
-        out_dir = os.path.join(path[0], sub_folder)
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-    return out_dir
+# def get_out_dir(path, sub_folder=''):
+#     if path[0] == 'default':
+#         out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq', sub_folder)
+#     else:
+#         out_dir = os.path.join(path[0], sub_folder)
+#     if not os.path.exists(out_dir):
+#         os.makedirs(out_dir)
+#     return out_dir
 
 
 def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
@@ -214,7 +215,7 @@ def export_data(cellData, geneData, cellBoundaries, out_dir):
 def export_db_tables(out_dir, con):
     tables = get_db_tables(con)
     for table in tables:
-        export_db_table(table[0], out_dir, con)
+        export_db_table(table, out_dir, con)
 
 def export_db_table(table_name, out_dir, con):
     if table_name == 'spots':
