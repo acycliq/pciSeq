@@ -155,8 +155,6 @@ def cell_type(_cells, _spots, scRNAseq, ini):
     input("Press Enter to continue...")
     logger.info(' Start cell typing')
     cellData, geneData = varBayes.run_async()
-    print(cellData)
-    print(geneData)
     return cellData, geneData, varBayes
 
 
