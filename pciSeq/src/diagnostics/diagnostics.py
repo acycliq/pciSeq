@@ -2,7 +2,7 @@ import streamlit as st  # 🎈 data web app development
 import numpy as np
 import pandas as pd
 import time
-import pathlib
+from pciSeq.src.cell_call.log_config import logger
 from pciSeq.src.cell_call.utils import db_connect, get_db_tables
 import pciSeq.src.diagnostics.config as diagnostics_cfg
 import altair as alt
@@ -70,10 +70,10 @@ while True:
         assert len(np.unique(iter)) == 1
         i = gene_efficiency.iteration.max()
         if previous_iteration == i:
-            print('do nothing')
+            logger.info('do nothing')
         elif i % step == 0:
-            title.title("Convergence monitor: iteration %d, step: %d" % (i, step))
-            print('iteration: %d' % i)
+            title.title("Convergence monitor")
+            logger.info('iteration: %d' % i)
             with placeholder.container():
                 # create two columns for charts
                 fig_col1, fig_col2 = st.columns(2)
@@ -110,9 +110,9 @@ while True:
         time.sleep(1)
 
     except AssertionError:
-        print('..wait...')
+        logger.info('..waiting...')
         time.sleep(1)
         pass
     except Exception as error:
-        print(error)
+        logger.info(error)
 
