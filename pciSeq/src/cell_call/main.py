@@ -56,7 +56,9 @@ class VarBayes(object):
         """
         opens the diagnostics dashboard and start the cell calling algorithm asynchronously
         """
-        asyncio.create_task(launch_dashboard())
+        if self.config['launch_diagnostics']:
+            logger.info('Launching the diagnostics dashboard')
+            asyncio.create_task(launch_dashboard())
         out = await self.run()
         return out
 
