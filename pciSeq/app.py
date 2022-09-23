@@ -152,7 +152,6 @@ def make_config_js(dst):
 
 def cell_type(_cells, _spots, scRNAseq, ini):
     varBayes = VarBayes(_cells, _spots, scRNAseq, ini)
-    input("Press Enter to continue...")
     logger.info(' Start cell typing')
     cellData, geneData = varBayes.run_async()
     return cellData, geneData, varBayes
