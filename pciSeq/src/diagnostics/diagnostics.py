@@ -86,8 +86,8 @@ while True:
                         x='gene_efficiency:Q',
                         color=alt.Color('class:N', legend=None),
                         tooltip=[
-                            alt.Tooltip('gene:N', title='Date'),
-                            alt.Tooltip('gene_efficiency:Q', title='Max Temp')
+                            alt.Tooltip('gene:N', title='gene'),
+                            alt.Tooltip('gene_efficiency:Q', title='efficiency')
                         ]
                     ).properties(height=1200)
                     fig1 = st.altair_chart(bar_chart_1, use_container_width=True)
