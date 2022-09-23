@@ -84,8 +84,6 @@ class VarBayes(object):
             if i == max_iter - 1:
                 logger.info(' Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
 
-            await asyncio.sleep(4)
-
         return iss_df, gene_df
 
     # -------------------------------------------------------------------- #
