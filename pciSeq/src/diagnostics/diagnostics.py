@@ -53,7 +53,7 @@ while True:
         if conn is None:
             assert os.path.isfile(DB_FILE)
             conn = db_connect(DB_FILE, remove_if_exists=False)
-            logger('Connection to %s established' % DB_FILE)
+            logger.info('Connection to %s established' % DB_FILE)
         if not checked_tables:
             set_tables = {"gene_efficiency", "cell_type_prior"}
             set_db = set(get_db_tables(conn))
