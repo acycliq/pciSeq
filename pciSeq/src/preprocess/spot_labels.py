@@ -68,22 +68,26 @@ def reorder_labels(label_image):
     labels = np.concatenate([np.unique(d.data) for d in label_image])
     if labels.max() != len(set(labels)):
         logger.info(' Labels in segmentation array are not a sequence of integers without gaps between them. Relabelling...')
-        labels = np.append(0, labels) # append 0 (the background label)
+        if 0 not in labels:
+            labels = np.append(0, labels) # append 0 (the background label)
         _, idx = np.unique(labels, return_inverse=True)
         assert idx[0] == 0  # make sure the background is at position 0
-        dic = dict(zip(labels, idx.astype(np.uint32)))
-        assert dic[0] == 0, "The background label (ie 0) should be the smallest of the labels"
+        label_dict = dict(zip(labels, idx.astype(np.uint32))) # maps the cellpose ids to the new ids
+        assert label_dict[0] == 0, "The background label (ie 0) should be the smallest of the labels"
         out = []
         for plane in label_image:
             row = plane.row
             col = plane.col
-            data = [dic[d] for d in plane.data]
+            data = [label_dict[d] for d in plane.data]
             shape = plane.shape
             c = coo_matrix((data, (row, col)), shape=shape)
             out.append(c)
+
+        label_map = pd.DataFrame(label_dict.items(), columns=['old_label', 'new_label'])
     else:
         out = label_image
-    return out
+        label_map = None
+    return out, label_map
 
 
 def reorder_labels_old(coo):
@@ -92,7 +96,11 @@ def reorder_labels_old(coo):
     """
     label_image = np.stack([d.toarray().astype(np.uint16) for d in coo])
     _, idx = np.unique(label_image.flatten(), return_inverse=True)
+    # u_idx = list(dict.fromkeys(idx))
+    # u_labels = list(dict.fromkeys(label_image.flatten()))
     label_image = idx.reshape(label_image.shape)
+
+    # my_df = pd.DataFrame({'cellpose': label_image.flatten(), 'pciSeq': idx}).drop_duplicates()
     ## Need to check what is happening when you change to no.uint16. For example coo[-1].data.sum() is not the same
     ## when you change to np.uint16
     return [coo_matrix(d.astype(np.uint64)) for d in label_image]
@@ -184,8 +192,8 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
         spots, coo = truncate_data(spots, coo, z_min, z_max)
         coo = remove_cells(coo)
 
-    # coo_1 = reorder_labels(coo)
-    coo = reorder_labels_old(coo)
+    coo, label_map = reorder_labels(coo)
+    # coo = reorder_labels_old(coo)
     [h, w] = get_img_shape(coo)
     spots = remove_oob(spots.copy(), [h, w])
     spots = attach_z(spots, cfg)
@@ -226,6 +234,11 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
         'z_cell': centroid_0.values * cfg['3D:anisotropy'],
         'area': mean_area_per_slice.values, # mean area per slice
     })
+
+    # if there is a label map, attach it to the cell props.
+    if label_map is not None:
+        props_df = pd.merge(props_df, label_map, left_on='label', right_on='new_label', how='left')
+        props_df = props_df.drop(['new_label'], axis=1)
 
     # 3. Get the cell boundaries, Only needed for the 2D case
     if not cfg['is_3D'] or cfg['relax_segmentation']:
