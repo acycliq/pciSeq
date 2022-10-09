@@ -3,15 +3,16 @@ import pandas as pd
 import numpy as np
 import json
 import sysconfig
+import shutil
+import pickle
 from typing import Tuple
-from scipy.sparse import coo_matrix, save_npz, load_npz
+from scipy.sparse import coo_matrix, load_npz
 from pciSeq.src.viewer.run_flask import flask_app_start
 from pciSeq.src.cell_call.main import VarBayes
 from pciSeq.src.cell_call.utils import get_db_tables
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq import config
 from pciSeq.src.cell_call.utils import get_out_dir
-import shutil
 from pciSeq.src.cell_call.log_config import attach_to_log, logger
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -61,7 +62,7 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
             Name: Genenames, dtype: Object, array-like of the genes assinged to the cell
             Name: CellGeneCount, dtype: Object,array-like of the corresponding gene counts
             Name: ClassName, dtype: Object, array-like of the genes probable classes for the cell
-            Name: Prob, dtype: Object, array-like array-like of the corresponding cell class probabilities
+            Name: Prob, dtype: Object, array-like of the corresponding cell class probabilities
 
     geneData : pandas.DataFrame
         Index:
@@ -116,7 +117,8 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
             make_config_js(dst)
             flask_app_start(dst)
 
-    varBayes.conn.close()
+    if varBayes.conn:
+        varBayes.conn.close()
     logger.info(' Done')
     return cellData, geneData
 
@@ -150,7 +152,7 @@ def make_config_js(dst):
 def cell_type(_cells, _spots, scRNAseq, ini):
     varBayes = VarBayes(_cells, _spots, scRNAseq, ini)
     logger.info(' Start cell typing')
-    cellData, geneData = varBayes.run_async()
+    cellData, geneData = varBayes.run()
     return cellData, geneData, varBayes
 
 
@@ -160,6 +162,14 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
 
     debug_data_dir = get_out_dir(cfg['output_path'], 'debug')
     export_db_tables(debug_data_dir, varBayes.conn)
+
+    with open(os.path.join(debug_data_dir, 'pciSeq.pickle'), 'wb') as outf:
+        # if there is a db connection, close and None it before pickling
+        if varBayes.conn:
+            varBayes.conn.close()
+            varBayes.conn = None
+        pickle.dump(varBayes, outf)
+        logger.info(' Saved at %s' % os.path.join(debug_data_dir, 'pciSeq.pickle'))
 
 
 def export_data(cellData, geneData, cellBoundaries, out_dir):
@@ -184,9 +194,7 @@ def export_data(cellData, geneData, cellBoundaries, out_dir):
 
 
 
-    # with open(os.path.join(out_dir, 'pciSeq.pickle'), 'wb') as outf:
-    #     pickle.dump(varBayes, outf)
-    #     logger.info(' Saved at %s' % os.path.join(out_dir, 'pciSeq.pickle'))
+
 
 
 
@@ -305,6 +313,7 @@ def run_me():
     # main task
     opts_2D = {'save_data': True, 'nNeighbors': 3, 'MisreadDensity': 0.00001,'is_3D': False}
     opts_3D={'save_data': True,
+             'launch_diagnostics': True,
              'Inefficiency': 0.2,
              '3D:from_plane_num': 18,
              '3D:to_plane_num': 43,
