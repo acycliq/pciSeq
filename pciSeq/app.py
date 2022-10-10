@@ -111,8 +111,7 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
     if cfg['launch_viewer']:
         if cfg['is_3D']:
             dst = copy_viewer_code(cfg)
-            z = cfg['3D:anisotropy'] * (cfg['3D:to_plane_num'] - cfg['3D:from_plane_num'])
-            make_config_js_3D(dst, cfg['img_width'], cfg['img_height'], z)
+            make_config_js(dst, cfg)
             flask_app_start(dst)
         else:
             dst = copy_viewer_code(cfg)
@@ -125,47 +124,34 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
     return cellData, geneData
 
 
-def make_config_js_3D(dst, w, h, z):
+def make_config_base(dst):
     cellData_tsv = os.path.join(dst, 'data', 'cellData.tsv')
     geneData_tsv = os.path.join(dst, 'data', 'geneData.tsv')
 
     cellData_dict = {"mediaLink": "../../data/cellData.tsv", "size": str(os.path.getsize(cellData_tsv))}
     geneData_dict = {"mediaLink": "../../data/geneData.tsv", "size": str(os.path.getsize(geneData_tsv))}
 
-    appDict = {
-        'name': 'default',
-        'img_width': w,
-        'img_height': h,
-        'img_depth': z,
+    return {
         'cellData': cellData_dict,
         'geneData': geneData_dict,
     }
 
-    config_str = "function config() { return %s }" % json.dumps(appDict)
-    config = os.path.join(dst, 'viewer', 'js', 'config.js')
-    with open(config, 'w') as data:
-        data.write(str(config_str))
-    logger.info(' viewer config saved at %s' % config)
 
-
-def make_config_js(dst):
-    cellData_tsv = os.path.join(dst, 'data', 'cellData.tsv')
-    geneData_tsv = os.path.join(dst, 'data', 'geneData.tsv')
-    cellBoundaries_tsv = os.path.join(dst, 'data', 'cellBoundaries.tsv')
-
-    roi_dict = {"x0": 0, "x1": 7602, "y0": 0, "y1": 5471}
-    cellData_dict = {"mediaLink": "../../data/cellData.tsv", "size": str(os.path.getsize(cellData_tsv))}
-    geneData_dict = {"mediaLink": "../../data/geneData.tsv", "size": str(os.path.getsize(geneData_tsv))}
-    cellBoundaries_dict = {"mediaLink": "../../data/cellBoundaries.tsv", "size": str(os.path.getsize(cellBoundaries_tsv))}
-
-    appDict = {
-        'roi': roi_dict,
-        'zoomLevels': 10,
-        'tiles': "https://storage.googleapis.com/ca1-data/img/262144px/{z}/{y}/{x}.jpg",
-        'cellData': cellData_dict,
-        'geneData': geneData_dict,
-        'cellBoundaries': cellBoundaries_dict,
-    }
+def make_config_js(dst, cfg):
+    appDict = make_config_base(dst)
+    if cfg['is_3D']:
+        z = cfg['3D:anisotropy'] * (cfg['3D:to_plane_num'] - cfg['3D:from_plane_num'])
+        appDict['img_width'] = cfg['img_width']
+        appDict['img_height'] = cfg['img_height']
+        appDict['img_depth'] = z
+    else:
+        cellBoundaries_tsv = os.path.join(dst, 'data', 'cellBoundaries.tsv')
+        cellBoundaries_dict = {"mediaLink": "../../data/cellBoundaries.tsv", "size": str(os.path.getsize(cellBoundaries_tsv))}
+        roi_dict = {"x0": 0, "x1": cfg['img_width'], "y0": 0, "y1": cfg['img_height']}
+        appDict['cellBoundaries'] = cellBoundaries_dict
+        appDict['roi'] = roi_dict
+        appDict['zoomLevels'] = 10
+        appDict['tiles'] = "https://storage.googleapis.com/ca1-data/img/262144px/{z}/{y}/{x}.jpg"
 
     config_str = "function config() { return %s }" % json.dumps(appDict)
     config = os.path.join(dst, 'viewer', 'js', 'config.js')
