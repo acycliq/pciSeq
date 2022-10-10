@@ -109,15 +109,9 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
         write_data(cellData, geneData, cellBoundaries, varBayes, cfg)
 
     if cfg['launch_viewer']:
-        if cfg['is_3D']:
-            dst = copy_viewer_code(cfg)
-            make_config_js(dst, cfg)
-            flask_app_start(dst)
-        else:
-            dst = copy_viewer_code(cfg)
-            make_config_js(dst)
-            flask_app_start(dst)
-
+        dst = copy_viewer_code(cfg)
+        make_config_js(dst, cfg)
+        flask_app_start(dst)
     if varBayes.conn:
         varBayes.conn.close()
     logger.info(' Done')
