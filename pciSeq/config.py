@@ -64,6 +64,8 @@ DEFAULT = {
 
     'launch_viewer': True,
 
+    'launch_diagnostics': True,
+
     'is_3D': True,
 
     'relax_segmentation': False,

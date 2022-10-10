@@ -1,18 +1,22 @@
-import os
 import numpy as np
 import pandas as pd
 import numpy_groupies as npg
-import sqlite3
 import datetime
+import scipy.spatial as spatial
 from pciSeq.src.cell_call.datatypes import Cells, Spots, Genes, SingleCell, CellType
 from pciSeq.src.cell_call.summary import collect_data
 import pciSeq.src.cell_call.utils as utils
+from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
+# from pciSeq.src.diagnostics.launch_diagnostics_dummy import launch_dashboard
+import pciSeq.src.diagnostics.config as diagnostics_cfg
 from pciSeq.src.cell_call.log_config import logger
 
 
 class VarBayes(object):
     def __init__(self, _cells_df, _spots_df, scRNAseq, config):
         self.config = config
+        self.conn = utils.db_connect(diagnostics_cfg.SETTINGS['DB_URL'])
+        logger.info('Connection made to %s' % diagnostics_cfg.SETTINGS['DB_URL'])
         self.cells = Cells(_cells_df, config)
         self.spots = Spots(_spots_df, config)
         self.genes = Genes(self.spots)
@@ -23,24 +27,25 @@ class VarBayes(object):
         self.nG = self.genes.nG  # number of genes
         self.nK = self.cellTypes.nK  # number of classes
         self.nS = self.spots.nS  # number of spots
-        self.nN = self.config['nNeighbors'] + 1     # number of the closest nearby cells, candidates for being parent
-                                                    # cell of any given spot. The last cell will be used for the
-                                                    # misread spots. (ie cell at position nN is the background)
+        self.nN = self.config['nNeighbors'] + 1  # number of the closest nearby cells, candidates for being parent
+        # cell of any given spot. The last cell will be used for the
+        # misread spots. (ie cell at position nN is the background)
 
-        self.conn = self.db_connect(':memory:')  # or use 'pciSeq.db' to create a db on the filesystem
         self.iter_num = None
         self.has_converged = False
 
     def initialise(self):
         self.cellTypes.ini_prior()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
-        self.genes.init_eta(1, 1/self.config['Inefficiency'])
+        self.genes.init_eta(1, 1 / self.config['Inefficiency'])
         self.spots.parent_cell_id, _ = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id,
                                                               self.config)  # assign a spot to a cell if it is within its cell boundaries
         self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
+        if self.config['launch_diagnostics']:
+            logger.info('Launching the diagnostics dashboard')
+            launch_dashboard()
 
-    # -------------------------------------------------------------------- #
     def run(self):
         p0 = None
         iss_df = None
@@ -85,6 +90,7 @@ class VarBayes(object):
 
             self.db_save()
             if self.has_converged:
+                # self.db_save()
                 iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config)
                 break
 
@@ -183,50 +189,50 @@ class VarBayes(object):
         # return pCellClass
 
     # -------------------------------------------------------------------- #
-    def spots_to_cell_2D(self):
-        """
-        spot to cell assignment.
-        Implements equation (4) of the Qian paper
-        """
-        nN = self.nN
-        nS = self.spots.data.gene_name.shape[0]
-
-        # initialise array with the misread density
-        aSpotCell = np.zeros([nS, nN])
-        gn = self.spots.data.gene_name.values
-        expected_counts = self.single_cell.log_mean_expression.loc[gn].values
-
-        # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
-        my_D = np.zeros([nS, nN])
-        for n in range(nN - 1):
-            # get the spots' nth-closest cell
-            sn = self.spots.parent_cell_id[:, n]
-
-            # get the respective cell type probabilities
-            cp = self.cells.classProb[sn]
-
-            # multiply and sum over cells
-            term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
-
-            # logger.info('genes.spotNo should be something like spots.geneNo instead!!')
-            expectedLog = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
-
-            term_2 = np.einsum('ij, ij -> i', cp, expectedLog)
-            aSpotCell[:, n] = term_1 + term_2
-            # my_D[:, n] = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells)
-            my_covs = self.cells.cov[sn] * np.diag([1, 1, 1])
-
-            # my_D[:, n] = self.spots.multiple_logpdfs(self.spots.xyz_coords[:, :2],  self.cells.centroid.values[sn][:, :2], my_covs[:,:2,:2])
-            my_D[:, n] = self.spots.multiple_logpdfs(self.spots.xyz_coords, self.cells.centroid.values[sn], my_covs)
-        wSpotCell = aSpotCell + self.spots.loglik(self.cells, self.config)
-
-        # update the prob a spot belongs to a neighboring cell
-        pSpotNeighb = utils.softmax(wSpotCell, axis=1)
-        self.spots.parent_cell_prob = pSpotNeighb
-        # Since the spot-to-cell assignments changed you need to update the gene counts now
-        self.geneCount_upd()
-        # self.spots.update_cell_prob(pSpotNeighb, self.cells)
-        # logger.info('spot ---> cell probabilities updated')
+    # def spots_to_cell_2D_XXX(self):
+    #     """
+    #     spot to cell assignment.
+    #     Implements equation (4) of the Qian paper
+    #     """
+    #     nN = self.nN
+    #     nS = self.spots.data.gene_name.shape[0]
+    #
+    #     # initialise array with the misread density
+    #     aSpotCell = np.zeros([nS, nN])
+    #     gn = self.spots.data.gene_name.values
+    #     expected_counts = self.single_cell.log_mean_expression.loc[gn].values
+    #
+    #     # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
+    #     my_D = np.zeros([nS, nN])
+    #     for n in range(nN - 1):
+    #         # get the spots' nth-closest cell
+    #         sn = self.spots.parent_cell_id[:, n]
+    #
+    #         # get the respective cell type probabilities
+    #         cp = self.cells.classProb[sn]
+    #
+    #         # multiply and sum over cells
+    #         term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
+    #
+    #         # logger.info('genes.spotNo should be something like spots.geneNo instead!!')
+    #         expectedLog = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
+    #
+    #         term_2 = np.einsum('ij, ij -> i', cp, expectedLog)
+    #         aSpotCell[:, n] = term_1 + term_2
+    #         # my_D[:, n] = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells)
+    #         my_covs = self.cells.cov[sn] * np.diag([1, 1, 1])
+    #
+    #         # my_D[:, n] = self.spots.multiple_logpdfs(self.spots.xyz_coords[:, :2],  self.cells.centroid.values[sn][:, :2], my_covs[:,:2,:2])
+    #         my_D[:, n] = self.spots.multiple_logpdfs(self.spots.xyz_coords, self.cells.centroid.values[sn], my_covs)
+    #     wSpotCell = aSpotCell + self.spots.loglik(self.cells, self.config)
+    #
+    #     # update the prob a spot belongs to a neighboring cell
+    #     pSpotNeighb = utils.softmax(wSpotCell, axis=1)
+    #     self.spots.parent_cell_prob = pSpotNeighb
+    #     # Since the spot-to-cell assignments changed you need to update the gene counts now
+    #     self.geneCount_upd()
+    #     # self.spots.update_cell_prob(pSpotNeighb, self.cells)
+    #     # logger.info('spot ---> cell probabilities updated')
 
     # -------------------------------------------------------------------- #
     def spots_to_cell(self):
@@ -284,7 +290,6 @@ class VarBayes(object):
         mask = self.spots.data.label.values == cell_id
         bonus = self.config['InsideCellBonus']
         return np.where(mask, bonus, 0)
-
 
     # -------------------------------------------------------------------- #
     def eta_upd(self):
@@ -491,14 +496,14 @@ class VarBayes(object):
         self.db_save_parent_cell_id(self.iter_num, self.has_converged, db_opts)
         self.genes.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
         self.cellTypes.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
-        self.spots.db_save(self.conn)
-        self.single_cell.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
+        # self.spots.db_save(self.conn)
+        # self.single_cell.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
 
     # -------------------------------------------------------------------- #
     def db_save_geneCounts(self, iter, has_converged, db_opts):
         df = pd.DataFrame(data=self.cells.geneCount,
-                              index=np.arange(self.nC),
-                              columns=self.genes.gene_panel)
+                          index=np.arange(self.nC),
+                          columns=self.genes.gene_panel)
         df.index.name = 'cell_label'
         df['iteration'] = iter
         df['has_converged'] = has_converged
@@ -538,10 +543,52 @@ class VarBayes(object):
         df['has_converged'] = has_converged
         df['utc'] = datetime.datetime.utcnow()
         df.to_sql(name='parent_cell_id', con=self.conn, if_exists=db_opts['if_table_exists'])
-        self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_cell_ID_iteration ON parent_cell_id("spot_id", "iteration");')
+        self.conn.execute(
+            'CREATE UNIQUE INDEX IF NOT EXISTS ix_cell_ID_iteration ON parent_cell_id("spot_id", "iteration");')
 
-    # -------------------------------------------------------------------- #
-    def db_connect(self, dbpath):
-        if os.path.isfile(dbpath):
-            os.remove(dbpath)
-        return sqlite3.connect(dbpath)
+    def counts_within_radius(self, r):
+        """
+        calcs the gene counts within radius r of the centroid of each cell.
+        Radius is in micron
+        """
+
+        # check that the background (label=0) is at the top row
+        assert self.cells.cell_props['cell_label'][0] == 0
+
+        # radius r is assumed to be in micron. Convert it to pixels
+        r_px = r * self.config['3D:anisotropy']
+
+        cell_centroids = pd.DataFrame(self.cells.cell_props)[['cell_label', 'x', 'y', 'z']]
+        cell_centroids = cell_centroids.set_index('cell_label')
+
+        point_tree = spatial.cKDTree(self.spots.xyz_coords)
+        # point_tree = spatial.cKDTree(dummy_data[['x', 'y', 'z']].values)
+        nearby_spots = point_tree.query_ball_point(cell_centroids, r_px)
+        gene_names = self.genes.gene_panel
+
+        out = np.zeros([cell_centroids.shape[0], len(gene_names)])
+
+        for i, d in enumerate(nearby_spots):
+            t = self.spots.gene_id[d]
+            b = np.bincount(t)
+            out[i, :] = np.pad(b, (0, len(gene_names) - len(b)), 'constant')
+
+        # for each cell get the most likely cell type
+        cell_type = []
+        for i, d in enumerate(self.cells.classProb):
+            j = self.cells.class_names[np.argmax(d)]
+            cell_type.append(j)
+
+        temp = pd.DataFrame({
+            'cell_label': self.cells.cell_props['cell_label'],
+            'cell_label_old': self.cells.cell_props['cell_label_old'],
+            'cell_type': cell_type
+        })
+
+        # assert np.all(temp.cell_label==out.index)
+        df = pd.DataFrame(out, index=cell_centroids.index, columns=gene_names)
+        df = pd.merge(temp, df, right_index=True, left_on='cell_label', how='left')
+
+        # ignore the first row, it is the background
+        return df.iloc[1:, :]
+

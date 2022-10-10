@@ -6,9 +6,11 @@ from urllib.request import urlopen
 import numpy as np
 import pandas as pd
 import numexpr as ne
+from pciSeq.src.cell_call.log_config import logger
 # import numba as nb
 import os
 import glob
+import sqlite3
 import logging
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -312,5 +314,44 @@ def euler_angles(r):
     theta_z = np.arctan2(r[1, 0], r[0, 0])
 
     return [theta_x, theta_y, theta_z]
+
+
+def get_db_tables(con):
+    str = "SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY name;"
+    tables = con.execute(str).fetchall()
+    if len(tables) > 0:
+        return [d[0] for d in tables]
+    else:
+        return tables
+
+
+def drop_db_table(table_name, con):
+    cmd = "DROP TABLE %s" % table_name
+    con.execute(cmd).fetchall()
+    logger.info('Table %s dropped from the database' % table_name)
+
+
+def db_connect(dbpath, remove_if_exists=True):
+    if os.path.isfile(dbpath) and remove_if_exists:
+        try:
+            os.remove(dbpath)
+        except PermissionError:
+            con = sqlite3.connect(dbpath, uri = True)
+            tables = get_db_tables(con)
+            for t in tables:
+                drop_db_table(t, con)
+            return con
+
+    return sqlite3.connect(dbpath, uri = True)
+
+
+def get_out_dir(path, sub_folder=''):
+    if path[0] == 'default':
+        out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq', sub_folder)
+    else:
+        out_dir = os.path.join(path[0], sub_folder)
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+    return out_dir
 
 

@@ -5,7 +5,8 @@ from pciSeq.src.viewer.utils import get_static_files
 install_deps = ['numpy', 'pandas', 'sklearn',
                 'numpy_groupies', 'xarray', 'numexpr',
                 'diplib', 'scikit-image', 'opencv-python',
-                'tqdm', 'pyvips']
+                'tqdm', 'pyvips', 'flask', 'streamlit==1.11.1',
+                'dask']
 
 version = None
 with open(os.path.join('pciSeq', 'src', '_version.py'), 'r') as fid:

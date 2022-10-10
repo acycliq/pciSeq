@@ -1,7 +1,6 @@
 import sys
 import numpy as np
 import pandas as pd
-import sqlite3
 import datetime
 import numpy_groupies as npg
 import scipy
@@ -238,6 +237,8 @@ class Cells(object):
         out['y'] = np.append(-sys.maxsize, img_obj.y.values)
         out['z'] = np.append(-sys.maxsize, img_obj.z.values)
         out['cell_label'] = np.append(0, img_obj.label.values)
+        if 'old_label' in img_obj.columns:
+            out['cell_label_old'] = np.append(0, img_obj.old_label.values)
         # First cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
         # and will be used to get all the misreads. It was given the label=0 and some very small
         # negative coords
@@ -249,6 +250,7 @@ class Cells(object):
         pass
 
 
+
 # ----------------------------------------Class: Genes--------------------------------------------------- #
 class Genes(object):
     def __init__(self, spots):
@@ -256,6 +258,22 @@ class Genes(object):
         self._eta_bar = None
         self._logeta_bar = None
         self.nG = len(self.gene_panel)
+        # self.con = con
+        # self.con.executescript("CREATE TABLE gene_efficiency (gene varchar,"
+        #                        "gene_efficiency,"
+        #                        "iteration,"
+        #                        "has_converged,utc"
+        #                        ")"
+        #                        )
+        # self.con.executescript('''
+        #     CREATE TRIGGER gene_efficiency_row
+        #     AFTER INSERT ON gene_efficiency
+        #     WHEN (SELECT count(*) FROM gene_efficiency) > 0
+        #     BEGIN
+        #         SELECT RAISE (FAIL, 'full');
+        #     END;
+        # ''')
+        # self.con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_gene_iteration ON gene_efficiency("gene", "iteration");')
 
     @property
     def eta(self):
@@ -345,7 +363,6 @@ class Spots(object):
     @parent_cell_id.setter
     def parent_cell_id(self, val):
         self._parent_cell_id = val
-
 
     # -------- METHODS -------- #
     def read(self, spots_df):
@@ -683,7 +700,7 @@ class SingleCell(object):
         df['has_converged'] = converged
         df = df.reset_index()
         df.to_sql(name='mean_expression', con=con, if_exists=db_opts['if_table_exists'], index=False)
-        con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_gene_iteration ON spots("gene_name", "iteration");')
+        con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_gene_iteration ON mean_expression("gene_name", "iteration");')
 
 
 

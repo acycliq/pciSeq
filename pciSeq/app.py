@@ -1,18 +1,18 @@
 import os
 import pandas as pd
 import numpy as np
-import tempfile
 import json
-from distutils.dir_util import copy_tree
 import sysconfig
+import shutil
 import pickle
 from typing import Tuple
-from scipy.sparse import coo_matrix, save_npz, load_npz
+from scipy.sparse import coo_matrix, load_npz
 from pciSeq.src.viewer.run_flask import flask_app_start
 from pciSeq.src.cell_call.main import VarBayes
+from pciSeq.src.cell_call.utils import get_db_tables
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq import config
-import shutil
+from pciSeq.src.cell_call.utils import get_out_dir
 from pciSeq.src.cell_call.log_config import attach_to_log, logger
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -62,7 +62,7 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
             Name: Genenames, dtype: Object, array-like of the genes assinged to the cell
             Name: CellGeneCount, dtype: Object,array-like of the corresponding gene counts
             Name: ClassName, dtype: Object, array-like of the genes probable classes for the cell
-            Name: Prob, dtype: Object, array-like array-like of the corresponding cell class probabilities
+            Name: Prob, dtype: Object, array-like of the corresponding cell class probabilities
 
     geneData : pandas.DataFrame
         Index:
@@ -117,7 +117,8 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
             make_config_js(dst)
             flask_app_start(dst)
 
-    varBayes.conn.close()
+    if varBayes.conn:
+        varBayes.conn.close()
     logger.info(' Done')
     return cellData, geneData
 
@@ -150,20 +151,9 @@ def make_config_js(dst):
 
 def cell_type(_cells, _spots, scRNAseq, ini):
     varBayes = VarBayes(_cells, _spots, scRNAseq, ini)
-
     logger.info(' Start cell typing')
     cellData, geneData = varBayes.run()
     return cellData, geneData, varBayes
-
-
-def get_out_dir(path, sub_folder=''):
-    if path[0] == 'default':
-        out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq', sub_folder)
-    else:
-        out_dir = os.path.join(path[0], sub_folder)
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-    return out_dir
 
 
 def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
@@ -172,6 +162,14 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
 
     debug_data_dir = get_out_dir(cfg['output_path'], 'debug')
     export_db_tables(debug_data_dir, varBayes.conn)
+
+    with open(os.path.join(debug_data_dir, 'pciSeq.pickle'), 'wb') as outf:
+        # if there is a db connection, close and None it before pickling
+        if varBayes.conn:
+            varBayes.conn.close()
+            varBayes.conn = None
+        pickle.dump(varBayes, outf)
+        logger.info(' Saved at %s' % os.path.join(debug_data_dir, 'pciSeq.pickle'))
 
 
 def export_data(cellData, geneData, cellBoundaries, out_dir):
@@ -196,9 +194,7 @@ def export_data(cellData, geneData, cellBoundaries, out_dir):
 
 
 
-    # with open(os.path.join(out_dir, 'pciSeq.pickle'), 'wb') as outf:
-    #     pickle.dump(varBayes, outf)
-    #     logger.info(' Saved at %s' % os.path.join(out_dir, 'pciSeq.pickle'))
+
 
 
 
@@ -209,11 +205,9 @@ def export_data(cellData, geneData, cellBoundaries, out_dir):
 
 
 def export_db_tables(out_dir, con):
-    str = "SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY name;"
-    tables = con.execute(str).fetchall()
+    tables = get_db_tables(con)
     for table in tables:
-        export_db_table(table[0], out_dir, con)
-
+        export_db_table(table, out_dir, con)
 
 def export_db_table(table_name, out_dir, con):
     if table_name == 'spots':
@@ -295,8 +289,7 @@ def copy_viewer_code(cfg):
     return dst
 
 
-if __name__ == "__main__":
-
+def run_me():
     # set up the logger
     attach_to_log()
 
@@ -309,7 +302,7 @@ if __name__ == "__main__":
     _scRNAseq = _scRNAseq.rename(columns=_scRNAseq.iloc[0], copy=False).iloc[1:]
     _scRNAseq = _scRNAseq.astype(float).astype(np.uint32)
 
-    # read 3D some demo data
+    # # read 3D some demo data
     _iss_spots_3D = pd.read_csv(r"E:\data\Anne\220308 50umCF seq atto425 DY520XL MS002\spots_yxz.csv")
     _iss_spots_3D = _iss_spots_3D.assign(z_stack=_iss_spots_3D.z)
     _iss_spots_3D = _iss_spots_3D[['y', 'x', 'z_stack', 'Gene']]
@@ -320,15 +313,18 @@ if __name__ == "__main__":
     # main task
     opts_2D = {'save_data': True, 'nNeighbors': 3, 'MisreadDensity': 0.00001,'is_3D': False}
     opts_3D={'save_data': True,
+             'launch_diagnostics': True,
              'Inefficiency': 0.2,
              '3D:from_plane_num': 18,
              '3D:to_plane_num': 43,
              'MisreadDensity': 1e-05,
              'is_3D': True,
              'nNeighbors': 6,
-             'CellCallTolerance': 0.02,
+             'CellCallTolerance': 0.72,
           }
 
     # fit(_iss_spots_2D, _coo_2D, scRNAseq=_scRNAseq, opts=opts_2D)
     fit(_iss_spots_3D, _coo_3D, scRNAseq=_scRNAseq, opts=opts_3D)
 
+if __name__ == "__main__":
+    run_me()
