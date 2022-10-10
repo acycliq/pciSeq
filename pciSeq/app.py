@@ -141,13 +141,7 @@ def make_config_js_3D(dst, w, h, z):
         'geneData': geneData_dict,
     }
 
-    config_str = "function config() " \
-                 "{ " \
-                 "var ini = [ " \
-                 "%s " \
-                 "]; " \
-                 "return d3.map(ini, function (d) {return d.name;}) " \
-                 "}" % json.dumps(appDict)
+    config_str = "function config() { return %s }" % json.dumps(appDict)
     config = os.path.join(dst, 'viewer', 'js', 'config.js')
     with open(config, 'w') as data:
         data.write(str(config_str))
@@ -345,6 +339,9 @@ def run_me():
     opts_2D = {'save_data': True, 'nNeighbors': 3, 'MisreadDensity': 0.00001,'is_3D': False}
     opts_3D={'save_data': True,
              'launch_diagnostics': True,
+             'launch_viewer': True,
+              'img_width': 5905,
+              'img_height': 5882,
              'Inefficiency': 0.2,
              '3D:from_plane_num': 18,
              '3D:to_plane_num': 43,

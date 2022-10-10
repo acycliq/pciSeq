@@ -94,8 +94,5 @@ DEFAULT = {
     'img_height': 5882,
 
 
-
-
-
 }
 

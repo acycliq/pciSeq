@@ -1,7 +1,7 @@
 
 function run() {
     console.log('app starts');
-    CONFIGSETTINGS = config().get('default');
+    CONFIGSETTINGS = config();
     CONFIGSETTINGS.cellData["name"] = "cellData";
     CONFIGSETTINGS.geneData["name"] = "geneData";
 
