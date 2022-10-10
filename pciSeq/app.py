@@ -111,6 +111,8 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
     if cfg['launch_viewer']:
         if cfg['is_3D']:
             dst = copy_viewer_code(cfg)
+            z = cfg['3D:anisotropy'] * (cfg['3D:to_plane_num'] - cfg['3D:from_plane_num'])
+            make_config_js_3D(dst, cfg['img_width'], cfg['img_height'], z)
             flask_app_start(dst)
         else:
             dst = copy_viewer_code(cfg)
@@ -121,6 +123,35 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
         varBayes.conn.close()
     logger.info(' Done')
     return cellData, geneData
+
+
+def make_config_js_3D(dst, w, h, z):
+    cellData_tsv = os.path.join(dst, 'data', 'cellData.tsv')
+    geneData_tsv = os.path.join(dst, 'data', 'geneData.tsv')
+
+    cellData_dict = {"mediaLink": "../../data/cellData.tsv", "size": str(os.path.getsize(cellData_tsv))}
+    geneData_dict = {"mediaLink": "../../data/geneData.tsv", "size": str(os.path.getsize(geneData_tsv))}
+
+    appDict = {
+        'name': 'default',
+        'img_width': w,
+        'img_height': h,
+        'img_depth': z,
+        'cellData': cellData_dict,
+        'geneData': geneData_dict,
+    }
+
+    config_str = "function config() " \
+                 "{ " \
+                 "var ini = [ " \
+                 "%s " \
+                 "]; " \
+                 "return d3.map(ini, function (d) {return d.name;}) " \
+                 "}" % json.dumps(appDict)
+    config = os.path.join(dst, 'viewer', 'js', 'config.js')
+    with open(config, 'w') as data:
+        data.write(str(config_str))
+    logger.info(' viewer config saved at %s' % config)
 
 
 def make_config_js(dst):
