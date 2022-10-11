@@ -318,7 +318,7 @@ class Spots(object):
         self._parent_cell_prob = None
         self._parent_cell_id = None
         self.config = config
-        self.data = self.read(spots_df)
+        self.data, self.data_excluded = self.read(spots_df)
         self.nS = self.data.shape[0]
         self.call = None
         self.unique_gene_names = None
@@ -374,8 +374,11 @@ class Spots(object):
         # remove a gene if it is on the exclude list
         exclude_genes = self.config['exclude_genes']
         gene_mask = [True if d not in exclude_genes else False for d in spots_df.gene_name]
-        spots_df = spots_df.loc[gene_mask]
-        return spots_df
+        neg_gene_mask = [True if d in exclude_genes else False for d in spots_df.gene_name]
+        spots_copy = spots_df.copy()
+        spots_df = spots_copy.loc[gene_mask]
+        spots_excluded_df = spots_copy.loc[neg_gene_mask]
+        return spots_df, spots_excluded_df
 
     def cells_nearby(self, cells: Cells) -> np.array:
         spotZYX = self.data[['z', 'y', 'x']]
