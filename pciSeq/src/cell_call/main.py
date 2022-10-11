@@ -91,6 +91,7 @@ class VarBayes(object):
             self.db_save()
             if self.has_converged:
                 # self.db_save()
+                self.counts_within_radius(20)
                 iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config)
                 break
 
@@ -561,16 +562,23 @@ class VarBayes(object):
         cell_centroids = pd.DataFrame(self.cells.cell_props)[['cell_label', 'x', 'y', 'z']]
         cell_centroids = cell_centroids.set_index('cell_label')
 
-        point_tree = spatial.cKDTree(self.spots.xyz_coords)
+        spots = pd.concat([self.spots.data, self.spots.data_excluded])
+        gene_names, gene_id = np.unique(spots.gene_name.values, return_inverse=True)  # that needs to be encapsulated!!! Make a function in the class to set the ids
+        spots = spots.assign(gene_id=gene_id)
+
+        xyz_coords = spots[['x', 'y', 'z']].values
+        point_tree = spatial.cKDTree(xyz_coords)
         # point_tree = spatial.cKDTree(dummy_data[['x', 'y', 'z']].values)
         nearby_spots = point_tree.query_ball_point(cell_centroids, r_px)
-        gene_names = self.genes.gene_panel
+
 
         out = np.zeros([cell_centroids.shape[0], len(gene_names)])
 
         for i, d in enumerate(nearby_spots):
-            t = self.spots.gene_id[d]
+            t = spots.gene_id[d]
             b = np.bincount(t)
+            if  len(gene_names) - len(b) < 0:
+                print('oops')
             out[i, :] = np.pad(b, (0, len(gene_names) - len(b)), 'constant')
 
         # for each cell get the most likely cell type
