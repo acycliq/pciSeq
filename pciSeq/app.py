@@ -334,11 +334,11 @@ def run_me():
     _scRNAseq = _scRNAseq.astype(float).astype(np.uint32)
 
     # # read 3D some demo data
-    _iss_spots_3D = pd.read_csv(r"E:\data\Anne\220308 50umCF seq atto425 DY520XL MS002\spots_yxz.csv")
+    _iss_spots_3D = pd.read_csv(r"E:\data\Anne\220308_50umCF_seq_atto425_DY520XL_MS002\spots_yxz.csv")
     _iss_spots_3D = _iss_spots_3D.assign(z_stack=_iss_spots_3D.z)
     _iss_spots_3D = _iss_spots_3D[['y', 'x', 'z_stack', 'Gene']]
     # _iss_spots = _iss_spots.assign(z=_iss_spots.z_stack * config.DEFAULT['anisotropy'])
-    _coo_3D = np.load(r"E:\data\Anne\220308 50umCF seq atto425 DY520XL MS002\masks_2D_stiched_fullsize.npz", allow_pickle=True)['arr_0']
+    _coo_3D = np.load(r"E:\data\Anne\220308_50umCF_seq_atto425_DY520XL_MS002\masks_2D_stiched_fullsize.npz", allow_pickle=True)['arr_0']
     _coo_3D = [coo_matrix(d) for d in _coo_3D]
 
     # main task
