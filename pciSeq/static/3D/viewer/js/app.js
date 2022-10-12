@@ -8,7 +8,15 @@ function app(geneData, cellData) {
 
     cellData.forEach((d, i) => {
         d.topClass = d.ClassName[maxIndex(d.Prob)]; // Keeps the class with the highest probability
-        d.color = hexToRgb(cellColorMap.get(d.topClass).color)
+		var obj = cellColorMap.get(d.topClass);
+		if (obj) {
+			d.color = hexToRgb(cellColorMap.get(d.topClass).color)
+		}
+		else {
+			var  classColor = '#FF0000';
+			d.color = hexToRgb(classColor) // if there are no color for that class, use the default one, RED
+			console.log('Cell type ' + d.topClass + ' doesnt have a color. Using the default value: ' + classColor)
+		}
     });
     TOPCLASSES = [...new Set(cellData.map(d => d.topClass))].sort()
 
