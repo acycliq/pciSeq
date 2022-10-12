@@ -7,7 +7,15 @@ function my_particles(positions, gene, hexCode=null) {
     var glyph = getGlyph(gene);
     if (!hexCode){
         // hexCode = getColor(gene);
-        hexCode = GLYPH_MAP.get(gene).color
+        var t = GLYPH_MAP.get(gene)
+        if (t){
+            hexCode = t.color
+        }
+        else {
+            default_hex = '#0000ff'
+            console.log('Cannot get color for ' + gene + '. Defaulting to ' + default_hex)
+            hexCode = default_hex
+        }
     }
 
 

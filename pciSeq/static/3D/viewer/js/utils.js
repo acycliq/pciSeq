@@ -21,7 +21,18 @@ function getTaxonomy(gene) {
 
 function getGlyph(gene) {
     console.log(gene)
-    return glyphSettings().filter(d => d.gene === gene)[0].glyphName
+    var t = glyphSettings().filter(d => d.gene === gene)[0]
+    var glyphName
+    if (!t){
+        // if the gene isnt in the glyph setting, default it to square
+        default_glyph = 'square'
+        console.log('Cannot get glyphName for ' + gene + '. Defaulting to ' + default_glyph)
+        glyphName = default_glyph
+    }
+    else {
+        glyphName = t.glyphName
+    }
+    return glyphName
 }
 
 function getColor(gene) {
