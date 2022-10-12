@@ -82,7 +82,7 @@ while True:
                 with fig_col1:
                     st.markdown("### Gene efficiency at iteration %d" % i)
                     bar_chart_1 = alt.Chart(gene_efficiency).mark_bar().encode(
-                        y=alt.Y('gene:N', title='Cell Type'),
+                        y=alt.Y('gene:N', title='Gene'),
                         x='gene_efficiency:Q',
                         color=alt.Color('class:N', legend=None),
                         tooltip=[
