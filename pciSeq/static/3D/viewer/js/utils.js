@@ -90,7 +90,7 @@ function legendControl() {
     if (!legend_added) {
         legendLink.addEventListener(`click`, () => {
             // Opens the page and stores the opened window instance
-            legendWindow = window.open(`./src/genes_datatable.html`); // <--- THAT NEEDS TO BE EXPOSED TO THE USER. MOVE I INSIDE config.js MAYBE
+            legendWindow = window.open(`./viewer/js/genes_datatable.html`); // <--- THAT NEEDS TO BE EXPOSED TO THE USER. MOVE I INSIDE config.js MAYBE
         });
     }
     legend_added = true;
