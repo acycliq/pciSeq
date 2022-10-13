@@ -138,9 +138,11 @@ def split_label_img(filepath, p, q):
     out = tilefy(label_img, p, q)
     return out
 
-# if __name__ == "__main__":
-#     p = q = 2000
-#     filepath = os.path.join(config.ROOT_DIR, 'CellMap_left.mat')
-#     fov_list = split_CellMap(filepath, p, q)
-#     print('Done!')
 
+def get_img_shape(coo):
+    img_shape = set([d.shape for d in coo])
+    assert len(img_shape) == 1, 'pages do not have the same shape'
+    img_shape = img_shape.pop()
+    w = img_shape[1]
+    h = img_shape[0]
+    return [h, w]

@@ -10,6 +10,7 @@ from typing import Tuple
 from scipy.sparse import coo_matrix, csr_matrix
 from pciSeq.src.preprocess.cell_borders import extract_borders_dip
 from pciSeq.src.preprocess.regionprops import regionprops
+from pciSeq.src.preprocess.utils import get_img_shape
 from pciSeq.src.cell_call.log_config import logger
 
 
@@ -169,15 +170,6 @@ def weighted_average(df,data_col,weight_col,by_col):
     result = g['_data_times_weight'].sum() / g['_weight_where_notnull'].sum()
     del df['_data_times_weight'], df['_weight_where_notnull']
     return result
-
-
-def get_img_shape(coo):
-    img_shape = set([d.shape for d in coo])
-    assert len(img_shape) == 1, 'pages do not have the same shape'
-    img_shape = img_shape.pop()
-    w = img_shape[1]
-    h = img_shape[0]
-    return [h, w]
 
 
 def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:

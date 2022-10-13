@@ -13,6 +13,7 @@ from pciSeq.src.cell_call.utils import get_db_tables
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq import config
 from pciSeq.src.cell_call.utils import get_out_dir
+from pciSeq.src.preprocess.utils import get_img_shape
 from pciSeq.src.cell_call.log_config import attach_to_log, logger
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -109,8 +110,9 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
         write_data(cellData, geneData, cellBoundaries, varBayes, cfg)
 
     if cfg['launch_viewer']:
+        [h, w] = get_img_shape(coo)
         dst = copy_viewer_code(cfg)
-        make_config_js(dst, cfg)
+        make_config_js(dst, w, h, cfg)
         flask_app_start(dst)
     if varBayes.conn:
         varBayes.conn.close()
@@ -131,17 +133,17 @@ def make_config_base(dst):
     }
 
 
-def make_config_js(dst, cfg):
+def make_config_js(dst, w, h, cfg):
     appDict = make_config_base(dst)
     if cfg['is_3D']:
         z = cfg['3D:anisotropy'] * (cfg['3D:to_plane_num'] - cfg['3D:from_plane_num'])
-        appDict['img_width'] = cfg['img_width']
-        appDict['img_height'] = cfg['img_height']
+        appDict['img_width'] = w
+        appDict['img_height'] = h
         appDict['img_depth'] = z
     else:
         cellBoundaries_tsv = os.path.join(dst, 'data', 'cellBoundaries.tsv')
         cellBoundaries_dict = {"mediaLink": "../../data/cellBoundaries.tsv", "size": str(os.path.getsize(cellBoundaries_tsv))}
-        roi_dict = {"x0": 0, "x1": cfg['img_width'], "y0": 0, "y1": cfg['img_height']}
+        roi_dict = {"x0": 0, "x1": w, "y0": 0, "y1": h}
         appDict['cellBoundaries'] = cellBoundaries_dict
         appDict['roi'] = roi_dict
         appDict['zoomLevels'] = 10
@@ -320,8 +322,6 @@ def run_me():
     opts_3D={'save_data': True,
              'launch_diagnostics': True,
              'launch_viewer': True,
-              'img_width': 5905,
-              'img_height': 5882,
              'Inefficiency': 0.2,
              '3D:from_plane_num': 18,
              '3D:to_plane_num': 43,
