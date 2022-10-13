@@ -65,7 +65,7 @@ for prop in DEFAULT_WEIGHTED_PROPERTIES:
 def regionprops_df(
     labels_im, intensity_im=None, props=DEFAULT_PROPERTIES, other_cols={}
 ):
-    df = pd.DataFrame(regionprops_table(labels_im, intensity_im, properties=props))
+    df = pd.DataFrame(regionprops_table(labels_im.astype(np.uint32), intensity_im, properties=props))
     for k, v in other_cols.items():
         df[k] = v
     return df
