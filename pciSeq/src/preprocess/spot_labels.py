@@ -69,8 +69,7 @@ def reorder_labels(label_image):
     labels = np.concatenate([np.unique(d.data) for d in label_image])
     if labels.max() != len(set(labels)):
         logger.info(' Labels in segmentation array are not a sequence of integers without gaps between them. Relabelling...')
-        if 0 not in labels:
-            labels = np.append(0, labels) # append 0 (the background label)
+        labels = np.append(0, labels)  # append 0 (the background label)
         _, idx = np.unique(labels, return_inverse=True)
         assert idx[0] == 0  # make sure the background is at position 0
         label_dict = dict(zip(labels, idx.astype(np.uint32))) # maps the cellpose ids to the new ids

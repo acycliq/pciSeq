@@ -314,7 +314,8 @@ def run_me():
     _iss_spots_3D = _iss_spots_3D.assign(z_stack=_iss_spots_3D.z)
     _iss_spots_3D = _iss_spots_3D[['y', 'x', 'z_stack', 'Gene']]
     # _iss_spots = _iss_spots.assign(z=_iss_spots.z_stack * config.DEFAULT['anisotropy'])
-    _coo_3D = np.load(r"E:\data\Anne\220308_50umCF_seq_atto425_DY520XL_MS002\masks_2D_stiched_fullsize.npz", allow_pickle=True)['arr_0']
+    # _coo_3D = np.load(r"E:\data\Anne\220308_50umCF_seq_atto425_DY520XL_MS002\masks_2D_stiched_fullsize.npz", allow_pickle=True)['arr_0']
+    _coo_3D = np.load("E:\data\Mathieu\dapi_segmented_restitched.npy")
     _coo_3D = [coo_matrix(d) for d in _coo_3D]
 
     # main task
@@ -323,8 +324,8 @@ def run_me():
              'launch_diagnostics': True,
              'launch_viewer': True,
              'Inefficiency': 0.2,
-             '3D:from_plane_num': 18,
-             '3D:to_plane_num': 43,
+             '3D:from_plane_num': 0,
+             '3D:to_plane_num': 68,
              'MisreadDensity': 1e-05,
              'is_3D': True,
              'nNeighbors': 6,

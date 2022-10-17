@@ -90,9 +90,6 @@ DEFAULT = {
     # assigned a weight of almost zero
     'min_class_size': 5,
 
-    'img_width': 5905,
-    'img_height': 5882,
-
 
 }
 
