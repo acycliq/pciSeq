@@ -7,6 +7,8 @@ Cell centroids and cell areas are also calculated.
 import numpy as np
 import pandas as pd
 from typing import Tuple
+from multiprocessing import Pool
+from multiprocessing.dummy import Pool as ThreadPool
 from scipy.sparse import coo_matrix, csr_matrix
 from pciSeq.src.preprocess.cell_borders import extract_borders_dip
 from pciSeq.src.preprocess.regionprops import regionprops
@@ -66,12 +68,12 @@ def reorder_labels(label_image):
     else:
         raise TypeError('input label_image should be an 2D, 3D array or a list of coo matrices')
 
-    labels = np.concatenate([np.unique(d.data) for d in label_image])
+    # labels = np.concatenate([np.unique(d.data) for d in label_image])
+    labels = np.concatenate(get_unique_labels(label_image))
     if labels.max() != len(set(labels)):
         logger.info(' Labels in segmentation array are not a sequence of integers without gaps between them. Relabelling...')
-        labels = np.append(0, labels)  # append 0 (the background label)
+        labels = np.append(0, labels)  # append 0 (the background label). Makes sure the background is at position 0
         _, idx = np.unique(labels, return_inverse=True)
-        assert idx[0] == 0  # make sure the background is at position 0
         label_dict = dict(zip(labels, idx.astype(np.uint32))) # maps the cellpose ids to the new ids
         assert label_dict[0] == 0, "The background label (ie 0) should be the smallest of the labels"
         out = []
@@ -88,6 +90,19 @@ def reorder_labels(label_image):
         out = label_image
         label_map = None
     return out, label_map
+
+
+def get_unique_labels(masks):
+    """
+    same as:
+        [np.unique(d.data) for d in label_image]
+    but faster
+    """
+    pool = ThreadPool()
+    out = pool.map(lambda mask: np.unique(mask.data), masks)
+    pool.close()
+    pool.join()
+    return out
 
 
 def reorder_labels_old(coo):
@@ -107,7 +122,7 @@ def reorder_labels_old(coo):
 
 
 
-def remove_cells(coo_list):
+def remove_cells(coo_list, cfg):
     """
     removes cells that exist on just one single frame of the
     z-stack
@@ -122,12 +137,16 @@ def remove_cells(coo_list):
         for d in s:
             coo.data[coo.data == d] = 0
             removed_cells.append(d)
+            _frames.append(i + cfg['3D:from_plane_num'])
             # logger.info('Removed cell:%d from frame: %d' % (d, i))
-        _frames.append(i)
     len_c = len(set(removed_cells))
     len_f = len(set(_frames))
     logger.info(' Found %d cells that exist on just one single frame. Those cells have been removed from %i frames.' % (len_c, len_f))
-    return coo_list
+    removed_df = pd.DataFrame({
+        'removed_cell_label': removed_cells,
+        'frame_num': _frames
+    })
+    return coo_list, removed_df
 
 
 def truncate_data(spots, label_image, z_min, z_max):
@@ -177,11 +196,12 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
     given spot within its boundaries. It also retrieves the coordinates of the cell boundaries, the cell
     centroids and the cell area
     """
+    removed_cells = pd.DataFrame()
     if cfg['is_3D']:
         z_min = cfg['3D:from_plane_num']
         z_max = cfg['3D:to_plane_num']
         spots, coo = truncate_data(spots, coo, z_min, z_max)
-        coo = remove_cells(coo)
+        coo, removed_cells = remove_cells(coo, cfg)
 
     coo, label_map = reorder_labels(coo)
     # coo = reorder_labels_old(coo)
@@ -246,5 +266,5 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
         .rename_axis('spot_id')\
         .rename(columns={'Gene': 'gene_name'})
 
-    return _cells, _cell_boundaries, _spots
+    return _cells, _cell_boundaries, _spots, removed_cells
 
