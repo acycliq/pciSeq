@@ -100,14 +100,14 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
 
     # 3. prepare the data
     logger.info(' Preprocessing data')
-    _cells, cellBoundaries, _spots = stage_data(iss_spots, coo, cfg)
+    _cells, cellBoundaries, _spots, removed_cells = stage_data(iss_spots, coo, cfg)
 
     # 4. cell typing
     cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
 
     # 5. save to the filesystem
     if (cfg['save_data'] and varBayes.has_converged) or cfg['launch_viewer']:
-        write_data(cellData, geneData, cellBoundaries, varBayes, cfg)
+        write_data(cellData, geneData, cellBoundaries, removed_cells, varBayes, cfg)
 
     if cfg['launch_viewer']:
         [h, w] = get_img_shape(coo)
@@ -163,20 +163,26 @@ def cell_type(_cells, _spots, scRNAseq, ini):
     return cellData, geneData, varBayes
 
 
-def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
+def write_data(cellData, geneData, cellBoundaries, removed_cells, varBayes, cfg):
     viewer_data_dir = get_out_dir(cfg['output_path'], 'data')
     export_data(cellData, geneData, cellBoundaries, viewer_data_dir)
 
     debug_data_dir = get_out_dir(cfg['output_path'], 'debug')
     export_db_tables(debug_data_dir, varBayes.conn)
+    export_removed_cells(removed_cells, debug_data_dir)
 
     with open(os.path.join(debug_data_dir, 'pciSeq.pickle'), 'wb') as outf:
-        # if there is a db connection, close and None it before pickling
+        # if there is a db connection, close and None-it before pickling
         if varBayes.conn:
             varBayes.conn.close()
             varBayes.conn = None
         pickle.dump(varBayes, outf)
         logger.info(' Saved at %s' % os.path.join(debug_data_dir, 'pciSeq.pickle'))
+
+
+def export_removed_cells(removed_cells, dir_name):
+    removed_cells.to_csv(os.path.join(dir_name, 'removed_cells.csv'), index=False)
+    logger.info(' Saved at %s' % os.path.join(dir_name, 'removed_cells.csv'))
 
 
 def export_data(cellData, geneData, cellBoundaries, out_dir):
@@ -275,10 +281,10 @@ def validate(spots, coo, sc, cfg):
     if '3D:anisotropy' not in cfg or not cfg['is_3D']:
         cfg['3D:anisotropy'] = 1.0
 
-    if '3D:from_plane_num' not in cfg:
+    if cfg['3D:from_plane_num'] is None:
         cfg['3D:from_plane_num'] = 0
 
-    if '3D:to_plane_num' not in cfg:
+    if cfg['3D:to_plane_num'] is None:
         cfg['3D:to_plane_num'] = len(coo) - 1
 
     return spots, coo, cfg
@@ -310,22 +316,22 @@ def run_me():
     _scRNAseq = _scRNAseq.astype(float).astype(np.uint32)
 
     # # read 3D some demo data
-    _iss_spots_3D = pd.read_csv(r"E:\data\Anne\220308_50umCF_seq_atto425_DY520XL_MS002\spots_yxz.csv")
+    _iss_spots_3D = pd.read_csv(r"/mnt/e/data/Anne/220308_50umCF_seq_atto425_DY520XL_MS002/spots_yxz.csv")
     _iss_spots_3D = _iss_spots_3D.assign(z_stack=_iss_spots_3D.z)
     _iss_spots_3D = _iss_spots_3D[['y', 'x', 'z_stack', 'Gene']]
     # _iss_spots = _iss_spots.assign(z=_iss_spots.z_stack * config.DEFAULT['anisotropy'])
-    # _coo_3D = np.load(r"E:\data\Anne\220308_50umCF_seq_atto425_DY520XL_MS002\masks_2D_stiched_fullsize.npz", allow_pickle=True)['arr_0']
-    _coo_3D = np.load("E:\data\Mathieu\dapi_segmented_restitched.npy")
+    _coo_3D = np.load(r"/mnt/e//data/Anne/220308_50umCF_seq_atto425_DY520XL_MS002/masks_2D_stiched_fullsize.npz", allow_pickle=True)['arr_0']
+    # _coo_3D = np.load("/mnt/e/data/Mathieu/dapi_segmented_restitched.npy")
     _coo_3D = [coo_matrix(d) for d in _coo_3D]
 
     # main task
     opts_2D = {'save_data': True, 'nNeighbors': 3, 'MisreadDensity': 0.00001,'is_3D': False}
     opts_3D={'save_data': True,
              'launch_diagnostics': True,
-             'launch_viewer': True,
+             'launch_viewer': False,
              'Inefficiency': 0.2,
-             '3D:from_plane_num': 0,
-             '3D:to_plane_num': 68,
+             # '3D:from_plane_num': 0,
+             # '3D:to_plane_num': 68,
              'MisreadDensity': 1e-05,
              'is_3D': True,
              'nNeighbors': 6,
