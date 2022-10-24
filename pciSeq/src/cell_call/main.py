@@ -557,7 +557,7 @@ class VarBayes(object):
         assert self.cells.cell_props['cell_label'][0] == 0
 
         # radius r is assumed to be in micron. Convert it to pixels
-        r_px = r * self.config['3D:anisotropy']
+        r_px = r * self.config['anisotropy']
 
         cell_centroids = pd.DataFrame(self.cells.cell_props)[['cell_label', 'x', 'y', 'z']]
         cell_centroids = cell_centroids.set_index('cell_label')

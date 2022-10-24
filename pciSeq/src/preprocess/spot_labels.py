@@ -137,14 +137,15 @@ def remove_cells(coo_list, cfg):
         for d in s:
             coo.data[coo.data == d] = 0
             removed_cells.append(d)
-            _frames.append(i + cfg['3D:from_plane_num'])
+            _frames.append(i + cfg['from_plane_num'])
             # logger.info('Removed cell:%d from frame: %d' % (d, i))
     len_c = len(set(removed_cells))
     len_f = len(set(_frames))
     logger.info(' Found %d cells that exist on just one single frame. Those cells have been removed from %i frames.' % (len_c, len_f))
     removed_df = pd.DataFrame({
         'removed_cell_label': removed_cells,
-        'frame_num': _frames
+        'frame_num': _frames,
+        'comment': 'labels are the original labels as they appear in the segmentation masks that were passed-in to pciSeq'
     })
     return coo_list, removed_df
 
@@ -178,7 +179,7 @@ def remove_oob(spots, img_shape):
 
 
 def attach_z(spots, cfg):
-    return spots.assign(z=spots.z_stack * cfg['3D:anisotropy'])
+    return spots.assign(z=spots.z_stack * cfg['anisotropy'])
 
 
 def weighted_average(df,data_col,weight_col,by_col):
@@ -198,8 +199,8 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
     """
     removed_cells = pd.DataFrame()
     if cfg['is_3D']:
-        z_min = cfg['3D:from_plane_num']
-        z_max = cfg['3D:to_plane_num']
+        z_min = cfg['from_plane_num']
+        z_max = cfg['to_plane_num']
         spots, coo = truncate_data(spots, coo, z_min, z_max)
         coo, removed_cells = remove_cells(coo, cfg)
 
@@ -242,7 +243,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame,
         'centroid-0':  centroid_0.values,
         'y_cell': y_cell.values,
         'x_cell': x_cell.values,
-        'z_cell': centroid_0.values * cfg['3D:anisotropy'],
+        'z_cell': centroid_0.values * cfg['anisotropy'],
         'area': mean_area_per_slice.values, # mean area per slice
     })
 

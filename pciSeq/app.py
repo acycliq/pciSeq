@@ -136,7 +136,7 @@ def make_config_base(dst):
 def make_config_js(dst, w, h, cfg):
     appDict = make_config_base(dst)
     if cfg['is_3D']:
-        z = cfg['3D:anisotropy'] * (cfg['3D:to_plane_num'] - cfg['3D:from_plane_num'])
+        z = cfg['anisotropy'] * (cfg['to_plane_num'] - cfg['from_plane_num'])
         appDict['img_width'] = w
         appDict['img_height'] = h
         appDict['img_depth'] = z
@@ -240,7 +240,10 @@ def init(opts):
     If opts is None, then the default values as these specified in the config.py file
     are used without any change.
     """
-    cfg = config.DEFAULT
+    if 'is_3D' in opts.keys() and opts['is_3D']:
+        cfg = config.CONFIG_3D
+    else:
+        cfg = config.CONFIG_2D
     if opts is not None:
         default_items = set(cfg.keys())
         user_items = set(opts.keys())
@@ -278,14 +281,15 @@ def validate(spots, coo, sc, cfg):
     if sc is not None:
         assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
 
-    if '3D:anisotropy' not in cfg or not cfg['is_3D']:
-        cfg['3D:anisotropy'] = 1.0
+    if 'anisotropy' not in cfg or not cfg['is_3D']:
+        cfg['anisotropy'] = 1.0
 
-    if cfg['3D:from_plane_num'] is None:
-        cfg['3D:from_plane_num'] = 0
+    if cfg['is_3D']:
+        if cfg['from_plane_num'] is None:
+            cfg['from_plane_num'] = 0
 
-    if cfg['3D:to_plane_num'] is None:
-        cfg['3D:to_plane_num'] = len(coo) - 1
+        if cfg['to_plane_num'] is None:
+            cfg['to_plane_num'] = len(coo) - 1
 
     return spots, coo, cfg
 
@@ -316,11 +320,11 @@ def run_me():
     _scRNAseq = _scRNAseq.astype(float).astype(np.uint32)
 
     # # read 3D some demo data
-    _iss_spots_3D = pd.read_csv(r"/mnt/e/data/Anne/220308_50umCF_seq_atto425_DY520XL_MS002/spots_yxz.csv")
+    _iss_spots_3D = pd.read_csv(r"e:/data/Anne/220308_50umCF_seq_atto425_DY520XL_MS002/spots_yxz.csv")
     _iss_spots_3D = _iss_spots_3D.assign(z_stack=_iss_spots_3D.z)
     _iss_spots_3D = _iss_spots_3D[['y', 'x', 'z_stack', 'Gene']]
     # _iss_spots = _iss_spots.assign(z=_iss_spots.z_stack * config.DEFAULT['anisotropy'])
-    _coo_3D = np.load(r"/mnt/e//data/Anne/220308_50umCF_seq_atto425_DY520XL_MS002/masks_2D_stiched_fullsize.npz", allow_pickle=True)['arr_0']
+    _coo_3D = np.load(r"e:/data/Anne/220308_50umCF_seq_atto425_DY520XL_MS002/masks_2D_stiched_fullsize.npz", allow_pickle=True)['arr_0']
     # _coo_3D = np.load("/mnt/e/data/Mathieu/dapi_segmented_restitched.npy")
     _coo_3D = [coo_matrix(d) for d in _coo_3D]
 
@@ -328,10 +332,10 @@ def run_me():
     opts_2D = {'save_data': True, 'nNeighbors': 3, 'MisreadDensity': 0.00001,'is_3D': False}
     opts_3D={'save_data': True,
              'launch_diagnostics': True,
-             'launch_viewer': False,
+             'launch_viewer': True,
              'Inefficiency': 0.2,
-             # '3D:from_plane_num': 0,
-             # '3D:to_plane_num': 68,
+             'from_plane_num': 18,
+             'to_plane_num': 43,
              'MisreadDensity': 1e-05,
              'is_3D': True,
              'nNeighbors': 6,

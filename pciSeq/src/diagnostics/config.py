@@ -4,6 +4,6 @@ import os
 
 
 SETTINGS = {
-    'DB_URL': os.path.join(get_out_dir(pciSeq_cfg.DEFAULT['output_path'], ''), 'pciSeq.db')
+    'DB_URL': os.path.join(get_out_dir(pciSeq_cfg._BASE['output_path'], ''), 'pciSeq.db')
 }
 
