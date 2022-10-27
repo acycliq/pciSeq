@@ -55,7 +55,7 @@ while True:
             conn = db_connect(DB_FILE, remove_if_exists=False)
             logger.info('Connection to %s established' % DB_FILE)
         if not checked_tables:
-            set_tables = {"gene_efficiency", "cell_type_prior"}
+            set_tables = {"gene_efficiency", "cell_type_prior", "cell_type_posterior"}
             set_db = set(get_db_tables(conn))
             assert set_tables.issubset(set_db)
             checked_tables = True
@@ -65,6 +65,9 @@ while True:
 
         sql_str = sql_query("cell_type_prior")
         cell_type_prior = pd.read_sql(sql_str, conn)
+
+        sql_str = sql_query("cell_type_posterior")
+        cell_type_posterior = pd.read_sql(sql_str, conn)
 
         # print(data)
         iter = gene_efficiency.iteration
@@ -95,17 +98,30 @@ while True:
                     # st.write(fig1)
 
                 with fig_col2:
-                    st.markdown("### Cell class weight at iteration %d" % i)
-                    bar_chart_2 = alt.Chart(cell_type_prior).mark_bar().encode(
-                        y=alt.Y('class:N', title='Cell Type'),
-                        x='weight:Q',
-                        color=alt.Color('class:N', legend=None),
+                    st.markdown("### Posterior cell class weight at iteration %d" % i)
+                    bar_chart_2 = alt.Chart(cell_type_posterior).mark_bar().encode(
+                        y=alt.Y('class_name:N', title='Cell Type'),
+                        x='prob:Q',
+                        color=alt.Color('class_name:N', legend=None),
                         tooltip=[
-                            alt.Tooltip('class:N'),
-                            alt.Tooltip('weight:Q')
+                            alt.Tooltip('class_name:N'),
+                            alt.Tooltip('prob:Q')
                         ]
                     ).properties(height=1200)
                     fig2 = st.altair_chart(bar_chart_2, use_container_width=True)
+
+                # with fig_col3:
+                #     st.markdown("### Prior cell class weight at iteration %d" % i)
+                #     bar_chart_3 = alt.Chart(cell_type_prior).mark_bar().encode(
+                #         y=alt.Y('class:N', title='Cell Type'),
+                #         x='weight:Q',
+                #         color=alt.Color('class:N', legend=None),
+                #         tooltip=[
+                #             alt.Tooltip('class:N'),
+                #             alt.Tooltip('weight:Q')
+                #         ]
+                #     ).properties(height=1200)
+                #     fig3 = st.altair_chart(bar_chart_3, use_container_width=True)
             previous_iteration = i
 
         # wait 1 sec before pingin the db again

@@ -492,8 +492,9 @@ class VarBayes(object):
     def _db_save(self):
         db_opts = {'if_table_exists': 'replace'}  # choose between 'fail', 'replace', 'append'. Appending might make sense only if you want to see how estimates change from one loop to the next
         self.db_save_geneCounts(self.iter_num, self.has_converged, db_opts)
-        self.db_save_cellByclass_prob(self.iter_num, self.has_converged, db_opts)
+        # self.db_save_cellByclass_prob(self.iter_num, self.has_converged, db_opts)
         self.db_save_class_prob(self.iter_num, self.has_converged, db_opts)
+        self.db_save_cell_type_posterior(self.iter_num, self.has_converged, db_opts)
         self.db_save_parent_cell_prob(self.iter_num, self.has_converged, db_opts)
         self.db_save_parent_cell_id(self.iter_num, self.has_converged, db_opts)
         self.genes.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
@@ -514,7 +515,7 @@ class VarBayes(object):
         self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON geneCount("cell_label", "iteration");')
 
     # -------------------------------------------------------------------- #
-    def db_save_cellByclass_prob(self, iter, has_converged, db_opts):
+    def db_save_class_prob(self, iter, has_converged, db_opts):
         df = pd.DataFrame(data=self.cells.classProb,
                           index=np.arange(self.nC),
                           columns=self.cellTypes.names)
@@ -522,24 +523,25 @@ class VarBayes(object):
         df['iteration'] = iter
         df['has_converged'] = has_converged
         df['utc'] = datetime.datetime.utcnow()
-        df.to_sql(name='cellByclass_prob', con=self.conn, if_exists=db_opts['if_table_exists'])
-        self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON classProb("cell_label", "iteration");')
+        df.to_sql(name='class_prob', con=self.conn, if_exists=db_opts['if_table_exists'])
+        self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON class_prob("cell_label", "iteration");')
 
     # -------------------------------------------------------------------- #
-    def db_save_class_prob(self, iter, has_converged, db_opts):
-        for i, row in enumerate(obj.cells.classProb):
+    def db_save_cell_type_posterior(self, iter, has_converged, db_opts):
+        idx=[]
+        for i, row in enumerate(self.cells.classProb):
             idx.append(np.argmax(row))
         prob = np.bincount(idx) / np.bincount(idx).sum()
         df = pd.DataFrame({
-            'class_name': obj.cellTypes.names,
+            'class_name': self.cellTypes.names,
             'prob': prob
         }).set_index('class_name')
         df['iteration'] = iter
         df['has_converged'] = has_converged
         df['utc'] = datetime.datetime.utcnow()
-        df.to_sql(name='classProb', con=self.conn, if_exists=db_opts['if_table_exists'])
+        df.to_sql(name='cell_type_posterior', con=self.conn, if_exists=db_opts['if_table_exists'])
         self.conn.execute(
-            'CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON classProb("cell_label", "iteration");')
+            'CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON cell_type_posterior("class_name", "iteration");')
 
     # -------------------------------------------------------------------- #
     def db_save_parent_cell_prob(self, iter_num, has_converged, db_opts):
