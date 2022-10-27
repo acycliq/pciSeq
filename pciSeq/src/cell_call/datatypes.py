@@ -706,7 +706,6 @@ class SingleCell(object):
         con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_gene_iteration ON mean_expression("gene_name", "iteration");')
 
 
-
 # ---------------------------------------- Class: CellType --------------------------------------------------- #
 class CellType(object):
     def __init__(self, single_cell, config):
