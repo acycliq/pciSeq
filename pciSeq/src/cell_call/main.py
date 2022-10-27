@@ -145,7 +145,7 @@ class VarBayes(object):
         cfg = self.config
         dtype = self.config['dtype']
         beta = np.einsum('c, gk, g -> cgk',
-                         cells.cell_props['area_factor'],
+                         cells.ini_cell_props['area_factor'],
                          self.single_cell.mean_expression,
                          self.genes.eta_bar).astype(dtype) + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
@@ -168,7 +168,7 @@ class VarBayes(object):
         dtype = self.config['dtype']
         # ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.alpha, self.genes.eta, sc.mean_expression.data) + self.config['SpotReg']
         ScaledExp = np.einsum('c, g, gk -> cgk',
-                              self.cells.cell_props['area_factor'],
+                              self.cells.ini_cell_props['area_factor'],
                               self.genes.eta_bar,
                               self.single_cell.mean_expression
                               ).astype(dtype)
@@ -304,7 +304,7 @@ class VarBayes(object):
 
         classProb = self.cells.classProb
         mu = self.single_cell.mean_expression
-        area_factor = self.cells.cell_props['area_factor']
+        area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar
 
         zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
@@ -448,7 +448,7 @@ class VarBayes(object):
         classProb = self.cells.classProb[1:, :-1].copy()
         geneCount = self.cells.geneCount[1:, :].copy()
         gamma_bar = self.spots.gamma_bar[1:, :, :-1].copy()
-        area_factor = self.cells.cell_props['area_factor'][1:]
+        area_factor = self.cells.ini_cell_props['area_factor'][1:]
 
         numer = np.einsum('ck, cg -> gk', classProb, geneCount)
         denom = np.einsum('ck, c, cgk, g -> gk', classProb, area_factor, gamma_bar, self.genes.eta_bar)
@@ -554,13 +554,10 @@ class VarBayes(object):
         """
 
         # check that the background (label=0) is at the top row
-        assert self.cells.cell_props['cell_label'][0] == 0
+        assert self.cells.ini_cell_props['cell_label'][0] == 0
 
         # radius r is assumed to be in micron. Convert it to pixels
         r_px = r * self.config['anisotropy']
-
-        cell_centroids = pd.DataFrame(self.cells.cell_props)[['cell_label', 'x', 'y', 'z']]
-        cell_centroids = cell_centroids.set_index('cell_label')
 
         spots = pd.concat([self.spots.data, self.spots.data_excluded])
         gene_names, gene_id = np.unique(spots.gene_name.values, return_inverse=True)  # that needs to be encapsulated!!! Make a function in the class to set the ids
@@ -568,11 +565,9 @@ class VarBayes(object):
 
         xyz_coords = spots[['x', 'y', 'z']].values
         point_tree = spatial.cKDTree(xyz_coords)
-        # point_tree = spatial.cKDTree(dummy_data[['x', 'y', 'z']].values)
-        nearby_spots = point_tree.query_ball_point(cell_centroids, r_px)
+        nearby_spots = point_tree.query_ball_point(self.cells.centroid, r_px)
 
-
-        out = np.zeros([cell_centroids.shape[0], len(gene_names)])
+        out = np.zeros([self.cells.centroid.shape[0], len(gene_names)])
 
         for i, d in enumerate(nearby_spots):
             t = spots.gene_id[d]
@@ -588,13 +583,13 @@ class VarBayes(object):
             cell_type.append(j)
 
         temp = pd.DataFrame({
-            'cell_label': self.cells.cell_props['cell_label'],
-            'cell_label_old': self.cells.cell_props['cell_label_old'],
+            'cell_label': self.cells.ini_cell_props['cell_label'],
+            'cell_label_old': self.cells.ini_cell_props['cell_label_old'],
             'cell_type': cell_type
         })
 
         # assert np.all(temp.cell_label==out.index)
-        df = pd.DataFrame(out, index=cell_centroids.index, columns=gene_names)
+        df = pd.DataFrame(out, index=self.cells.centroid.index, columns=gene_names)
         df = pd.merge(temp, df, right_index=True, left_on='cell_label', how='left')
 
         # ignore the first row, it is the background

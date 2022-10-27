@@ -10,9 +10,9 @@ def _iss_summary(cells, genes, single_cell, cfg):
     :param spots:
     :return:
     '''
-    x = cells.cell_props['x']
-    y = cells.cell_props['y']
-    cell_id = cells.cell_props['cell_label']
+    # x = cells.cell_props['x']
+    # y = cells.cell_props['y']
+    cell_id = cells.ini_cell_props['cell_label']
 
     gene_count = cells.geneCount
     class_prob = cells.classProb
@@ -54,9 +54,9 @@ def _iss_summary(cells, genes, single_cell, cfg):
             ellipsis = gaussian_ellipsoid(mu[:2], cov[:2, :2], 3).astype(np.int)
             ellipsoid_border.append(ellipsis.tolist())
 
-    iss_df = pd.DataFrame({'Cell_Num': cells.cell_props['cell_label'].tolist(),
-                           'X': cells.cell_props['x'].tolist(),
-                           'Y': cells.cell_props['y'].tolist(),
+    iss_df = pd.DataFrame({'Cell_Num': cells.centroid.index.tolist(),
+                           'X': cells.centroid['x'].tolist(),
+                           'Y': cells.centroid['y'].tolist(),
                            'Genenames': name_list,
                            'CellGeneCount': count_list,
                            'ClassName': class_name_list,
@@ -64,8 +64,8 @@ def _iss_summary(cells, genes, single_cell, cfg):
                             },
                            columns=['Cell_Num', 'X', 'Y', 'Genenames', 'CellGeneCount', 'ClassName', 'Prob']
                            )
-    if np.any(cells.cell_props['z']):
-        iss_df = iss_df.assign(Z=cells.cell_props['z'].tolist())
+    if np.any(cells.centroid['z']):
+        iss_df = iss_df.assign(Z=cells.centroid['z'].tolist())
 
     if len(sphere_scale) > 0:
         iss_df = iss_df.assign(sphere_scale = sphere_scale)

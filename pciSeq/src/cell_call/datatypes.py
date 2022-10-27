@@ -13,8 +13,8 @@ class Cells(object):
     # Get rid of the properties where not necessary!!
     def __init__(self, _cells_df, config):
         self.config = config
-        self.cell_props, self.mcr = self.read_image_objects(_cells_df, config)
-        self.nC = len(self.cell_props['cell_label'])
+        self.ini_cell_props, self.mcr = self.read_image_objects(_cells_df, config)
+        self.nC = len(self.ini_cell_props['cell_label'])
         self.classProb = None
         self.class_names = None
         self._prior = None
@@ -30,8 +30,7 @@ class Cells(object):
     # -------- PROPERTIES -------- #
     @property
     def zyx_coords(self):
-        coords = [d for d in zip(self.cell_props['z'], self.cell_props['y'], self.cell_props['x']) if not np.isnan(d).any()]
-        return np.array(coords)
+        return self.centroid[['z', 'y', 'x']].values
 
     @property
     def geneCount(self):
@@ -73,6 +72,7 @@ class Cells(object):
     def centroid(self, df):
         assert isinstance(df, pd.DataFrame), 'Input should be a dataframe'
         assert set(df.columns.values) == {'x', 'y', 'z'}, 'Dataframe columns should be ''x'', ''y'' and ''z'' '
+        df.index.name = 'cell_label'
         self._centroid = df.copy()
 
     @property
@@ -124,9 +124,9 @@ class Cells(object):
     # -------- METHODS -------- #
     def ini_centroids(self):
         d = {
-            'x': self.cell_props['x'],
-            'y': self.cell_props['y'],
-            'z': self.cell_props['z'],
+            'x': self.ini_cell_props['x0'],
+            'y': self.ini_cell_props['y0'],
+            'z': self.ini_cell_props['z0'],
         }
         df = pd.DataFrame(d)
         return df.copy()
@@ -137,7 +137,7 @@ class Cells(object):
         return np.tile(cov, (self.nC, 1, 1))
 
     def dapi_mean_cell_radius(self):
-        return np.nanmean(np.sqrt(self.cell_props['area'] / np.pi)) * 0.5
+        return np.nanmean(np.sqrt(self.ini_cell_props['area'] / np.pi)) * 0.5
 
     def nn(self):
         n = self.config['nNeighbors'] + 1
@@ -233,9 +233,9 @@ class Cells(object):
         # logger.info('Overriden CellAreaFactor = 1')
         out['rel_radius'] = relCellRadius
         out['area'] = np.append(np.nan, img_obj.area)
-        out['x'] = np.append(-sys.maxsize, img_obj.x.values)
-        out['y'] = np.append(-sys.maxsize, img_obj.y.values)
-        out['z'] = np.append(-sys.maxsize, img_obj.z.values)
+        out['x0'] = np.append(-sys.maxsize, img_obj.x0.values)
+        out['y0'] = np.append(-sys.maxsize, img_obj.y0.values)
+        out['z0'] = np.append(-sys.maxsize, img_obj.z0.values)
         out['cell_label'] = np.append(0, img_obj.label.values)
         if 'old_label' in img_obj.columns:
             out['cell_label_old'] = np.append(0, img_obj.old_label.values)
