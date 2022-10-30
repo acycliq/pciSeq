@@ -9,6 +9,7 @@ import pciSeq.src.cell_call.utils as utils
 from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 # from pciSeq.src.diagnostics.launch_diagnostics_dummy import launch_dashboard
 import pciSeq.src.diagnostics.config as diagnostics_cfg
+from multiprocessing.dummy import Pool as ThreadPool
 from pciSeq.src.cell_call.log_config import logger
 
 
@@ -57,15 +58,19 @@ class VarBayes(object):
             self.iter_num = i
 
             # 1. For each cell, calc the expected gene counts
+            logger.info('1. geneCount_upd')
             self.geneCount_upd()
 
             # 2. calc expected gamma
+            logger.info('2. gamma_upd')
             self.gamma_upd()
 
             if self.config['relax_segmentation'] or self.config['is_3D']:
+                logger.info('3. gaussian_upd')
                 self.gaussian_upd()
 
             # 3. assign cells to cell types
+            logger.info('4. cell_to_cellType')
             self.cell_to_cellType()
 
             # update cell type weights
@@ -73,13 +78,17 @@ class VarBayes(object):
             #     self.dalpha_upd()
 
             # 4. assign spots to cells
-            self.spots_to_cell()
+            logger.info('6. spots_to_cell')
+            # self.spots_to_cell()
+            self.spots_to_cell_par()
 
             # 5. update gene efficiency
+            logger.info('7. eta_upd')
             self.eta_upd()
 
             # 6. Update single cell data
             if self.single_cell.isMissing:
+                logger.info('8. mu_upd')
                 self.mu_upd()
 
             self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
@@ -88,7 +97,9 @@ class VarBayes(object):
             # replace p0 with the latest probabilities
             p0 = self.spots.parent_cell_prob
 
+            # logger.info('start db save')
             self.db_save()
+            # logger.info('end db save')
             if self.has_converged:
                 # self.db_save()
                 self.counts_within_radius(20)
@@ -253,6 +264,7 @@ class VarBayes(object):
         sc_mean = self.single_cell.log_mean_expression.loc[gn].values
         logeta_bar = self.genes.logeta_bar[self.spots.gene_id]
 
+        logger.info('start loop')
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
         my_D = np.zeros([nS, nN])
         for n in range(nN - 1):
@@ -268,7 +280,9 @@ class VarBayes(object):
             log_gamma_bar = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
 
             term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
+            # logger.info('start mvn_loglik')
             loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells)
+            # logger.info('end mvn_loglik')
             my_D[:, n] = loglik
 
             # if 2D, add the bonus for the spots inside the boundaries.
@@ -276,6 +290,47 @@ class VarBayes(object):
                 loglik = loglik + self.inside_bonus(sn)
 
             wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik
+
+        logger.info('end loop')
+        # update the prob a spot belongs to a neighboring cell
+        pSpotNeighb = utils.softmax(wSpotCell, axis=1)
+        self.spots.parent_cell_prob = pSpotNeighb
+        # Since the spot-to-cell assignments changed you need to update the gene counts now
+        self.geneCount_upd()
+        assert np.isfinite(wSpotCell).all(), "wSpotCell array contains non numeric values"
+        logger.info(' Spot to cell loglikelihood: %f' % wSpotCell.sum())
+        # self.spots.update_cell_prob(pSpotNeighb, self.cells)
+        # logger.info('spot ---> cell probabilities updated')
+
+    def spots_to_cell_par(self):
+        """
+        spot to cell assignment.
+        Implements equation (4) of the Qian paper
+        """
+        # nN = self.config['nNeighbors'] + 1
+        nN = self.nN
+        nS = self.spots.data.gene_name.shape[0]
+
+        misread_density_adj_factor = -1 * np.log(2 * np.pi * self.cells.mcr ** 2) / 2
+        misread_density_adj = np.exp(misread_density_adj_factor) * self.config['MisreadDensity']
+        # initialise array with the misread density
+        wSpotCell = np.zeros([nS, nN]) + np.log(misread_density_adj)
+        gn = self.spots.data.gene_name.values
+        sc_mean = self.single_cell.log_mean_expression.loc[gn].values
+        logeta_bar = self.genes.logeta_bar[self.spots.gene_id]
+
+        # logger.info('start multiprocessing')
+        # logger.info('start zip')
+        args_in = list(zip(np.arange(nN - 1), [logeta_bar] * len(np.arange(nN - 1)), [sc_mean] * len(np.arange(nN - 1))))
+        # logger.info('end zip')
+        pool = ThreadPool()
+        pout = pool.map(self.calc_loglik, args_in)
+        pool.close()
+        pool.join()
+        for i, d in enumerate(pout):
+            assert i == d[0]
+            wSpotCell[:, i] = d[1]
+        # logger.info('end multiprocessing')
 
         # update the prob a spot belongs to a neighboring cell
         pSpotNeighb = utils.softmax(wSpotCell, axis=1)
@@ -291,6 +346,32 @@ class VarBayes(object):
         mask = self.spots.data.label.values == cell_id
         bonus = self.config['InsideCellBonus']
         return np.where(mask, bonus, 0)
+
+    def calc_loglik(self, args):
+        n = args[0]
+        logeta_bar = args[1]
+        sc_mean = args[2]
+
+        # get the spots' nth-closest cell
+        sn = self.spots.parent_cell_id[:, n]
+
+        # get the respective cell type probabilities
+        cp = self.cells.classProb[sn]
+
+        # multiply and sum over cells
+        term_1 = np.einsum('ij, ij -> i', sc_mean, cp)
+
+        log_gamma_bar = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
+
+        term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
+        # logger.info('start mvn_loglik')
+        loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells)
+
+        # if 2D, add the bonus for the spots inside the boundaries.
+        if not self.config['is_3D']:
+            loglik = loglik + self.inside_bonus(sn)
+
+        return n, term_1 + term_2 + logeta_bar + loglik
 
     # -------------------------------------------------------------------- #
     def eta_upd(self):
@@ -482,11 +563,12 @@ class VarBayes(object):
 
     # -------------------------------------------------------------------- #
     def db_save(self):
-        try:
-            self._db_save()
-        except:
-            self.conn.close()
-            raise
+        if self.conn is not None:
+            try:
+                self._db_save()
+            except:
+                self.conn.close()
+                raise
 
     # -------------------------------------------------------------------- #
     def _db_save(self):
