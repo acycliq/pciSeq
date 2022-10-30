@@ -431,7 +431,7 @@ class Spots(object):
     def mvn_loglik(self, data, cell_label, cells):
         centroids = cells.centroid.values[cell_label]
         covs = cells.cov[cell_label]
-        param = list(zip(*[data, centroids, covs]))
+        # param = list(zip(*[data, centroids, covs]))
         # out = [self.loglik_contr(p) for i, p in enumerate(param)]
         # out_2 = [multivariate_normal.logpdf(p[0], p[1], p[2]) for i, p in enumerate(param)]
         out = self.multiple_logpdfs(data, centroids, covs)
