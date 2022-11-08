@@ -308,7 +308,8 @@ class Genes(object):
         df['has_converged'] = converged
         df['utc'] = datetime.datetime.utcnow()
         df = df.reset_index()
-        df.to_sql(name='gene_efficiency', con=con, if_exists=db_opts['if_table_exists'], index=False)
+        chunk_size = 999 // (len(df.columns) + 1)
+        df.to_sql(name='gene_efficiency', con=con, if_exists=db_opts['if_table_exists'], index=False, chunksize=1000, method='multi')
         con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_gene_iteration ON gene_efficiency("gene", "iteration");')
 
 
@@ -525,7 +526,8 @@ class Spots(object):
             df = df.set_index('gene_name')
             df['utc'] = datetime.datetime.utcnow()
             df = df.reset_index()
-            df.to_sql(name='spots', con=con, if_exists='fail', index=False)
+            chunk_size = 999 // (len(df.columns) + 1)
+            df.to_sql(name='spots', con=con, if_exists='fail', index=False, chunksize=1000, method='multi')
             con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_class_iteration ON spots("gene_name");')
         except ValueError:
             pass
@@ -702,7 +704,8 @@ class SingleCell(object):
         df['iteration'] = run
         df['has_converged'] = converged
         df = df.reset_index()
-        df.to_sql(name='mean_expression', con=con, if_exists=db_opts['if_table_exists'], index=False)
+        chunk_size = 999 // (len(df.columns) + 1)
+        df.to_sql(name='mean_expression', con=con, if_exists=db_opts['if_table_exists'], index=False, chunksize=1000, method='multi')
         con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_gene_iteration ON mean_expression("gene_name", "iteration");')
 
 
@@ -775,8 +778,9 @@ class CellType(object):
         df['iteration'] = run
         df['has_converged'] = converged
         df['utc'] = datetime.datetime.utcnow()
+        chunk_size = 999 // (len(df.columns) + 1)
         df = df.reset_index()
-        df.to_sql(name='cell_type_prior', con=con, if_exists=db_opts['if_table_exists'], index=False)
+        df.to_sql(name='cell_type_prior', con=con, if_exists=db_opts['if_table_exists'], index=False, chunksize=1000, method='multi')
         con.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_class_iteration ON cell_type_prior("class", "iteration");')
 
 

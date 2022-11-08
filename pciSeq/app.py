@@ -332,7 +332,7 @@ def run_me():
     opts_2D = {'save_data': True, 'nNeighbors': 3, 'MisreadDensity': 0.00001,'is_3D': False}
     opts_3D={'save_data': True,
              'launch_diagnostics': True,
-             'launch_viewer': True,
+             'launch_viewer': False,
              'Inefficiency': 0.2,
              'from_plane_num': 18,
              'to_plane_num': 43,

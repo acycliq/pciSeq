@@ -83,7 +83,7 @@ while True:
                 # create two columns for charts
                 fig_col1, fig_col2 = st.columns(2)
                 with fig_col1:
-                    st.markdown("### Gene efficiency at iteration %d" % i)
+                    st.markdown("### Gene efficiency after iteration %d" % i)
                     bar_chart_1 = alt.Chart(gene_efficiency).mark_bar().encode(
                         y=alt.Y('gene:N', title='Gene'),
                         x='gene_efficiency:Q',
@@ -98,7 +98,7 @@ while True:
                     # st.write(fig1)
 
                 with fig_col2:
-                    st.markdown("### Posterior cell class weight at iteration %d" % i)
+                    st.markdown("### Posterior cell class weight after iteration %d" % i)
                     bar_chart_2 = alt.Chart(cell_type_posterior).mark_bar().encode(
                         y=alt.Y('class_name:N', title='Cell Type'),
                         x='prob:Q',

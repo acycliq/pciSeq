@@ -59,6 +59,7 @@ class VarBayes(object):
 
             # 1. For each cell, calc the expected gene counts
             logger.info('1. geneCount_upd')
+
             self.geneCount_upd()
 
             # 2. calc expected gamma
@@ -97,9 +98,9 @@ class VarBayes(object):
             # replace p0 with the latest probabilities
             p0 = self.spots.parent_cell_prob
 
-            # logger.info('start db save')
+            logger.info('start db save')
             self.db_save()
-            # logger.info('end db save')
+            logger.info('end db save')
             if self.has_converged:
                 # self.db_save()
                 self.counts_within_radius(20)
@@ -573,13 +574,20 @@ class VarBayes(object):
     # -------------------------------------------------------------------- #
     def _db_save(self):
         db_opts = {'if_table_exists': 'replace'}  # choose between 'fail', 'replace', 'append'. Appending might make sense only if you want to see how estimates change from one loop to the next
+        logger.info("starting db_save_geneCounts")
         self.db_save_geneCounts(self.iter_num, self.has_converged, db_opts)
         # self.db_save_cellByclass_prob(self.iter_num, self.has_converged, db_opts)
+        logger.info("starting db_save_class_prob")
         self.db_save_class_prob(self.iter_num, self.has_converged, db_opts)
+        logger.info("starting db_save_cell_type_posterior")
         self.db_save_cell_type_posterior(self.iter_num, self.has_converged, db_opts)
-        self.db_save_parent_cell_prob(self.iter_num, self.has_converged, db_opts)
-        self.db_save_parent_cell_id(self.iter_num, self.has_converged, db_opts)
+        # logger.info("starting db_save_parent_cell_prob")
+        # self.db_save_parent_cell_prob(self.iter_num, self.has_converged, db_opts)
+        # logger.info("starting db_save_parent_cell_id")
+        # self.db_save_parent_cell_id(self.iter_num, self.has_converged, db_opts)
+        logger.info("starting .genes.db_save")
         self.genes.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
+        logger.info("starting cellTypes.db_save")
         self.cellTypes.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
         # self.spots.db_save(self.conn)
         # self.single_cell.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
@@ -593,7 +601,8 @@ class VarBayes(object):
         df['iteration'] = iter
         df['has_converged'] = has_converged
         df['utc'] = datetime.datetime.utcnow()
-        df.to_sql(name='geneCount', con=self.conn, if_exists=db_opts['if_table_exists'])
+        chunk_size = 999 // (len(df.columns) + 1)
+        df.to_sql(name='geneCount', con=self.conn, if_exists=db_opts['if_table_exists'], chunksize=1000, method='multi')
         self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON geneCount("cell_label", "iteration");')
 
     # -------------------------------------------------------------------- #
@@ -605,7 +614,8 @@ class VarBayes(object):
         df['iteration'] = iter
         df['has_converged'] = has_converged
         df['utc'] = datetime.datetime.utcnow()
-        df.to_sql(name='class_prob', con=self.conn, if_exists=db_opts['if_table_exists'])
+        chunk_size = 999 // (len(df.columns) + 1)
+        df.to_sql(name='class_prob', con=self.conn, if_exists=db_opts['if_table_exists'], chunksize=1000, method='multi')
         self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON class_prob("cell_label", "iteration");')
 
     # -------------------------------------------------------------------- #
@@ -621,7 +631,8 @@ class VarBayes(object):
         df['iteration'] = iter
         df['has_converged'] = has_converged
         df['utc'] = datetime.datetime.utcnow()
-        df.to_sql(name='cell_type_posterior', con=self.conn, if_exists=db_opts['if_table_exists'])
+        chunk_size = 999 // (len(df.columns) + 1)
+        df.to_sql(name='cell_type_posterior', con=self.conn, if_exists=db_opts['if_table_exists'], chunksize=1000, method='multi')
         self.conn.execute(
             'CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON cell_type_posterior("class_name", "iteration");')
 
@@ -633,7 +644,8 @@ class VarBayes(object):
         df['iteration'] = iter_num
         df['has_converged'] = has_converged
         df['utc'] = datetime.datetime.utcnow()
-        df.to_sql(name='parent_cell_prob', con=self.conn, if_exists=db_opts['if_table_exists'])
+        chunk_size = 999 // (len(df.columns) + 1)
+        df.to_sql(name='parent_cell_prob', con=self.conn, if_exists=db_opts['if_table_exists'], chunksize=1000, method='multi')
         self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_cell_ID_iteration ON parent_cell_prob("spot_id", "iteration");')
 
     # -------------------------------------------------------------------- #
@@ -644,7 +656,8 @@ class VarBayes(object):
         df['iteration'] = iter_num
         df['has_converged'] = has_converged
         df['utc'] = datetime.datetime.utcnow()
-        df.to_sql(name='parent_cell_id', con=self.conn, if_exists=db_opts['if_table_exists'])
+        chunk_size = 999 // (len(df.columns) + 1)
+        df.to_sql(name='parent_cell_id', con=self.conn, if_exists=db_opts['if_table_exists'], chunksize=1000, method='multi')
         self.conn.execute(
             'CREATE UNIQUE INDEX IF NOT EXISTS ix_cell_ID_iteration ON parent_cell_id("spot_id", "iteration");')
 
