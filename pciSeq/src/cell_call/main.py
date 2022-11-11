@@ -2,10 +2,12 @@ import numpy as np
 import pandas as pd
 import numpy_groupies as npg
 import datetime
+import time
 import scipy.spatial as spatial
 from pciSeq.src.cell_call.datatypes import Cells, Spots, Genes, SingleCell, CellType
 from pciSeq.src.cell_call.summary import collect_data
 import pciSeq.src.cell_call.utils as utils
+from pciSeq.src.diagnostics.utils import redis_db
 from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 # from pciSeq.src.diagnostics.launch_diagnostics_dummy import launch_dashboard
 import pciSeq.src.diagnostics.config as diagnostics_cfg
@@ -16,8 +18,11 @@ from pciSeq.src.cell_call.log_config import logger
 class VarBayes(object):
     def __init__(self, _cells_df, _spots_df, scRNAseq, config):
         self.config = config
-        self.conn = utils.db_connect(diagnostics_cfg.SETTINGS['DB_URL'])
-        logger.info('Connection made to %s' % diagnostics_cfg.SETTINGS['DB_URL'])
+        self.redis_db = redis_db()
+        self.redis_db.attach_client()
+        self.redis_db.flushdb()
+        # self.redis_db = connect_redis()
+        # logger.info('Connection made to %s' % diagnostics_cfg.SETTINGS['DB_URL'])
         self.cells = Cells(_cells_df, config)
         self.spots = Spots(_spots_df, config)
         self.genes = Genes(self.spots)
@@ -99,7 +104,8 @@ class VarBayes(object):
             p0 = self.spots.parent_cell_prob
 
             logger.info('start db save')
-            self.db_save()
+            # self.db_save()
+            self.redis_save()
             logger.info('end db save')
             if self.has_converged:
                 # self.db_save()
@@ -563,6 +569,45 @@ class VarBayes(object):
         self.cellTypes.alpha = out
 
     # -------------------------------------------------------------------- #
+    def redis_save(self):
+        logger.info("redis start")
+        # cell_prob_df = pd.DataFrame(data=self.spots.parent_cell_prob).set_index('spot_id')
+        # self.redis_db.to_redis(cell_prob_df, "parent_cell_prob", iteration=self.iter_num,
+        #                        has_converged=self.has_converged, unix_time=time.time())
+        # self.redis_db.to_redis(self.spots.parent_cell_id, "parent_cell_id", iter_num=self.iter_num,
+        #                        has_converged=self.has_converged, unix_time=time.time())
+        # self.redis_db.to_redis(self.cells.geneCount, "geneCounts", iter_num=self.iter_num,
+        #                        has_converged=self.has_converged, unix_time=time.time())
+        # self.redis_db.to_redis(self.cells.classProb, "class_prob", iter_num=self.iter_num,
+        #                        has_converged=self.has_converged, unix_time=time.time())
+
+        eta_bar_df = pd.DataFrame({
+            'gene_efficiency': self.genes.eta_bar,
+            'gene': self.genes.gene_panel
+        })
+        self.redis_db.to_redis(eta_bar_df, "gene_efficiency", iteration=self.iter_num,
+                               has_converged=self.has_converged, unix_time=time.time())
+
+        pi_bar_df = pd.DataFrame({
+            'weight': self.cellTypes.pi_bar,
+            'class': self.cellTypes.names
+        })
+        self.redis_db.to_redis(pi_bar_df, "cell_type_prior", iter_num=self.iter_num,
+                               has_converged=self.has_converged, unix_time=time.time())
+
+        idx=[]
+        for i, row in enumerate(self.cells.classProb):
+            idx.append(np.argmax(row))
+        prob = np.bincount(idx) / np.bincount(idx).sum()
+        df = pd.DataFrame({
+            'class_name': self.cellTypes.names,
+            'prob': prob
+        })
+        self.redis_db.to_redis(df, "cell_type_posterior", iter_num=self.iter_num, has_converged=self.has_converged, unix_time=time.time())
+
+        logger.info("redis end")
+        # print(pd.DataFrame(from_redis(self.redis_db, "gene_efficiency")))
+
     def db_save(self):
         if self.conn is not None:
             try:
@@ -593,30 +638,30 @@ class VarBayes(object):
         # self.single_cell.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
 
     # -------------------------------------------------------------------- #
-    def db_save_geneCounts(self, iter, has_converged, db_opts):
-        df = pd.DataFrame(data=self.cells.geneCount,
-                          index=np.arange(self.nC),
-                          columns=self.genes.gene_panel)
-        df.index.name = 'cell_label'
-        df['iteration'] = iter
-        df['has_converged'] = has_converged
-        df['utc'] = datetime.datetime.utcnow()
-        chunk_size = 999 // (len(df.columns) + 1)
-        df.to_sql(name='geneCount', con=self.conn, if_exists=db_opts['if_table_exists'], chunksize=1000, method='multi')
-        self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON geneCount("cell_label", "iteration");')
-
-    # -------------------------------------------------------------------- #
-    def db_save_class_prob(self, iter, has_converged, db_opts):
-        df = pd.DataFrame(data=self.cells.classProb,
-                          index=np.arange(self.nC),
-                          columns=self.cellTypes.names)
-        df.index.name = 'cell_label'
-        df['iteration'] = iter
-        df['has_converged'] = has_converged
-        df['utc'] = datetime.datetime.utcnow()
-        chunk_size = 999 // (len(df.columns) + 1)
-        df.to_sql(name='class_prob', con=self.conn, if_exists=db_opts['if_table_exists'], chunksize=1000, method='multi')
-        self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON class_prob("cell_label", "iteration");')
+    # def db_save_geneCounts(self, iter, has_converged, db_opts):
+    #     df = pd.DataFrame(data=self.cells.geneCount,
+    #                       index=np.arange(self.nC),
+    #                       columns=self.genes.gene_panel)
+    #     df.index.name = 'cell_label'
+    #     df['iteration'] = iter
+    #     df['has_converged'] = has_converged
+    #     df['utc'] = datetime.datetime.utcnow()
+    #     chunk_size = 999 // (len(df.columns) + 1)
+    #     df.to_sql(name='geneCount', con=self.conn, if_exists=db_opts['if_table_exists'], chunksize=1000, method='multi')
+    #     self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON geneCount("cell_label", "iteration");')
+    #
+    # # -------------------------------------------------------------------- #
+    # def db_save_class_prob(self, iter, has_converged, db_opts):
+    #     df = pd.DataFrame(data=self.cells.classProb,
+    #                       index=np.arange(self.nC),
+    #                       columns=self.cellTypes.names)
+    #     df.index.name = 'cell_label'
+    #     df['iteration'] = iter
+    #     df['has_converged'] = has_converged
+    #     df['utc'] = datetime.datetime.utcnow()
+    #     chunk_size = 999 // (len(df.columns) + 1)
+    #     df.to_sql(name='class_prob', con=self.conn, if_exists=db_opts['if_table_exists'], chunksize=1000, method='multi')
+    #     self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON class_prob("cell_label", "iteration");')
 
     # -------------------------------------------------------------------- #
     def db_save_cell_type_posterior(self, iter, has_converged, db_opts):
@@ -628,38 +673,32 @@ class VarBayes(object):
             'class_name': self.cellTypes.names,
             'prob': prob
         }).set_index('class_name')
-        df['iteration'] = iter
-        df['has_converged'] = has_converged
-        df['utc'] = datetime.datetime.utcnow()
-        chunk_size = 999 // (len(df.columns) + 1)
-        df.to_sql(name='cell_type_posterior', con=self.conn, if_exists=db_opts['if_table_exists'], chunksize=1000, method='multi')
-        self.conn.execute(
-            'CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON cell_type_posterior("class_name", "iteration");')
+        self.redis_db.to_redis(df, "cell_type_posterior", iteration=iter, has_converged=has_converged, unix_time=time.time())
 
     # -------------------------------------------------------------------- #
-    def db_save_parent_cell_prob(self, iter_num, has_converged, db_opts):
-        df = pd.DataFrame(data=self.spots.parent_cell_prob,
-                          index=np.arange(self.nS))
-        df.index.name = 'spot_id'
-        df['iteration'] = iter_num
-        df['has_converged'] = has_converged
-        df['utc'] = datetime.datetime.utcnow()
-        chunk_size = 999 // (len(df.columns) + 1)
-        df.to_sql(name='parent_cell_prob', con=self.conn, if_exists=db_opts['if_table_exists'], chunksize=1000, method='multi')
-        self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_cell_ID_iteration ON parent_cell_prob("spot_id", "iteration");')
-
-    # -------------------------------------------------------------------- #
-    def db_save_parent_cell_id(self, iter_num, has_converged, db_opts):
-        df = pd.DataFrame(data=self.spots.parent_cell_id,
-                          index=np.arange(self.nS))
-        df.index.name = 'spot_id'
-        df['iteration'] = iter_num
-        df['has_converged'] = has_converged
-        df['utc'] = datetime.datetime.utcnow()
-        chunk_size = 999 // (len(df.columns) + 1)
-        df.to_sql(name='parent_cell_id', con=self.conn, if_exists=db_opts['if_table_exists'], chunksize=1000, method='multi')
-        self.conn.execute(
-            'CREATE UNIQUE INDEX IF NOT EXISTS ix_cell_ID_iteration ON parent_cell_id("spot_id", "iteration");')
+    # def db_save_parent_cell_prob(self, iter_num, has_converged, db_opts):
+    #     df = pd.DataFrame(data=self.spots.parent_cell_prob,
+    #                       index=np.arange(self.nS))
+    #     df.index.name = 'spot_id'
+    #     df['iteration'] = iter_num
+    #     df['has_converged'] = has_converged
+    #     df['utc'] = datetime.datetime.utcnow()
+    #     chunk_size = 999 // (len(df.columns) + 1)
+    #     df.to_sql(name='parent_cell_prob', con=self.conn, if_exists=db_opts['if_table_exists'], chunksize=1000, method='multi')
+    #     self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_cell_ID_iteration ON parent_cell_prob("spot_id", "iteration");')
+    #
+    # # -------------------------------------------------------------------- #
+    # def db_save_parent_cell_id(self, iter_num, has_converged, db_opts):
+    #     df = pd.DataFrame(data=self.spots.parent_cell_id,
+    #                       index=np.arange(self.nS))
+    #     df.index.name = 'spot_id'
+    #     df['iteration'] = iter_num
+    #     df['has_converged'] = has_converged
+    #     df['utc'] = datetime.datetime.utcnow()
+    #     chunk_size = 999 // (len(df.columns) + 1)
+    #     df.to_sql(name='parent_cell_id', con=self.conn, if_exists=db_opts['if_table_exists'], chunksize=1000, method='multi')
+    #     self.conn.execute(
+    #         'CREATE UNIQUE INDEX IF NOT EXISTS ix_cell_ID_iteration ON parent_cell_id("spot_id", "iteration");')
 
     def counts_within_radius(self, r):
         """

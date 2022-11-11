@@ -3,8 +3,9 @@ import numpy as np
 import pandas as pd
 import time
 from pciSeq.src.cell_call.log_config import logger
-from pciSeq.src.cell_call.utils import db_connect, get_db_tables
+# from pciSeq.src.cell_call.utils import db_connect, get_db_tables
 import pciSeq.src.diagnostics.config as diagnostics_cfg
+from pciSeq.src.diagnostics.utils import redis_db
 import altair as alt
 import sys
 import os
@@ -13,7 +14,7 @@ import os
 # DB_FILE = pathlib.Path(__file__).resolve().parent.parent.parent.joinpath("pciSeq.db").resolve()
 # DB_FILE = r"D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq\pciSeq\pciSeq.db"
 # DB_FILE = "file:memdb1?mode=memory&cache=shared"
-DB_FILE = diagnostics_cfg.SETTINGS['DB_URL']
+# DB_FILE = diagnostics_cfg.SETTINGS['DB_URL']
 
 conn = None
 checked_tables = False
@@ -24,11 +25,11 @@ st.set_page_config(
     layout="wide",
 )
 
-def sql_query(table_name):
-    sql_str = "select * from %s where iteration = (" \
-          "select max(iteration) from %s" \
-          ")" % (table_name, table_name)
-    return sql_str
+# def sql_query(table_name):
+#     sql_str = "select * from %s where iteration = (" \
+#           "select max(iteration) from %s" \
+#           ")" % (table_name, table_name)
+#     return sql_str
 
 
 # dashboard title
@@ -42,32 +43,38 @@ step = 1
 previous_iteration = -1
 
 
-def query_tables(tables, con):
-    db_tables = get_db_tables(con)
-    if set(tables) != set(db_tables):
-        sys.exit(1)
+# def query_tables(tables, con):
+#     db_tables = get_db_tables(con)
+#     if set(tables) != set(db_tables):
+#         sys.exit(1)
 
 
+redis = redis_db()
+redis.attach_client()
 while True:
     try:
-        if conn is None:
-            assert os.path.isfile(DB_FILE)
-            conn = db_connect(DB_FILE, remove_if_exists=False)
-            logger.info('Connection to %s established' % DB_FILE)
-        if not checked_tables:
-            set_tables = {"gene_efficiency", "cell_type_prior", "cell_type_posterior"}
-            set_db = set(get_db_tables(conn))
-            assert set_tables.issubset(set_db)
-            checked_tables = True
+        # print(redis.from_redis('foo'))
+        # print(pd.DataFrame(redis.from_redis("gene_efficiency")))
+        # if conn is None:
+        #     assert os.path.isfile(DB_FILE)
+        #     conn = db_connect(DB_FILE, remove_if_exists=False)
+        #     logger.info('Connection to %s established' % DB_FILE)
+        # if not checked_tables:
+        #     set_tables = {"gene_efficiency", "cell_type_prior", "cell_type_posterior"}
+        #     set_db = set(get_db_tables(conn))
+        #     assert set_tables.issubset(set_db)
+        #     checked_tables = True
 
-        sql_str = sql_query("gene_efficiency")
-        gene_efficiency = pd.read_sql(sql_str, conn)
+        # sql_str = sql_query("gene_efficiency")
+        gene_efficiency = redis.from_redis("gene_efficiency")
 
-        sql_str = sql_query("cell_type_prior")
-        cell_type_prior = pd.read_sql(sql_str, conn)
+        # sql_str = sql_query("cell_type_prior")
+        # cell_type_prior = pd.read_sql(sql_str, conn)
+        cell_type_prior = redis.from_redis("cell_type_prior")
 
-        sql_str = sql_query("cell_type_posterior")
-        cell_type_posterior = pd.read_sql(sql_str, conn)
+        # sql_str = sql_query("cell_type_posterior")
+        # cell_type_posterior = pd.read_sql(sql_str, conn)
+        cell_type_posterior = redis.from_redis("cell_type_posterior")
 
         # print(data)
         iter = gene_efficiency.iteration

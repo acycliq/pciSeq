@@ -114,8 +114,7 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
         dst = copy_viewer_code(cfg)
         make_config_js(dst, w, h, cfg)
         flask_app_start(dst)
-    if varBayes.conn:
-        varBayes.conn.close()
+
     logger.info(' Done')
     return cellData, geneData
 
@@ -168,14 +167,13 @@ def write_data(cellData, geneData, cellBoundaries, removed_cells, varBayes, cfg)
     export_data(cellData, geneData, cellBoundaries, viewer_data_dir)
 
     debug_data_dir = get_out_dir(cfg['output_path'], 'debug')
-    export_db_tables(debug_data_dir, varBayes.conn)
+    export_db_tables(debug_data_dir, varBayes.redis_db)
     export_removed_cells(removed_cells, debug_data_dir)
 
     with open(os.path.join(debug_data_dir, 'pciSeq.pickle'), 'wb') as outf:
         # if there is a db connection, close and None-it before pickling
-        if varBayes.conn:
-            varBayes.conn.close()
-            varBayes.conn = None
+        if varBayes.redis_db:
+            varBayes.redis_db = None
         pickle.dump(varBayes, outf)
         logger.info(' Saved at %s' % os.path.join(debug_data_dir, 'pciSeq.pickle'))
 
@@ -218,16 +216,12 @@ def export_data(cellData, geneData, cellBoundaries, out_dir):
 
 
 def export_db_tables(out_dir, con):
-    tables = get_db_tables(con)
+    tables = con.get_db_tables()
     for table in tables:
         export_db_table(table, out_dir, con)
 
 def export_db_table(table_name, out_dir, con):
-    if table_name == 'spots':
-        query_str = "SELECT * FROM %s " % table_name
-    else:
-        query_str = "SELECT * FROM %s where has_converged = 1 " % table_name
-    df = pd.read_sql_query(query_str, con)
+    df = con.from_redis(table_name)
     fname = os.path.join(out_dir, table_name + '.csv')
     df.to_csv(fname, index=False)
     logger.info(' Saved at %s' % fname)
