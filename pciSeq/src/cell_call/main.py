@@ -18,11 +18,7 @@ from pciSeq.src.cell_call.log_config import logger
 class VarBayes(object):
     def __init__(self, _cells_df, _spots_df, scRNAseq, config):
         self.config = config
-        self.redis_db = redis_db()
-        self.redis_db.attach_client()
-        self.redis_db.flushdb()
-        # self.redis_db = connect_redis()
-        # logger.info('Connection made to %s' % diagnostics_cfg.SETTINGS['DB_URL'])
+        self.redis_db = redis_db(flush=True)
         self.cells = Cells(_cells_df, config)
         self.spots = Spots(_spots_df, config)
         self.genes = Genes(self.spots)
@@ -33,10 +29,9 @@ class VarBayes(object):
         self.nG = self.genes.nG  # number of genes
         self.nK = self.cellTypes.nK  # number of classes
         self.nS = self.spots.nS  # number of spots
-        self.nN = self.config['nNeighbors'] + 1  # number of the closest nearby cells, candidates for being parent
-        # cell of any given spot. The last cell will be used for the
-        # misread spots. (ie cell at position nN is the background)
-
+        self.nN = self.config['nNeighbors'] + 1     # number of the closest nearby cells, candidates for being parent
+                                                    # cell of any given spot. The last cell will be used for the
+                                                    # misread spots. (ie cell at position nN is the background)
         self.iter_num = None
         self.has_converged = False
 
@@ -45,8 +40,8 @@ class VarBayes(object):
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
         self.genes.init_eta(1, 1 / self.config['Inefficiency'])
         self.spots.parent_cell_id, _ = self.spots.cells_nearby(self.cells)
-        self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id,
-                                                              self.config)  # assign a spot to a cell if it is within its cell boundaries
+        self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id,  # assign a spot to a cell if
+                                                              self.config)                # it is within its boundaries
         self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
         if self.config['launch_diagnostics']:
             logger.info('Launching the diagnostics dashboard')

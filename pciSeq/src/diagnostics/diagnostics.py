@@ -25,16 +25,8 @@ st.set_page_config(
     layout="wide",
 )
 
-# def sql_query(table_name):
-#     sql_str = "select * from %s where iteration = (" \
-#           "select max(iteration) from %s" \
-#           ")" % (table_name, table_name)
-#     return sql_str
-
-
 # dashboard title
 title = st.title("Convergence monitor.")
-
 
 # creating a single-element container
 placeholder = st.empty()
@@ -43,40 +35,14 @@ step = 1
 previous_iteration = -1
 
 
-# def query_tables(tables, con):
-#     db_tables = get_db_tables(con)
-#     if set(tables) != set(db_tables):
-#         sys.exit(1)
 
-
-redis = redis_db()
-redis.attach_client()
+redis = redis_db(flush=False)
 while True:
     try:
-        # print(redis.from_redis('foo'))
-        # print(pd.DataFrame(redis.from_redis("gene_efficiency")))
-        # if conn is None:
-        #     assert os.path.isfile(DB_FILE)
-        #     conn = db_connect(DB_FILE, remove_if_exists=False)
-        #     logger.info('Connection to %s established' % DB_FILE)
-        # if not checked_tables:
-        #     set_tables = {"gene_efficiency", "cell_type_prior", "cell_type_posterior"}
-        #     set_db = set(get_db_tables(conn))
-        #     assert set_tables.issubset(set_db)
-        #     checked_tables = True
-
-        # sql_str = sql_query("gene_efficiency")
         gene_efficiency = redis.from_redis("gene_efficiency")
-
-        # sql_str = sql_query("cell_type_prior")
-        # cell_type_prior = pd.read_sql(sql_str, conn)
         cell_type_prior = redis.from_redis("cell_type_prior")
-
-        # sql_str = sql_query("cell_type_posterior")
-        # cell_type_posterior = pd.read_sql(sql_str, conn)
         cell_type_posterior = redis.from_redis("cell_type_posterior")
 
-        # print(data)
         iter = gene_efficiency.iteration
         assert len(np.unique(iter)) == 1
         i = gene_efficiency.iteration.max()
