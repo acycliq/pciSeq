@@ -1,20 +1,10 @@
 import streamlit as st  # 🎈 data web app development
 import numpy as np
-import pandas as pd
 import time
 from pciSeq.src.cell_call.log_config import logger
-# from pciSeq.src.cell_call.utils import db_connect, get_db_tables
-import pciSeq.src.diagnostics.config as diagnostics_cfg
 from pciSeq.src.diagnostics.utils import redis_db
 import altair as alt
-import sys
-import os
 
-
-# DB_FILE = pathlib.Path(__file__).resolve().parent.parent.parent.joinpath("pciSeq.db").resolve()
-# DB_FILE = r"D:\Home\Dimitris\OneDrive - University College London\dev\Python\pciSeq\pciSeq\pciSeq.db"
-# DB_FILE = "file:memdb1?mode=memory&cache=shared"
-# DB_FILE = diagnostics_cfg.SETTINGS['DB_URL']
 
 conn = None
 checked_tables = False
