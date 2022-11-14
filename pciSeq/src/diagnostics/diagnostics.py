@@ -67,8 +67,6 @@ while True:
                         ]
                     ).properties(height=1200)
                     fig1 = st.altair_chart(bar_chart_1, use_container_width=True)
-                    # fig2 = px.histogram(data_frame=df, x="age_new")
-                    # st.write(fig1)
 
                 with fig_col2:
                     st.markdown("### Posterior cell class weight after iteration %d" % i)
