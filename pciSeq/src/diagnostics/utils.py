@@ -1,7 +1,6 @@
 import os
 import redis
 import pickle
-from ctypes import windll
 from pciSeq.src.cell_call.log_config import logger
 import pciSeq.src.diagnostics.config as config
 import subprocess
