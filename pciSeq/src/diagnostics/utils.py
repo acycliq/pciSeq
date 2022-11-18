@@ -49,37 +49,6 @@ class redis_db():
             else:
                 raise Exception("Cannot validate redis")
 
-    # def is_connected(self):
-    #     try:
-    #         return self.redis_client.ping()
-    #     except (redis.exceptions.ConnectionError, ConnectionRefusedError):
-    #         if check_platform() == "windows" and confirm_prompt("Do you want to instal Memurai?"):
-    #             logger.info("Redis ping failed!. Trying to install redis server")
-    #             os.path.join(os.path.dirname(os.path.realpath(__file__)), )
-    #             msi = os.path.join(sysconfig.get_path('purelib'), 'pciSeq', 'static', 'memurai',
-    #                                'Memurai-Developer-v3.1.4.msi')
-    #             if not os.path.isfile(msi):
-    #                 msi = os.path.join(os.getcwd(), 'static', 'memurai', 'Memurai-Developer-v3.1.4.msi')
-    #             logger.info("Calling %s" % msi)
-    #             exit_code = sp.call(msi, shell=True)  # returns the exit code in unix. if 0 then success
-    #             if exit_code > 0:
-    #                 raise Exception("Installation failed with exit code: %d" % exit_code)
-    #             return exit_code == 0
-    #         elif check_platform() in ["linux", "osx"] and confirm_prompt(
-    #                 "Do you want to instal redis-server and redis-tools?"):
-    #             sudo_password = getpass.getpass(prompt='sudo password: ')
-    #             subprocess_cmd(['sudo', '-S', 'apt-get', 'install', '-y', 'redis-server', 'redis-tools'], sudo_password)
-    #             subprocess_cmd(['sudo', 'service', 'redis-server', 'start'], sudo_password)
-    #             logger.info("Pinging redis: ...")
-    #             out, err = subprocess_cmd(['redis-cli', 'ping'], sudo_password)
-    #             if out.decode('UTF-8').rstrip() == 'PONG':
-    #                 logger.info("%s" % out.decode('UTF-8'))
-    #             else:
-    #                 raise Exception("%s" % out)
-    #             return True
-    #     except Exception as e:
-    #         raise Exception
-
 
 def is_running(os):
     out = None
