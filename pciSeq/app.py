@@ -5,6 +5,7 @@ import json
 import sysconfig
 import shutil
 import pickle
+import redis
 from typing import Tuple
 from scipy.sparse import coo_matrix, load_npz
 from pciSeq.src.viewer.run_flask import flask_app_start
@@ -14,6 +15,7 @@ from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq import config
 from pciSeq.src.cell_call.utils import get_out_dir
 from pciSeq.src.preprocess.utils import get_img_shape
+from pciSeq.src.diagnostics.utils import redis_db
 from pciSeq.src.cell_call.log_config import attach_to_log, logger
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -285,7 +287,29 @@ def validate(spots, coo, sc, cfg):
         if cfg['to_plane_num'] is None:
             cfg['to_plane_num'] = len(coo) - 1
 
+    check_redis_server()
+
     return spots, coo, cfg
+
+
+def confirm_prompt(question):
+    reply = None
+    while reply not in ("", "y", "n"):
+        reply = input(f"{question} (y/n): ").lower()
+    return (reply in ("", "y"))
+
+
+def check_redis_server():
+    logger.info("check_redis_server")
+    try:
+        status = redis_db()
+    except (redis.exceptions.ConnectionError, ConnectionRefusedError):
+        logger.info("Redis ping failed!. Trying to install redis server")
+        status = False
+
+    if status is False and confirm_prompt("Do you want to install redis server?"):
+        logger.info("...installing...")
+
 
 
 def copy_viewer_code(cfg):

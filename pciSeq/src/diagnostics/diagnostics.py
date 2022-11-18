@@ -23,11 +23,9 @@ placeholder = st.empty()
 
 step = 1
 previous_iteration = -1
-
-
-
 redis = redis_db(flush=False)
-while True:
+
+while redis.is_connected:
     try:
         gene_efficiency = redis.from_redis("gene_efficiency")
         cell_type_prior = redis.from_redis("cell_type_prior")
