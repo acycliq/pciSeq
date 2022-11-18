@@ -6,7 +6,7 @@ install_deps = ['numpy', 'pandas', 'sklearn',
                 'numpy_groupies', 'xarray', 'numexpr',
                 'diplib', 'scikit-image', 'opencv-python',
                 'tqdm', 'pyvips', 'flask', 'streamlit==1.11.1',
-                'dask']
+                'dask', 'redis']
 
 version = None
 with open(os.path.join('pciSeq', 'src', '_version.py'), 'r') as fid:
