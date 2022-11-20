@@ -22,6 +22,8 @@ class redis_db():
         self.pool = config.SETTINGS['POOL']
         self.redis_client = redis.Redis(connection_pool=self.pool)
         self.is_connected = self._is_connected()
+        if self.is_connected:
+            enable_keyspace_events()
 
     def to_redis(self, df_in, key, **kwargs):
         df = df_in.copy()
@@ -54,12 +56,8 @@ def is_running(os):
     out = None
     err = None
     exit_code = None
-    if os == "windows":
-        out, err, exit_code = subprocess_cmd(['memurai-cli.exe', 'ping'])
-    elif os in ['linux', 'osx']:
-        out, err, exit_code = subprocess_cmd(['redis-cli', 'ping'])
-    else:
-        raise Exception('not implemented')
+    exe = "memurai-cli.exe" if check_platform() == "windows" else "redis-cli"
+    out, err, exit_code = subprocess_cmd([exe, '--version'])
     if not err.decode('UTF-8') == '':
         logger.info(err.decode('UTF-8'))
         if confirm_prompt("Server is not running, do you want to start it?"):
@@ -103,12 +101,9 @@ def is_redis_installed(os):
     out = None
     err = None
     exit_code = None
-    if os == "windows":
-        out, err, exit_code = subprocess_cmd(['memurai.exe', '--version'])
-    elif os in ['linux', 'osx']:
-        out, err, exit_code = subprocess_cmd(['redis-server', '--version'])
-    else:
-        raise Exception('not implemented')
+
+    exe = "memurai.exe" if check_platform() == "windows" else "redis-server"
+    out, err, exit_code = subprocess_cmd([exe, '--version'])
     if not err.decode('UTF-8') == '':
         logger.info(err.decode('UTF-8').rstrip())
         if confirm_prompt("Server is not installed, do you want to install it?"):
@@ -175,6 +170,16 @@ def check_platform():
         return "windows"
     else:
         raise Exception("Cannot determine OS")
+
+
+def enable_keyspace_events():
+    exe = "memurai-cli.exe" if check_platform() == "windows" else "redis-cli"
+    out, err, exit_code = subprocess_cmd([exe, 'config', 'set', 'notify-keyspace-events', 'KEA'])
+    if exit_code > 0:
+        logger.info(out.decode('UTF-8').rstrip())
+        logger.info(err.decode('UTF-8').rstrip())
+        raise Exception('notify-keyspace-events failed with exit code: %d' % exit_code)
+    logger.info(" enabling keyspace events... %s" % out.decode('UTF-8').rstrip())
 
 
 def validate():
