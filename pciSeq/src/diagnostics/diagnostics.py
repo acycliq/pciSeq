@@ -1,5 +1,5 @@
 import pandas as pd
-import streamlit as st  # 🎈 data web app development
+import streamlit as st
 from pciSeq.src.cell_call.log_config import logger
 from pciSeq.src.diagnostics.utils import redis_db
 import altair as alt
