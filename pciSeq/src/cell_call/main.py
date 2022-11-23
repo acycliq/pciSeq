@@ -43,9 +43,6 @@ class VarBayes(object):
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id,  # assign a spot to a cell if
                                                               self.config)                # it is within its boundaries
         self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
-        if self.config['launch_diagnostics']:
-            logger.info('Launching the diagnostics dashboard')
-            launch_dashboard()
 
     def run(self):
         p0 = None
@@ -98,12 +95,10 @@ class VarBayes(object):
             # replace p0 with the latest probabilities
             p0 = self.spots.parent_cell_prob
 
-            logger.info('start db save')
-            # self.db_save()
-            self.redis_save()
-            logger.info('end db save')
+            logger.info('start db publish')
+            self.redis_publish()
+            logger.info('end db publish')
             if self.has_converged:
-                # self.db_save()
                 self.counts_within_radius(20)
                 iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config)
                 break
@@ -564,23 +559,15 @@ class VarBayes(object):
         self.cellTypes.alpha = out
 
     # -------------------------------------------------------------------- #
-    def redis_save(self):
+    def redis_publish(self):
         logger.info("redis start")
-        # cell_prob_df = pd.DataFrame(data=self.spots.parent_cell_prob).set_index('spot_id')
-        # self.redis_db.to_redis(cell_prob_df, "parent_cell_prob", iteration=self.iter_num,
-        #                        has_converged=self.has_converged, unix_time=time.time())
-        # self.redis_db.to_redis(self.spots.parent_cell_id, "parent_cell_id", iter_num=self.iter_num,
-        #                        has_converged=self.has_converged, unix_time=time.time())
-        # self.redis_db.to_redis(self.cells.geneCount, "geneCounts", iter_num=self.iter_num,
-        #                        has_converged=self.has_converged, unix_time=time.time())
-        # self.redis_db.to_redis(self.cells.classProb, "class_prob", iter_num=self.iter_num,
-        #                        has_converged=self.has_converged, unix_time=time.time())
-
         eta_bar_df = pd.DataFrame({
             'gene_efficiency': self.genes.eta_bar,
             'gene': self.genes.gene_panel
         })
         self.redis_db.to_redis(eta_bar_df, "gene_efficiency", iteration=self.iter_num,
+                               has_converged=self.has_converged, unix_time=time.time())
+        self.redis_db.publish(eta_bar_df, "gene_efficiency", iteration=self.iter_num,
                                has_converged=self.has_converged, unix_time=time.time())
 
         pi_bar_df = pd.DataFrame({
@@ -599,102 +586,10 @@ class VarBayes(object):
             'prob': prob
         })
         self.redis_db.to_redis(df, "cell_type_posterior", iter_num=self.iter_num, has_converged=self.has_converged, unix_time=time.time())
-
+        self.redis_db.publish(df, "cell_type_posterior", iteration=self.iter_num, has_converged=self.has_converged, unix_time=time.time())
         logger.info("redis end")
-        # print(pd.DataFrame(from_redis(self.redis_db, "gene_efficiency")))
-
-    def db_save(self):
-        if self.conn is not None:
-            try:
-                self._db_save()
-            except:
-                self.conn.close()
-                raise
 
     # -------------------------------------------------------------------- #
-    def _db_save(self):
-        db_opts = {'if_table_exists': 'replace'}  # choose between 'fail', 'replace', 'append'. Appending might make sense only if you want to see how estimates change from one loop to the next
-        logger.info("starting db_save_geneCounts")
-        self.db_save_geneCounts(self.iter_num, self.has_converged, db_opts)
-        # self.db_save_cellByclass_prob(self.iter_num, self.has_converged, db_opts)
-        logger.info("starting db_save_class_prob")
-        self.db_save_class_prob(self.iter_num, self.has_converged, db_opts)
-        logger.info("starting db_save_cell_type_posterior")
-        self.db_save_cell_type_posterior(self.iter_num, self.has_converged, db_opts)
-        # logger.info("starting db_save_parent_cell_prob")
-        # self.db_save_parent_cell_prob(self.iter_num, self.has_converged, db_opts)
-        # logger.info("starting db_save_parent_cell_id")
-        # self.db_save_parent_cell_id(self.iter_num, self.has_converged, db_opts)
-        logger.info("starting .genes.db_save")
-        self.genes.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
-        logger.info("starting cellTypes.db_save")
-        self.cellTypes.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
-        # self.spots.db_save(self.conn)
-        # self.single_cell.db_save(self.conn, self.iter_num, self.has_converged, db_opts)
-
-    # -------------------------------------------------------------------- #
-    # def db_save_geneCounts(self, iter, has_converged, db_opts):
-    #     df = pd.DataFrame(data=self.cells.geneCount,
-    #                       index=np.arange(self.nC),
-    #                       columns=self.genes.gene_panel)
-    #     df.index.name = 'cell_label'
-    #     df['iteration'] = iter
-    #     df['has_converged'] = has_converged
-    #     df['utc'] = datetime.datetime.utcnow()
-    #     chunk_size = 999 // (len(df.columns) + 1)
-    #     df.to_sql(name='geneCount', con=self.conn, if_exists=db_opts['if_table_exists'], chunksize=1000, method='multi')
-    #     self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON geneCount("cell_label", "iteration");')
-    #
-    # # -------------------------------------------------------------------- #
-    # def db_save_class_prob(self, iter, has_converged, db_opts):
-    #     df = pd.DataFrame(data=self.cells.classProb,
-    #                       index=np.arange(self.nC),
-    #                       columns=self.cellTypes.names)
-    #     df.index.name = 'cell_label'
-    #     df['iteration'] = iter
-    #     df['has_converged'] = has_converged
-    #     df['utc'] = datetime.datetime.utcnow()
-    #     chunk_size = 999 // (len(df.columns) + 1)
-    #     df.to_sql(name='class_prob', con=self.conn, if_exists=db_opts['if_table_exists'], chunksize=1000, method='multi')
-    #     self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_label_iteration ON class_prob("cell_label", "iteration");')
-
-    # -------------------------------------------------------------------- #
-    def db_save_cell_type_posterior(self, iter, has_converged, db_opts):
-        idx=[]
-        for i, row in enumerate(self.cells.classProb):
-            idx.append(np.argmax(row))
-        prob = np.bincount(idx) / np.bincount(idx).sum()
-        df = pd.DataFrame({
-            'class_name': self.cellTypes.names,
-            'prob': prob
-        }).set_index('class_name')
-        self.redis_db.to_redis(df, "cell_type_posterior", iteration=iter, has_converged=has_converged, unix_time=time.time())
-
-    # -------------------------------------------------------------------- #
-    # def db_save_parent_cell_prob(self, iter_num, has_converged, db_opts):
-    #     df = pd.DataFrame(data=self.spots.parent_cell_prob,
-    #                       index=np.arange(self.nS))
-    #     df.index.name = 'spot_id'
-    #     df['iteration'] = iter_num
-    #     df['has_converged'] = has_converged
-    #     df['utc'] = datetime.datetime.utcnow()
-    #     chunk_size = 999 // (len(df.columns) + 1)
-    #     df.to_sql(name='parent_cell_prob', con=self.conn, if_exists=db_opts['if_table_exists'], chunksize=1000, method='multi')
-    #     self.conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS ix_cell_ID_iteration ON parent_cell_prob("spot_id", "iteration");')
-    #
-    # # -------------------------------------------------------------------- #
-    # def db_save_parent_cell_id(self, iter_num, has_converged, db_opts):
-    #     df = pd.DataFrame(data=self.spots.parent_cell_id,
-    #                       index=np.arange(self.nS))
-    #     df.index.name = 'spot_id'
-    #     df['iteration'] = iter_num
-    #     df['has_converged'] = has_converged
-    #     df['utc'] = datetime.datetime.utcnow()
-    #     chunk_size = 999 // (len(df.columns) + 1)
-    #     df.to_sql(name='parent_cell_id', con=self.conn, if_exists=db_opts['if_table_exists'], chunksize=1000, method='multi')
-    #     self.conn.execute(
-    #         'CREATE UNIQUE INDEX IF NOT EXISTS ix_cell_ID_iteration ON parent_cell_id("spot_id", "iteration");')
-
     def counts_within_radius(self, r):
         """
         calcs the gene counts within radius r of the centroid of each cell.

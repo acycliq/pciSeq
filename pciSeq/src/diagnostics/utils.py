@@ -14,6 +14,7 @@ class redis_db():
         self.pool = None
         self.redis_client = None
         self.is_connected = None
+        self.keyspace_events_enabled = None
         self._attach_client()
         if flush:
             self._flushdb()
@@ -22,13 +23,19 @@ class redis_db():
         self.pool = config.SETTINGS['POOL']
         self.redis_client = redis.Redis(connection_pool=self.pool)
         self.is_connected = self._is_connected()
-        if self.is_connected:
-            enable_keyspace_events()
+        print('keyspace_events_enabled %s' % self.keyspace_events_enabled)
+        if self.is_connected and not self.keyspace_events_enabled:
+            self.enable_keyspace_events()
 
     def to_redis(self, df_in, key, **kwargs):
         df = df_in.copy()
         df = df.assign(**kwargs)
         self.redis_client.set(key, pickle.dumps(df))
+
+    def publish(self, df_in, channel, **kwargs):
+        df = df_in.copy()
+        df = df.assign(**kwargs)
+        self.redis_client.publish(channel, pickle.dumps(df))
 
     def from_redis(self, key):
         """Retrieve Numpy array from Redis key 'key'"""
@@ -50,6 +57,16 @@ class redis_db():
                 return True
             else:
                 raise Exception("Cannot validate redis")
+
+    def enable_keyspace_events(self):
+        exe = "memurai-cli.exe" if check_platform() == "windows" else "redis-cli"
+        out, err, exit_code = subprocess_cmd([exe, 'config', 'set', 'notify-keyspace-events', 'KEA'])
+        if exit_code != 0:
+            logger.info(out.decode('UTF-8').rstrip())
+            logger.info(err.decode('UTF-8').rstrip())
+            raise Exception('notify-keyspace-events failed with exit code: %d' % exit_code)
+        logger.info(" enabling keyspace events... %s" % out.decode('UTF-8').rstrip())
+        self.keyspace_events_enabled = True
 
 
 def is_running(os):
@@ -170,16 +187,6 @@ def check_platform():
         return "windows"
     else:
         raise Exception("Cannot determine OS")
-
-
-def enable_keyspace_events():
-    exe = "memurai-cli.exe" if check_platform() == "windows" else "redis-cli"
-    out, err, exit_code = subprocess_cmd([exe, 'config', 'set', 'notify-keyspace-events', 'KEA'])
-    if exit_code > 0:
-        logger.info(out.decode('UTF-8').rstrip())
-        logger.info(err.decode('UTF-8').rstrip())
-        raise Exception('notify-keyspace-events failed with exit code: %d' % exit_code)
-    logger.info(" enabling keyspace events... %s" % out.decode('UTF-8').rstrip())
 
 
 def validate():

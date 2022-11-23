@@ -16,6 +16,7 @@ from pciSeq import config
 from pciSeq.src.cell_call.utils import get_out_dir
 from pciSeq.src.preprocess.utils import get_img_shape
 from pciSeq.src.diagnostics.utils import redis_db
+from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 from pciSeq.src.cell_call.log_config import attach_to_log, logger
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -103,6 +104,10 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
     # 3. prepare the data
     logger.info(' Preprocessing data')
     _cells, cellBoundaries, _spots, removed_cells = stage_data(iss_spots, coo, cfg)
+
+    if cfg['launch_diagnostics']:
+        logger.info('Launching the diagnostics dashboard')
+        launch_dashboard()
 
     # 4. cell typing
     cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
@@ -302,14 +307,11 @@ def confirm_prompt(question):
 def check_redis_server():
     logger.info("check_redis_server")
     try:
-        status = redis_db()
+        redis_db()
     except (redis.exceptions.ConnectionError, ConnectionRefusedError):
         logger.info("Redis ping failed!. Trying to install redis server")
-        status = False
-
-    if status is False and confirm_prompt("Do you want to install redis server?"):
-        logger.info("...installing...")
-
+        if confirm_prompt("Do you want to install redis server?"):
+            logger.info("...installing...")
 
 
 def copy_viewer_code(cfg):
