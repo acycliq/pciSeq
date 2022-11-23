@@ -101,18 +101,19 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
     # 2. validate inputs
     iss_spots, coo, cfg = validate(iss_spots, coo, scRNAseq, cfg)
 
-    # 3. prepare the data
-    logger.info(' Preprocessing data')
-    _cells, cellBoundaries, _spots, removed_cells = stage_data(iss_spots, coo, cfg)
-
+    # 3. launch the diagnostics
     if cfg['launch_diagnostics']:
         logger.info('Launching the diagnostics dashboard')
         launch_dashboard()
 
-    # 4. cell typing
+    # 4. prepare the data
+    logger.info(' Preprocessing data')
+    _cells, cellBoundaries, _spots, removed_cells = stage_data(iss_spots, coo, cfg)
+
+    # 5. cell typing
     cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
 
-    # 5. save to the filesystem
+    # 6. save to the filesystem
     if (cfg['save_data'] and varBayes.has_converged) or cfg['launch_viewer']:
         write_data(cellData, geneData, cellBoundaries, removed_cells, varBayes, cfg)
 
