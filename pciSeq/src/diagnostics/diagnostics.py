@@ -10,7 +10,7 @@ def barchart(df, nominal_col, val_col):
     chart = alt.Chart(df).mark_bar().encode(
         y=alt.Y('%s:N' % nominal_col, title=nominal_col),
         x='%s:Q' % val_col,
-        # color=alt.Color('%s:N' % nominal_col, legend=None),
+        color=alt.Color('%s:N' % nominal_col, legend=None),
         tooltip=[
             alt.Tooltip('%s:N' % nominal_col),
             alt.Tooltip('%s:Q' % val_col)
