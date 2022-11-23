@@ -92,7 +92,7 @@ class VarBayes(object):
             p0 = self.spots.parent_cell_prob
 
             logger.info('start db publish')
-            self.redis_publish()
+            self.redis_upd()
             logger.info('end db publish')
             if self.has_converged:
                 self.counts_within_radius(20)
@@ -555,7 +555,7 @@ class VarBayes(object):
         self.cellTypes.alpha = out
 
     # -------------------------------------------------------------------- #
-    def redis_publish(self):
+    def redis_upd(self):
         logger.info("redis start")
         eta_bar_df = pd.DataFrame({
             'gene_efficiency': self.genes.eta_bar,
