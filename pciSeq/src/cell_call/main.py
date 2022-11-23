@@ -1,16 +1,12 @@
 import numpy as np
 import pandas as pd
 import numpy_groupies as npg
-import datetime
 import time
 import scipy.spatial as spatial
 from pciSeq.src.cell_call.datatypes import Cells, Spots, Genes, SingleCell, CellType
 from pciSeq.src.cell_call.summary import collect_data
 import pciSeq.src.cell_call.utils as utils
 from pciSeq.src.diagnostics.utils import redis_db
-from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
-# from pciSeq.src.diagnostics.launch_diagnostics_dummy import launch_dashboard
-import pciSeq.src.diagnostics.config as diagnostics_cfg
 from multiprocessing.dummy import Pool as ThreadPool
 from pciSeq.src.cell_call.log_config import logger
 
