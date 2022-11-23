@@ -1,95 +1,75 @@
+import pandas as pd
 import streamlit as st  # 🎈 data web app development
-import numpy as np
-import time
 from pciSeq.src.cell_call.log_config import logger
 from pciSeq.src.diagnostics.utils import redis_db
 import altair as alt
+import pickle
 
 
-conn = None
-checked_tables = False
+def barchart(df, nominal_col, val_col):
+    chart = alt.Chart(df).mark_bar().encode(
+        y=alt.Y('%s:N' % nominal_col, title=nominal_col),
+        x='%s:Q' % val_col,
+        # color=alt.Color('%s:N' % nominal_col, legend=None),
+        tooltip=[
+            alt.Tooltip('%s:N' % nominal_col),
+            alt.Tooltip('%s:Q' % val_col)
+        ]
+    ).properties(height=1200)
+    return chart
 
-st.set_page_config(
-    page_title="Diagnostics: pciSeq",
-    page_icon="✅",
-    layout="wide",
-)
 
-# dashboard title
-title = st.title("Convergence monitor.")
+def parse_msg(message):
+    gene_efficiency = None
+    cell_type_posterior = None
+    if message['type'] == 'pmessage' and isinstance(message, dict):
+        data = message['data']
+        channel = message['channel'].decode('UTF-8')
+        if channel == "gene_efficiency":
+            gene_efficiency = pickle.loads(data)
+        elif channel == "cell_type_posterior":
+            cell_type_posterior = pickle.loads(data)
+    return gene_efficiency, cell_type_posterior
 
-# creating a single-element container
-placeholder = st.empty()
 
-step = 1
-previous_iteration = -1
-redis = redis_db(flush=False)
+def main():
+    st.set_page_config(
+        page_title="Diagnostics: pciSeq",
+        page_icon="✅",
+        layout="wide",
+    )
 
-while redis.is_connected:
-    try:
-        gene_efficiency = redis.from_redis("gene_efficiency")
-        cell_type_prior = redis.from_redis("cell_type_prior")
-        cell_type_posterior = redis.from_redis("cell_type_posterior")
+    # dashboard title
+    title = st.title("Convergence monitor.")
 
-        iter = gene_efficiency.iteration
-        assert len(np.unique(iter)) == 1
-        i = gene_efficiency.iteration.max()
-        if previous_iteration == i:
-            pass
-            # logger.info('do nothing')
-        elif i % step == 0:
-            title.title("Convergence monitor")
-            # logger.info('iteration: %d' % i)
-            with placeholder.container():
-                # create two columns for charts
-                fig_col1, fig_col2 = st.columns(2)
-                with fig_col1:
-                    st.markdown("### Gene efficiency after iteration %d" % i)
-                    bar_chart_1 = alt.Chart(gene_efficiency).mark_bar().encode(
-                        y=alt.Y('gene:N', title='Gene'),
-                        x='gene_efficiency:Q',
-                        color=alt.Color('class:N', legend=None),
-                        tooltip=[
-                            alt.Tooltip('gene:N', title='gene'),
-                            alt.Tooltip('gene_efficiency:Q', title='efficiency')
-                        ]
-                    ).properties(height=1200)
+    # creating a single-element container
+    placeholder = st.empty()
+
+    logger.info('Getting redis_db')
+    redis = redis_db(flush=False)
+    logger.info('subscribing')
+    p = redis.redis_client.pubsub()
+    p.psubscribe('gene_efficiency')
+    p.psubscribe('cell_type_posterior')
+    logger.info('subscribed to two channels')
+    for message in p.listen():
+        gene_efficiency, cell_type_posterior = parse_msg(message)
+        with placeholder.container():
+            # create two columns for charts
+            fig_col1, fig_col2 = st.columns(2)
+            with fig_col1:
+                if isinstance(gene_efficiency, pd.DataFrame):
+                    st.markdown("### Gene efficiency after iteration %d" % gene_efficiency.iteration.max())
+                    bar_chart_1 = barchart(gene_efficiency, nominal_col='gene', val_col='gene_efficiency')
                     fig1 = st.altair_chart(bar_chart_1, use_container_width=True)
 
-                with fig_col2:
-                    st.markdown("### Posterior cell class weight after iteration %d" % i)
-                    bar_chart_2 = alt.Chart(cell_type_posterior).mark_bar().encode(
-                        y=alt.Y('class_name:N', title='Cell Type'),
-                        x='prob:Q',
-                        color=alt.Color('class_name:N', legend=None),
-                        tooltip=[
-                            alt.Tooltip('class_name:N'),
-                            alt.Tooltip('prob:Q')
-                        ]
-                    ).properties(height=1200)
+            with fig_col2:
+                if isinstance(cell_type_posterior, pd.DataFrame):
+                    st.markdown("### Posterior cell class weight after iteration %d" % cell_type_posterior.iteration.max())
+                    bar_chart_2 = barchart(cell_type_posterior, nominal_col='class_name', val_col='prob')
                     fig2 = st.altair_chart(bar_chart_2, use_container_width=True)
 
-                # with fig_col3:
-                #     st.markdown("### Prior cell class weight at iteration %d" % i)
-                #     bar_chart_3 = alt.Chart(cell_type_prior).mark_bar().encode(
-                #         y=alt.Y('class:N', title='Cell Type'),
-                #         x='weight:Q',
-                #         color=alt.Color('class:N', legend=None),
-                #         tooltip=[
-                #             alt.Tooltip('class:N'),
-                #             alt.Tooltip('weight:Q')
-                #         ]
-                #     ).properties(height=1200)
-                #     fig3 = st.altair_chart(bar_chart_3, use_container_width=True)
-            previous_iteration = i
 
-        # wait 1 sec before pingin the db again
-        time.sleep(1)
-
-    except AssertionError:
-        logger.info('..waiting...')
-        time.sleep(1)
-        pass
-    except Exception as error:
-        logger.info(error)
-
+if __name__ == "__main__":
+    logger.info('in diagnostics_listen, main()')
+    main()
