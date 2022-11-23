@@ -40,18 +40,16 @@ def main():
     )
 
     # dashboard title
-    title = st.title("Convergence monitor. (Waiting for cell type data....)")
+    title = st.title("Convergence monitor. (Waiting for cell typed data....)")
 
     # creating a single-element container
     placeholder = st.empty()
 
-    logger.info('Getting redis_db')
     redis = redis_db(flush=False)
-    logger.info('subscribing')
     p = redis.redis_client.pubsub()
-    p.psubscribe('gene_efficiency')
-    p.psubscribe('cell_type_posterior')
-    logger.info('subscribed to two channels')
+    subscribe_to = ['gene_efficiency', 'cell_type_posterior']
+    p.psubscribe(*subscribe_to)
+    logger.info("subscribed to channels: '%s'" % '\', \''.join(subscribe_to))
     for message in p.listen():
         gene_efficiency, cell_type_posterior = parse_msg(message)
         with placeholder.container():
@@ -73,5 +71,4 @@ def main():
 
 
 if __name__ == "__main__":
-    logger.info('in diagnostics_listen, main()')
     main()
