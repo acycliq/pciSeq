@@ -74,8 +74,8 @@ def is_running(os):
     err = None
     exit_code = None
     exe = "memurai-cli.exe" if check_platform() == "windows" else "redis-cli"
-    out, err, exit_code = subprocess_cmd([exe, '--version'])
-    if not err.decode('UTF-8') == '':
+    out, err, exit_code = subprocess_cmd([exe, 'ping'])
+    if exit_code != 0:
         logger.info(err.decode('UTF-8'))
         if confirm_prompt("Server is not running, do you want to start it?"):
             out, err, exit_code = start_server(os)
