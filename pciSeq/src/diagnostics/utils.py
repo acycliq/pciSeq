@@ -23,7 +23,6 @@ class redis_db():
         self.pool = config.SETTINGS['POOL']
         self.redis_client = redis.Redis(connection_pool=self.pool)
         self.is_connected = self._is_connected()
-        print('keyspace_events_enabled %s' % self.keyspace_events_enabled)
         if self.is_connected and not self.keyspace_events_enabled:
             self.enable_keyspace_events()
 
