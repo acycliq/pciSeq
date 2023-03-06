@@ -21,6 +21,7 @@ class VarBayes:
         self.nN = self.config['nNeighbors'] + 1         # number of closest nearby cells, candidates for being parent
                                                         # cell of any given spot. The last cell will be used for the
                                                         # misread spots. (ie cell at position nN is the background)
+        self.has_converged = False
 
     def initialise(self):
         self.cellTypes.ini_prior('uniform')
@@ -55,18 +56,18 @@ class VarBayes:
             # 5. update gene efficiency
             self.eta_upd()
 
-            converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
+            self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
             logger.info(' Iteration %d, mean prob change %f' % (i, delta))
 
             # replace p0 with the latest probabilities
             p0 = self.spots.parent_cell_prob
 
-            if converged:
+            if self.has_converged:
                 iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
                 break
 
             if i == max_iter-1:
-                logger.info(' Loop exhausted. Exiting with convergence status: %s' % converged)
+                logger.info(' Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
         return iss_df, gene_df
 
     # -------------------------------------------------------------------- #

@@ -14,9 +14,17 @@ function add_spots_patched(all_geneData, map) {
         return texture;
     }
 
+    var glyph_map = d3.map(glyphSettings(), function (d) {return d.gene; });
+
     function markerColor(geneName) {
-        var colorCode = glyphColor(glyphSettings().filter(d => d.gene === geneName)[0].taxonomy);
-        var out = myUtils().string2hex(colorCode);
+        var t = glyph_map.get(geneName)
+        if (!t){
+            console.log('Cannot get color for ' + geneName + '. Defaulting to generic')
+            t = glyph_map.get('Generic')
+        }
+        var hexCode = t.color
+        // var colorCode = glyphSettings().filter(d => d.gene === geneName)[0].color;
+        var out = myUtils().string2hex(hexCode);
         return out
     }
 
@@ -56,10 +64,10 @@ function add_spots_patched(all_geneData, map) {
         // Divide by 2 to keep the marker the same as size. Hence if for zoom level = 3 the  return value from
         // this function is lets say zo 10, then when to keep the same size on the screen for the dot, at zoom = 4
         // the return value should be 5
-        var map_size = Math.max(...configSettings.imageSize),
+        var map_side = mapSide(configSettings.zoomLevels),
             dapi_size = [configSettings.roi.x1 - configSettings.roi.x0, configSettings.roi.y1 - configSettings.roi.y0],
             max_dapi = Math.max(...dapi_size),
-            c = map_size / max_dapi,
+            c = map_side / max_dapi,
             tiny_dot = 1 / (2**z),
             dot = c * tiny_dot;
         return dot * scale

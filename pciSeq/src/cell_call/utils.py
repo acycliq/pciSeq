@@ -265,3 +265,11 @@ def load_from_url(url):
     return filename
 
 
+def get_out_dir(path, sub_folder=''):
+    if path[0] == 'default':
+        out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq', sub_folder)
+    else:
+        out_dir = os.path.join(path[0], sub_folder)
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+    return out_dir

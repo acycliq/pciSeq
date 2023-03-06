@@ -1,16 +1,16 @@
 function dapi(cfg) {
     console.log('Doing Dapi plot');
 
-    var img = cfg.imageSize,
+    var map_dims = mapSize(cfg.zoomLevels),
         tiles = cfg.tiles,
         roi = cfg.roi;
     // var img = [227951, 262144],
     //     roi = {"x0": 0, "x1": 40000, "y0": 0, "y1": 46000};
 
-    var a = img[0] / (roi.x1 - roi.x0),
-        b = -img[0] / (roi.x1 - roi.x0) * roi.x0,
-        c = img[1] / (roi.y1 - roi.y0),
-        d = -img[1] / (roi.y1 - roi.y0) * roi.y0;
+    var a = map_dims[0] / (roi.x1 - roi.x0),
+        b = -map_dims[0] / (roi.x1 - roi.x0) * roi.x0,
+        c = map_dims[1] / (roi.y1 - roi.y0),
+        d = -map_dims[1] / (roi.y1 - roi.y0) * roi.y0;
 
     // This transformation maps a point from the roi domain to the domain defined by [0,0] amd [img[0], img[1]].
     var t = new L.Transformation(a, b, c, d);
@@ -20,14 +20,14 @@ function dapi(cfg) {
         transformation: new L.Transformation(1 / 1024, 0, 1 / 1024, 0),
     });
 
-    var southWest = L.latLng(img[1], img[0]),
+    var southWest = L.latLng(map_dims[1], map_dims[0]),
         northEast = L.latLng(0, 0),
         mapBounds = L.latLngBounds(southWest, northEast);
 
     map = L.map('mymap', {
         crs: L.CRS.MySimple,
         attributionControl: false,
-    }).setView([img[1], img[0] / 2], 2);
+    }).setView([map_dims[1], map_dims[0] / 2], 2);
     L.tileLayer(tiles, {
         minZoom: 0,
         maxZoom: 8,
@@ -43,18 +43,33 @@ function dapi(cfg) {
         return out
     }
 
+    function inGlyphConfig(gene){
+        return glyphMap.get(gene)? 1 : 0
+    }
+
     function getGlyphName(gene) {
         if (glyphMap.get(gene)) {
             out = glyphMap.get(gene).glyphName
         } else {
             out = glyphMap.get('Generic').glyphName
         }
+        console.log(out)
         return out
     }
 
+    function getColor(gene) {
+        if (glyphMap.get(gene)) {
+            out = glyphMap.get(gene).color
+        } else {
+            out = glyphMap.get('Generic').color
+        }
+        console.log(out)
+        return out
+    }
+
+
     // get the svg markers (glyphs)
     var glyphs = glyphSettings();
-    var getColor = glyphColor;
     var glyphMap = d3.map(glyphs, function (d) {
         return d.gene;
     });
@@ -81,7 +96,7 @@ function dapi(cfg) {
             radius: getRadius(feature.properties.size),
             shape: feature.properties.glyphName,
             //fillColor: "none",//getColor(feature.properties.taxonomy),
-            color: glyphColor(feature.properties.taxonomy),
+            color: feature.properties.glyphColor,
             weight: 0.85,
             opacity: 0.85,
             fillOpacity: 0.0,
@@ -156,7 +171,7 @@ function dapi(cfg) {
                 // "Cell_Num": origin.Cell_Num,
                 "fromPoint": fromPoint,
                 "toPoint": toPoint,
-                "color": getColor(getTaxonomy(gene)),
+                "color": getColor(gene),
                 // "color": getColor(glyphMap.get(gene).taxonomy),
             };
 
@@ -364,7 +379,7 @@ function dapi(cfg) {
             };
 
         for (var str of data) {
-            var sep = configSettings.class_name_separator,
+            var sep = '.', //configSettings.class_name_separator,
                 splits,
                 label = '';
             // let splits = str.match(/[a-zA-Z]+|[0-9]+/g), //str.split('.'),
@@ -381,7 +396,7 @@ function dapi(cfg) {
         function myReducer(label) {
             return function (parent, place, i, arr) {
                 if (label) {
-                    var sep = configSettings.class_name_separator;
+                    var sep = '.'; //configSettings.class_name_separator;
                     label += sep + `${place}`; // `.${place}`;
                 }
                 else
@@ -422,6 +437,7 @@ function dapi(cfg) {
     dapiData.style = style;
     dapiData.getTaxonomy = getTaxonomy;
     dapiData.getGlyphName = getGlyphName;
+    dapiData.inGlyphConfig = inGlyphConfig;
     dapiData.getNeighbours = getNeighbours;
     dapiData.getColor = getColor;
     dapiData.getRadius = getRadius;

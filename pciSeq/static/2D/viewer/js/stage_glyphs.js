@@ -163,7 +163,8 @@ function renderGlyphs(evt, config) {
 
     function geneFilter(geneName) {
         return function (feature) {
-            return feature.properties.Gene === geneName;
+            return geneName === 'Generic'? feature.properties.inGlyphConfig===0:
+                feature.properties.Gene === geneName;
         }
     }
 
@@ -324,9 +325,10 @@ function renderGlyphs(evt, config) {
                 "x": x,
                 "y": y,
                 "Gene": gene,
-                "taxonomy": dapiConfig.getTaxonomy(gene),
+                // "taxonomy": dapiConfig.getTaxonomy(gene),
                 "glyphName": dapiConfig.getGlyphName(gene),
                 "glyphColor": dapiConfig.getColor(gene),
+                "inGlyphConfig": dapiConfig.inGlyphConfig(gene),
                 "block_id": data[i].block_id,
                 "size": 30,
                 "type": 'gene',

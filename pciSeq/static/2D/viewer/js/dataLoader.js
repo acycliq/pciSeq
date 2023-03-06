@@ -46,7 +46,7 @@ function data_loader(workPackage) {
 
     function setupWorker() {
         // create a web worker that streams the chart data
-        worker = new Worker("./viewer/js/streaming-tsv-parser.js");
+        worker = new Worker("viewer/js/streaming-tsv-parser.js");
         worker.onmessage = function (event) {
             if (event.data.finished) {
                 console.log(agg_data);
@@ -116,7 +116,7 @@ function data_loader(workPackage) {
     }
 
     function onDataLoaded(data) {
-        [cellBoundaries, cellData] = postLoad([data.cellBoundaries, data.cellData]);
+        [cellBoundaries, cellData, genepanel] = postLoad([data.cellBoundaries, data.cellData, data.geneData]);
 
         // sort cellBoundaries and cellData. These two should be aligned
         cellBoundaries.sort((a, b) => a.cell_id - b.cell_id);
