@@ -51,8 +51,9 @@
     sessionStorage['dtCompleted'] =  0;
     var table;
     $(document).ready(function () {
-        var legendData = glyphSettings().filter(d => {return d.gene != 'Generic'})
-          .map((d,i) => {return [i, d.gene, d.glyphName, glyphColor(d.taxonomy)]});
+        var gene_panel = JSON.parse(sessionStorage.getItem('gene_panel'));
+        var legendData = glyphSettings().filter(d => gene_panel.includes(d.gene))
+          .map((d,i) => {return [i, d.gene, d.glyphName, d.color]});
         table = $('#example').DataTable({
             'data': legendData,
             'columnDefs': [
@@ -78,7 +79,6 @@
             'columns': [
                 {"data": 0, "orderable": true}, //checkboxes
                 {"data": 1, "orderable": true}, //Gene Name
-                // {"data": 2, "orderable": true}, //Taxonomy
                 {"data": 2, "orderable": true}, //Glyph Name
                 {"data": 3, "orderable": true}, //Glyph Color
                 {
@@ -108,10 +108,10 @@
             var c = document.getElementById(d[1]); //d[1] is the gene name which is also the id of the canvas element
             var ctx = c.getContext("2d");
             var p = {x: 7, y: 7};
-            var r = ['star5','star6'].includes(d[2])? 7: 5; //controls the glyph size, d[2] is the glyph name
+            var r = ['star5','star6'].includes(d[2])? 7: 5; //controls the glyph size
 
             ctx = ctxPath(d[2], ctx, p, r);
-            ctx.strokeStyle = d[3]; //d[3] is the color (hex code)
+            ctx.strokeStyle = d[3]; //color
             ctx.lineWidth = 1;
             ctx.stroke()
         })

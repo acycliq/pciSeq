@@ -6,6 +6,7 @@
 // Variables in the global scope
 var cellBoundaries,
     cellData,
+    genepanel,
     all_geneData,
     spotsIndex, //spatial index
     dapiConfig,
@@ -91,6 +92,25 @@ var storageMonitor = function () {
 $(window).on("storage", storageMonitor);
 
 
+function getGenePanel(geneData) {
+    var panel = [...new Set(geneData.map(d => d.Gene))].sort();
+    console.log('Gene panel has ' + panel.length + ' genes.');
+
+    // drop a warning if a gene is not set in the configuration file
+    var cfg_genes = glyphSettings().map(d => d.gene).sort();
+    var missing = panel.filter(x => !cfg_genes.includes(x));
+    if (missing.length > 0) {
+        console.log('Waring: These genes have not been assigned color, glyph etc in the glyphConfig.js: ' + missing);
+    }
+
+    // save the gene panel to the local storage
+    sessionStorage.setItem('gene_panel', JSON.stringify(panel));
+    console.log('Gene panel written to local storage')
+
+    return panel
+}
+
+
 function legendControl() {
     var legendLink = document.querySelector(`#legend-link`);
 
@@ -158,6 +178,9 @@ function hidePanels(bool){
 function run() {
     console.log('app starts');
     configSettings = config();
+    configSettings.cellData["name"] = "cellData";
+    configSettings.geneData["name"] = "geneData";
+    configSettings.cellBoundaries["name"] = "cellBoundaries";
 
     fetcher([configSettings.cellData, configSettings.geneData, configSettings.cellBoundaries]).then(
         result => make_package(result),
@@ -167,13 +190,15 @@ function run() {
 
 const fetcher = (filenames) => {
     return Promise.all(
-        filenames.map(d => fetch(d).then(res => res.json()))
+        filenames.map(d => d)
+        // filenames.map(d => fetch(d).then(res => console.log(res.json())))
+        // filenames.map(d => fetch(d).then(res => res.json()))
     )
 };
 
 function make_package(result) {
     var workPackage = result.reduce((a, b) => a.concat(b), []);
-    workPackage.forEach(d => d.root_name = d.name.split('_')[0]);
+    workPackage.forEach(d => d.root_name = strip_url(d.name));
     workPackage.forEach(d => d.bytes_streamed = 0); //will keep how many bytes have been streamed
     workPackage.forEach(d => d.data = []);          //will keep the actual data from the flatfiles
     workPackage.forEach(d => d.data_length = 0);    //will keep the number of points that have been fetched
@@ -184,31 +209,29 @@ function make_package(result) {
     console.log(result)
 }
 
-// function onCellsLoaded(cfg) {
-//     var data_1 = [],
-//         // all_geneData = [],
-//         data_3 = [];
-//     return (err, ...args) => {
-//         console.log('loading data')
-//         args.forEach((d, i) => {
-//             i === 0 ? data_1 = d : // the cell boundaries are in position 0 of the args array
-//                 i % 2 === 0 ? data_3 = [...data_3, ...d] : // even positions in the args array hold the cell data
-//                     all_geneData = [...all_geneData, ...d] // odd positions in the args array hold the gene data
-//         });
-//         [cellBoundaries, cellData] = postLoad([data_1, data_3]);
-//         console.log('loading data finished');
-//         console.log('num of genes loaded: ' + all_geneData.length);
-//         console.log('num of cells loaded: ' + cellData.length);
-//
-//
-//         //finaly make a spatial index on the spots. We will need that to filter them if/when needed
-//         console.log('Creating the index');
-//         spotsIndex = new KDBush(all_geneData, p => p.x, p => p.y, 64, Int32Array);
-//
-//         // do now the chart
-//         dapiChart(cfg);
-//     }
-// }
+function strip_url(d) {
+    // if the url has / get the last substring
+    fName = d.substring(d.lastIndexOf('/')+1);
+
+    // then strip the extension and return the value
+    return fName.split('.')[0]
+}
+
+function encode(url) {
+    // In google cloud storage, the object must be encoded. That means / must be replaced gy %2F
+    console.log('Encoding the object path of the google cloud storage url')
+    if (url.startsWith('https://www.googleapis.com/storage')){
+        // Split the path
+        [root, fName] = url.split('/o/')
+
+        // encode and return
+        return root + '/o/' + encodeURIComponent(fName)
+    }
+    else {
+        return url
+    }
+
+}
 
 function postLoad(arr) {
     //Do some basic post-processing/cleaning
@@ -239,7 +262,9 @@ function postLoad(arr) {
     _cellData = _cellData.sort(function(a,b){return a.Cell_Num-b.Cell_Num});
     _cellBoundaries = _cellBoundaries.sort(function(a,b){return a.Cell_Num-b.Cell_Num});
 
-    return [_cellBoundaries, _cellData]
+    var _genepanel = getGenePanel(arr[2])
+
+    return [_cellBoundaries, _cellData, _genepanel]
 }
 
 function maxIndex(data){
@@ -283,6 +308,16 @@ function aggregate(data) {
         return out
     }
 
+    function getIdentifiedType(className){
+        return cellColorMap.get(className)? cellColorMap.get(className).IdentifiedType:
+            cellColorMap.get('Generic').IdentifiedType
+    }
+
+    function getColor(className){
+        return cellColorMap.get(className)? cellColorMap.get(className).color:
+            cellColorMap.get('Generic').color
+    }
+
     function dataManager(data) {
         var chartData = [];
         for (var i = 0; i < data.length; ++i) {
@@ -290,8 +325,8 @@ function aggregate(data) {
             for (var j = 0; j < data[i].ClassName.length; ++j) {
                 // console.log(data[i].ClassName[j])
                 temp.push({
-                    IdentifiedType: cellColorMap.get(data[i].ClassName[j]).IdentifiedType,
-                    color: cellColorMap.get(data[i].ClassName[j]).color,
+                    IdentifiedType: getIdentifiedType(data[i].ClassName[j]),
+                    color: getColor(data[i].ClassName[j]),
                     Prob: data[i].Prob[j] ? data[i].Prob[j] : [data[i].Prob] //Maybe that one is better
                 })
             }
@@ -314,3 +349,18 @@ function aggregate(data) {
     var aggData = dataManager(data);
     return aggData
 }
+
+
+function mapSide(z){
+    // returns the size of the map at zoom level z.
+    // Assumes that the tile is a multiple if 256px-by-256px
+    return 256 * 2**z
+}
+
+function mapSize(z){
+    var length = mapSide(z);
+    var x_scalar = configSettings.roi.x1/Math.max(configSettings.roi.x1, configSettings.roi.y1);
+    var y_scalar = configSettings.roi.y1/Math.max(configSettings.roi.x1, configSettings.roi.y1);
+    return [Math.round(length*x_scalar), Math.round(length*y_scalar)]
+}
+

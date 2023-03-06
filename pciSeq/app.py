@@ -1,12 +1,18 @@
 import os
 import pandas as pd
 import numpy as np
+import sysconfig
+import shutil
+import json
 import tempfile
 import pickle
 from typing import Tuple
 from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.cell_call.main import VarBayes
 from pciSeq.src.preprocess.spot_labels import stage_data
+from pciSeq.src.cell_call.utils import get_out_dir
+from pciSeq.src.preprocess.utils import get_img_shape
+from pciSeq.src.viewer.run_flask import flask_app_start
 from pciSeq import config
 from pciSeq.src.cell_call.log_config import attach_to_log, logger
 
@@ -75,16 +81,25 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
     # 1. get the hyperparameters
     cfg = init(opts)
 
-    # 2. prepare the data
+    # 2. validate inputs
+    validate(iss_spots, scRNAseq)
+
+    # 3. prepare the data
     logger.info(' Preprocessing data')
     _cells, cellBoundaries, _spots = stage_data(iss_spots, coo)
 
-    # 3. cell typing
+    # 4. cell typing
     cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
 
-    # 4. save to filesystem
-    if cfg['save_data']:
-        write_data(cellData, geneData, cellBoundaries, varBayes, path=cfg['output_path'])
+    # 5. save to the filesystem
+    if (cfg['save_data'] and varBayes.has_converged) or cfg['launch_viewer']:
+        write_data(cellData, geneData, cellBoundaries, varBayes, cfg['output_path'])
+
+    if cfg['launch_viewer']:
+        [h, w] = get_img_shape(coo)
+        dst = copy_viewer_code(cfg)
+        make_config_js(dst, w, h)
+        flask_app_start(dst)
 
     logger.info(' Done')
     return cellData, geneData
@@ -101,7 +116,7 @@ def cell_type(_cells, _spots, scRNAseq, ini):
 def write_data(cellData, geneData, cellBoundaries, varBayes, path):
 
     if path[0] == 'default':
-        out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq')
+        out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq', 'data')
     else:
         out_dir = path[0]
     if not os.path.exists(out_dir):
@@ -119,13 +134,6 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, path):
     with open(os.path.join(out_dir, 'pciSeq.pickle'), 'wb') as outf:
         pickle.dump(varBayes, outf)
         logger.info(' Saved at %s' % os.path.join(out_dir, 'pciSeq.pickle'))
-
-
-
-    # Write to the disk as tsv of 99MB each
-    # splitter_mb(cellData, os.path.join(out_dir, 'cellData'), 99)
-    # splitter_mb(geneData, os.path.join(out_dir, 'geneData'), 99)
-    # splitter_mb(cellBoundaries, os.path.join(out_dir, 'cellBoundaries'), 99)
 
 
 def init(opts):
@@ -152,8 +160,56 @@ def init(opts):
     return cfg
 
 
-if __name__ == "__main__":
+def validate(spots, sc):
+    assert isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y'}, \
+        "Spots should be passed-in to the fit() method as a dataframe with columnns ['Gene', 'x', 'y']"
 
+    assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
+
+
+def make_config_base(dst):
+    cellData_tsv = os.path.join(dst, 'data', 'cellData.tsv')
+    geneData_tsv = os.path.join(dst, 'data', 'geneData.tsv')
+
+    cellData_dict = {"mediaLink": "../../data/cellData.tsv", "size": str(os.path.getsize(cellData_tsv))}
+    geneData_dict = {"mediaLink": "../../data/geneData.tsv", "size": str(os.path.getsize(geneData_tsv))}
+
+    return {
+        'cellData': cellData_dict,
+        'geneData': geneData_dict,
+    }
+
+
+def make_config_js(dst, w, h):
+    appDict = make_config_base(dst)
+    cellBoundaries_tsv = os.path.join(dst, 'data', 'cellBoundaries.tsv')
+    cellBoundaries_dict = {"mediaLink": "../../data/cellBoundaries.tsv", "size": str(os.path.getsize(cellBoundaries_tsv))}
+    roi_dict = {"x0": 0, "x1": w, "y0": 0, "y1": h}
+    appDict['cellBoundaries'] = cellBoundaries_dict
+    appDict['roi'] = roi_dict
+    appDict['zoomLevels'] = 10
+    appDict['tiles'] = "https://storage.googleapis.com/ca1-data/img/262144px/{z}/{y}/{x}.jpg"
+
+    config_str = "function config() { return %s }" % json.dumps(appDict)
+    config = os.path.join(dst, 'viewer', 'js', 'config.js')
+    with open(config, 'w') as data:
+        data.write(str(config_str))
+    logger.info(' viewer config saved at %s' % config)
+
+
+def copy_viewer_code(cfg):
+    site_packages_dir = sysconfig.get_path('purelib')
+    pciSeq_dir = os.path.join(site_packages_dir, 'pciSeq')
+    dim = '2D'
+    src = os.path.join(pciSeq_dir, 'static', dim)
+    dst = get_out_dir(cfg['output_path'], '')
+
+    shutil.copytree(src, dst, dirs_exist_ok=True)
+    logger.info(' viewer code (%s) copied from %s to %s' % (dim, src, dst))
+    return dst
+
+
+if __name__ == "__main__":
     # set up the logger
     attach_to_log()
 
