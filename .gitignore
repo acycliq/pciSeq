@@ -32,3 +32,4 @@ viewer/img
 /.eggs/
 /build/
 /pciSeq.egg-info/
+/pciSeq/static/2D/data/
