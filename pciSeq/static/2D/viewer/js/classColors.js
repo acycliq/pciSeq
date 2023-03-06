@@ -76,8 +76,12 @@ function classColorsCodes()
         {className: 'Ntng1.Chrm2', IdentifiedType: 'Trilaminar', color: '#1F663B'},
         {className: 'Sst.Cryab', IdentifiedType: 'Unidentified', color: '#A6A6A6'},
 
-        // I added this
+        // Do not remove the lines below.
+        // Zero class is the "none from the above" class. If the algorithm cannot find a good
+        // transcriptomic class from the single cell data then the cell will be labelled as Zero class
         {className: 'Zero', IdentifiedType: 'Zero', color: '#000000'},
+
+        // If a class is missing from the settings above, use these default settings
         {className: 'Generic', IdentifiedType: 'Generic', color: '#C0C0C0'},
 
 
