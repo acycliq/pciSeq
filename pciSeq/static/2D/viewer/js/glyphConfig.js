@@ -116,6 +116,8 @@ function glyphSettings()
          {gene: 'Actb',         color: '#FFFFFF',           glyphSymbol: 'v',  glyphName: 'triangleDown'},
          {gene: 'Sulf2',        color: '#FFFFFF',           glyphSymbol: 'p',  glyphName: 'star5'},
 
+
+        // If a gene is missing from the settings above, use these default settings
         {gene: 'Generic',       color: '#0000FF',           glyphSymbol: 'o',  glyphName: 'circle'},
 
         ];
