@@ -11,12 +11,6 @@ from threading import Timer
 from pciSeq.src.cell_call.log_config import logger
 
 
-# logging.basicConfig(filename='record.log', level=logging.INFO,
-#                     format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
-
-dir_path = os.path.dirname(os.path.realpath(__file__))
-
-
 def get_browser(port_num):
     url = 'http://127.0.0.1:%d' % port_num
     my_os = platform.system()
@@ -35,7 +29,7 @@ def get_browser(port_num):
         print('Chrome path: %s' % chrome_path)
 
     if chrome_path and os.path.isfile(chrome_path):
-        webbrowser.register('chrome', None, webbrowser.BackgroundBrowser(chrome_path),  preferred=True)
+        webbrowser.register('chrome', None, webbrowser.BackgroundBrowser(chrome_path), preferred=True)
         wb = webbrowser.get('chrome').open_new_tab(url)
     else:
         wb = webbrowser.open_new(url)
@@ -51,14 +45,13 @@ def open_browser():
 def flask_app_start(dir):
     logger.info(' Launching viewer. Serving directory %s ' % dir)
     port = 5000 + random.randint(0, 999)
-    # viewer / genes_datatable.html
-    # pciSeq/src/viewer/run_flask.py
     flask_app = Flask(__name__,
-                static_url_path='',         # remove the static folder path
-                static_folder=dir,   # set here the path of the folder to be served. The js files referenced in your html file are with respect to this folder. Adjust the paths in your html file (look for the <script src="some/path/file.js"></script> tag, so that the js libraries will be parsed
-                template_folder=dir)  # set here the path to the folder where your html page lives. Absolute and relative paths both work fine
-    # D:\Home\Dimitris\OneDrive - UniversityCollegeLondon\dev\Python\pciSeq\pciSeq\src\viewer\run_flask.py
+                      static_url_path='',  # remove the static folder path
+                      static_folder=dir,
+                      # set here the path of the folder to be served. The js files referenced in your html file are with respect to this folder. Adjust the paths in your html file (look for the <script src="some/path/file.js"></script> tag, so that the js libraries will be parsed
+                      template_folder=dir)  # set here the path to the folder where your html page lives. Absolute and relative paths both work fine
     flask_app.config['EXPLAIN_TEMPLATE_LOADING'] = True
+
     @flask_app.route("/")
     def index():
         return render_template("index.html", data=None)
@@ -68,18 +61,12 @@ def flask_app_start(dir):
 
 
 def mk_ini(cellData, geneData):
-    ini = {}
-    # ini['name'] = json.dumps(config.DEFAULT['dataset_id'])
-    # ini['roi'] = json.dumps(config.DEFAULT['roi'])
-    # ini['imageSize'] = json.dumps(pixel_dims)
-    ini['cellData'] = cellData.to_json(orient='records')
-    ini['geneData'] = geneData.to_json(orient='records')
-    # ini['tiles'] = json.dumps(os.path.join(tiles_root_path, '{z}', '{y}', '{x}.png'))
-
+    ini = {
+        'cellData': cellData.to_json(orient='records'),
+        'geneData': geneData.to_json(orient='records')
+    }
     return ini
 
+
 if __name__ == "__main__":
-    # geneData = pd.read_csv(r"C:\Users\skgtdni\AppData\Local\Temp\pciSeq\geneData.tsv", sep='\t')
-    # cellData = pd.read_csv(r"C:\Users\skgtdni\AppData\Local\Temp\pciSeq\cellData.tsv", sep='\t')
-    # ini = mk_ini(cellData, geneData)
     flask_app_start()
