@@ -20,6 +20,14 @@ body {
   height: 100%;
 }
 
+.midplaced {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    -webkit-transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%);
+}
+
 #percent, #percent2, #percent3 {
   /*display: block;*/
   /*width: 160px;*/
