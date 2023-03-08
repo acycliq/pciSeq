@@ -114,7 +114,6 @@ def cell_type(_cells, _spots, scRNAseq, ini):
 
 
 def write_data(cellData, geneData, cellBoundaries, varBayes, path):
-
     if path[0] == 'default':
         out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq', 'data')
     else:
@@ -162,7 +161,7 @@ def init(opts):
 
 def validate(spots, sc):
     assert isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y'}, \
-        "Spots should be passed-in to the fit() method as a dataframe with columnns ['Gene', 'x', 'y']"
+        "Spots should be passed-in to the fit() method as a dataframe with columns ['Gene', 'x', 'y']"
 
     assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
 
@@ -190,7 +189,13 @@ def make_config_js(dst, w, h):
     appDict['zoomLevels'] = 10
     appDict['tiles'] = "https://storage.googleapis.com/ca1-data/img/262144px/{z}/{y}/{x}.jpg"
 
-    config_str = "function config() { return %s }" % json.dumps(appDict)
+    config_str = "// NOTES: \n" \
+                 "// 1. paths are with respect to the location of 'streaming-tsv-parser.js \n" \
+                 "// 2. roi is the image size in pixels. Leave x0 and y0 at zero and set x1 to the width and y1 to the height \n" \
+                 "// 3. tiles should point to the folder that keeps your pyramid of tiles. If you do not have that just \n" \
+                 "//    change the link to a blind one (change the jpg extension for example). The viewer should work \n" \
+                 "//    without the dapi background though \n" \
+                 " function config() { return %s }" % json.dumps(appDict)
     config = os.path.join(dst, 'viewer', 'js', 'config.js')
     with open(config, 'w') as data:
         data.write(str(config_str))
