@@ -34,9 +34,6 @@
     <!-- leaflet-pip v1.1.0 -->
     <script src="viewer/js/lib/js/leaflet-pip.js"></script>
 
-<!--    &lt;!&ndash; leaflet.textpath &ndash;&gt;-->
-<!--    <script src='viewer/viewer/js/lib/js/leaflet.textpath.js'></script>-->
-
     <!-- topojson -->
     <script src="https://unpkg.com/topojson@3"></script>
 
@@ -68,13 +65,6 @@
     <!--  No errors are being raised, it just looks as if the browser hasnt parsed it!-->
     <script src='viewer/js/lib/js/leaflet.textpath.js'></script>
 
-<!--    &lt;!&ndash; progressbar &ndash;&gt;-->
-<!--    <script src="https://rawgit.com/kimmobrunfeldt/progressbar.js/1.0.0/dist/progressbar.js"></script>-->
-
-<!--    &lt;!&ndash; Loading bar &ndash;&gt;-->
-<!--    <link rel="stylesheet" href="viewer/js/lib/css/loading-bar.css">-->
-<!--    <script src="viewer/js/lib/js/loading-bar.js"></script>-->
-
     <!-- user js scripts -->
     <script> console.log('reading source files')</script>
     <script src='viewer/js/config.js'></script>
@@ -82,13 +72,12 @@
     <script src='viewer/js/viewerUtils.js'></script>
     <script src='viewer/js/customControl.js'></script>
     <script src="https://api.mapbox.com/mapbox-gl-js/v1.10.1/mapbox-gl.js"></script>
-    <script src='viewer/js/my_collision.js'></script>
     <script src='viewer/js/donut.js'></script>
     <script src='viewer/js/dt.js'></script>
     <script src='viewer/js/stage_polygons.js'></script>
     <script src='viewer/js/stage_markers_patched.js'></script>
     <script src='viewer/js/stage_glyphs.js'></script>
-    <script src="viewer/js/classColors.js"></script>
+    <script src="viewer/js/classConfig.js"></script>
     <script src="viewer/js/glyphPaths.js"></script>
     <script src="viewer/js/glyphs.js"></script>
     <script src="viewer/js/glyphConfig.js"></script>
@@ -106,11 +95,10 @@
 <body style="height: 100%; margin: 0; overflow: hidden;">
 
 <div id="webgl" class="map-content">
+    <!-- This div is not used, should be safe to remove-->
     <span class="greenDot"> </span>
     <span style="margin-top: 5px;">Hardware acceleration is enable</span>
 </div>
-
-
 
 <!--<div id="preloader" class="a" style="font-size:32px;text-align:center;">-->
 <!--    <h1>Prototype viewer for high throughput in situ transcriptomics.</h1>-->
@@ -119,7 +107,6 @@
 <!--        Tested on Chrome under Windows, cannot yet guarantee operation on other browsers </div>-->
 <!--    <div id="status"></div>-->
 <!--</div>-->
-
 
 <div id="stats-container" class="stack-top">
 <!--    <div id="chart"></div>-->
@@ -259,6 +246,7 @@
 
 
 <script>
+    // This line starts the viewer
     document.addEventListener("DOMContentLoaded", run(), false);
 </script>
 
