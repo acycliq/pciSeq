@@ -28,7 +28,6 @@ var cellBoundaries,
     masterMarkerContainer,
     masterMarkerRenderer,
     geneContainer_array = [],
-    // layerControl, //you sure this has to be global?
     geneLayers,
     geneOverlays,
     legendWindow,
