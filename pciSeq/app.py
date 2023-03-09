@@ -198,6 +198,7 @@ def make_config_js(dst, w, h):
                  "// 4. size is the tsv size in bytes. I use os.path.getsize() to get it. Not crucial if you \n" \
                  "//    dont get it right, ie the full tsv will still be parsed despite this being wrong. It \n" \
                  "//    is used by the loading page piecharts to calc how far we are \n" \
+                 "// 5. Leave zoomLevels to 10 \n" \
                  " function config() { return %s }" % json.dumps(appDict)
     config = os.path.join(dst, 'viewer', 'js', 'config.js')
     with open(config, 'w') as data:
