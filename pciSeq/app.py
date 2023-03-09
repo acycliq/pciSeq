@@ -195,6 +195,9 @@ def make_config_js(dst, w, h):
                  "// 3. tiles should point to the folder that keeps your pyramid of tiles. If you do not have that just \n" \
                  "//    change the link to a blind one (change the jpg extension for example). The viewer should work \n" \
                  "//    without the dapi background though \n" \
+                 "// 4. size is the tsv size in bytes. I use os.path.getsize() to get it. Not crucial if you \n" \
+                 "//    dont get it right, ie the full tsv will still be parsed despite this being wrong. It \n" \
+                 "//    is used by the loading page piecharts to calc how far we are \n" \
                  " function config() { return %s }" % json.dumps(appDict)
     config = os.path.join(dst, 'viewer', 'js', 'config.js')
     with open(config, 'w') as data:
