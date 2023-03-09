@@ -4,8 +4,6 @@ function dapi(cfg) {
     var map_dims = mapSize(cfg.zoomLevels),
         tiles = cfg.tiles,
         roi = cfg.roi;
-    // var img = [227951, 262144],
-    //     roi = {"x0": 0, "x1": 40000, "y0": 0, "y1": 46000};
 
     var a = map_dims[0] / (roi.x1 - roi.x0),
         b = -map_dims[0] / (roi.x1 - roi.x0) * roi.x0,
@@ -66,7 +64,6 @@ function dapi(cfg) {
         console.log(out)
         return out
     }
-
 
     // get the svg markers (glyphs)
     var glyphs = glyphSettings();
@@ -168,11 +165,9 @@ function dapi(cfg) {
             //create feature properties
             var p = {
                 "gene": gene,
-                // "Cell_Num": origin.Cell_Num,
                 "fromPoint": fromPoint,
                 "toPoint": toPoint,
                 "color": getColor(gene),
-                // "color": getColor(glyphMap.get(gene).taxonomy),
             };
 
             //create features with proper geojson structure
