@@ -49,7 +49,7 @@ An interactive viewer to explore the data runs on this [url](https://acycliq.git
 building this viewer with your own data are [here](https://github.com/acycliq/visage). 
 
 If you have `pciSeq 0.0.49` or greater you also can launch the viewer automatically by 
-setting `{'launch_viewer': True}` and passing it to `pciSeq.fit()`, see [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/acycliq/pciSeq/blob/master/notebooks/2_viewer.ipynb)
+setting `opts = {'launch_viewer': True}` and passing it to `pciSeq.fit()`, see [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/acycliq/pciSeq/blob/master/notebooks/2_viewer.ipynb)
 
 
 ## References 
