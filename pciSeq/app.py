@@ -130,9 +130,10 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, path):
     cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
     logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
-    with open(os.path.join(out_dir, 'pciSeq.pickle'), 'wb') as outf:
-        pickle.dump(varBayes, outf)
-        logger.info(' Saved at %s' % os.path.join(out_dir, 'pciSeq.pickle'))
+    ## commenting this as there is no need to save the pickle file at the moment
+    # with open(os.path.join(out_dir, 'pciSeq.pickle'), 'wb') as outf:
+    #     pickle.dump(varBayes, outf)
+    #     logger.info(' Saved at %s' % os.path.join(out_dir, 'pciSeq.pickle'))
 
 
 def init(opts):
