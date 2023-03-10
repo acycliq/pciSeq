@@ -3,7 +3,7 @@ import os
 from setuptools import setup
 
 install_deps = ['opencv-python', 'numpy_groupies', 'pandas', 'scipy',
-                'scikit-image', 'scikit-learn', 'tqdm',
+                'scikit-image', 'scikit-learn', 'tqdm', 'flask',
                 'numexpr', 'diplib', 'pyvips']
 
 version = None
