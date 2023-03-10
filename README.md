@@ -48,9 +48,8 @@ You can run a pciSeq demo in google colab: [![Open In Colab](https://colab.resea
 An interactive viewer to explore the data runs on this [url](https://acycliq.github.io/visage/). Instructions about 
 building this viewer with your own data are [here](https://github.com/acycliq/visage). 
 
-[comment]: <> (If you have `pciSeq 0.0.47` )
-
-[comment]: <> (or greater you also can launch the viewer automatically by setting `{'launch_viewer': True}` and passing it to `pciSeq.fit&#40;&#41;`, see [![Open In Colab]&#40;https://colab.research.google.com/assets/colab-badge.svg&#41;]&#40;https://colab.research.google.com/github/acycliq/pciSeq/blob/master/notebooks/2_viewer.ipynb&#41;)
+If you have `pciSeq 0.0.48` or greater you also can launch the viewer automatically by 
+setting `{'launch_viewer': True}` and passing it to `pciSeq.fit()`, see [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/acycliq/pciSeq/blob/master/notebooks/2_viewer.ipynb)
 
 
 ## References 
