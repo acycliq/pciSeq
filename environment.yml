@@ -12,6 +12,7 @@ dependencies:
   - scikit-learn
   - tqdm
   - numexpr
+  - flask
   - pip:
       - diplib
       - pyvips
