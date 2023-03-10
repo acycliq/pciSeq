@@ -1,7 +1,8 @@
 import os
 import pandas as pd
 import numpy as np
-import sysconfig
+import subprocess
+from email.parser import BytesHeaderParser
 import shutil
 import json
 import tempfile
@@ -208,8 +209,9 @@ def make_config_js(dst, w, h):
 
 
 def copy_viewer_code(cfg):
-    site_packages_dir = sysconfig.get_path('purelib')
-    pciSeq_dir = os.path.join(site_packages_dir, 'pciSeq')
+    p = subprocess.run(['pip', 'show', 'pciSeq'], stdout=subprocess.PIPE)
+    h = BytesHeaderParser().parsebytes(p.stdout)
+    pciSeq_dir = os.path.join(h['Location'], 'pciSeq')
     dim = '2D'
     src = os.path.join(pciSeq_dir, 'static', dim)
     dst = get_out_dir(cfg['output_path'], '')
