@@ -1,6 +1,24 @@
-import setuptools
+# Run this by calling
+#     python setup.py sdist bdist_wheel # old way to build a package
+#     or
+#     python -m build                   # new way to build a package
+
 import os
-from setuptools import setup
+from setuptools import setup, find_packages
+
+
+def get_static_files(root):
+    out = []
+    for path, subdirs, files in os.walk(root):
+        for name in files:
+            out.append(os.path.join(path, name))
+    return [d.strip('./pciSeq/') for d in out
+            if (d.endswith('.html')
+                or d.endswith('.js')
+                or d.endswith('.css')
+                or d.endswith('.msi'))
+            ]
+
 
 install_deps = ['opencv-python', 'numpy_groupies', 'pandas', 'scipy',
                 'scikit-image', 'scikit-learn', 'tqdm', 'flask',
@@ -32,13 +50,14 @@ setup(
     #   'pytest-runner',
     #   'setuptools_scm',
     # ],
-    packages=setuptools.find_packages(),
+    packages=find_packages(),
     # use_scm_version=True,
     install_requires=install_deps,
     extras_require={
         'interactive': ['matplotlib>=2.2.0', 'jupyter'],
     },
-    # include_package_data=True,
+    include_package_data=True,
+    package_data={'pciSeq': get_static_files(os.path.join('pciSeq', 'static'))},
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: BSD License",
