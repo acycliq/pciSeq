@@ -1,5 +1,5 @@
 # pciSeq: Probabilistic Cell typing by In situ Sequencing
-A Python package that implements the cell calling algorithm as described in [[Qian, X., et al. Nature Methods (2020)]](https://www.nature.com/articles/s41592-019-0631-4)
+A Python package that implements the cell calling algorithm as described in [Qian, X., et al. Nature Methods (2020)](https://www.nature.com/articles/s41592-019-0631-4)
 <p align="center">
     <img src="viewer/assets/screencast_resized.gif" alt="screenshot"/>
 </p>
@@ -45,7 +45,7 @@ res = pciSeq.fit(spots_df, label_image, scRNA_df, opts)
 You can run a pciSeq demo in google colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/acycliq/pciSeq/blob/master/notebooks/1_pciSeq.ipynb)
 
 ## Viewer
-An interactive viewer to interrogate the data runs on this [url](https://acycliq.github.io/visage/). Instructions about 
+An interactive viewer to explore the data runs on this [url](https://acycliq.github.io/visage/). Instructions about 
 building this viewer with your own data are [here](https://github.com/acycliq/visage). 
 
 [comment]: <> (If you have `pciSeq 0.0.47` )
