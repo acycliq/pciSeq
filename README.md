@@ -45,7 +45,7 @@ res = pciSeq.fit(spots_df, label_image, scRNA_df, opts)
 You can run a pciSeq demo in google colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/acycliq/pciSeq/blob/2D_viewer_autolaunch/notebooks/1_pciSeq.ipynb)
 
 ## Viewer
-An interactive viewer to interrogate the data runs on this [url](https://acycliq.github.io/visage/). Instructions about 
+An interactive viewer to explore the data runs on this [url](https://acycliq.github.io/visage/). Instructions about 
 building this viewer with your own data are [here](https://github.com/acycliq/visage). 
 
 If you have `pciSeq 0.0.47` 
