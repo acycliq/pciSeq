@@ -60,13 +60,5 @@ def flask_app_start(dir):
     flask_app.run(port=port, debug=False)
 
 
-def mk_ini(cellData, geneData):
-    ini = {
-        'cellData': cellData.to_json(orient='records'),
-        'geneData': geneData.to_json(orient='records')
-    }
-    return ini
-
-
 if __name__ == "__main__":
     flask_app_start()
