@@ -1,8 +1,13 @@
 // Set here the color scheme and the marker(glyph) shape for the gene panel you are working
-// with. These come into action at the deep zoom levels, when Leaflet.js takes over.
+// with. These gene-specific shapes come into action at the deep zoom levels, when Leaflet.js
+// takes over.
 //
 // There is switch for that called zoomSwitch, see line 39 of index.js together with the moveend
 // callback, see lines 459 and 511 of dapi.js.
+//
+// Outside this deep zoom zone all genes have the same shape, a solid circle, see
+// line 11, stage_markers_patched.js
+//
 // Note that leaflet doesnt get on very well with lots and lots of datapoints, if you notice
 // some slowness on the viewer maybe changing the zoomSwitch from its default value of 7 to 8
 // will probably help.
