@@ -59,11 +59,7 @@ function add_spots_patched(all_geneData, map) {
     }
 
     function scaleRampHelper(z, scale){
-        // makes a tiny dot and the its scales it up based on the map and the dapi dimensions
-        // As a general remark also, keep in mind that every time you zoom in, leaflet (I think) scales up by 2.
-        // Divide by 2 to keep the marker the same as size. Hence if for zoom level = 3 the  return value from
-        // this function is lets say zo 10, then when to keep the same size on the screen for the dot, at zoom = 4
-        // the return value should be 5
+        // makes a tiny dot and then it scales it up based on the map and the dapi dimensions
         var map_side = mapSide(configSettings.zoomLevels),
             dapi_size = [configSettings.roi.x1 - configSettings.roi.x0, configSettings.roi.y1 - configSettings.roi.y0],
             max_dapi = Math.max(...dapi_size),
