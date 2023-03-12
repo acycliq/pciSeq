@@ -96,6 +96,7 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
     if (cfg['save_data'] and varBayes.has_converged) or cfg['launch_viewer']:
         write_data(cellData, geneData, cellBoundaries, varBayes, cfg['output_path'])
 
+    # 6. do the viewer if needed
     if cfg['launch_viewer']:
         [h, w] = get_img_shape(coo)
         dst = copy_viewer_code(cfg)
