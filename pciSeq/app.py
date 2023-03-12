@@ -1,19 +1,20 @@
 import os
 import pandas as pd
 import numpy as np
-import subprocess
-from email.parser import BytesHeaderParser
-import shutil
-import json
+# import subprocess
+# from email.parser import BytesHeaderParser
+# import shutil
+# import json
 import tempfile
 import pickle
 from typing import Tuple
 from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.cell_call.main import VarBayes
 from pciSeq.src.preprocess.spot_labels import stage_data
-from pciSeq.src.cell_call.utils import get_out_dir
+# from pciSeq.src.cell_call.utils import get_out_dir
 from pciSeq.src.preprocess.utils import get_img_shape
 from pciSeq.src.viewer.run_flask import flask_app_start
+from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js
 from pciSeq import config
 from pciSeq.src.cell_call.log_config import attach_to_log, logger
 
@@ -167,59 +168,6 @@ def validate(spots, sc):
         "Spots should be passed-in to the fit() method as a dataframe with columns ['Gene', 'x', 'y']"
 
     assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
-
-
-def make_config_base(dst):
-    cellData_tsv = os.path.join(dst, 'data', 'cellData.tsv')
-    geneData_tsv = os.path.join(dst, 'data', 'geneData.tsv')
-
-    cellData_dict = {"mediaLink": "../../data/cellData.tsv", "size": str(os.path.getsize(cellData_tsv))}
-    geneData_dict = {"mediaLink": "../../data/geneData.tsv", "size": str(os.path.getsize(geneData_tsv))}
-
-    return {
-        'cellData': cellData_dict,
-        'geneData': geneData_dict,
-    }
-
-
-def make_config_js(dst, w, h):
-    appDict = make_config_base(dst)
-    cellBoundaries_tsv = os.path.join(dst, 'data', 'cellBoundaries.tsv')
-    cellBoundaries_dict = {"mediaLink": "../../data/cellBoundaries.tsv", "size": str(os.path.getsize(cellBoundaries_tsv))}
-    roi_dict = {"x0": 0, "x1": w, "y0": 0, "y1": h}
-    appDict['cellBoundaries'] = cellBoundaries_dict
-    appDict['roi'] = roi_dict
-    appDict['zoomLevels'] = 10
-    appDict['tiles'] = "https://storage.googleapis.com/ca1-data/img/262144px/{z}/{y}/{x}.jpg"
-
-    config_str = "// NOTES: \n" \
-                 "// 1. paths are with respect to the location of 'streaming-tsv-parser.js \n" \
-                 "// 2. roi is the image size in pixels. Leave x0 and y0 at zero and set x1 to the width and y1 to the height \n" \
-                 "// 3. tiles should point to the folder that keeps your pyramid of tiles. If you do not have that just \n" \
-                 "//    change the link to a blind one (change the jpg extension for example). The viewer should work \n" \
-                 "//    without the dapi background though \n" \
-                 "// 4. size is the tsv size in bytes. I use os.path.getsize() to get it. Not crucial if you \n" \
-                 "//    dont get it right, ie the full tsv will still be parsed despite this being wrong. It \n" \
-                 "//    is used by the loading page piecharts to calc how far we are \n" \
-                 "// 5. Leave zoomLevels to 10 \n" \
-                 " function config() { return %s }" % json.dumps(appDict)
-    config = os.path.join(dst, 'viewer', 'js', 'config.js')
-    with open(config, 'w') as data:
-        data.write(str(config_str))
-    logger.info(' viewer config saved at %s' % config)
-
-
-def copy_viewer_code(cfg):
-    p = subprocess.run(['pip', 'show', 'pciSeq'], stdout=subprocess.PIPE)
-    h = BytesHeaderParser().parsebytes(p.stdout)
-    pciSeq_dir = os.path.join(h['Location'], 'pciSeq')
-    dim = '2D'
-    src = os.path.join(pciSeq_dir, 'static', dim)
-    dst = get_out_dir(cfg['output_path'], '')
-
-    shutil.copytree(src, dst, dirs_exist_ok=True)
-    logger.info(' viewer code (%s) copied from %s to %s' % (dim, src, dst))
-    return dst
 
 
 if __name__ == "__main__":
