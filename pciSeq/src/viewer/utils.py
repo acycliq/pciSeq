@@ -1,11 +1,14 @@
-""" Functions to manipulate flat files (split or minify them) """
 from typing import Union
 import pandas as pd
 import numpy as np
+import subprocess
+from email.parser import BytesHeaderParser
+import shutil
 import json
 import os
 import glob
 import csv
+from pciSeq.src.cell_call.utils import get_out_dir
 import logging
 
 logger = logging.getLogger(__name__)
@@ -13,6 +16,59 @@ logger = logging.getLogger(__name__)
 from pciSeq import check_libvips
 if check_libvips():
     import pyvips
+
+
+def make_config_base(dst):
+    cellData_tsv = os.path.join(dst, 'data', 'cellData.tsv')
+    geneData_tsv = os.path.join(dst, 'data', 'geneData.tsv')
+
+    cellData_dict = {"mediaLink": "../../data/cellData.tsv", "size": str(os.path.getsize(cellData_tsv))}
+    geneData_dict = {"mediaLink": "../../data/geneData.tsv", "size": str(os.path.getsize(geneData_tsv))}
+
+    return {
+        'cellData': cellData_dict,
+        'geneData': geneData_dict,
+    }
+
+
+def make_config_js(dst, w, h):
+    appDict = make_config_base(dst)
+    cellBoundaries_tsv = os.path.join(dst, 'data', 'cellBoundaries.tsv')
+    cellBoundaries_dict = {"mediaLink": "../../data/cellBoundaries.tsv", "size": str(os.path.getsize(cellBoundaries_tsv))}
+    roi_dict = {"x0": 0, "x1": w, "y0": 0, "y1": h}
+    appDict['cellBoundaries'] = cellBoundaries_dict
+    appDict['roi'] = roi_dict
+    appDict['zoomLevels'] = 10
+    appDict['tiles'] = "https://storage.googleapis.com/ca1-data/img/262144px/{z}/{y}/{x}.jpg"
+
+    config_str = "// NOTES: \n" \
+                 "// 1. paths are with respect to the location of 'streaming-tsv-parser.js \n" \
+                 "// 2. roi is the image size in pixels. Leave x0 and y0 at zero and set x1 to the width and y1 to the height \n" \
+                 "// 3. tiles should point to the folder that keeps your pyramid of tiles. If you do not have that just \n" \
+                 "//    change the link to a blind one (change the jpg extension for example). The viewer should work \n" \
+                 "//    without the dapi background though \n" \
+                 "// 4. size is the tsv size in bytes. I use os.path.getsize() to get it. Not crucial if you \n" \
+                 "//    dont get it right, ie the full tsv will still be parsed despite this being wrong. It \n" \
+                 "//    is used by the loading page piecharts to calc how far we are \n" \
+                 "// 5. Leave zoomLevels to 10 \n" \
+                 " function config() { return %s }" % json.dumps(appDict)
+    config = os.path.join(dst, 'viewer', 'js', 'config.js')
+    with open(config, 'w') as data:
+        data.write(str(config_str))
+    logger.info(' viewer config saved at %s' % config)
+
+
+def copy_viewer_code(cfg):
+    p = subprocess.run(['pip', 'show', 'pciSeq'], stdout=subprocess.PIPE)
+    h = BytesHeaderParser().parsebytes(p.stdout)
+    pciSeq_dir = os.path.join(h['Location'], 'pciSeq')
+    dim = '2D'
+    src = os.path.join(pciSeq_dir, 'static', dim)
+    dst = get_out_dir(cfg['output_path'], '')
+
+    shutil.copytree(src, dst, dirs_exist_ok=True)
+    logger.info(' viewer code (%s) copied from %s to %s' % (dim, src, dst))
+    return dst
 
 
 def splitter_mb(df, dir_path, mb_size):
@@ -117,146 +173,3 @@ def splitter_n(filepath, n):
         elif ext == 'tsv':
             d.to_csv(fname, sep='\t', index=False)
 
-
-def crush_data(d):
-    """ Minifies the flatfiles that will be fed to the viewer.
-    I keep only 3 decimal points and no more than the top 10 cell classes as
-    possible assignments for any given cell
-    """
-
-    cell_min = None
-    gene_min = None
-    n = 10 # for each cell keep only the top10 possible cell types. Discard the rest. USE THIS WITH CAUTION. MAYBE IT IS NOT A GOOD IDEA AND I SHOULD KEEP ALL POSSIBLE CELL TYPES
-    try:
-        cellData_path = d['cellData']
-        cell_min = _crush_cellData(cellData_path, n)
-    except KeyError as e:
-        print('key doesnt exist...')
-
-    try:
-        geneData_path = d['geneData']
-        gene_min = _crush_geneData(geneData_path)
-    except KeyError as e:
-        print('key doesnt exist...')
-
-    return [cell_min, gene_min]
-
-
-def _crush_cellData(filepath, n):
-    filename_ext = os.path.basename(filepath)
-    [filename, ext] = filename_ext.split('.')
-
-    cellData = pd.read_csv(filepath, sep='\t')
-    temp = _order_prob(cellData, n)
-    cellData['ClassName'] = temp[0]
-    cellData['Prob'] = temp[1]
-
-    cellData['Prob'] = _round_data2(cellData, 'Prob')
-    cellData['CellGeneCount'] = _round_data(cellData, 'CellGeneCount')
-
-    out_dir: Union[bytes, str] = os.path.join(os.path.dirname(filepath), filename + '_min')
-    target_path = os.path.join(out_dir, filename_ext)
-    _clean_dir(out_dir, ext)
-
-    cellData.to_csv(target_path, sep='\t', index=False)
-    print('Minimised file saved at: %s' % target_path)
-
-    return target_path
-
-
-def _crush_geneData(filepath):
-    filename_ext = os.path.basename(filepath)
-    [filename, ext] = filename_ext.split('.')
-
-    geneData = pd.read_csv(filepath, sep='\t')
-
-    # 1. First, do geneData
-    # use int for the coordinates, not floats
-    geneData = geneData.astype({'x': 'int32', 'y': 'int32'})
-    geneData['neighbour_prob'] = _round_data(geneData, 'neighbour_prob')
-
-    out_dir = os.path.join(os.path.dirname(filepath), filename + '_min')
-    target_path = os.path.join(out_dir, filename_ext)
-    _clean_dir(out_dir, ext)
-
-    # save geneData
-    geneData.to_csv(target_path, sep='\t', index=False)
-    print('Minimised file saved at: %s' % target_path)
-
-    return target_path
-
-
-def _clean_dir(out_dir, ext):
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-    else:
-        files = glob.glob(out_dir + '/*.'+ext)
-        for f in files:
-            print('removed file %s' % f)
-            os.remove(f)
-
-
-def _get_file(OUT_DIR, n, header_line):
-    filename = os.path.basename(OUT_DIR).split('.')[0]
-    file = os.path.join(OUT_DIR, filename + '_%d.%s' % (n, 'tsv'))
-    handle = open(file, "a", newline='', encoding='utf-8')
-    write = csv.writer(handle, delimiter='\t')
-    write.writerow(header_line)
-    return file, handle
-
-
-def _order_prob(df, n, class_name=[], prob=[]):
-    '''
-    orders the list that keeps the cell classes probs from highest to lowest.
-    Rearranges then the cell class names appropriately
-    :param df:
-    :param n:
-    :param class_name:
-    :param prob:
-    :return:
-    '''
-    for index, row in df.iterrows():
-        cn = np.array(json.loads(row['ClassName'].replace("'", '"')))
-        p = np.array(json.loads(row['Prob']))
-
-        idx = np.argsort(p)[::-1]
-        cn = cn[idx]
-        cn = cn.tolist()
-        p = p[idx]
-        class_name.append(cn[:n]) # keep the top-n only and append
-        prob.append(p[:n])
-    return [class_name, prob]
-
-
-def rotate_image(img_in, img_out, deg):
-    """
-    rotates an image.
-    img_in: path to the image to be rotated
-    img_out: path to save the rotated image to
-    deg: degrees to rotate the image by (clockwise)
-    """
-    x = pyvips.Image.new_from_file(img_in)
-    x = x.rotate(deg, interpolate=pyvips.Interpolate.new("nearest"))
-    x.write_to_file(img_out, compression="jpeg", tile=True)
-
-
-_format = lambda x: round(x, 3) # keep only 3 decimal points
-
-
-def _round_data(df, name):
-    neighbour_prob = [json.loads(x) for x in df[name]]
-    return [list(map(_format, x)) for x in neighbour_prob]
-
-
-def _round_data2(df, name):
-    return [list(map(_format, x)) for x in df[name]]
-
-
-
-if __name__ == "__main__":
-    mb_size = 99
-    n = 4
-    filepaths = [r"geneData.tsv"]
-    for filepath in filepaths:
-        splitter_mb(filepath, mb_size)
-        splitter_n(filepath, n)
