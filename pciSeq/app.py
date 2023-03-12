@@ -6,6 +6,7 @@ import pickle
 from typing import Tuple
 from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.cell_call.main import VarBayes
+from pciSeq.src.cell_call.utils import get_out_dir
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.preprocess.utils import get_img_shape
 from pciSeq.src.viewer.run_flask import flask_app_start
@@ -95,7 +96,8 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
     # 6. do the viewer if needed
     if cfg['launch_viewer']:
         [h, w] = get_img_shape(coo)
-        dst = copy_viewer_code(cfg)
+        dst = get_out_dir(cfg['output_path'])
+        copy_viewer_code(cfg, dst)
         make_config_js(dst, w, h)
         flask_app_start(dst)
 
