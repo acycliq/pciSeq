@@ -1,7 +1,7 @@
 # pciSeq: Probabilistic Cell typing by In situ Sequencing
 A Python package that implements the cell calling algorithm as described in [Qian, X., et al. Nature Methods (2020)](https://www.nature.com/articles/s41592-019-0631-4)
 <p align="center">
-    <img src="https://github.com/acycliq/pciSeq/blob/master/viewer/assets/screencast_resized.gif?raw=true" alt="screenshot"/>
+    <img src="https://github.com/acycliq/pciSeq/blob/master/assets/screencast_resized.gif?raw=true" alt="screenshot"/>
 </p>
 
 ## Installation
