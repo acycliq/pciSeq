@@ -7,7 +7,6 @@ import json
 import os
 import glob
 import csv
-from pciSeq.src.cell_call.utils import get_out_dir
 from pciSeq.src.cell_call.log_config import logger
 
 
@@ -51,13 +50,12 @@ def make_config_js(dst, w, h):
     logger.info(' viewer config saved at %s' % config)
 
 
-def copy_viewer_code(cfg):
+def copy_viewer_code(cfg, dst):
     p = subprocess.run(['pip', 'show', 'pciSeq'], stdout=subprocess.PIPE)
     h = BytesHeaderParser().parsebytes(p.stdout)
     pciSeq_dir = os.path.join(h['Location'], 'pciSeq')
     dim = '2D'
     src = os.path.join(pciSeq_dir, 'static', dim)
-    dst = get_out_dir(cfg['output_path'], '')
 
     shutil.copytree(src, dst, dirs_exist_ok=True)
     logger.info(' viewer code (%s) copied from %s to %s' % (dim, src, dst))
