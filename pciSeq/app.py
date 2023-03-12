@@ -7,12 +7,15 @@ import shutil
 import json
 import tempfile
 import pickle
+import redis
 from typing import Tuple
 from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.cell_call.main import VarBayes
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.cell_call.utils import get_out_dir
 from pciSeq.src.preprocess.utils import get_img_shape
+from pciSeq.src.diagnostics.utils import redis_db
+from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 from pciSeq.src.viewer.run_flask import flask_app_start
 from pciSeq import config
 from pciSeq.src.cell_call.log_config import attach_to_log, logger
@@ -85,17 +88,23 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
     # 2. validate inputs
     validate(iss_spots, scRNAseq)
 
-    # 3. prepare the data
+    # 3. launch the diagnostics
+    if cfg['launch_diagnostics']:
+        logger.info('Launching the diagnostics dashboard')
+        launch_dashboard()
+
+    # 4. prepare the data
     logger.info(' Preprocessing data')
     _cells, cellBoundaries, _spots = stage_data(iss_spots, coo)
 
-    # 4. cell typing
+    # 5. cell typing
     cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
 
-    # 5. save to the filesystem
+    # 6. save to the filesystem
     if (cfg['save_data'] and varBayes.has_converged) or cfg['launch_viewer']:
-        write_data(cellData, geneData, cellBoundaries, varBayes, cfg['output_path'])
+        write_data(cellData, geneData, cellBoundaries, varBayes, cfg)
 
+    # 7. launch the viewer
     if cfg['launch_viewer']:
         [h, w] = get_img_shape(coo)
         dst = copy_viewer_code(cfg)
@@ -114,14 +123,22 @@ def cell_type(_cells, _spots, scRNAseq, ini):
     return cellData, geneData, varBayes
 
 
-def write_data(cellData, geneData, cellBoundaries, varBayes, path):
-    if path[0] == 'default':
-        out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq', 'data')
-    else:
-        out_dir = path[0]
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
+    viewer_data_dir = get_out_dir(cfg['output_path'], 'data')
+    export_data(cellData, geneData, cellBoundaries, viewer_data_dir)
 
+    debug_data_dir = get_out_dir(cfg['output_path'], 'debug')
+    export_db_tables(debug_data_dir, varBayes.redis_db)
+
+    with open(os.path.join(debug_data_dir, 'pciSeq.pickle'), 'wb') as outf:
+        # if there is a db connection, close and None-it before pickling
+        if varBayes.redis_db:
+            varBayes.redis_db = None
+        pickle.dump(varBayes, outf)
+        logger.info(' Saved at %s' % os.path.join(debug_data_dir, 'pciSeq.pickle'))
+
+
+def export_data(cellData, geneData, cellBoundaries, out_dir):
     cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
     logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
 
@@ -131,10 +148,18 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, path):
     cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
     logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
-    ## commenting this as there is no need to save the pickle file at the moment
-    # with open(os.path.join(out_dir, 'pciSeq.pickle'), 'wb') as outf:
-    #     pickle.dump(varBayes, outf)
-    #     logger.info(' Saved at %s' % os.path.join(out_dir, 'pciSeq.pickle'))
+
+def export_db_tables(out_dir, con):
+    tables = con.get_db_tables()
+    for table in tables:
+        export_db_table(table, out_dir, con)
+
+
+def export_db_table(table_name, out_dir, con):
+    df = con.from_redis(table_name)
+    fname = os.path.join(out_dir, table_name + '.csv')
+    df.to_csv(fname, index=False)
+    logger.info(' Saved at %s' % fname)
 
 
 def init(opts):
@@ -166,6 +191,25 @@ def validate(spots, sc):
         "Spots should be passed-in to the fit() method as a dataframe with columns ['Gene', 'x', 'y']"
 
     assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
+
+    check_redis_server()
+
+
+def confirm_prompt(question):
+    reply = None
+    while reply not in ("", "y", "n"):
+        reply = input(f"{question} (y/n): ").lower()
+    return (reply in ("", "y"))
+
+
+def check_redis_server():
+    logger.info("check_redis_server")
+    try:
+        redis_db()
+    except (redis.exceptions.ConnectionError, ConnectionRefusedError):
+        logger.info("Redis ping failed!. Trying to install redis server")
+        if confirm_prompt("Do you want to install redis server?"):
+            logger.info("...installing...")
 
 
 def make_config_base(dst):
