@@ -1,17 +1,12 @@
 import os
 import pandas as pd
 import numpy as np
-# import subprocess
-# from email.parser import BytesHeaderParser
-# import shutil
-# import json
 import tempfile
 import pickle
 from typing import Tuple
 from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.cell_call.main import VarBayes
 from pciSeq.src.preprocess.spot_labels import stage_data
-# from pciSeq.src.cell_call.utils import get_out_dir
 from pciSeq.src.preprocess.utils import get_img_shape
 from pciSeq.src.viewer.run_flask import flask_app_start
 from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js
