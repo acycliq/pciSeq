@@ -1,4 +1,3 @@
-from typing import Union
 import pandas as pd
 import numpy as np
 import subprocess
@@ -9,13 +8,7 @@ import os
 import glob
 import csv
 from pciSeq.src.cell_call.utils import get_out_dir
-import logging
-
-logger = logging.getLogger(__name__)
-
-from pciSeq import check_libvips
-if check_libvips():
-    import pyvips
+from pciSeq.src.cell_call.log_config import logger
 
 
 def make_config_base(dst):
