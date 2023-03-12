@@ -27,7 +27,8 @@
 //   circle
 //   point
 //
-// These are designed in glyphPaths.js and introduced to the viewer from glyphs.js
+// These are designed in glyphPaths.js and introduced to the viewer from glyphs.js (no need to edit them
+// unless you want to do an extra shape).
 
 
 function glyphSettings()
