@@ -477,7 +477,8 @@ class CellType(object):
     def __init__(self, single_cell):
         assert single_cell.classes[-1] == 'Zero', "Last label should be the Zero class"
         self._names = single_cell.classes
-        self._prior = None
+        self._alpha = None
+        self.single_cell_data_missing = single_cell.isMissing
 
     @property
     def names(self):
@@ -489,22 +490,43 @@ class CellType(object):
         return len(self.names)
 
     @property
-    def prior(self):
-        return self._prior
+    def alpha(self):
+        return self._alpha
 
-    @prior.setter
-    def prior(self, val):
-        self._prior = val
+    @alpha.setter
+    def alpha(self, val):
+        self._alpha = val
+
+    @property
+    def pi_bar(self):
+        return self.alpha / self.alpha.sum()
+
+    @property
+    def logpi_bar(self):
+        return scipy.special.psi(self.alpha) - scipy.special.psi(self.alpha.sum())
+
+    @property
+    def prior(self):
+        return self.pi_bar
 
     @property
     def log_prior(self):
-        return np.log(self.prior)
-
-    def ini_prior(self, ini_family):
-        if ini_family == 'uniform':
-            self.prior = np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
+        if self.single_cell_data_missing:
+            return self.logpi_bar
         else:
-            raise Exception('Method not implemented yet. Please pass "uniform" when you call ini_prior() ')
+            return np.log(self.prior)
+
+    def size(self, cells):
+        """
+        calcs the size of a cell class, ie how many members (ie cells) each cell type has
+        """
+        return cells.classProb.sum(axis=0)
+
+    def ini_prior(self):
+        self.alpha = self.ini_alpha()
+
+    def ini_alpha(self):
+        return np.append(np.ones(self.nK - 1), sum(np.ones(self.nK - 1)))
 
 
 
