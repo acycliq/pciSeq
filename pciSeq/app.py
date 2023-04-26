@@ -197,5 +197,5 @@ if __name__ == "__main__":
 
     # main task
     # _opts = {'max_iter': 10}
-    fit(_iss_spots, _coo, opts={'save_data': True, 'launch_viewer': True})
+    fit(_iss_spots, _coo, scRNAseq=_scRNAseq, opts={'save_data': True, 'launch_viewer': True})
 
