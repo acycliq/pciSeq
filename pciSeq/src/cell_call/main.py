@@ -24,7 +24,7 @@ class VarBayes:
         self.has_converged = False
 
     def initialise(self):
-        self.cellTypes.ini_prior('uniform')
+        self.cellTypes.ini_prior()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
         self.genes.init_eta(1, 1 / self.config['Inefficiency'])
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
@@ -49,6 +49,9 @@ class VarBayes:
 
             # 3. assign cells to cell types
             self.cell_to_cellType()
+
+            if self.single_cell.isMissing:
+                self.dalpha_upd()
 
             # 4. assign spots to cells
             self.spots_to_cell()
@@ -268,6 +271,20 @@ class VarBayes:
         self.single_cell._log_mean_expression = lme
 
         logger.info('Singe cell data updated')
+
+    # -------------------------------------------------------------------- #
+    def dalpha_upd(self):
+        # logger.info('Update cell type (marginal) distribution')
+        zeta = self.cells.classProb.sum(axis=0)  # this the class size
+        alpha = self.cellTypes.ini_alpha()
+        out = zeta + alpha
+
+        # logger.info("***************************************************")
+        # logger.info("**** Dirichlet alpha is zero if class size <=%d ****" % self.config['min_class_size'])
+        # logger.info("***************************************************")
+        mask = zeta <= self.config['min_class_size']
+        out[mask] = 10e-6
+        self.cellTypes.alpha = out
 
 
 
