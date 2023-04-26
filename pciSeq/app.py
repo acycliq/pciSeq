@@ -17,7 +17,7 @@ from pciSeq.src.cell_call.log_config import attach_to_log, logger
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
-def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: dict = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Main entry point for pciSeq.
 
@@ -75,6 +75,20 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
             Name: neighbour_array, dtype: Object, array-like with the labels of the 4 nearest cell. The last is always the background and has label=0
             Name: neighbour_prob, dtype: Object, array-like with the prob the corresponding cell from neighbour_array has risen the spot.
     """
+
+    try:
+        scRNAseq = kwargs['scRNAseq']
+    except KeyError:
+        scRNAseq = None
+    except Exception as err:
+        raise
+
+    try:
+        opts = kwargs['opts']
+    except KeyError:
+        opts = None
+    except Exception as err:
+        raise
 
     # 1. get the hyperparameters
     cfg = init(opts)
@@ -164,7 +178,8 @@ def validate(spots, sc):
     assert isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y'}, \
         "Spots should be passed-in to the fit() method as a dataframe with columns ['Gene', 'x', 'y']"
 
-    assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
+    if sc is not None:
+        assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
 
 
 if __name__ == "__main__":
@@ -182,5 +197,5 @@ if __name__ == "__main__":
 
     # main task
     # _opts = {'max_iter': 10}
-    fit(_iss_spots, _coo, _scRNAseq, {'save_data': True})
+    fit(_iss_spots, _coo, opts={'save_data': True, 'launch_viewer': True})
 
