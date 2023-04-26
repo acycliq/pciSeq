@@ -90,7 +90,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.D
     # join spots and cells on the cell label so you can get the x,y coords of the cell for any given spot
     spots = spots.merge(cells, how='left', on=['label'])
 
-    _cells = cells[['label', 'area', 'x_cell', 'y_cell']].rename(columns={'x_cell': 'x', 'y_cell': 'y'})
+    _cells = cells[['label', 'area', 'x_cell', 'y_cell']].rename(columns={'x_cell': 'x0', 'y_cell': 'y0'})
     _cell_boundaries = cells[['label', 'coords']].rename(columns={'label': 'cell_id'})
     _spots = spots[['x', 'y', 'label', 'Gene', 'x_cell', 'y_cell']].rename(columns={'Gene': 'target', 'x': 'x_global', 'y': 'y_global'})
 
