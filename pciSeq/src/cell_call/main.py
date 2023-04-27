@@ -232,7 +232,7 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def mu_upd(self):
-        logger.info('Update single cell data')
+        # logger.info('Update single cell data')
         # # make an array nS-by-nN and fill it with the spots id
         # gene_ids = np.tile(self.spots.gene_id, (self.nN, 1)).T
         #
@@ -270,7 +270,7 @@ class VarBayes:
         self.single_cell._mean_expression = me
         self.single_cell._log_mean_expression = lme
 
-        logger.info('Singe cell data updated')
+        # logger.info('Single cell data updated')
 
     # -------------------------------------------------------------------- #
     def dalpha_upd(self):
