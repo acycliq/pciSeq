@@ -36,7 +36,7 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
         which cell the corresponding pixel 'belongs' to. If label is
         zero, the pixel is on the background
 
-    scRNAseq : pandas.DataFrame
+    scRNAseq : pandas.DataFrame (Optional)
         Index:
             The gene name
         Columns:
