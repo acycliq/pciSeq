@@ -38,7 +38,7 @@ hyperparameter names and `values` their new values. For example, to exclude all 
 import pciSeq
 
 opts = { 'exclude_genes': ['Npy', 'Vip'] }
-res = pciSeq.fit(spots_df, label_image, scRNA_df, opts)
+res = pciSeq.fit(spots_df, label_image, scRNAseq=scRNA_df, opts=opts)
 ```
 
 ## Demo
