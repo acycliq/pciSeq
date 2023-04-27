@@ -32,7 +32,7 @@ def make_config_js(dst, w, h):
     appDict['cellBoundaries'] = cellBoundaries_dict
     appDict['roi'] = roi_dict
     appDict['zoomLevels'] = 10
-    appDict['tiles'] = "https://storage.googleapis.com/ca1-data/img/262144px/{z}/{y}/{x}.jpg"
+    appDict['tiles'] = "https://storage.googleapis.com/ca1-data/img/262144px/{z}/{y}/{x}.jpgZZZ"
 
     config_str = "// NOTES: \n" \
                  "// 1. paths are with respect to the location of 'streaming-tsv-parser.js \n" \
