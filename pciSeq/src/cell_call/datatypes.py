@@ -467,7 +467,8 @@ class SingleCell(object):
         mgc = 15
         arr = mgc * np.eye(nG)
         # labels = ["label_" + str(d) for d in range(arr.shape[1])]
-        labels = [s + '_class' for s in genes]
+        # labels = [s + '_class' for s in genes]
+        labels = ['class_%d' % (i+1) for i, _ in enumerate(genes)]
         df = pd.DataFrame(arr).set_index(genes)
         df.columns = labels
         return df

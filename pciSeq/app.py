@@ -10,7 +10,7 @@ from pciSeq.src.cell_call.utils import get_out_dir
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.preprocess.utils import get_img_shape
 from pciSeq.src.viewer.run_flask import flask_app_start
-from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js
+from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js, make_classConfig_js
 from pciSeq import config
 from pciSeq.src.cell_call.log_config import attach_to_log, logger
 
@@ -113,6 +113,12 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
         dst = get_out_dir(cfg['output_path'])
         copy_viewer_code(cfg, dst)
         make_config_js(dst, w, h)
+        if scRNAseq is None:
+            label_list = [d[:] for d in cellData.ClassName.values]
+            labels = [item for sublist in label_list for item in sublist]
+            labels = sorted(set(labels))
+            labels.remove('Zero')
+            make_classConfig_js(labels, dst)
         flask_app_start(dst)
 
     logger.info(' Done')
@@ -197,5 +203,5 @@ if __name__ == "__main__":
 
     # main task
     # _opts = {'max_iter': 10}
-    fit(_iss_spots, _coo, scRNAseq=_scRNAseq, opts={'save_data': True, 'launch_viewer': True})
+    fit(_iss_spots, _coo, opts={'save_data': True, 'launch_viewer': True})
 
