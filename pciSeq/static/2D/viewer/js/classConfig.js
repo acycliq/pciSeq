@@ -90,7 +90,7 @@ function classColorsCodes()
         {className: 'Generic', IdentifiedType: 'Generic', color: '#C0C0C0'},
 
         // The donut chart at the bottom right will aggregate all classes with prob < 2% under the Other
-        // label (see line 101, donut.js)
+        // label (see line 278, donut.js)
         {className: 'Other', IdentifiedType: 'Other', color: '#C0C0C0'},
 
 
