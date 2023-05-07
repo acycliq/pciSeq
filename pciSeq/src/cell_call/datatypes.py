@@ -334,8 +334,9 @@ class SingleCell(object):
         called herein
         """
         if scdata is None:
-            logger.info('Single Cell data are missing. We will try to estimate it')
-            logger.info('Starting point is a diagonal array')
+            logger.info('Single Cell data are missing. Cannot determine meam expression per cell class.')
+            logger.info('We will try to estimate the array instead')
+            logger.info('Starting point is a diagonal array of size numGenes-by-numGenes')
             # expr = self._naive(scdata, genes)
             expr = self._diag(genes)
             self.isMissing = True
@@ -459,15 +460,12 @@ class SingleCell(object):
         return out
 
     def _diag(self, genes):
-        logger.info('******************************************************')
-        logger.info('*************** DIAGONAL SINGLE CELL DATA ***************')
-        logger.info('******************************************************')
+        # logger.info('******************************************************')
+        # logger.info('*************** DIAGONAL SINGLE CELL DATA ***************')
+        # logger.info('******************************************************')
         nG = len(genes)
-        # nK = 71
-        mgc = 15
+        mgc = 15  # the avg gene count per cell. Better expose that so it can be set by the user.
         arr = mgc * np.eye(nG)
-        # labels = ["label_" + str(d) for d in range(arr.shape[1])]
-        # labels = [s + '_class' for s in genes]
         labels = ['class_%d' % (i+1) for i, _ in enumerate(genes)]
         df = pd.DataFrame(arr).set_index(genes)
         df.columns = labels
