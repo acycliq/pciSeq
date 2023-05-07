@@ -405,7 +405,13 @@ class SingleCell(object):
         For the zero class only the prior is used *AND NOT* data
         evidence.
         """
-        m = self.config['m']
+
+        # the prior on mean expression follows a Gamma(m * M , m), where M is the starting point (the initial
+        # array) of single cell data
+        # 07-May-2023. Hiding m from the config.py. Should bring it back at a later version
+        # m = self.config['m']
+        m = 1
+
         a = fitted + m * (self.raw_data + self.config['SpotReg'])
         b = scale + m
         me = a / b

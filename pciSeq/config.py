@@ -46,14 +46,6 @@ DEFAULT = {
     # The value for rSpot will control the variance/dispersion of the counts
     'rSpot': 2,
 
-    # the prior on mean expression follows a Gamma(m * M , m), where M is the starting point (the initial
-    # array) of single cell data
-    'm': 1,
-
-    # used by the Dirichlet distribution. If a class size is smaller than 'min_class_size' then it will be
-    # assigned a weight of almost zero
-    'min_class_size': 5,
-
     # Boolean, if True the output will be saved as tsv files in a folder named 'pciSeq' in your system's temp dir.
     'save_data': False,
 
