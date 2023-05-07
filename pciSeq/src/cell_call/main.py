@@ -282,7 +282,13 @@ class VarBayes:
         # logger.info("***************************************************")
         # logger.info("**** Dirichlet alpha is zero if class size <=%d ****" % self.config['min_class_size'])
         # logger.info("***************************************************")
-        mask = zeta <= self.config['min_class_size']
+
+        # 07-May-2013: Hiding 'min_class_size' from the config file. Should bring it back at a later version
+        # mask = zeta <= self.config['min_class_size']
+        min_class_size = 5
+        mask = zeta <= min_class_size
+
+        # If a class size is smaller than 'min_class_size' then it will be assigned a weight of almost zero
         out[mask] = 10e-6
         self.cellTypes.alpha = out
 
