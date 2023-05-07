@@ -17,13 +17,13 @@ from pciSeq.src.cell_call.log_config import attach_to_log, logger
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
-def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Main entry point for pciSeq.
 
     Parameters
     ----------
-    iss_spots : pandas.DataFrame
+    **spots : pandas.DataFrame
         Index:
             RangeIndex
         Columns:
@@ -31,23 +31,26 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
             Name: x, dtype: int64, X-axis coordinate of the spot
             Name: y, dtype: int64, Y-axis coordinate of the spot
 
-    coo : scipy.sparse.coo_matrix
+    **coo : scipy.sparse.coo_matrix
         A label image array as a coo_matrix datatype. The label denote
         which cell the corresponding pixel 'belongs' to. If label is
         zero, the pixel is on the background
 
-    scRNAseq : pandas.DataFrame (Optional)
+    **scRNAseq : pandas.DataFrame (Optional)
         Index:
             The gene name
         Columns:
             The column headers are the cell classes and the data are uint32
 
-    opts : dictionary (Optional)
+    **opts : dictionary (Optional)
         A dictionary to pass-in user-defined hyperparameter values. They override the default
         values as these are set by the config.py file. For example to exclude genes Npy and
         Vip you can define opts as:
             opts = {'exclude_genes': ['Npy', 'Vip']}
         and pass that dict to the fit function as the last argument
+
+    *args: If 'spots' and 'coo' are not passed-in as keyword argument then they should be provided
+    as first and second positional arguments
 
     Returns
     ------
@@ -76,6 +79,21 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
             Name: neighbour_prob, dtype: Object, array-like with the prob the corresponding cell from neighbour_array has risen the spot.
     """
 
+    if not {'spots', 'coo'}.issubset(set(kwargs)):
+        try:
+            assert len(args) == 2, 'Need to provide the spots and the coo matrix as the first ' \
+                                   'and second args to the fit() method '
+            kwargs['spots'] = args[0]
+            kwargs['coo'] = args[1]
+        except Exception as err:
+            raise
+
+    try:
+        spots = kwargs['spots']
+        coo = kwargs['coo']
+    except Exception as err:
+        raise
+
     try:
         scRNAseq = kwargs['scRNAseq']
     except KeyError:
@@ -94,11 +112,11 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, **kwargs) -> Tuple[pd.DataFram
     cfg = init(opts)
 
     # 2. validate inputs
-    validate(iss_spots, scRNAseq)
+    validate(spots, coo, scRNAseq)
 
     # 3. prepare the data
     logger.info(' Preprocessing data')
-    _cells, cellBoundaries, _spots = stage_data(iss_spots, coo)
+    _cells, cellBoundaries, _spots = stage_data(spots, coo)
 
     # 4. cell typing
     cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
@@ -180,9 +198,11 @@ def init(opts):
     return cfg
 
 
-def validate(spots, sc):
+def validate(spots, coo, sc):
     assert isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y'}, \
         "Spots should be passed-in to the fit() method as a dataframe with columns ['Gene', 'x', 'y']"
+
+    assert isinstance(coo, coo_matrix), 'The segmentation masks should be passed-in as a coo_matrix'
 
     if sc is not None:
         assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
@@ -203,5 +223,5 @@ if __name__ == "__main__":
 
     # main task
     # _opts = {'max_iter': 10}
-    fit(_iss_spots, _coo, opts={'save_data': True, 'launch_viewer': True})
+    fit(spots=_iss_spots, coo=_coo, scRNAseq=_scRNAseq, opts={'save_data': True, 'launch_viewer': True})
 
