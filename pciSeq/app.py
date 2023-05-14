@@ -49,7 +49,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
             opts = {'exclude_genes': ['Npy', 'Vip']}
         and pass that dict to the fit function as the last argument
 
-    *args: If 'spots' and 'coo' are not passed-in as keyword argument then they should be provided
+    *args: If 'spots' and 'coo' are not passed-in as keyword arguments then they should be provided
     as first and second positional arguments
 
     Returns
