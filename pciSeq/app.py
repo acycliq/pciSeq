@@ -223,5 +223,5 @@ if __name__ == "__main__":
 
     # main task
     # _opts = {'max_iter': 10}
-    fit(spots=_iss_spots, coo=_coo, scRNAseq=_scRNAseq, opts={'save_data': True, 'launch_viewer': True})
+    fit(spots=_iss_spots, coo=_coo, scRNAseq=None, opts={'save_data': True, 'launch_viewer': True})
 
