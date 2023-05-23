@@ -288,6 +288,15 @@ class VarBayes:
         min_class_size = 5
         mask = zeta <= min_class_size
 
+        # make sure Zero class is the last one
+        assert self.cellTypes.names[-1] == "Zero"
+        assert len(self.cellTypes.names) == len(mask)
+
+        # make sure the last value ie always False, overriding if necessary the
+        # check a few lines when the mask variable was set.
+        # In this manner we will prevent the Zero class from being removed.
+        mask[-1] = False
+
         # If a class size is smaller than 'min_class_size' then it will be assigned a weight of almost zero
         out[mask] = 10e-6
         self.cellTypes.alpha = out
