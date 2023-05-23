@@ -135,7 +135,10 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
             label_list = [d[:] for d in cellData.ClassName.values]
             labels = [item for sublist in label_list for item in sublist]
             labels = sorted(set(labels))
-            labels.remove('Zero')
+            if 'Zero' in labels:
+                # remove Zero because it will be appended later on by
+                # the make_classConfig_js script
+                labels.remove('Zero')
             make_classConfig_js(labels, dst)
         flask_app_start(dst)
 
