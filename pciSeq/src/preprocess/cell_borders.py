@@ -4,8 +4,7 @@ import numpy as np
 import diplib as dip
 
 
-
-def extract_borders_dip(label_image, offset_x, offset_y, clipped_labels):
+def extract_borders_dip(label_image, offset_x, offset_y, exclude_labels):
     """
     NOTES: # using Simplify drastically reduces the array that describes the polygon boundaries but you
              might end up with a slightly different polygon. The difference is only on a very few pixels.
@@ -23,7 +22,7 @@ def extract_borders_dip(label_image, offset_x, offset_y, clipped_labels):
     -------
 
     """
-    labels = sorted(set(label_image.flatten()) - {0} - set(clipped_labels))
+    labels = sorted(set(label_image.flatten()) - {0} - set(exclude_labels))
     cc = dip.GetImageChainCodes(label_image)  # input must be an unsigned integer type
     d = {}
     for c in cc:
