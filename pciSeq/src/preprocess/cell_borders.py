@@ -6,22 +6,25 @@ import diplib as dip
 
 def extract_borders_dip(label_image, offset_x, offset_y, exclude_labels):
     """
-    NOTES: # using Simplify drastically reduces the array that describes the polygon boundaries but you
-             might end up with a slightly different polygon. The difference is only on a very few pixels.
-             I do not know which one reflect the actual boundaries more closely, but using Simplify and
-             reduce the size of the boudaries array is convenient. Also having few different pixels is not
-             crucial, hence I think keeping Simplify makes sense
+    Extracts the cell boundaries from the label image array. The background is
+    assumed to have label=0 and it will be ignored.
     Parameters
     ----------
-    label_image
-    offset_x
-    offset_y
-    clipped_labels
+    label_image:    The label image array, typically obtained from some image segmentation
+                    application and map every pixel on the image to a cell label.
+    offset_x:       Amount to shift the boundaries along the x-axis
+    offset_y        Amount to shift the boundaries along the y-axis
+    exclude_labels: Array-like, contains the labels to be ignored. The label = 0 will be
+                    ignored in any case, whether or not it is in this list
+
 
     Returns
     -------
-
+    Returns a dataframe with columns ['labels', 'coords'] where column 'coords' keeps a
+    list like [[x0, y0], [x1, y2],...,[x0, y0]] of the (closed-loop) boundaries coordinates
+    for corresponding cell  label
     """
+
     labels = sorted(set(label_image.flatten()) - {0} - set(exclude_labels))
     cc = dip.GetImageChainCodes(label_image)  # input must be an unsigned integer type
     d = {}
