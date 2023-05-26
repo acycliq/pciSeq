@@ -1,15 +1,8 @@
 """ Functions to extract the cell boundaries """
-
-import cv2
 import pandas as pd
 import numpy as np
-from scipy.sparse import coo_matrix
-from scipy.ndimage import binary_erosion
-from multiprocessing.dummy import Pool as ThreadPool
-from multiprocessing import cpu_count
 import diplib as dip
-import time
-import logging
+
 
 
 def extract_borders_dip(label_image, offset_x, offset_y, clipped_labels):
