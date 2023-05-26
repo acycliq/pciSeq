@@ -123,7 +123,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     # 5. save to the filesystem
     if (cfg['save_data'] and varBayes.has_converged) or cfg['launch_viewer']:
-        write_data(cellData, geneData, cellBoundaries, varBayes, cfg['output_path'])
+        write_data(cellData, geneData, cellBoundaries, cfg)
 
     # 6. do the viewer if needed
     if cfg['launch_viewer']:
@@ -154,11 +154,9 @@ def cell_type(_cells, _spots, scRNAseq, ini):
     return cellData, geneData, varBayes
 
 
-def write_data(cellData, geneData, cellBoundaries, varBayes, path):
-    if path[0] == 'default':
-        out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq', 'data')
-    else:
-        out_dir = path[0]
+def write_data(cellData, geneData, cellBoundaries, cfg):
+    dst = get_out_dir(cfg['output_path'])
+    out_dir = os.path.join(dst, 'data')
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
@@ -226,5 +224,6 @@ if __name__ == "__main__":
 
     # main task
     # _opts = {'max_iter': 10}
-    fit(spots=_iss_spots, coo=_coo, scRNAseq=None, opts={'save_data': True, 'launch_viewer': True})
+    fit(spots=_iss_spots, coo=_coo, scRNAseq=None, opts={'save_data': True,
+                                                         'launch_viewer': True,})
 
