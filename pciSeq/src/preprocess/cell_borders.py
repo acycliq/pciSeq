@@ -11,7 +11,7 @@ def extract_borders_dip(label_image, offset_x, offset_y, exclude_labels):
     Parameters
     ----------
     label_image:    The label image array, typically obtained from some image segmentation
-                    application and map every pixel on the image to a cell label.
+                    application and maps every pixel on the image to a cell label.
     offset_x:       Amount to shift the boundaries along the x-axis
     offset_y        Amount to shift the boundaries along the y-axis
     exclude_labels: Array-like, contains the labels to be ignored. The label = 0 will be
