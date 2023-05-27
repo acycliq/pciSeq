@@ -133,10 +133,6 @@ class Genes(object):
         self.nG = len(self.gene_panel)
 
     @property
-    def eta(self):
-        raise Exception
-
-    @property
     def eta_bar(self):
         return self._eta_bar
 
@@ -164,11 +160,21 @@ class Spots(object):
         self.config = config
         self.data = self.read(spots_df)
         self.nS = self.data.shape[0]
-        self.call = None
         self.unique_gene_names = None
         self._gamma_bar = None
         self._log_gamma_bar = None
         [_, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True, return_counts=True)
+
+    def __getstate__(self):
+        # set here attributes to be excluded from serialisation (pickling)
+        # It makes the pickle filesize smaller but maybe this will have to
+        # change in the future.
+        # These two attributes take up a lot of space on the disk:
+        # _gamma_bar and _log_gamma_bar
+        # FYI: https://realpython.com/python-pickle-module/
+        attributes = self.__dict__.copy()
+        del attributes['_gamma_bar']
+        del attributes['_log_gamma_bar']
 
     # -------- PROPERTIES -------- #
     @property
