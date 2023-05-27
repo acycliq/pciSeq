@@ -78,7 +78,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.D
                       columns=['label', 'area', 'x_cell', 'y_cell'])
 
     # 3. Get the cell boundaries
-    cell_boundaries = extract_borders_dip(coo.toarray().astype(np.uint32), 0, 0, [0])
+    cell_boundaries = extract_borders_dip(coo.toarray().astype(np.uint32))
 
     assert props_df.shape[0] == cell_boundaries.shape[0] == np.unique(coo.data).shape[0]
     assert set(spots.label[spots.label > 0]) <= set(props_df.label)
