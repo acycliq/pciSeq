@@ -20,7 +20,7 @@ def get_static_files(root):
             ]
 
 
-install_deps = ['opencv-python', 'numpy_groupies', 'pandas', 'scipy',
+install_deps = ['numpy_groupies', 'pandas', 'scipy',
                 'scikit-image', 'scikit-learn', 'tqdm', 'flask',
                 'numexpr', 'diplib', 'pyvips']
 
