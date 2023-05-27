@@ -9,9 +9,9 @@ def _iss_summary(cells, genes, single_cell):
     :param spots:
     :return:
     '''
-    x = cells.cell_props['x']
-    y = cells.cell_props['y']
-    cell_id = cells.cell_props['cell_label']
+    # x = cells.cell_props['x']
+    # y = cells.cell_props['y']
+    cell_id = cells.ini_cell_props['cell_label']
 
     gene_count = cells.geneCount
     class_prob = cells.classProb
@@ -30,9 +30,9 @@ def _iss_summary(cells, genes, single_cell):
     class_name_list = [class_names[isProb_nonZero[n]].tolist() for n in range(N)]
     prob_list = [class_prob[n, isProb_nonZero[n]].tolist() for n in range(N)]
 
-    iss_df = pd.DataFrame({'Cell_Num': cells.cell_props['cell_label'].tolist(),
-                           'X': cells.cell_props['x'].tolist(),
-                           'Y': cells.cell_props['y'].tolist(),
+    iss_df = pd.DataFrame({'Cell_Num': cells.centroid.index.tolist(),
+                           'X': cells.centroid['x'].tolist(),
+                           'Y': cells.centroid['y'].tolist(),
                            'Genenames': name_list,
                            'CellGeneCount': count_list,
                            'ClassName': class_name_list,

@@ -26,12 +26,13 @@ def make_config_base(dst):
 def make_config_js(dst, w, h):
     appDict = make_config_base(dst)
     cellBoundaries_tsv = os.path.join(dst, 'data', 'cellBoundaries.tsv')
-    cellBoundaries_dict = {"mediaLink": "../../data/cellBoundaries.tsv", "size": str(os.path.getsize(cellBoundaries_tsv))}
+    cellBoundaries_dict = {"mediaLink": "../../data/cellBoundaries.tsv",
+                           "size": str(os.path.getsize(cellBoundaries_tsv))}
     roi_dict = {"x0": 0, "x1": w, "y0": 0, "y1": h}
     appDict['cellBoundaries'] = cellBoundaries_dict
     appDict['roi'] = roi_dict
     appDict['zoomLevels'] = 10
-    appDict['tiles'] = "https://storage.googleapis.com/ca1-data/img/262144px/{z}/{y}/{x}.jpg"
+    appDict['tiles'] = "https://storage.googleapis.com/ca1-data/img/262144px/{z}/{y}/{x}.jpgZZZ"
 
     config_str = "// NOTES: \n" \
                  "// 1. paths are with respect to the location of 'streaming-tsv-parser.js \n" \
@@ -48,6 +49,25 @@ def make_config_js(dst, w, h):
     with open(config, 'w') as data:
         data.write(str(config_str))
     logger.info(' viewer config saved at %s' % config)
+
+
+def make_classConfig_js(labels, dst):
+    colours = ["#f3c300", "#875692", "#f38400", "#a1caf1", "#be0032",
+               "#c2b280", "#848482", "#008856", "#e68fac", "#0067a5",
+               "#f99379", "#604e97", "#f6a600", "#b3446c", "#dcd300",
+               "#882d17", "#8db600", "#654522", "#e25822", "#2b3d26"]
+    n = len(colours)
+    config_dict = [{'className': labels[i],
+                   'IdentifiedType': labels[i],
+                   'color': colours[i % n]}
+                  for i, v in enumerate(labels)]
+    config_dict.append({'className': 'Zero', 'IdentifiedType': 'Zero', 'color': '#000000'})
+    config_dict.append({'className': 'Other', 'IdentifiedType': 'Other', 'color': '#C0C0C0'})
+    config_str = " function classColorsCodes() { return %s }" % json.dumps(config_dict)
+    config = os.path.join(dst, 'viewer', 'js', 'classConfig.js')
+    with open(config, 'w') as data:
+        data.write(str(config_str))
+    logger.info(' classConfig saved at %s' % config)
 
 
 def copy_viewer_code(cfg, dst):
@@ -85,8 +105,8 @@ def splitter_mb(df, dir_path, mb_size):
     for index, row in df.iterrows():
         row = row.tolist()
         size = os.stat(file_out).st_size
-        if size > mb_size*1024*1024:
-            logger.info('saved %s with file size %4.3f MB' % (file_out, size/(1024*1024)))
+        if size > mb_size * 1024 * 1024:
+            logger.info('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
             n += 1
             handle_out.close()
             file_out, handle_out = _get_file(dir_path, n, header_line)
@@ -119,8 +139,8 @@ def splitter_mb(filepath, mb_size):
     file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)
     for line in handle:
         size = os.stat(file_out).st_size
-        if size > mb_size*1024*1024:
-            print('saved %s with file size %4.3f MB' % (file_out, size/(1024*1024)))
+        if size > mb_size * 1024 * 1024:
+            print('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
             n += 1
             handle_out.close()
             file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)
@@ -153,14 +173,13 @@ def splitter_n(filepath, n):
     if not os.path.exists(OUT_DIR):
         os.makedirs(OUT_DIR)
     else:
-        files = glob.glob(OUT_DIR + '/*.'+ext)
+        files = glob.glob(OUT_DIR + '/*.' + ext)
         for f in files:
             os.remove(f)
 
     for i, d in enumerate(df_list):
         fname = os.path.join(OUT_DIR, filename + '_%d.%s' % (i, ext))
         if ext == 'json':
-            d.to_json(fname,  orient='records')
+            d.to_json(fname, orient='records')
         elif ext == 'tsv':
             d.to_csv(fname, sep='\t', index=False)
-

@@ -11,19 +11,19 @@ class Cells(object):
     # Get rid of the properties where not necessary!!
     def __init__(self, _cells_df, config):
         self.config = config
-        self.cell_props, self.mcr = self.read_image_objects(_cells_df, config)
-        self.nC = len(self.cell_props['cell_label'])
+        self.ini_cell_props, self.mcr = self.read_image_objects(_cells_df, config)
+        self.nC = len(self.ini_cell_props['cell_label'])
         self.classProb = None
         self.class_names = None
         self._cov = self.ini_cov()
+        self._centroid = self.ini_centroids()
         self._gene_counts = None
         self._background_counts = None
 
     # -------- PROPERTIES -------- #
     @property
     def yx_coords(self):
-        coords = [d for d in zip(self.cell_props['y'], self.cell_props['x']) if not np.isnan(d).any()]
-        return np.array(coords)
+        return self.centroid[['y', 'x']].values
 
     @property
     def geneCount(self):
@@ -48,14 +48,34 @@ class Cells(object):
         # tc = self.geneCount.sum(axis=1)
         return self.geneCount.sum(axis=1)
 
+    @property
+    def centroid(self):
+        # lst = list(zip(*[self._centroid['x'], self._centroid['y']]))
+        return self._centroid.copy()
+
+    @centroid.setter
+    def centroid(self, df):
+        assert isinstance(df, pd.DataFrame), 'Input should be a dataframe'
+        assert set(df.columns.values) == {'x', 'y'}, 'Dataframe columns should be ''x'', ''y'' '
+        df.index.name = 'cell_label'
+        self._centroid = df.copy()
+
     # -------- METHODS -------- #
+    def ini_centroids(self):
+        d = {
+            'x': self.ini_cell_props['x0'],
+            'y': self.ini_cell_props['y0'],
+        }
+        df = pd.DataFrame(d)
+        return df.copy()
+
     def ini_cov(self):
         mcr = self.dapi_mean_cell_radius()
         cov = mcr * mcr * np.eye(2, 2)
         return np.tile(cov, (self.nC, 1, 1))
 
     def dapi_mean_cell_radius(self):
-        return np.nanmean(np.sqrt(self.cell_props['area'] / np.pi)) * 0.5
+        return np.nanmean(np.sqrt(self.ini_cell_props['area'] / np.pi)) * 0.5
 
     def nn(self):
         n = self.config['nNeighbors'] + 1
@@ -95,8 +115,8 @@ class Cells(object):
         # logger.info('Overriden CellAreaFactor = 1')
         out['rel_radius'] = relCellRadius
         out['area'] = np.append(np.nan, img_obj.area)
-        out['x'] = np.append(-sys.maxsize, img_obj.x.values)
-        out['y'] = np.append(-sys.maxsize, img_obj.y.values)
+        out['x0'] = np.append(-sys.maxsize, img_obj.x0.values)
+        out['y0'] = np.append(-sys.maxsize, img_obj.y0.values)
         out['cell_label'] = np.append(0, img_obj.label.values)
         # First cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
         # and will be used to get all the misreads. It was given the label=0 and some very small
@@ -111,10 +131,6 @@ class Genes(object):
         self._eta_bar = None
         self._logeta_bar = None
         self.nG = len(self.gene_panel)
-
-    @property
-    def eta(self):
-        raise Exception
 
     @property
     def eta_bar(self):
@@ -144,11 +160,21 @@ class Spots(object):
         self.config = config
         self.data = self.read(spots_df)
         self.nS = self.data.shape[0]
-        self.call = None
         self.unique_gene_names = None
         self._gamma_bar = None
         self._log_gamma_bar = None
         [_, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True, return_counts=True)
+
+    def __getstate__(self):
+        # set here attributes to be excluded from serialisation (pickling)
+        # It makes the pickle filesize smaller but maybe this will have to
+        # change in the future.
+        # These two attributes take up a lot of space on the disk:
+        # _gamma_bar and _log_gamma_bar
+        # FYI: https://realpython.com/python-pickle-module/
+        attributes = self.__dict__.copy()
+        del attributes['_gamma_bar']
+        del attributes['_log_gamma_bar']
 
     # -------- PROPERTIES -------- #
     @property
@@ -232,7 +258,7 @@ class Spots(object):
         return pSpotNeighb
 
     def loglik(self, cells, cfg):
-        # area = cells.cell_props['area'][1:]
+        # area = cells.ini_cell_props['area'][1:]
         # mcr = np.mean(np.sqrt(area / np.pi)) * 0.5  # This is the meanCellRadius
         mcr = cells.mcr
         dim = 2  # dimensions of the normal distribution: Bivariate
@@ -296,9 +322,13 @@ class Spots(object):
 
 
 # ----------------------------------------Class: SingleCell--------------------------------------------------- #
+# ----------------------------------------Class: SingleCell--------------------------------------------------- #
 class SingleCell(object):
     def __init__(self, scdata: pd.DataFrame, genes: np.array, config):
-        self.raw_data = self._raw_data(scdata, genes)
+        self.isMissing = None  # Will be set to False is single cell data are assumed known and given as an input
+                               # otherwise, if they are unknown, this will be set to True and the algorithm will
+                               # try to estimate them
+        # self.raw_data = self._raw_data(scdata, genes)
         self.config = config
         self._mean_expression, self._log_mean_expression = self._setup(scdata, genes, self.config)
 
@@ -309,7 +339,19 @@ class SingleCell(object):
         These hyperparameters and some bacic cleaning takes part in the functions
         called herein
         """
-        me, lme = self._helper(self.raw_data.copy())
+        if scdata is None:
+            logger.info('Single Cell data are missing. Cannot determine meam expression per cell class.')
+            logger.info('We will try to estimate the array instead')
+            logger.info('Starting point is a diagonal array of size numGenes-by-numGenes')
+            # expr = self._naive(scdata, genes)
+            expr = self._diag(genes)
+            self.isMissing = True
+        else:
+            expr = self._raw_data(scdata, genes)
+            self.isMissing = False
+
+        self.raw_data = expr
+        me, lme = self._helper(expr.copy())
         dtype = self.config['dtype']
 
         assert me.columns[-1] == 'Zero', "Last column should be the Zero class"
@@ -362,6 +404,33 @@ class SingleCell(object):
         lme = np.log(me)  # log mean expression
         return me, lme
 
+    def _gene_expressions(self, fitted, scale):
+        """
+        Finds the expected mean gene counts. The prior *IS NOT* taken
+        into account. We use data evidence only
+        For the zero class only the prior is used *AND NOT* data
+        evidence.
+        """
+
+        # the prior on mean expression follows a Gamma(m * M , m), where M is the starting point (the initial
+        # array) of single cell data
+        # 07-May-2023. Hiding m from the config.py. Should bring it back at a later version
+        # m = self.config['m']
+        m = 1
+
+        a = fitted + m * (self.raw_data + self.config['SpotReg'])
+        b = scale + m
+        me = a / b
+        lme = scipy.special.psi(a) - np.log(b)
+
+        # the expressions for the zero class are a 0.0 plus the regularition param
+        zero_col = np.zeros(me.shape[0]) + self.config['SpotReg']
+        me = me.assign(Zero=zero_col)
+        # For the mean of the log-expressions, again only the prior is used for the Zero class
+        zero_col_2 = scipy.special.psi(m * zero_col) - np.log(m)
+        lme = lme.assign(Zero=zero_col_2)
+        return me, lme
+
     def _keep_labels_unique(self, scdata):
         """
         In the single cell data you might find cases where two or more rows have the same gene label
@@ -402,13 +471,25 @@ class SingleCell(object):
         logger.info(' Grouped single cell data have %d genes and %d cell types' % (out.shape[0], out.shape[1]))
         return out
 
+    def _diag(self, genes):
+        # logger.info('******************************************************')
+        # logger.info('*************** DIAGONAL SINGLE CELL DATA ***************')
+        # logger.info('******************************************************')
+        nG = len(genes)
+        mgc = 15  # the avg gene count per cell. Better expose that so it can be set by the user.
+        arr = mgc * np.eye(nG)
+        labels = ['class_%d' % (i+1) for i, _ in enumerate(genes)]
+        df = pd.DataFrame(arr).set_index(genes)
+        df.columns = labels
+        return df
 
 # ---------------------------------------- Class: CellType --------------------------------------------------- #
 class CellType(object):
     def __init__(self, single_cell):
         assert single_cell.classes[-1] == 'Zero', "Last label should be the Zero class"
         self._names = single_cell.classes
-        self._prior = None
+        self._alpha = None
+        self.single_cell_data_missing = single_cell.isMissing
 
     @property
     def names(self):
@@ -420,22 +501,43 @@ class CellType(object):
         return len(self.names)
 
     @property
-    def prior(self):
-        return self._prior
+    def alpha(self):
+        return self._alpha
 
-    @prior.setter
-    def prior(self, val):
-        self._prior = val
+    @alpha.setter
+    def alpha(self, val):
+        self._alpha = val
+
+    @property
+    def pi_bar(self):
+        return self.alpha / self.alpha.sum()
+
+    @property
+    def logpi_bar(self):
+        return scipy.special.psi(self.alpha) - scipy.special.psi(self.alpha.sum())
+
+    @property
+    def prior(self):
+        return self.pi_bar
 
     @property
     def log_prior(self):
-        return np.log(self.prior)
-
-    def ini_prior(self, ini_family):
-        if ini_family == 'uniform':
-            self.prior = np.append([.5 * np.ones(self.nK - 1) / self.nK], 0.5)
+        if self.single_cell_data_missing:
+            return self.logpi_bar
         else:
-            raise Exception('Method not implemented yet. Please pass "uniform" when you call ini_prior() ')
+            return np.log(self.prior)
+
+    def size(self, cells):
+        """
+        calcs the size of a cell class, ie how many members (ie cells) each cell type has
+        """
+        return cells.classProb.sum(axis=0)
+
+    def ini_prior(self):
+        self.alpha = self.ini_alpha()
+
+    def ini_alpha(self):
+        return np.append(np.ones(self.nK - 1), sum(np.ones(self.nK - 1)))
 
 
 
