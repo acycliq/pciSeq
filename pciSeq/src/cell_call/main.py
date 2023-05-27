@@ -24,7 +24,7 @@ class VarBayes:
         self.has_converged = False
 
     def initialise(self):
-        self.cellTypes.ini_prior('uniform')
+        self.cellTypes.ini_prior()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
         self.genes.init_eta(1, 1 / self.config['Inefficiency'])
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
@@ -50,11 +50,18 @@ class VarBayes:
             # 3. assign cells to cell types
             self.cell_to_cellType()
 
+            if self.single_cell.isMissing:
+                self.dalpha_upd()
+
             # 4. assign spots to cells
             self.spots_to_cell()
 
             # 5. update gene efficiency
             self.eta_upd()
+
+            # 6. Update single cell data
+            if self.single_cell.isMissing:
+                self.mu_upd()
 
             self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
             logger.info(' Iteration %d, mean prob change %f' % (i, delta))
@@ -114,7 +121,7 @@ class VarBayes:
         cells = self.cells
         cfg = self.config
         dtype = self.config['dtype']
-        beta = np.einsum('c, gk, g -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression, self.genes.eta_bar).astype(dtype) + cfg['rSpot']
+        beta = np.einsum('c, gk, g -> cgk', cells.ini_cell_props['area_factor'], self.single_cell.mean_expression, self.genes.eta_bar).astype(dtype) + cfg['rSpot']
         # beta = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
@@ -135,7 +142,7 @@ class VarBayes:
         # gene_gamma = self.genes.eta
         dtype = self.config['dtype']
         # ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.alpha, self.genes.eta, sc.mean_expression.data) + self.config['SpotReg']
-        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.cell_props['area_factor'], self.genes.eta_bar, self.single_cell.mean_expression).astype(dtype)
+        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.ini_cell_props['area_factor'], self.genes.eta_bar, self.single_cell.mean_expression).astype(dtype)
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
@@ -199,7 +206,7 @@ class VarBayes:
 
         classProb = self.cells.classProb
         mu = self.single_cell.mean_expression
-        area_factor = self.cells.cell_props['area_factor']
+        area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar
 
         zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
@@ -222,6 +229,77 @@ class VarBayes:
         # Finally, update gene_gamma
         self.genes.calc_eta(alpha, beta)
         # self.genes.eta_bar = res.values
+
+    # -------------------------------------------------------------------- #
+    def mu_upd(self):
+        # logger.info('Update single cell data')
+        # # make an array nS-by-nN and fill it with the spots id
+        # gene_ids = np.tile(self.spots.gene_id, (self.nN, 1)).T
+        #
+        # # flatten it
+        # gene_ids = gene_ids.ravel()
+        #
+        # # make corresponding arrays for cell_id and probs
+        # cell_ids = self.spots.parent_cell_id.ravel()
+        # probs = self.spots.parent_cell_prob.ravel()
+        #
+        # # make the array to be used as index in the group-by operation
+        # group_idx = np.vstack((cell_ids, gene_ids))
+        #
+        # # For each cell aggregate the number of spots from the same gene.
+        # # It will produce an array of size nC-by-nG where the entry at (c,g)
+        # # is the gene counts of gene g within cell c
+        # N_cg = npg.aggregate(group_idx, probs, size=(self.nC, self.nG))
+
+        classProb = self.cells.classProb[1:, :-1].copy()
+        geneCount = self.cells.geneCount[1:, :].copy()
+        gamma_bar = self.spots.gamma_bar[1:, :, :-1].copy()
+        area_factor = self.cells.ini_cell_props['area_factor'][1:]
+
+        numer = np.einsum('ck, cg -> gk', classProb, geneCount)
+        denom = np.einsum('ck, c, cgk, g -> gk', classProb, area_factor, gamma_bar, self.genes.eta_bar)
+
+        # set the hyperparameter for the gamma prior
+        # m = 1
+
+        # ignore the last class, it is the zero class
+        # numer = numer[:, :-1]
+        # denom = denom[:, :-1]
+        # mu_gk = (numer + m * self.single_cell.raw_data) / (denom + m)
+        me, lme = self.single_cell._gene_expressions(numer, denom)
+        self.single_cell._mean_expression = me
+        self.single_cell._log_mean_expression = lme
+
+        # logger.info('Single cell data updated')
+
+    # -------------------------------------------------------------------- #
+    def dalpha_upd(self):
+        # logger.info('Update cell type (marginal) distribution')
+        zeta = self.cells.classProb.sum(axis=0)  # this the class size
+        alpha = self.cellTypes.ini_alpha()
+        out = zeta + alpha
+
+        # logger.info("***************************************************")
+        # logger.info("**** Dirichlet alpha is zero if class size <=%d ****" % self.config['min_class_size'])
+        # logger.info("***************************************************")
+
+        # 07-May-2013: Hiding 'min_class_size' from the config file. Should bring it back at a later version
+        # mask = zeta <= self.config['min_class_size']
+        min_class_size = 5
+        mask = zeta <= min_class_size
+
+        # make sure Zero class is the last one
+        assert self.cellTypes.names[-1] == "Zero"
+        assert len(self.cellTypes.names) == len(mask)
+
+        # make sure the last value ie always False, overriding if necessary the
+        # check a few lines when the mask variable was set.
+        # In this manner we will prevent the Zero class from being removed.
+        mask[-1] = False
+
+        # If a class size is smaller than 'min_class_size' then it will be assigned a weight of almost zero
+        out[mask] = 10e-6
+        self.cellTypes.alpha = out
 
 
 

@@ -10,20 +10,20 @@ from pciSeq.src.cell_call.utils import get_out_dir
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.preprocess.utils import get_img_shape
 from pciSeq.src.viewer.run_flask import flask_app_start
-from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js
+from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js, make_classConfig_js
 from pciSeq import config
 from pciSeq.src.cell_call.log_config import attach_to_log, logger
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
-def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: dict = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Main entry point for pciSeq.
 
     Parameters
     ----------
-    iss_spots : pandas.DataFrame
+    **spots : pandas.DataFrame
         Index:
             RangeIndex
         Columns:
@@ -31,23 +31,26 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
             Name: x, dtype: int64, X-axis coordinate of the spot
             Name: y, dtype: int64, Y-axis coordinate of the spot
 
-    coo : scipy.sparse.coo_matrix
+    **coo : scipy.sparse.coo_matrix
         A label image array as a coo_matrix datatype. The label denote
         which cell the corresponding pixel 'belongs' to. If label is
         zero, the pixel is on the background
 
-    scRNAseq : pandas.DataFrame
+    **scRNAseq : pandas.DataFrame (Optional)
         Index:
             The gene name
         Columns:
             The column headers are the cell classes and the data are uint32
 
-    opts : dictionary (Optional)
+    **opts : dictionary (Optional)
         A dictionary to pass-in user-defined hyperparameter values. They override the default
         values as these are set by the config.py file. For example to exclude genes Npy and
         Vip you can define opts as:
             opts = {'exclude_genes': ['Npy', 'Vip']}
         and pass that dict to the fit function as the last argument
+
+    *args: If 'spots' and 'coo' are not passed-in as keyword arguments then they should be provided
+    as first and second positional arguments
 
     Returns
     ------
@@ -76,22 +79,51 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
             Name: neighbour_prob, dtype: Object, array-like with the prob the corresponding cell from neighbour_array has risen the spot.
     """
 
+    if not {'spots', 'coo'}.issubset(set(kwargs)):
+        try:
+            assert len(args) == 2, 'Need to provide the spots and the coo matrix as the first ' \
+                                   'and second args to the fit() method '
+            kwargs['spots'] = args[0]
+            kwargs['coo'] = args[1]
+        except Exception as err:
+            raise
+
+    try:
+        spots = kwargs['spots']
+        coo = kwargs['coo']
+    except Exception as err:
+        raise
+
+    try:
+        scRNAseq = kwargs['scRNAseq']
+    except KeyError:
+        scRNAseq = None
+    except Exception as err:
+        raise
+
+    try:
+        opts = kwargs['opts']
+    except KeyError:
+        opts = None
+    except Exception as err:
+        raise
+
     # 1. get the hyperparameters
     cfg = init(opts)
 
     # 2. validate inputs
-    validate(iss_spots, scRNAseq)
+    validate(spots, coo, scRNAseq)
 
     # 3. prepare the data
     logger.info(' Preprocessing data')
-    _cells, cellBoundaries, _spots = stage_data(iss_spots, coo)
+    _cells, cellBoundaries, _spots = stage_data(spots, coo)
 
     # 4. cell typing
     cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
 
     # 5. save to the filesystem
     if (cfg['save_data'] and varBayes.has_converged) or cfg['launch_viewer']:
-        write_data(cellData, geneData, cellBoundaries, varBayes, cfg['output_path'])
+        write_data(cellData, geneData, cellBoundaries, varBayes, cfg)
 
     # 6. do the viewer if needed
     if cfg['launch_viewer']:
@@ -99,6 +131,15 @@ def fit(iss_spots: pd.DataFrame, coo: coo_matrix, scRNAseq: pd.DataFrame, opts: 
         dst = get_out_dir(cfg['output_path'])
         copy_viewer_code(cfg, dst)
         make_config_js(dst, w, h)
+        if scRNAseq is None:
+            label_list = [d[:] for d in cellData.ClassName.values]
+            labels = [item for sublist in label_list for item in sublist]
+            labels = sorted(set(labels))
+            if 'Zero' in labels:
+                # remove Zero because it will be appended later on by
+                # the make_classConfig_js script
+                labels.remove('Zero')
+            make_classConfig_js(labels, dst)
         flask_app_start(dst)
 
     logger.info(' Done')
@@ -113,11 +154,9 @@ def cell_type(_cells, _spots, scRNAseq, ini):
     return cellData, geneData, varBayes
 
 
-def write_data(cellData, geneData, cellBoundaries, varBayes, path):
-    if path[0] == 'default':
-        out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq', 'data')
-    else:
-        out_dir = path[0]
+def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
+    dst = get_out_dir(cfg['output_path'])
+    out_dir = os.path.join(dst, 'data')
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
@@ -130,10 +169,16 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, path):
     cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
     logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
-    ## commenting this as there is no need to save the pickle file at the moment
-    # with open(os.path.join(out_dir, 'pciSeq.pickle'), 'wb') as outf:
-    #     pickle.dump(varBayes, outf)
-    #     logger.info(' Saved at %s' % os.path.join(out_dir, 'pciSeq.pickle'))
+    serialise(varBayes, os.path.join(out_dir, 'debug'))
+
+
+def serialise(varBayes, debug_dir):
+    if not os.path.exists(debug_dir):
+        os.makedirs(debug_dir)
+    pickle_dst = os.path.join(debug_dir, 'pciSeq.pickle')
+    with open(pickle_dst, 'wb') as outf:
+        pickle.dump(varBayes, outf)
+        logger.info(' Saved at %s' % pickle_dst)
 
 
 def init(opts):
@@ -160,11 +205,14 @@ def init(opts):
     return cfg
 
 
-def validate(spots, sc):
+def validate(spots, coo, sc):
     assert isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y'}, \
         "Spots should be passed-in to the fit() method as a dataframe with columns ['Gene', 'x', 'y']"
 
-    assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
+    assert isinstance(coo, coo_matrix), 'The segmentation masks should be passed-in as a coo_matrix'
+
+    if sc is not None:
+        assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
 
 
 if __name__ == "__main__":
@@ -182,5 +230,6 @@ if __name__ == "__main__":
 
     # main task
     # _opts = {'max_iter': 10}
-    fit(_iss_spots, _coo, _scRNAseq, {'save_data': True})
+    fit(spots=_iss_spots, coo=_coo, scRNAseq=None, opts={'save_data': True,
+                                                         'launch_viewer': True,})
 
