@@ -4,19 +4,17 @@ import numpy as np
 import diplib as dip
 
 
-def extract_borders_dip(label_image, offset_x, offset_y, exclude_labels):
+def extract_borders_dip(label_image, offset_x=0, offset_y=0, exclude_labels=(0,)):
     """
     Extracts the cell boundaries from the label image array. The background is
-    assumed to have label=0 and it will be ignored.
+    assumed to have label=0 and it will be ignored by default.
     Parameters
     ----------
     label_image:    The label image array, typically obtained from some image segmentation
                     application and maps every pixel on the image to a cell label.
     offset_x:       Amount to shift the boundaries along the x-axis
-    offset_y        Amount to shift the boundaries along the y-axis
-    exclude_labels: Array-like, contains the labels to be ignored. The label = 0 will be
-                    ignored in any case, whether or not it is in this list
-
+    offset_y:       Amount to shift the boundaries along the y-axis
+    exclude_labels: Array-like, contains the labels to be ignored.
 
     Returns
     -------
@@ -25,7 +23,9 @@ def extract_borders_dip(label_image, offset_x, offset_y, exclude_labels):
     for corresponding cell  label
     """
 
-    labels = sorted(set(label_image.flatten()) - {0} - set(exclude_labels))
+    if exclude_labels is None:
+        exclude_labels = [0]
+    labels = sorted(set(label_image.flatten()) - set(exclude_labels))
     cc = dip.GetImageChainCodes(label_image)  # input must be an unsigned integer type
     d = {}
     for c in cc:
