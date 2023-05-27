@@ -123,7 +123,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     # 5. save to the filesystem
     if (cfg['save_data'] and varBayes.has_converged) or cfg['launch_viewer']:
-        write_data(cellData, geneData, cellBoundaries, cfg)
+        write_data(cellData, geneData, cellBoundaries, varBayes, cfg)
 
     # 6. do the viewer if needed
     if cfg['launch_viewer']:
@@ -154,7 +154,7 @@ def cell_type(_cells, _spots, scRNAseq, ini):
     return cellData, geneData, varBayes
 
 
-def write_data(cellData, geneData, cellBoundaries, cfg):
+def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
     dst = get_out_dir(cfg['output_path'])
     out_dir = os.path.join(dst, 'data')
     if not os.path.exists(out_dir):
@@ -169,10 +169,16 @@ def write_data(cellData, geneData, cellBoundaries, cfg):
     cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
     logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
-    ## commenting this as there is no need to save the pickle file at the moment
-    # with open(os.path.join(out_dir, 'pciSeq.pickle'), 'wb') as outf:
-    #     pickle.dump(varBayes, outf)
-    #     logger.info(' Saved at %s' % os.path.join(out_dir, 'pciSeq.pickle'))
+    serialise(varBayes, os.path.join(out_dir, 'debug'))
+
+
+def serialise(varBayes, debug_dir):
+    if not os.path.exists(debug_dir):
+        os.makedirs(debug_dir)
+    pickle_dst = os.path.join(debug_dir, 'pciSeq.pickle')
+    with open(pickle_dst, 'wb') as outf:
+        pickle.dump(varBayes, outf)
+        logger.info(' Saved at %s' % pickle_dst)
 
 
 def init(opts):
@@ -225,5 +231,6 @@ if __name__ == "__main__":
     # main task
     # _opts = {'max_iter': 10}
     fit(spots=_iss_spots, coo=_coo, scRNAseq=None, opts={'save_data': True,
-                                                         'launch_viewer': True,})
+                                                         'launch_viewer': True,
+                                                         'save_pickle': True})
 
