@@ -231,6 +231,5 @@ if __name__ == "__main__":
     # main task
     # _opts = {'max_iter': 10}
     fit(spots=_iss_spots, coo=_coo, scRNAseq=None, opts={'save_data': True,
-                                                         'launch_viewer': True,
-                                                         'save_pickle': True})
+                                                         'launch_viewer': True,})
 
