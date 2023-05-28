@@ -16,6 +16,7 @@ class VarBayes:
         self.genes = Genes(self.spots)
         self.single_cell = SingleCell(scRNAseq, self.genes.gene_panel, self.config)
         self.cellTypes = CellType(self.single_cell)
+        self.cells.class_names = self.single_cell.classes
         self.nC = self.cells.nC                         # number of cells
         self.nG = self.genes.nG                         # number of genes
         self.nK = self.cellTypes.nK                     # number of classes
@@ -72,6 +73,7 @@ class VarBayes:
             p0 = self.spots.parent_cell_prob
 
             if self.has_converged:
+                # self.counts_within_radius(20)
                 iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
                 break
 
@@ -312,9 +314,9 @@ class VarBayes:
         # check that the background (label=0) is at the top row
         assert self.cells.ini_cell_props['cell_label'][0] == 0
 
-        spots = pd.concat([self.spots.data, self.spots.data_excluded])
-        gene_names, gene_id = np.unique(spots.gene_name.values, return_inverse=True)  # that needs to be encapsulated!!! Make a function in the class to set the ids
-        spots = spots.assign(gene_id=gene_id)
+        # spots = pd.concat([self.spots.data, self.spots.data_excluded])
+        gene_names, gene_id = np.unique(self.spots.data.gene_name.values, return_inverse=True)  # that needs to be encapsulated!!! Make a function in the class to set the ids
+        spots = self.spots.data.assign(gene_id=gene_id)
 
         xy_coords = spots[['x', 'y']].values
         point_tree = spatial.cKDTree(xy_coords)
@@ -337,9 +339,17 @@ class VarBayes:
 
         temp = pd.DataFrame({
             'cell_label': self.cells.ini_cell_props['cell_label'],
-            'cell_label_old': self.cells.ini_cell_props['cell_label_old'],
             'cell_type': cell_type
         })
+
+        # if labels have been reassigned, there should be a column 'cell_label_old'.
+        # Relabelling will happen if for example the original labelling that was
+        # assigned from segmentation is not a continuous sequence of integers
+        # Append the original labels to the temp folder so there is a mapping between
+        # old and new labels
+        if 'cell_label_old' in self.cells.ini_cell_props.keys():
+            temp['cell_label_old'] = self.cells.ini_cell_props['cell_label_old']
+            temp = temp[['cell_label', 'cell_label_old', 'cell_type']]
 
         # assert np.all(temp.cell_label==out.index)
         df = pd.DataFrame(out, index=self.cells.centroid.index, columns=gene_names)
