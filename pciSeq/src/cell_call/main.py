@@ -1,4 +1,6 @@
 import numpy as np
+import pandas as pd
+import scipy.spatial as spatial
 import numpy_groupies as npg
 from pciSeq.src.cell_call.datatypes import Cells, Spots, Genes, SingleCell, CellType
 from pciSeq.src.cell_call.summary import collect_data
@@ -300,6 +302,51 @@ class VarBayes:
         # If a class size is smaller than 'min_class_size' then it will be assigned a weight of almost zero
         out[mask] = 10e-6
         self.cellTypes.alpha = out
+
+    def counts_within_radius(self, r):
+        """
+        calcs the gene counts within radius r of the centroid of each cell.
+        Units in radius are the same as in your coordinates x and y of your spots.
+        """
+
+        # check that the background (label=0) is at the top row
+        assert self.cells.ini_cell_props['cell_label'][0] == 0
+
+        spots = pd.concat([self.spots.data, self.spots.data_excluded])
+        gene_names, gene_id = np.unique(spots.gene_name.values, return_inverse=True)  # that needs to be encapsulated!!! Make a function in the class to set the ids
+        spots = spots.assign(gene_id=gene_id)
+
+        xy_coords = spots[['x', 'y']].values
+        point_tree = spatial.cKDTree(xy_coords)
+        nearby_spots = point_tree.query_ball_point(self.cells.centroid, r)
+
+        out = np.zeros([self.cells.centroid.shape[0], len(gene_names)])
+
+        for i, d in enumerate(nearby_spots):
+            t = spots.gene_id[d]
+            b = np.bincount(t)
+            if len(gene_names) - len(b) < 0:
+                print('oops')
+            out[i, :] = np.pad(b, (0, len(gene_names) - len(b)), 'constant')
+
+        # for each cell get the most likely cell type
+        cell_type = []
+        for i, d in enumerate(self.cells.classProb):
+            j = self.cells.class_names[np.argmax(d)]
+            cell_type.append(j)
+
+        temp = pd.DataFrame({
+            'cell_label': self.cells.ini_cell_props['cell_label'],
+            'cell_label_old': self.cells.ini_cell_props['cell_label_old'],
+            'cell_type': cell_type
+        })
+
+        # assert np.all(temp.cell_label==out.index)
+        df = pd.DataFrame(out, index=self.cells.centroid.index, columns=gene_names)
+        df = pd.merge(temp, df, right_index=True, left_on='cell_label', how='left')
+
+        # ignore the first row, it is the background
+        return df.iloc[1:, :]
 
 
 
