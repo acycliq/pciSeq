@@ -47,7 +47,9 @@ def reorder_labels(coo):
     """
     label_image = coo.toarray()
     _, idx = np.unique(label_image.flatten(), return_inverse=True)
-    return coo_matrix(idx.reshape(label_image.shape))
+
+    label_map = pd.DataFrame({'old_label': label_image, 'new_label': idx})
+    return coo_matrix(idx.reshape(label_image.shape)), label_map
 
 
 def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -57,9 +59,10 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.D
     centroids and the cell area
     """
 
+    label_map = None
     if coo.data.max() != len(set(coo.data)):
         logger.info(' The labels in the label image do not seem to be a sequence of successive integers. Relabelling the label image.')
-        coo = reorder_labels(coo)
+        coo, label_map = reorder_labels(coo)
 
     logger.info(' Number of spots passed-in: %d' % spots.shape[0])
     logger.info(' Number of segmented cells: %d' % len(set(coo.data)))
@@ -76,6 +79,11 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.D
     props = skmeas.regionprops(coo.toarray().astype(np.int32))
     props_df = pd.DataFrame(data=[(d.label, d.area, d.centroid[1], d.centroid[0]) for d in props],
                       columns=['label', 'area', 'x_cell', 'y_cell'])
+
+    # if there is a label map, attach it to the cell props.
+    if label_map is not None:
+        props_df = pd.merge(props_df, label_map, left_on='label', right_on='new_label', how='left')
+        props_df = props_df.drop(['new_label'], axis=1)
 
     # 3. Get the cell boundaries
     cell_boundaries = extract_borders_dip(coo.toarray().astype(np.uint32))
