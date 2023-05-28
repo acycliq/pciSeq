@@ -26,7 +26,7 @@ most cases will be the output of some image segmentation application). Then you 
 ```
 import pciSeq
 
-res = pciSeq.fit(spots_df, label_image, scRNA_df)
+res = pciSeq.fit(spots=spots_df, coo=label_image, scRNAseq=scRNA_df)
 ```
 See the demo below for a more detailed explanation about the arguments of  `pciSeq.fit()` and its return values.
 
@@ -38,7 +38,7 @@ hyperparameter names and `values` their new values. For example, to exclude all 
 import pciSeq
 
 opts = { 'exclude_genes': ['Npy', 'Vip'] }
-res = pciSeq.fit(spots_df, label_image, scRNAseq=scRNA_df, opts=opts)
+res = pciSeq.fit(spots=spots_df, coo=label_image, scRNAseq=scRNA_df, opts=opts)
 ```
 
 ## Demo
@@ -49,6 +49,12 @@ An interactive viewer to explore the data runs on this [url](https://acycliq.git
 building this viewer with your own data are [here](https://github.com/acycliq/visage). \
 If you have `v 0.0.49` or greater you can also launch the viewer automatically by 
 setting `opts = {'launch_viewer': True}` and passing it to `pciSeq.fit()`, see [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/acycliq/pciSeq/blob/master/notebooks/2_viewer.ipynb)
+
+## Change Log:
+### [0.0.50] - 2023-05-27
+ - Single cell data are optional, for more info can be found here [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/acycliq/pciSeq/blob/master/notebooks/3_pciSeq_without_singleCell_data.ipynb)
+
+ - `pciSeq.fit()` takes keyword arguments
 
 
 ## References 
