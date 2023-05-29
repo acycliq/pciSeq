@@ -46,9 +46,11 @@ def reorder_labels(coo):
     rearranges the labels so that they are a sequence of integers
     """
     label_image = coo.toarray()
-    _, idx = np.unique(label_image.flatten(), return_inverse=True)
+    flat_arr = label_image.flatten()
+    u, idx = np.unique(flat_arr, return_inverse=True)
 
-    label_map = pd.DataFrame({'old_label': label_image, 'new_label': idx})
+    label_map = pd.DataFrame(set(zip(flat_arr, idx)), columns=['old_label', 'new_label'])
+    label_map = label_map.sort_values(by='old_label', ignore_index=True)
     return coo_matrix(idx.reshape(label_image.shape)), label_map
 
 
@@ -98,7 +100,8 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.D
     # join spots and cells on the cell label so you can get the x,y coords of the cell for any given spot
     spots = spots.merge(cells, how='left', on=['label'])
 
-    _cells = cells[['label', 'area', 'x_cell', 'y_cell']].rename(columns={'x_cell': 'x0', 'y_cell': 'y0'})
+    _cells = cells.drop(columns=['coords'])
+    _cells = _cells.rename(columns={'x_cell': 'x0', 'y_cell': 'y0'})
     _cell_boundaries = cells[['label', 'coords']].rename(columns={'label': 'cell_id'})
     _spots = spots[['x', 'y', 'label', 'Gene', 'x_cell', 'y_cell']].rename(columns={'Gene': 'target', 'x': 'x_global', 'y': 'y_global'})
 
