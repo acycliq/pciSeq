@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import scipy
 import numexpr as ne
+from natsort import natsort_keygen
 from sklearn.neighbors import NearestNeighbors
 from pciSeq.src.cell_call.log_config import logger
 
@@ -118,6 +119,8 @@ class Cells(object):
         out['x0'] = np.append(-sys.maxsize, img_obj.x0.values)
         out['y0'] = np.append(-sys.maxsize, img_obj.y0.values)
         out['cell_label'] = np.append(0, img_obj.label.values)
+        if 'old_label' in img_obj.columns:
+            out['cell_label_old'] = np.append(0, img_obj.old_label.values)
         # First cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
         # and will be used to get all the misreads. It was given the label=0 and some very small
         # negative coords
@@ -175,6 +178,7 @@ class Spots(object):
         attributes = self.__dict__.copy()
         del attributes['_gamma_bar']
         del attributes['_log_gamma_bar']
+        return attributes
 
     # -------- PROPERTIES -------- #
     @property
@@ -322,7 +326,6 @@ class Spots(object):
 
 
 # ----------------------------------------Class: SingleCell--------------------------------------------------- #
-# ----------------------------------------Class: SingleCell--------------------------------------------------- #
 class SingleCell(object):
     def __init__(self, scdata: pd.DataFrame, genes: np.array, config):
         self.isMissing = None  # Will be set to False is single cell data are assumed known and given as an input
@@ -393,7 +396,9 @@ class SingleCell(object):
 
     def _helper(self, expr):
         # order by column name
-        expr = expr.copy().sort_index(axis=0).sort_index(axis=1, key=lambda x: x.str.lower())
+        # expr = expr.copy().sort_index(axis=0).sort_index(axis=1, key=lambda x: x.str.lower())
+        # expr = expr.copy().sort_index(axis=0).sort_index(axis=1, key=natsort_keygen())
+        expr = expr.copy().sort_index(axis=0).sort_index(axis=1, key=natsort_keygen(key=lambda y: y.str.lower()))
 
         # append at the end the Zero class
         expr['Zero'] = np.zeros([expr.shape[0], 1])
