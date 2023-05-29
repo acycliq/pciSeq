@@ -178,6 +178,7 @@ class Spots(object):
         attributes = self.__dict__.copy()
         del attributes['_gamma_bar']
         del attributes['_log_gamma_bar']
+        return attributes
 
     # -------- PROPERTIES -------- #
     @property
