@@ -46,8 +46,12 @@ def reorder_labels(coo):
     rearranges the labels so that they are a sequence of integers
     """
     label_image = coo.toarray()
-    _, idx = np.unique(label_image.flatten(), return_inverse=True)
-    return coo_matrix(idx.reshape(label_image.shape))
+    flat_arr = label_image.flatten()
+    u, idx = np.unique(flat_arr, return_inverse=True)
+
+    label_map = pd.DataFrame(set(zip(flat_arr, idx)), columns=['old_label', 'new_label'])
+    label_map = label_map.sort_values(by='old_label', ignore_index=True)
+    return coo_matrix(idx.reshape(label_image.shape)), label_map
 
 
 def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -57,9 +61,10 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.D
     centroids and the cell area
     """
 
+    label_map = None
     if coo.data.max() != len(set(coo.data)):
         logger.info(' The labels in the label image do not seem to be a sequence of successive integers. Relabelling the label image.')
-        coo = reorder_labels(coo)
+        coo, label_map = reorder_labels(coo)
 
     logger.info(' Number of spots passed-in: %d' % spots.shape[0])
     logger.info(' Number of segmented cells: %d' % len(set(coo.data)))
@@ -77,6 +82,11 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.D
     props_df = pd.DataFrame(data=[(d.label, d.area, d.centroid[1], d.centroid[0]) for d in props],
                       columns=['label', 'area', 'x_cell', 'y_cell'])
 
+    # if there is a label map, attach it to the cell props.
+    if label_map is not None:
+        props_df = pd.merge(props_df, label_map, left_on='label', right_on='new_label', how='left')
+        props_df = props_df.drop(['new_label'], axis=1)
+
     # 3. Get the cell boundaries
     cell_boundaries = extract_borders_dip(coo.toarray().astype(np.uint32))
 
@@ -90,7 +100,8 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.D
     # join spots and cells on the cell label so you can get the x,y coords of the cell for any given spot
     spots = spots.merge(cells, how='left', on=['label'])
 
-    _cells = cells[['label', 'area', 'x_cell', 'y_cell']].rename(columns={'x_cell': 'x0', 'y_cell': 'y0'})
+    _cells = cells.drop(columns=['coords'])
+    _cells = _cells.rename(columns={'x_cell': 'x0', 'y_cell': 'y0'})
     _cell_boundaries = cells[['label', 'coords']].rename(columns={'label': 'cell_id'})
     _spots = spots[['x', 'y', 'label', 'Gene', 'x_cell', 'y_cell']].rename(columns={'Gene': 'target', 'x': 'x_global', 'y': 'y_global'})
 
