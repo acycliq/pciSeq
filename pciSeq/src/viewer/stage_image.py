@@ -14,6 +14,7 @@ from pciSeq.src.cell_call.log_config import logger
 
 
 def split_image(im):
+    # DEPRECATED to be removed
     '''
     you can just do:
         im.dzsave('./out', suffix='.tif', skip_blanks=-1, background=0, depth='one', overlap=0, tile_size=2000, layout='google')
