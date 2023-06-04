@@ -7,10 +7,9 @@
 //    The viewer should work without the dapi background though.
 // 4. cellData, geneData, cellBoundaries:
 //    4.1: mediaLink paths are with respect to the location of 'streaming-tsv-parser.js'
-//    4.2: size is the tsv size in bytes.  Not crucial if you dont get it right, ie the full tsv will
-//         still be parsed despite this being wrong. It is used by the loading page donutcharts to calc
-//         how far we are.
-
+//    4.2: size is the tsv size in bytes. I use os.path.getsize() to get it. Not crucial if you dont get it right,
+//         ie the full tsv will still be parsed despite this being wrong. It is used by the loading page
+//         donut charts to calc how far we are.
 
 function config() {
     return {
