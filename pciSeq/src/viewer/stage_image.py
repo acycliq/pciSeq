@@ -7,7 +7,8 @@ It also creates the pyramid tiles for the viewer
 import shutil
 import os
 import pyvips
-import logging
+from pciSeq.src.cell_call.log_config import logger
+
 
 # logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ def split_image(im):
 
 def map_image_size(z):
     '''
-    return the image size for each zoom level. Assumes that each map tile is 256x255
+    returns the image size for each zoom level. Assumes that each map tile is 256x256 pixels
     :param z: 
     :return: 
     '''
@@ -64,13 +65,15 @@ def map_image_size(z):
     return 256 * 2 ** z
 
 
-def tile_maker(z_depth, out_dir, img_path):
+def tile_maker(img_path, z_depth=10, out_dir=r"./tiles"):
     """
     Makes a pyramid of tiles.
-    z_depth: (int) Specifies how many zoom levels will be produced
+    img_path:(str) The path to the image
+    z_depth: (int) Specifies how many zoom levels will be produced. Default value is 10.
     out_dir: (str) The path to the folder where the output (the pyramid of map tiles) will be saved to. If the folder
-                   does not exist, it will be created automatically
-    img_path: (str) The path to the image
+                   does not exist, it will be created automatically. If it exists, it will be deleted before being populated
+                   with the new tiles. Dy default the tiles will be saved inside the current
+                   directory in a folder named "tiles".
     """
     # img_path = os.path.join(dir_path, 'demo_data', 'background_boundaries.tif')
 
