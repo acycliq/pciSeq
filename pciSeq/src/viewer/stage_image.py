@@ -108,7 +108,7 @@ def tile_maker(img_path, z_depth=10, out_dir=r"./tiles"):
 
     # now you can create a fresh one and populate it with tiles
     logger.info('Started doing the image tiles ')
-    im.dzsave(out_dir, layout='google', suffix='.jpg', background=0, skip_blanks=0)
+    im.dzsave(out_dir, layout='google', suffix='.jpg', background=0)
     logger.info('Done. Pyramid of tiles saved at: %s' % out_dir)
 
     return pixel_dims
@@ -116,7 +116,10 @@ def tile_maker(img_path, z_depth=10, out_dir=r"./tiles"):
 
 
 if __name__ == "__main__":
-    imPath = r'data/background_image/background_image_landscape.tif'
+    # imPath = r"F:\data\Sara\pciSeq\data\debug\lro_nearside.jpg"
+    imPath = r"F:\data\Sara\pciSeq\data\debug\1024px-Wac_nearside.jpg"
+    # imPath = r"F:\data\Sara\pciSeq\data\debug\tdTomato_image_fixed.jpg"
+    # imPath = r"/mnt/f/data/Sara/pciSeq/data/debug/tdTomato_image_fixed.jpg"
     # split_image(im)
 
     # # to rotate the image do:
@@ -124,7 +127,7 @@ if __name__ == "__main__":
     # im = im.rotate(90, interpolate=pyvips.Interpolate.new("nearest"))
     # im.write_to_file(r'data/background_image/background_image_adj_rot.tif')
 
-    tile_maker(10, 'dashboard/img/262144px_landscape_jpg', imPath)
+    tile_maker(imPath, z_depth=4)
 
 
 
