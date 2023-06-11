@@ -1,16 +1,19 @@
 import numpy as np
 import pandas as pd
 import scipy.spatial as spatial
+import time
 import numpy_groupies as npg
 from pciSeq.src.cell_call.datatypes import Cells, Spots, Genes, SingleCell, CellType
 from pciSeq.src.cell_call.summary import collect_data
 import pciSeq.src.cell_call.utils as utils
+from pciSeq.src.diagnostics.utils import redis_db
 from pciSeq.src.cell_call.log_config import logger
 
 
 class VarBayes:
     def __init__(self, _cells_df, _spots_df, scRNAseq, config):
         self.config = config
+        self.redis_db = redis_db(flush=True)
         self.cells = Cells(_cells_df, config)
         self.spots = Spots(_spots_df, config)
         self.genes = Genes(self.spots)
@@ -24,7 +27,19 @@ class VarBayes:
         self.nN = self.config['nNeighbors'] + 1         # number of closest nearby cells, candidates for being parent
                                                         # cell of any given spot. The last cell will be used for the
                                                         # misread spots. (ie cell at position nN is the background)
+        self.iter_num = None
         self.has_converged = False
+
+    def __getstate__(self):
+        # set here attributes to be excluded from serialisation (pickling)
+        # It makes the pickle filesize smaller but maybe this will have to
+        # change in the future.
+        # These two attributes take up a lot of space on the disk:
+        # _gamma_bar and _log_gamma_bar
+        # FYI: https://realpython.com/python-pickle-module/
+        attributes = self.__dict__.copy()
+        del attributes['redis_db']
+        return attributes
 
     def initialise(self):
         self.cellTypes.ini_prior()
@@ -33,7 +48,7 @@ class VarBayes:
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
-
+        
     # -------------------------------------------------------------------- #
     def run(self):
         p0 = None
@@ -43,6 +58,7 @@ class VarBayes:
 
         self.initialise()
         for i in range(max_iter):
+            self.iter_num = i
 
             # 1. For each cell, calc the expected gene counts
             self.geneCount_upd()
@@ -71,6 +87,10 @@ class VarBayes:
 
             # replace p0 with the latest probabilities
             p0 = self.spots.parent_cell_prob
+
+            logger.info('start db publish')
+            self.redis_upd()
+            logger.info('end db publish')
 
             if self.has_converged:
                 # self.counts_within_radius(20)
@@ -358,6 +378,36 @@ class VarBayes:
         # ignore the first row, it is the background
         return df.iloc[1:, :]
 
+    # -------------------------------------------------------------------- #
+    def redis_upd(self):
+        logger.info("redis start")
+        eta_bar_df = pd.DataFrame({
+            'gene_efficiency': self.genes.eta_bar,
+            'gene': self.genes.gene_panel
+        })
+        self.redis_db.to_redis(eta_bar_df, "gene_efficiency", iteration=self.iter_num,
+                               has_converged=self.has_converged, unix_time=time.time())
+        self.redis_db.publish(eta_bar_df, "gene_efficiency", iteration=self.iter_num,
+                               has_converged=self.has_converged, unix_time=time.time())
+
+        pi_bar_df = pd.DataFrame({
+            'weight': np.bincount(self.cells.classProb.argmax(axis=1))/np.bincount(self.cells.classProb.argmax(axis=1)).sum(),
+            'class': self.cellTypes.names
+        })
+        self.redis_db.to_redis(pi_bar_df, "cell_type_prior", iter_num=self.iter_num,
+                               has_converged=self.has_converged, unix_time=time.time())
+
+        idx=[]
+        for i, row in enumerate(self.cells.classProb):
+            idx.append(np.argmax(row))
+        prob = np.bincount(idx) / np.bincount(idx).sum()
+        df = pd.DataFrame({
+            'class_name': self.cellTypes.names,
+            'prob': prob
+        })
+        self.redis_db.to_redis(df, "cell_type_posterior", iter_num=self.iter_num, has_converged=self.has_converged, unix_time=time.time())
+        self.redis_db.publish(df, "cell_type_posterior", iteration=self.iter_num, has_converged=self.has_converged, unix_time=time.time())
+        logger.info("redis end")
 
 
 

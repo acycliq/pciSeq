@@ -3,12 +3,15 @@ import pandas as pd
 import numpy as np
 import tempfile
 import pickle
+import redis
 from typing import Tuple
 from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.cell_call.main import VarBayes
 from pciSeq.src.cell_call.utils import get_out_dir
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.preprocess.utils import get_img_shape
+from pciSeq.src.diagnostics.utils import redis_db
+from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 from pciSeq.src.viewer.run_flask import flask_app_start
 from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js, make_classConfig_js
 from pciSeq import config
@@ -114,14 +117,19 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     # 2. validate inputs
     validate(spots, coo, scRNAseq)
 
-    # 3. prepare the data
+    # 3. launch the diagnostics
+    if cfg['launch_diagnostics']:
+        logger.info('Launching the diagnostics dashboard')
+        launch_dashboard()
+
+    # 4. prepare the data
     logger.info(' Preprocessing data')
     _cells, cellBoundaries, _spots = stage_data(spots, coo)
 
-    # 4. cell typing
+    # 5. cell typing
     cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
 
-    # 5. save to the filesystem
+    # 6. save to the filesystem
     if (cfg['save_data'] and varBayes.has_converged) or cfg['launch_viewer']:
         write_data(cellData, geneData, cellBoundaries, varBayes, cfg)
 
@@ -180,6 +188,18 @@ def serialise(varBayes, debug_dir):
         pickle.dump(varBayes, outf)
         logger.info(' Saved at %s' % pickle_dst)
 
+def export_db_tables(out_dir, con):
+    tables = con.get_db_tables()
+    for table in tables:
+        export_db_table(table, out_dir, con)
+
+
+def export_db_table(table_name, out_dir, con):
+    df = con.from_redis(table_name)
+    fname = os.path.join(out_dir, table_name + '.csv')
+    df.to_csv(fname, index=False)
+    logger.info(' Saved at %s' % fname)
+
 
 def init(opts):
     """
@@ -213,6 +233,25 @@ def validate(spots, coo, sc):
 
     if sc is not None:
         assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
+
+    check_redis_server()
+
+
+def confirm_prompt(question):
+    reply = None
+    while reply not in ("", "y", "n"):
+        reply = input(f"{question} (y/n): ").lower()
+    return (reply in ("", "y"))
+
+
+def check_redis_server():
+    logger.info("check_redis_server")
+    try:
+        redis_db()
+    except (redis.exceptions.ConnectionError, ConnectionRefusedError):
+        logger.info("Redis ping failed!. Trying to install redis server")
+        if confirm_prompt("Do you want to install redis server?"):
+            logger.info("...installing...")
 
 
 if __name__ == "__main__":
