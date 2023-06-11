@@ -48,7 +48,7 @@ class VarBayes:
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
-        
+
     # -------------------------------------------------------------------- #
     def run(self):
         p0 = None
@@ -88,9 +88,10 @@ class VarBayes:
             # replace p0 with the latest probabilities
             p0 = self.spots.parent_cell_prob
 
-            logger.info('start db publish')
-            self.redis_upd()
-            logger.info('end db publish')
+            if self.config['is_redis_running']:
+                logger.info('start db publish')
+                self.redis_upd()
+                logger.info('end db publish')
 
             if self.has_converged:
                 # self.counts_within_radius(20)

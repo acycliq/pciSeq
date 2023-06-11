@@ -115,10 +115,10 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     cfg = init(opts)
 
     # 2. validate inputs
-    validate(spots, coo, scRNAseq)
+    cfg = validate(spots, coo, scRNAseq, cfg)  # cfg is mutated here by adding the key: 'is_redis_running'
 
     # 3. launch the diagnostics
-    if cfg['launch_diagnostics']:
+    if cfg['launch_diagnostics'] and cfg['is_redis_running']:
         logger.info('Launching the diagnostics dashboard')
         launch_dashboard()
 
@@ -188,6 +188,7 @@ def serialise(varBayes, debug_dir):
         pickle.dump(varBayes, outf)
         logger.info(' Saved at %s' % pickle_dst)
 
+
 def export_db_tables(out_dir, con):
     tables = con.get_db_tables()
     for table in tables:
@@ -209,6 +210,7 @@ def init(opts):
     are used without any change.
     """
     cfg = config.DEFAULT
+    cfg['is_redis_running'] = False  # this is set at the validate function below
     if opts is not None:
         default_items = set(cfg.keys())
         user_items = set(opts.keys())
@@ -225,7 +227,7 @@ def init(opts):
     return cfg
 
 
-def validate(spots, coo, sc):
+def validate(spots, coo, sc, cfg):
     assert isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y'}, \
         "Spots should be passed-in to the fit() method as a dataframe with columns ['Gene', 'x', 'y']"
 
@@ -234,7 +236,8 @@ def validate(spots, coo, sc):
     if sc is not None:
         assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
 
-    check_redis_server()
+    cfg['is_redis_running'] = check_redis_server()
+    return cfg
 
 
 def confirm_prompt(question):
@@ -248,10 +251,13 @@ def check_redis_server():
     logger.info("check_redis_server")
     try:
         redis_db()
+        return True
     except (redis.exceptions.ConnectionError, ConnectionRefusedError):
-        logger.info("Redis ping failed!. Trying to install redis server")
-        if confirm_prompt("Do you want to install redis server?"):
-            logger.info("...installing...")
+        logger.info("Redis ping failed!. Diagnostics will not be called unless redis is installed and the service is running")
+        return False
+        # logger.info("Redis ping failed!. Trying to install redis server")
+        # if confirm_prompt("Do you want to install redis server?"):
+        #     logger.info("...installing...")
 
 
 if __name__ == "__main__":
