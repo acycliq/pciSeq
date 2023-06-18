@@ -399,12 +399,13 @@ class VarBayes:
                                has_converged=self.has_converged, unix_time=time.time())
 
         idx=[]
-        for i, row in enumerate(self.cells.classProb):
+        for i, row in enumerate(self.cells.classProb[1:, :]):  # ignore the top row, it corresponds to the background, it is not an actual cell
             idx.append(np.argmax(row))
-        prob = np.bincount(idx) / np.bincount(idx).sum()
+        counts = np.bincount(idx)
+        # prob = np.bincount(idx) / np.bincount(idx).sum()
         df = pd.DataFrame({
             'class_name': self.cellTypes.names,
-            'prob': prob
+            'counts': counts
         })
         self.redis_db.to_redis(df, "cell_type_posterior", iter_num=self.iter_num, has_converged=self.has_converged, unix_time=time.time())
         self.redis_db.publish(df, "cell_type_posterior", iteration=self.iter_num, has_converged=self.has_converged, unix_time=time.time())

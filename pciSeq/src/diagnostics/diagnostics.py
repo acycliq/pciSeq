@@ -65,8 +65,19 @@ def main():
             with fig_col2:
                 if isinstance(cell_type_posterior, pd.DataFrame):
                     title.title("Convergence monitor")
-                    st.markdown("### Posterior cell class weight after iteration %d" % cell_type_posterior.iteration.max())
-                    bar_chart_2 = barchart(cell_type_posterior, nominal_col='class_name', val_col='prob')
+                    st.markdown("### Cell counts per cell class after iteration %d" % cell_type_posterior.iteration.max())
+                    bar_chart_2 = barchart(cell_type_posterior, nominal_col='class_name', val_col='counts')
+                    bar_chart_2 = bar_chart_2.properties(
+                        title=alt.TitleParams(
+                            ['Total number of cells: %d' % cell_type_posterior.counts.sum()],
+                            baseline='bottom',
+                            orient='bottom',
+                            anchor='end',
+                            fontWeight='normal',
+                            fontSize=12,
+                        ),
+                        height=1200
+                    )
                     fig2 = st.altair_chart(bar_chart_2, use_container_width=True)
 
 
