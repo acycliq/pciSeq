@@ -40,7 +40,7 @@ def main():
     )
 
     # dashboard title
-    title = st.title("Convergence monitor. (Waiting for cell typed data....)")
+    title = st.title("Convergence screen. (Waiting for data....)")
 
     # creating a single-element container
     placeholder = st.empty()
@@ -57,19 +57,19 @@ def main():
             fig_col1, fig_col2 = st.columns(2)
             with fig_col1:
                 if isinstance(gene_efficiency, pd.DataFrame):
-                    title.title("Convergence monitor")
-                    st.markdown("### Gene efficiency after iteration %d" % gene_efficiency.iteration.max())
+                    title.title("Convergence screen")
+                    st.markdown("#### Gene efficiency after iteration %d" % gene_efficiency.iteration.max())
                     bar_chart_1 = barchart(gene_efficiency, nominal_col='gene', val_col='gene_efficiency')
                     fig1 = st.altair_chart(bar_chart_1, use_container_width=True)
 
             with fig_col2:
                 if isinstance(cell_type_posterior, pd.DataFrame):
-                    title.title("Convergence monitor")
-                    st.markdown("### Cell counts per cell class after iteration %d" % cell_type_posterior.iteration.max())
+                    title.title("Convergence screen")
+                    st.markdown("#### Cell counts per cell class after iteration %d" % cell_type_posterior.iteration.max())
                     bar_chart_2 = barchart(cell_type_posterior, nominal_col='class_name', val_col='counts')
                     bar_chart_2 = bar_chart_2.properties(
                         title=alt.TitleParams(
-                            ['Total number of cells: %d' % cell_type_posterior.counts.sum()],
+                            ['#cells: %d' % cell_type_posterior.counts.sum()],
                             baseline='bottom',
                             orient='bottom',
                             anchor='end',
