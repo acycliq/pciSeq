@@ -1,6 +1,6 @@
 // NOTES:
 // 1. roi is the image size in pixels. Leave x0 and y0 at zero and set x1 to the width and y1 to the height
-// 2. zoomLevels, leave this at 10
+// 2. zoomLevels: maximum zoom levels.
 // 3. tiles should point to the folder that keeps your pyramid of tiles. If you do not have that just
 //    change the link to a blind one (use an empty string or change the jpg extension for example).
 //    The viewer should work without the dapi background.
@@ -15,7 +15,7 @@
 function config() {
     return {
             roi: {"x0": 0, "x1": 7602, "y0": 0, "y1": 5471},
-            zoomLevels: 10, // maximum zoom levels. Leave that at 10.
+            zoomLevels: 10,
             tiles: 'https://storage.googleapis.com/ca1-data/img/262144px/{z}/{y}/{x}.jpg',
             cellData: {mediaLink: '../../data/cellData.tsv', size: "2179232"},
             geneData: {mediaLink: '../../data/geneData.tsv', size: "9630856"},
