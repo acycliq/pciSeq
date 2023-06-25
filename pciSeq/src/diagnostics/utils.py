@@ -2,11 +2,11 @@ import os
 import redis
 import pickle
 from sys import platform
+from pciSeq.src.cell_call.utils import get_pciSeq_install_dir
 from pciSeq.src.cell_call.log_config import attach_to_log, logger
 import pciSeq.src.diagnostics.config as config
 import getpass
 import subprocess as sp
-import sysconfig
 
 
 class redis_db():
@@ -51,7 +51,7 @@ class redis_db():
         try:
             return self.redis_client.ping()
         except (redis.exceptions.ConnectionError, ConnectionRefusedError):
-            code_1, code_2 = validate()
+            code_1, code_2 = validate_redis()
             if code_1 == 0 and code_2 == 0:
                 return True
             else:
@@ -68,7 +68,7 @@ class redis_db():
         self.keyspace_events_enabled = True
 
 
-def is_running(os):
+def is_redis_running(os):
     out = None
     err = None
     exit_code = None
@@ -76,8 +76,8 @@ def is_running(os):
     out, err, exit_code = subprocess_cmd([exe, 'ping'])
     if exit_code != 0:
         logger.info(err.decode('UTF-8'))
-        if confirm_prompt("Server is not running, do you want to start it?"):
-            out, err, exit_code = start_server(os)
+        logger.info(" Starting redis server ...")
+        out, err, exit_code = start_server(os)
     return out, err, exit_code
 
 
@@ -87,11 +87,12 @@ def start_server(os):
     exit_code = None
     if os == "windows":
         out, err, exit_code = subprocess_cmd(['memurai.exe', '--service-start'])
-    elif os in ['linux', 'osx']:
+    elif os in ['linux']:
         passwd = getpass.getpass(prompt='sudo password: ')
         out, err, exit_code = subprocess_cmd(['sudo', '-S', 'service', 'redis-server', 'start'], passwd)
     else:
-        raise Exception('not implemented')
+        ## need to add osx here!
+        raise Exception('Cannot automatically start redis server under %s. Not implemented. Try manually.' % os)
     if not out.decode('UTF-8') == '':
         logger.info(out.decode('UTF-8').rstrip())
     return out, err, exit_code
@@ -123,7 +124,7 @@ def is_redis_installed(os):
     if not err.decode('UTF-8') == '':
         logger.info(err.decode('UTF-8').rstrip())
         if confirm_prompt("Server is not installed, do you want to install it?"):
-            install_redis_server(os)
+            out, err, exit_code = install_redis_server(os)
     return out, err, exit_code
 
 
@@ -135,11 +136,12 @@ def install_redis_server(os):
         msi = locate_msi()
         logger.info("Calling %s" % msi)
         out, err, exit_code = subprocess_cmd([msi])
-    elif os in ['linux', 'osx']:
+    elif os in ['linux']:
         sudo_password = getpass.getpass(prompt='sudo password: ')
         out, err, exit_code = subprocess_cmd(['sudo', '-S', 'apt-get', 'install', '-y', 'redis-server', 'redis-tools'], sudo_password)
     else:
-        raise Exception('not implemented')
+        ## need to add osx here!
+        raise Exception('not implemented for %s' % os)
     if exit_code > 0:
         raise Exception("installation failed with exit code %d" % exit_code)
     return out, err, exit_code
@@ -164,7 +166,9 @@ def subprocess_cmd(command, passwd=None):
 
 
 def locate_msi():
-    msi = os.path.join(sysconfig.get_path('purelib'), 'pciSeq', 'static', 'memurai', 'Memurai-Developer-v3.1.4.msi')
+    pciSeq_dir = get_pciSeq_install_dir()
+    msi = os.path.join(pciSeq_dir, 'static', 'memurai', 'Memurai-Developer-v3.1.4.msi')
+    # msi = os.path.join(sysconfig.get_path('purelib'), 'pciSeq', 'static', 'memurai', 'Memurai-Developer-v3.1.4.msi')
     if not os.path.isfile(msi):
         msi = os.path.join(os.getcwd(), 'static', 'memurai', 'Memurai-Developer-v3.1.4.msi')
     return msi
@@ -174,7 +178,7 @@ def confirm_prompt(question):
     reply = None
     while reply not in ("", "y", "n"):
         reply = input(f"{question} (y/n): ").lower()
-    return (reply in ("", "y"))
+    return reply in ("", "y")
 
 
 def check_platform():
@@ -188,10 +192,10 @@ def check_platform():
         raise Exception("Cannot determine OS")
 
 
-def validate():
+def validate_redis():
     os = check_platform()
     _, _,  code_1 = is_redis_installed(os)
-    _, _,  code_2 = is_running(os)
+    _, _,  code_2 = is_redis_running(os)
     return code_1, code_2
 
 
@@ -201,7 +205,7 @@ if __name__ == "__main__":
     # os = "windows"
     os = "linux"
     is_redis_installed(os)
-    is_running(os)
+    is_redis_running(os)
     stop_server(os)
     print('done!')
 

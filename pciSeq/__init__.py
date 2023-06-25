@@ -60,9 +60,10 @@ if check_libvips():
     from pciSeq.src.viewer.stage_image import tile_maker
 else:
     logger.warning('>>>> libvips is not installed. Please see https://www.libvips.org/install.html <<<<')
-    logger.warning('>>>> This is required if you want to use functions from this package to <<<<')
-    logger.warning('>>>> make a pyramid of tiles and have an image as background in the viewer. <<<<')
-
+    logger.warning('>>>> This is required only if you want to add a background image to the viewer. <<<<')
+    logger.warning('>>>> and visualise your results after cell typing. <<<<')
+    logger.warning('>>>> To do cell typing, libvips can be ignored, it is *not* necessary.  <<<<')
+    # logger.warning('>>>> LIBVIPS_ENABLED is %s.  <<<<' % check_libvips())
 
 
 

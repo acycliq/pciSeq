@@ -9,7 +9,7 @@ def launch_dashboard():
     dirname = os.path.dirname(__file__)
     filename = os.path.join(dirname, 'diagnostics.py')
     exe = sys.executable
-    code_1, code_2 = utils.validate()
+    code_1, code_2 = utils.validate_redis()
     if code_1 == 0 and code_2 == 0:
         p = subprocess.Popen([exe, "-m" "streamlit", "run", filename])
         # TODO: you need to kill the process on exit

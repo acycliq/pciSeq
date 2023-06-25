@@ -9,7 +9,8 @@ import numexpr as ne
 # import numba as nb
 import os
 import glob
-import logging
+import subprocess
+from email.parser import BytesHeaderParser
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 # logger = logging.getLogger(__name__)
@@ -273,3 +274,9 @@ def get_out_dir(path, sub_folder=''):
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     return out_dir
+
+
+def get_pciSeq_install_dir():
+    p = subprocess.run(['pip', 'show', 'pciSeq'], stdout=subprocess.PIPE)
+    h = BytesHeaderParser().parsebytes(p.stdout)
+    return os.path.join(h['Location'], 'pciSeq')
