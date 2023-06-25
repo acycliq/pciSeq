@@ -5,6 +5,7 @@
 
 import os
 from setuptools import setup, find_packages
+from sys import platform
 
 
 def get_static_files(root):
@@ -22,7 +23,10 @@ def get_static_files(root):
 
 install_deps = ['opencv-python', 'numpy_groupies', 'pandas', 'scipy',
                 'scikit-image', 'scikit-learn', 'tqdm', 'flask',
-                'numexpr', 'diplib', 'pyvips']
+                'numexpr', 'diplib', 'pyvips', 'redis']
+
+if platform in ['linux', 'darwin']:
+    install_deps.append('redis-server')
 
 version = None
 with open(os.path.join('pciSeq', 'src', '_version.py'), 'r') as fid:
