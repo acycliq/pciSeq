@@ -1,8 +1,6 @@
 import os
 import pandas as pd
 import numpy as np
-import subprocess
-from email.parser import BytesHeaderParser
 import shutil
 import json
 import tempfile
@@ -12,7 +10,7 @@ from typing import Tuple
 from scipy.sparse import coo_matrix, save_npz, load_npz
 from pciSeq.src.cell_call.main import VarBayes
 from pciSeq.src.preprocess.spot_labels import stage_data
-from pciSeq.src.cell_call.utils import get_out_dir
+from pciSeq.src.cell_call.utils import get_out_dir, get_pciSeq_install_dir
 from pciSeq.src.preprocess.utils import get_img_shape
 from pciSeq.src.diagnostics.utils import redis_db
 from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
@@ -207,9 +205,7 @@ def check_redis_server():
     try:
         redis_db()
     except (redis.exceptions.ConnectionError, ConnectionRefusedError):
-        logger.info("Redis ping failed!. Trying to install redis server")
-        if confirm_prompt("Do you want to install redis server?"):
-            logger.info("...installing...")
+        logger.info("Redis connection failed!.")
 
 
 def make_config_base(dst):
@@ -253,9 +249,7 @@ def make_config_js(dst, w, h):
 
 
 def copy_viewer_code(cfg):
-    p = subprocess.run(['pip', 'show', 'pciSeq'], stdout=subprocess.PIPE)
-    h = BytesHeaderParser().parsebytes(p.stdout)
-    pciSeq_dir = os.path.join(h['Location'], 'pciSeq')
+    pciSeq_dir = get_pciSeq_install_dir()
     dim = '2D'
     src = os.path.join(pciSeq_dir, 'static', dim)
     dst = get_out_dir(cfg['output_path'], '')
