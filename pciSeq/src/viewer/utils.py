@@ -79,6 +79,14 @@ def copy_viewer_code(cfg, dst):
     return dst
 
 
+def _get_file(OUT_DIR, filepath, n, header_line):
+    [filename, ext] = os.path.basename(filepath).split('.')
+    file = os.path.join(OUT_DIR, filename + '_%d.%s' % (n, ext))
+    handle = open(file, "a")
+    handle.write(header_line)
+    return file, handle
+
+
 def splitter_mb(df, dir_path, mb_size):
     """ Splits a text file in (almost) equally sized parts on the disk. Assumes that there is a header in the first line
     :param filepath: The path of the text file to be broken up into smaller files
