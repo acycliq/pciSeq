@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
-import subprocess
-from email.parser import BytesHeaderParser
+from pciSeq.src.cell_call.utils import get_pciSeq_install_dir
 import shutil
 import json
 import os
@@ -71,9 +70,7 @@ def make_classConfig_js(labels, dst):
 
 
 def copy_viewer_code(cfg, dst):
-    p = subprocess.run(['pip', 'show', 'pciSeq'], stdout=subprocess.PIPE)
-    h = BytesHeaderParser().parsebytes(p.stdout)
-    pciSeq_dir = os.path.join(h['Location'], 'pciSeq')
+    pciSeq_dir = get_pciSeq_install_dir()
     dim = '2D'
     src = os.path.join(pciSeq_dir, 'static', dim)
 
