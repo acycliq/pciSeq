@@ -13,6 +13,8 @@ dependencies:
   - tqdm
   - numexpr
   - flask
+  - redis
+  - natsort
   - pip:
       - diplib
       - pyvips
