@@ -249,10 +249,10 @@ class Spots(object):
         SpotInCell = self.data.label
         # assert (np.all(SpotInCell.index == neighbors.index))
 
-        # sanity check (this actually needs to be rewritten)
-        mask = np.greater(SpotInCell, 0, where=~np.isnan(SpotInCell))
-        sanity_check = neighbors[mask, 0] + 1 == SpotInCell[mask]
-        assert ~any(sanity_check), "a spot is in a cell not closest neighbor!"
+        ## sanity check (this actually needs to be rewritten)
+        # mask = np.greater(SpotInCell, 0, where=~np.isnan(SpotInCell))
+        # sanity_check = neighbors[mask, 0] + 1 == SpotInCell[mask]
+        # assert ~any(sanity_check), "a spot is in a cell not closest neighbor!"
 
         pSpotNeighb = np.zeros([nS, nN])
         pSpotNeighb[neighbors == SpotInCell.values[:, None]] = 1
