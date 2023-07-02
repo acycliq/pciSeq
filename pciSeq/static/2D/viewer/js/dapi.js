@@ -1,7 +1,7 @@
 function dapi(cfg) {
     console.log('Doing Dapi plot');
 
-    var map_dims = mapSize(cfg.zoomLevels),
+    var map_dims = mapSize(cfg.maxZoom),
         tiles = cfg.tiles,
         roi = cfg.roi;
 
@@ -15,14 +15,13 @@ function dapi(cfg) {
     var t = new L.Transformation(a, b, c, d);
 
     // The transformation in this CRS maps the the top left corner to (0,0) and the bottom right to (256, 256)
-    // Leaflet thinks that the map is 256px-by-256px wide. These are the dimension of the tile at
-    // zoom = 0.
+    // Leaflet thinks that the map is 256px-by-256px wide. These are the dimension of the tile at zoom = 0.
     // Each side of the map however is 256 * 2 ** maxZoomLevel pixels wide.
     // For maxZoomLevel = 10 for example the map is 262144px-262144px
     // Hence we have to specify a factor of 256/262144 = 1/1024.
     // in general the factor is 256 / (256 * 2 ** maxZoomLevel)
-    var a_x = 256 / (256 * 2 ** cfg.zoomLevels),
-        c_y = 256 / (256 * 2 ** cfg.zoomLevels)
+    var a_x = 256 / (256 * 2 ** cfg.maxZoom),
+        c_y = 256 / (256 * 2 ** cfg.maxZoom)
     L.CRS.MySimple = L.extend({}, L.CRS.Simple, {
         transformation: new L.Transformation(a_x, 0, c_y, 0),
     });
@@ -31,15 +30,32 @@ function dapi(cfg) {
         northEast = L.latLng(0, 0),
         mapBounds = L.latLngBounds(southWest, northEast);
 
-    map = L.map('mymap', {
+       map = L.map('mymap', {
         crs: L.CRS.MySimple,
         attributionControl: false,
-    }).setView([map_dims[1]/2, map_dims[0]/2], 2);
-    L.tileLayer(tiles, {
         minZoom: 0,
-        maxZoom: 8,
+        maxZoom: cfg.maxZoom,
         bounds: mapBounds,
-    }).addTo(map);
+    }).setView([map_dims[1]/2, map_dims[0]/2], 2);
+
+
+    var baseLayers = {}
+    for (const [key, value] of Object.entries(cfg.layers)) {
+      baseLayers[key] = L.tileLayer(value);
+    }
+
+    var nLayers = Object.values(baseLayers).length
+    //Add control layers to map
+    if (nLayers > 1){
+        L.control.layers(baseLayers, null, {collapsed: false}).addTo(map);
+    }
+
+    // It seems I can set the active layer, however on the control it looks as
+    // if the active one is the last layer. The bullet point always stays at
+    // the last layer
+    var selectedLayer = Object.values(baseLayers)[nLayers-1]
+    // var selectedLayer = Object.values(baseLayers)[0] // that sets the top layer active, the bullet is still at the bottom!!!
+    selectedLayer.addTo(map)
 
     function getTaxonomy(gene) {
         if (glyphMap.get(gene)) {

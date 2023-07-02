@@ -30,19 +30,34 @@ def make_config_js(dst, w, h):
     roi_dict = {"x0": 0, "x1": w, "y0": 0, "y1": h}
     appDict['cellBoundaries'] = cellBoundaries_dict
     appDict['roi'] = roi_dict
-    appDict['zoomLevels'] = 10
-    appDict['tiles'] = "https://storage.googleapis.com/ca1-data/img/262144px/{z}/{y}/{x}.jpgZZZ"
+    appDict['maxZoom'] = 8
+    appDict['layers'] = {
+        'empty': "",
+        'dapi': "https://storage.googleapis.com/ca1-data/img/262144px/{z}/{y}/{x}.jpg",
+
+    }
+    appDict['spotSize'] = 1/16
 
     config_str = "// NOTES: \n" \
                  "// 1. paths are with respect to the location of 'streaming-tsv-parser.js \n" \
                  "// 2. roi is the image size in pixels. Leave x0 and y0 at zero and set x1 to the width and y1 to the height \n" \
-                 "// 3. tiles should point to the folder that keeps your pyramid of tiles. If you do not have that just \n" \
-                 "//    change the link to a blind one (change the jpg extension for example). The viewer should work \n" \
-                 "//    without the dapi background though \n" \
+                 "// 3. layers is a dict. Each key/value pair contains the string (the name) of the background image and the \n" \
+                 "//    location of the folder that the corresponding pyramid of tiles. If the tiles are stored locally, they \n" \
+                 "//    should be kept in a folder which is served, for example next to the tsv flatfiles. The path should be \n" \
+                 "//    in relation to the location of the index.html If you do not have a pyramid of tiles just \n" \
+                 "//    change the link to a blind one (change the jpg extension for example or just use an empty string). \n" \
+                 "//    The viewer should work without the dapi background though. \n" \
+                 "//    If the dict has more than one entries then a small control with radio button will appear at the top \n" \
+                 "//    right of the viewer to switch between different background images. \n" \
                  "// 4. size is the tsv size in bytes. I use os.path.getsize() to get it. Not crucial if you \n" \
                  "//    dont get it right, ie the full tsv will still be parsed despite this being wrong. It \n" \
                  "//    is used by the loading page piecharts to calc how far we are \n" \
-                 "// 5. Leave zoomLevels to 10 \n" \
+                 "// 5. maxZoom: maximum zoom levels. In most cases a value of 8 if good enough. If you have a big image, like \n" \
+                 "//    full coronal section for example then a value of 10 would make sense. Note that this should be typically \n" \
+                 "//    inline with the zoom level you used when you did \n" \
+                 "//    the pyramid of tiles. No harm is it less. If it is greater, then for these extra zoom levels there will \n" \
+                 "//    be no background image. \n" \
+                 "// 6. spotSize: Scalar. Use this to adjust the screen-size of your spots before they morph into glyphs. \n" \
                  " function config() { return %s }" % json.dumps(appDict)
     config = os.path.join(dst, 'viewer', 'js', 'config.js')
     with open(config, 'w') as data:

@@ -42,7 +42,8 @@ function add_spots_patched(all_geneData, map) {
     };
 
     function scaleRamp(z) {
-        var scale = 1 / 64;
+        // var scale = 1 / 64;
+        var scale = config().spotSize;
         return z === 0 ? scaleRampHelper(z, scale) :
                 z === 1 ? scaleRampHelper(z,  2 * scale) :
                     z === 2 ? scaleRampHelper(z,  2 * scale) : scaleRampHelper(z, 4 * scale)
@@ -64,7 +65,7 @@ function add_spots_patched(all_geneData, map) {
         // Divide by 2 to keep the marker the same as size. Hence if for zoom level = 3 the  return value from
         // this function is lets say zo 10, then when to keep the same size on the screen for the dot, at zoom = 4
         // the return value should be 5
-        var map_side = mapSide(configSettings.zoomLevels),
+        var map_side = mapSide(configSettings.maxZoom),
             dapi_size = [configSettings.roi.x1 - configSettings.roi.x0, configSettings.roi.y1 - configSettings.roi.y0],
             max_dapi = Math.max(...dapi_size),
             c = map_side / max_dapi,
@@ -122,8 +123,8 @@ function add_spots_patched(all_geneData, map) {
             if (firstDraw) {
                 if (event.type === 'add') {
 
-                    initialScale = invScale / 8;
-                    initialScale = 0.125;
+                    // initialScale = invScale / 8;
+                    // initialScale = 0.125;
                     var targetScale = zoom <= zoomSwitch ? scaleRamp(zoom) : 1;
                     for (var i = 0; i < geneNames.length; i++) {
                         var gene = geneNames[i];
