@@ -89,9 +89,7 @@ class VarBayes:
             p0 = self.spots.parent_cell_prob
 
             if self.config['is_redis_running']:
-                logger.info('start db publish')
                 self.redis_upd()
-                logger.info('end db publish')
 
             if self.has_converged:
                 # self.counts_within_radius(20)
@@ -381,7 +379,6 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def redis_upd(self):
-        logger.info("redis start")
         eta_bar_df = pd.DataFrame({
             'gene_efficiency': self.genes.eta_bar,
             'gene': self.genes.gene_panel
@@ -409,7 +406,7 @@ class VarBayes:
         })
         self.redis_db.to_redis(df, "cell_type_posterior", iter_num=self.iter_num, has_converged=self.has_converged, unix_time=time.time())
         self.redis_db.publish(df, "cell_type_posterior", iteration=self.iter_num, has_converged=self.has_converged, unix_time=time.time())
-        logger.info("redis end")
+
 
 
 
