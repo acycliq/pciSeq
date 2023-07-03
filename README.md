@@ -50,8 +50,28 @@ building this viewer with your own data are [here](https://github.com/acycliq/vi
 If you have `v 0.0.49` or greater you can also launch the viewer automatically by 
 setting `opts = {'launch_viewer': True}` and passing it to `pciSeq.fit()`, see [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/acycliq/pciSeq/blob/master/notebooks/2_viewer.ipynb)
 
-## Diagnostics dashboard
+## Diagnostics
+Diagnostics will help you understand whether pciSeq has been misconfigured, the algorithm has taken the 
+wrong path and will produce meaningless results when it finishes. You will need however to install redis (or Memurai if you are using Windows).
+
+For linux do:
+`sudo apt-get install redis-server redis-tools`
+and then start the service:
+`sudo service redis-server start`
+
+You can get the free version of memurai from [here](https://www.memurai.com/get-memurai). Once installed, the service should start automatically but you can manually do that by:
+`memurai.exe –service-start`
+
+If redis (or memurai) is missing from your system, the call to launch the diagnostics dashboard will be 
+ignored. If you are interested in this feature you may find this notebook [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/acycliq/pciSeq/blob/master/notebooks/4_diagnostics.ipynb)
+ useful
+
 ## Change Log
+### [0.0.55] - 2023-07-03
+ - Diagnostics dashboard
+
+ - Baselayers on the viewer. You can have multiple background images and switch between them.
+
 ### [0.0.50] - 2023-05-27
  - Single cell data are optional, more info can be found here [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/acycliq/pciSeq/blob/master/notebooks/3_pciSeq_without_singleCell_data.ipynb)
 
