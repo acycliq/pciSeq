@@ -252,7 +252,7 @@ def check_redis_server():
     try:
         redis_db()
         return True
-    except (redis.exceptions.ConnectionError, ConnectionRefusedError):
+    except (redis.exceptions.ConnectionError, ConnectionRefusedError, OSError):
         logger.info("Redis ping failed!. Diagnostics will not be called unless redis is installed and the service is running")
         return False
         # logger.info("Redis ping failed!. Trying to install redis server")

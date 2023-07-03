@@ -59,13 +59,17 @@ class redis_db():
 
     def enable_keyspace_events(self):
         exe = "memurai-cli.exe" if check_platform() == "windows" else "redis-cli"
-        out, err, exit_code = subprocess_cmd([exe, 'config', 'set', 'notify-keyspace-events', 'KEA'])
-        if exit_code != 0:
-            logger.info(out.decode('UTF-8').rstrip())
-            logger.info(err.decode('UTF-8').rstrip())
-            raise Exception('notify-keyspace-events failed with exit code: %d' % exit_code)
-        logger.info(" enabling keyspace events... %s" % out.decode('UTF-8').rstrip())
-        self.keyspace_events_enabled = True
+        try:
+            out, err, exit_code = subprocess_cmd([exe, 'config', 'set', 'notify-keyspace-events', 'KEA'])
+            if exit_code != 0:
+                logger.info(out.decode('UTF-8').rstrip())
+                logger.info(err.decode('UTF-8').rstrip())
+                raise Exception('notify-keyspace-events failed with exit code: %d' % exit_code)
+            logger.info(" enabling keyspace events... %s" % out.decode('UTF-8').rstrip())
+            self.keyspace_events_enabled = True
+        except OSError as ex:
+            logger.info("Cannot enable keyspace events. Failed with error: %s" % ex)
+            raise
 
 
 def is_redis_running(os):
@@ -119,7 +123,7 @@ def is_redis_installed(os):
     err = None
     exit_code = None
 
-    exe = "memurai.exe" if check_platform() == "windows" else "redis-server"
+    exe = "memurai.exeee" if check_platform() == "windows" else "redis-server"
     out, err, exit_code = subprocess_cmd([exe, '--version'])
     if not err.decode('UTF-8') == '':
         logger.info(err.decode('UTF-8').rstrip())

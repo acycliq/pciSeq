@@ -13,7 +13,7 @@ from pciSeq.src.cell_call.log_config import logger
 class VarBayes:
     def __init__(self, _cells_df, _spots_df, scRNAseq, config):
         self.config = config
-        self.redis_db = redis_db(flush=True)
+        self.redis_db = redis_db(flush=True) if config['is_redis_running'] else None
         self.cells = Cells(_cells_df, config)
         self.spots = Spots(_spots_df, config)
         self.genes = Genes(self.spots)
