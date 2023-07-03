@@ -123,7 +123,7 @@ def is_redis_installed(os):
     err = None
     exit_code = None
 
-    exe = "memurai.exeee" if check_platform() == "windows" else "redis-server"
+    exe = "memurai.exe" if check_platform() == "windows" else "redis-server"
     out, err, exit_code = subprocess_cmd([exe, '--version'])
     if not err.decode('UTF-8') == '':
         logger.info(err.decode('UTF-8').rstrip())
