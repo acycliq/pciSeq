@@ -67,7 +67,7 @@ ignored. If you are interested in this feature you may find this notebook [![Ope
  useful
 
 ## Change Log
-### [0.0.55] - 2023-07-03
+### [0.0.56] - 2023-07-03
  - Diagnostics dashboard
 
  - Baselayers on the viewer. You can have multiple background images and switch between them.
