@@ -388,17 +388,18 @@ class VarBayes:
         self.redis_db.publish(eta_bar_df, "gene_efficiency", iteration=self.iter_num,
                                has_converged=self.has_converged, unix_time=time.time())
 
-        pi_bar_df = pd.DataFrame({
-            'weight': np.bincount(self.cells.classProb.argmax(axis=1))/np.bincount(self.cells.classProb.argmax(axis=1)).sum(),
-            'class': self.cellTypes.names
-        })
-        self.redis_db.to_redis(pi_bar_df, "cell_type_prior", iter_num=self.iter_num,
-                               has_converged=self.has_converged, unix_time=time.time())
+        # pi_bar_df = pd.DataFrame({
+        #     'weight': np.bincount(self.cells.classProb.argmax(axis=1))/np.bincount(self.cells.classProb.argmax(axis=1)).sum(),
+        #     'class': self.cellTypes.names
+        # })
+        # self.redis_db.to_redis(pi_bar_df, "cell_type_prior", iter_num=self.iter_num,
+        #                        has_converged=self.has_converged, unix_time=time.time())
 
         idx=[]
+        size = self.cellTypes.names.shape[0]
         for i, row in enumerate(self.cells.classProb[1:, :]):  # ignore the top row, it corresponds to the background, it is not an actual cell
             idx.append(np.argmax(row))
-        counts = np.bincount(idx)
+        counts = np.bincount(idx, minlength=size)
         # prob = np.bincount(idx) / np.bincount(idx).sum()
         df = pd.DataFrame({
             'class_name': self.cellTypes.names,
