@@ -1,6 +1,9 @@
 // Color scheme for the cell classes.
 // IdentifiedType is some wider categorization. On the viewer, the donut chart at the bottom right is aggregated
 // by IdentifiedType and these aggregated probabilities are shown on the table at the bottom left.
+// Also, on the viewer, at the top right, there is a collapsible control to switch on/off the cells by the
+// cell class. The control has the classes in a nested class/subClass manner. For the nesting operation to
+// work, the separator in the className string should be a dot.
 
 function classColorsCodes()
 {
