@@ -64,5 +64,13 @@ DEFAULT = {
     # your machine. Changing the datatype to a float16 or float32 will help keeping RAM usage to a lower
     # level
     'dtype': np.float64,
+
+
+    # *******************************************************************************
+    # Hyperparameters below come into action **ONLY** if single cell data are missing
+    # *******************************************************************************
+    'mean_gene_counts_per_class': 60,
+    'mean_gene_counts_per_cell': 15,
+
 }
 

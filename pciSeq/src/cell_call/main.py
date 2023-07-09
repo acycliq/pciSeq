@@ -66,6 +66,9 @@ class VarBayes:
             # 2. calc expected gamma
             self.gamma_upd()
 
+            if self.single_cell.isMissing:
+                self.gaussian_upd()
+
             # 3. assign cells to cell types
             self.cell_to_cellType()
 
@@ -254,6 +257,98 @@ class VarBayes:
         # self.genes.eta_bar = res.values
 
     # -------------------------------------------------------------------- #
+    def gaussian_upd(self):
+        self.centroid_upd()
+        self.cov_upd()
+
+    # -------------------------------------------------------------------- #
+    def centroid_upd(self):
+        spots = self.spots
+
+        # get the total gene counts per cell
+        N_c = self.cells.total_counts
+
+        xy_spots = spots.xy_coords
+        prob = spots.parent_cell_prob
+        n = self.cells.config['nNeighbors'] + 1
+
+        # multiply the x coord of the spots by the cell prob
+        a = np.tile(xy_spots[:, 0], (n, 1)).T * prob
+
+        # multiply the y coord of the spots by the cell prob
+        b = np.tile(xy_spots[:, 1], (n, 1)).T * prob
+
+        # aggregated x and y coordinate
+        idx = spots.parent_cell_id
+        x_agg = npg.aggregate(idx.ravel(), a.ravel(), size=len(N_c))
+        y_agg = npg.aggregate(idx.ravel(), b.ravel(), size=len(N_c))
+
+        # x_agg = np.zeros(N_c.shape)
+        # mask = np.arange(len(_x_agg))
+        # x_agg[mask] = _x_agg
+        #
+        # y_agg = np.zeros(N_c.shape)
+        # mask = np.arange(len(_y_agg))
+        # y_agg[mask] = _y_agg
+
+        # get the estimated cell centers
+        x_bar = np.nan * np.ones(N_c.shape)
+        y_bar = np.nan * np.ones(N_c.shape)
+
+        x_bar[N_c > 0] = x_agg[N_c > 0] / N_c[N_c > 0]
+        y_bar[N_c > 0] = y_agg[N_c > 0] / N_c[N_c > 0]
+
+        # cells with N_c = 0 will end up with x_bar = y_bar = np.nan
+        xy_bar_fitted = np.array(list(zip(x_bar.T, y_bar.T)))
+
+        # if you have a value for the estimated centroid use that, otherwise
+        # use the initial (starting values) centroids
+        ini_cent = self.cells.ini_centroids()
+        xy_bar = np.array(tuple(zip(*[ini_cent['x'], ini_cent['y']])))
+
+        # # sanity check. NaNs or Infs should appear together
+        # assert np.all(np.isfinite(x_bar) == np.isfinite(y_bar))
+        # use the fitted centroids where possible otherwise use the initial ones
+        xy_bar[np.isfinite(x_bar)] = xy_bar_fitted[np.isfinite(x_bar)]
+        self.cells.centroid = pd.DataFrame(xy_bar, columns=['x', 'y'])
+        # print(np.array(list(zip(x_bar.T, y_bar.T))))
+
+    # -------------------------------------------------------------------- #
+    def cov_upd(self):
+        spots = self.spots
+
+        # first get the scatter matrix
+        S = self.cells.scatter_matrix(spots)  # sample sum of squares
+        cov_0 = self.cells.ini_cov()
+        nu_0 = self.cells.nu_0
+        S_0 = cov_0 * nu_0  # prior sum of squares
+        N_c = self.cells.total_counts
+        d = 2
+        denom = np.ones([self.nC, 1, 1])
+        denom[:, 0, 0] = N_c + nu_0
+        # Note: need to add code to handle the case N_c + nu_0 <= d + 2
+        cov = (S + S_0) / denom
+
+        # delta = self.cells.ledoit_wolf(self.spots, cov)
+        # stein = self.cells.stein(cov)
+        # delta = self.cells.rblw(cov)
+
+        delta = 0.5
+        # logger.info('Mean shrinkage %4.2f' % delta.mean())
+        # logger.info('cell 601 shrinkage %4.2f, %4.2f' % (shrinkage[601], sh[601]))
+        #  logger.info('cell 601 gene counts %d' % self.cells.total_counts[601])
+        # logger.info('cell 605 shrinkage %4.2f, %4.2f' % (shrinkage[605], sh[605]))
+        #  logger.info('cell 605 gene counts %d' % self.cells.total_counts[605])
+        # logger.info('cell 610 shrinkage %4.2f, %4.2f' % (shrinkage[610], sh[610]))
+        #  logger.info('cell 610 gene counts %d' % self.cells.total_counts[610])
+
+        # delta = delta.reshape(self.nC, 1, 1)
+        # target = [np.trace(d)/2 * np.eye(2) for d in cov]  # shrinkage target
+        cov = delta * cov_0 + (1 - delta) * cov
+        # cov = delta * target + (1 - delta) * cov
+        self.cells.cov = cov
+
+    # -------------------------------------------------------------------- #
     def mu_upd(self):
         # logger.info('Update single cell data')
         # # make an array nS-by-nN and fill it with the spots id
@@ -306,7 +401,7 @@ class VarBayes:
         # logger.info("**** Dirichlet alpha is zero if class size <=%d ****" % self.config['min_class_size'])
         # logger.info("***************************************************")
 
-        # 07-May-2013: Hiding 'min_class_size' from the config file. Should bring it back at a later version
+        # 07-May-2023: Hiding 'min_class_size' from the config file. Should bring it back at a later version
         # mask = zeta <= self.config['min_class_size']
         min_class_size = 5
         mask = zeta <= min_class_size
@@ -316,7 +411,7 @@ class VarBayes:
         assert len(self.cellTypes.names) == len(mask)
 
         # make sure the last value ie always False, overriding if necessary the
-        # check a few lines when the mask variable was set.
+        # check a few lines above when the mask variable was set.
         # In this manner we will prevent the Zero class from being removed.
         mask[-1] = False
 

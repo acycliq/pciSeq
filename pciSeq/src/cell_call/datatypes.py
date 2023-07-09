@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import scipy
 import numexpr as ne
+import numpy_groupies as npg
 from natsort import natsort_keygen
 from sklearn.neighbors import NearestNeighbors
 from pciSeq.src.cell_call.log_config import logger
@@ -17,6 +18,7 @@ class Cells(object):
         self.classProb = None
         self.class_names = None
         self._cov = self.ini_cov()
+        self.nu_0 = config['mean_gene_counts_per_cell']
         self._centroid = self.ini_centroids()
         self._gene_counts = None
         self._background_counts = None
@@ -84,20 +86,39 @@ class Cells(object):
         nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(self.yx_coords)
         return nbrs
 
-    # def geneCountsPerKlass(self, single_cell_data, egamma, ini):
-    #     # ********************************************
-    #     # DEPRECATED. Replaced by a simple einsum call
-    #     # ********************************************
-    #     temp = np.einsum('ck, c, cgk -> gk', self.classProb, self.cell_props['area_factor'], egamma)
-    #
-    #     # total counts predicted by all cells of each class (nG, nK)
-    #     ClassTotPredicted = temp * (single_cell_data.mean_expression + ini['SpotReg'])
-    #
-    #     # total of each gene
-    #     isZero = ClassTotPredicted.columns == 'Zero'
-    #     labels = ClassTotPredicted.columns.values[~isZero]
-    #     TotPredicted = ClassTotPredicted[labels].sum(axis=1)
-    #     return TotPredicted
+    def scatter_matrix(self, spots):
+        mu_bar = self.centroid.values
+        prob = spots.parent_cell_prob[:, :-1]
+        id = spots.parent_cell_id[:, :-1]
+        xy_spots = spots.xy_coords
+        out = self.ini_cov() * self.nu_0
+
+        mu_x = mu_bar[id, 0]  # array of size [nS, N] with the x-coord of the centroid of the N closest cells
+        mu_y = mu_bar[id, 1]  # array of size [nS, N] with the y-coord of the centroid of the N closest cells
+
+        N = mu_x.shape[1]
+        _x = np.tile(xy_spots[:, 0], (N, 1)).T  # array of size [nS, N] populated with the x-coord of the spot
+        _y = np.tile(xy_spots[:, 1], (N, 1)).T  # array of size [nS, N] populated with the y-coord of the spot
+        x_centered = _x - mu_x  # subtract the cell centroid x-coord from the spot x-coord
+        y_centered = _y - mu_y  # subtract the cell centroid y-coord from the spot x-coord
+
+        el_00 = prob * x_centered * x_centered  # contribution to the scatter matrix's [0, 0] element
+        el_11 = prob * y_centered * y_centered  # contribution to the scatter matrix's off-diagonal element
+        el_01 = prob * x_centered * y_centered  # contribution to the scatter matrix's [1, 1] element
+
+        # Aggregate all contributions to get the scatter matrix
+        agg_00 = npg.aggregate(id.ravel(), el_00.ravel(), size=self.nC)
+        agg_11 = npg.aggregate(id.ravel(), el_11.ravel(), size=self.nC)
+        agg_01 = npg.aggregate(id.ravel(), el_01.ravel(), size=self.nC)
+
+        # Return now the scatter matrix. Some cell might not have any spots nearby. For those empty cells,
+        # the scatter matrix will be a squared zero array. That is fine.
+        out[:, 0, 0] = agg_00
+        out[:, 1, 1] = agg_11
+        out[:, 0, 1] = agg_01
+        out[:, 1, 0] = agg_01
+
+        return out
 
     def read_image_objects(self, img_obj, cfg):
         meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
@@ -481,7 +502,7 @@ class SingleCell(object):
         # logger.info('*************** DIAGONAL SINGLE CELL DATA ***************')
         # logger.info('******************************************************')
         nG = len(genes)
-        mgc = 15  # the avg gene count per cell. Better expose that so it can be set by the user.
+        mgc = self.config['mean_gene_counts_per_class']  # the avg gene count per cell. Better expose that so it can be set by the user.
         arr = mgc * np.eye(nG)
         labels = ['class_%d' % (i+1) for i, _ in enumerate(genes)]
         df = pd.DataFrame(arr).set_index(genes)
