@@ -1,7 +1,3 @@
-"""
-Function that will open an html page in the browser
-"""
-
 from flask import Flask, render_template
 import os
 import webbrowser
