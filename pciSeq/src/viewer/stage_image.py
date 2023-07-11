@@ -1,16 +1,7 @@
-''''
-splits the big background image  into smaller images size 2000x2000px.
-Look also at https://stackoverflow.com/questions/10853119/chop-image-into-tiles-using-vips-command-line/15293104
-for an alternative (and probably better way)
-It also creates the pyramid tiles for the viewer
-'''
 import shutil
 import os
 import pyvips
 from pciSeq.src.cell_call.log_config import logger
-
-
-# logger = logging.getLogger(__name__)
 
 
 def split_image(im):
@@ -112,23 +103,6 @@ def tile_maker(img_path, z_depth=10, out_dir=r"./tiles"):
     logger.info('Done. Pyramid of tiles saved at: %s' % out_dir)
 
     return pixel_dims
-
-
-
-if __name__ == "__main__":
-    # imPath = r"F:\data\Sara\pciSeq\data\debug\lro_nearside.jpg"
-    imPath = r"F:\data\Sara\pciSeq\data\debug\1024px-Wac_nearside.jpg"
-    # imPath = r"F:\data\Sara\pciSeq\data\debug\tdTomato_image_fixed.jpg"
-    # imPath = r"/mnt/f/data/Sara/pciSeq/data/debug/tdTomato_image_fixed.jpg"
-    # split_image(im)
-
-    # # to rotate the image do:
-    # im = pyvips.Image.new_from_file(imPath)
-    # im = im.rotate(90, interpolate=pyvips.Interpolate.new("nearest"))
-    # im.write_to_file(r'data/background_image/background_image_adj_rot.tif')
-
-    tile_maker(imPath, z_depth=4)
-
 
 
 
