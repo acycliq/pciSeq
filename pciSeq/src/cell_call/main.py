@@ -66,14 +66,8 @@ class VarBayes:
             # 2. calc expected gamma
             self.gamma_upd()
 
-            if self.single_cell.isMissing:
-                self.gaussian_upd()
-
             # 3. assign cells to cell types
             self.cell_to_cellType()
-
-            if self.single_cell.isMissing:
-                self.dalpha_upd()
 
             # 4. assign spots to cells
             self.spots_to_cell()
@@ -83,6 +77,8 @@ class VarBayes:
 
             # 6. Update single cell data
             if self.single_cell.isMissing:
+                self.gaussian_upd()
+                self.dalpha_upd()
                 self.mu_upd()
 
             self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
