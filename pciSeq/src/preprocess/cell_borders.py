@@ -2,6 +2,8 @@
 import pandas as pd
 import numpy as np
 import diplib as dip
+from multiprocessing import Pool, cpu_count
+from multiprocessing.dummy import Pool as ThreadPool
 
 
 def extract_borders_dip(label_image, offset_x=0, offset_y=0, exclude_labels=(0,)):
@@ -43,6 +45,53 @@ def extract_borders_dip(label_image, offset_x=0, offset_y=0, exclude_labels=(0,)
     df.columns = ['label', 'coords']
     return df
 
+
+def extract_borders(cell_labels):
+    '''
+    Extracts the cell boundaries from the label image array. Same as 'extract_borders_dip()' but a lot faster.
+    Parameters
+    ----------
+    label_image:    The label image array, typically obtained from some image segmentation
+                    application and maps every pixel on the image to a cell label.
+
+    Returns
+    -------
+    Returns a dataframe with columns 'labels' and 'coords'
+    """
+    '''
+    cell_boundaries = pd.DataFrame()
+    borders_list = _extract_borders(cell_labels)
+    d = dict(borders_list)
+    cell_boundaries['label'] = d.keys()
+    cell_boundaries['coords'] = d.values()
+    return cell_boundaries
+
+
+def _extract_borders(label_image):
+    """
+    Extracts the cell boundaries from the label image array.
+    Returns a dict where keys are the cell label and values the corresponding cell boundaries
+    """
+
+    # labels = sorted(set(label_image.flatten()) - set(exclude_labels))
+    cc = dip.GetImageChainCodes(label_image)  # input must be an unsigned integer type
+
+    pool = ThreadPool(cpu_count())
+    # it would be nice to process only those cc whose cc.objectID is in labels
+    results = pool.map(parse_chaincode, cc)
+    # close the pool and wait for the work to finish
+    pool.close()
+    pool.join()
+
+    return dict(results)
+
+
+def parse_chaincode(c):
+    p = c.Polygon().Simplify()
+    p = p + np.array([0, 0])
+    p = np.uint64(p).tolist()
+    p.append(p[0])  # append the first pair at the end to close the polygon
+    return np.uint64(c.objectID), p
 
 # *********************************************************************************
 # All Functions below are all deprecated. WIll be cleaned-p at a later verion
