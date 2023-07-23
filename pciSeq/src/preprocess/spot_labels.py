@@ -9,7 +9,7 @@ import pandas as pd
 import skimage.measure as skmeas
 from typing import Tuple
 from scipy.sparse import coo_matrix, csr_matrix
-from pciSeq.src.preprocess.cell_borders import extract_borders_dip
+from pciSeq.src.preprocess.cell_borders import extract_borders_dip, extract_borders
 from pciSeq.src.cell_call.log_config import logger
 
 
@@ -78,9 +78,8 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.D
     spots = spots.assign(label=inc)
 
     # 2. Get cell centroids and area
-    props = skmeas.regionprops(coo.toarray().astype(np.int32))
-    props_df = pd.DataFrame(data=[(d.label, d.area, d.centroid[1], d.centroid[0]) for d in props],
-                      columns=['label', 'area', 'x_cell', 'y_cell'])
+    props = skmeas.regionprops_table(coo.toarray().astype(np.int32), properties=['label', 'area', 'centroid'])
+    props_df = pd.DataFrame(props).rename(columns={'centroid-0': 'y_cell', 'centroid-1': 'x_cell'})
 
     # if there is a label map, attach it to the cell props.
     if label_map is not None:
@@ -88,8 +87,8 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.D
         props_df = props_df.drop(['new_label'], axis=1)
 
     # 3. Get the cell boundaries
-    cell_boundaries = extract_borders_dip(coo.toarray().astype(np.uint32))
-
+    # cell_boundaries = extract_borders_dip(coo.toarray().astype(np.uint32))
+    cell_boundaries = extract_borders(coo.toarray().astype(np.uint32))
     assert props_df.shape[0] == cell_boundaries.shape[0] == np.unique(coo.data).shape[0]
     assert set(spots.label[spots.label > 0]) <= set(props_df.label)
 
