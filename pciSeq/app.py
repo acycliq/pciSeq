@@ -266,21 +266,17 @@ if __name__ == "__main__":
 
     # read some demo data
     _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'))
-    spots = pd.read_csv(r"F:\data\Sara\20230707\spotsT007.csv")
 
-    dat = np.load(r'F:\data\Sara\20230707\background_image_fixed_seg 2.npy', allow_pickle=True).item()
-    masks = dat['masks']
-    coo = coo_matrix(masks)
-    # _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'))
-    #
-    # _scRNAseq = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),
-    #                         header=None, index_col=0, compression='gzip', dtype=object)
-    # _scRNAseq = _scRNAseq.rename(columns=_scRNAseq.iloc[0], copy=False).iloc[1:]
-    # _scRNAseq = _scRNAseq.astype(float).astype(np.uint32)
+    _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'))
+
+    _scRNAseq = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),
+                            header=None, index_col=0, compression='gzip', dtype=object)
+    _scRNAseq = _scRNAseq.rename(columns=_scRNAseq.iloc[0], copy=False).iloc[1:]
+    _scRNAseq = _scRNAseq.astype(float).astype(np.uint32)
 
     # main task
     # _opts = {'max_iter': 10}
-    fit(spots=spots, coo=coo, opts={'save_data': True,'launch_viewer': True, 'launch_diagnostics': True})
-
+    _opts = {'save_data': True,'launch_viewer': True, 'launch_diagnostics': True}
+    fit(spots=_iss_spots, coo=_coo, scRNAseq=_scRNAseq, opts=_opts)
 
 
