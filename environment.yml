@@ -13,7 +13,6 @@ dependencies:
   - tqdm
   - numexpr
   - flask
-  - redis
   - natsort
   - streamlit
   - altair
@@ -21,3 +20,4 @@ dependencies:
       - jupyterlab
       - diplib
       - pyvips
+      - redis
