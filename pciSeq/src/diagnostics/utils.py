@@ -2,8 +2,8 @@ import os
 import redis
 import pickle
 from sys import platform
-from pciSeq.src.cell_call.utils import get_pciSeq_install_dir
-from pciSeq.src.cell_call.log_config import attach_to_log, logger
+from pciSeq.src.core.utils import get_pciSeq_install_dir
+from pciSeq.src.core.log_config import attach_to_log, logger
 import pciSeq.src.diagnostics.config as config
 import getpass
 import subprocess as sp

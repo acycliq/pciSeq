@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from pciSeq.src.cell_call.log_config import logger
+from pciSeq.src.core.log_config import logger
 
 
 def _iss_summary(cells, genes, single_cell):

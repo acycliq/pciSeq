@@ -4,7 +4,7 @@ import webbrowser
 import platform
 import random
 from threading import Timer
-from pciSeq.src.cell_call.log_config import logger
+from pciSeq.src.core.log_config import logger
 
 
 def get_browser(port_num):

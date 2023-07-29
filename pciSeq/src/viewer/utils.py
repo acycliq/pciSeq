@@ -1,12 +1,12 @@
 import pandas as pd
 import numpy as np
-from pciSeq.src.cell_call.utils import get_pciSeq_install_dir
+from pciSeq.src.core.utils import get_pciSeq_install_dir
 import shutil
 import json
 import os
 import glob
 import csv
-from pciSeq.src.cell_call.log_config import logger
+from pciSeq.src.core.log_config import logger
 
 
 def make_config_base(dst):

@@ -3,11 +3,11 @@ import pandas as pd
 import scipy.spatial as spatial
 import time
 import numpy_groupies as npg
-from pciSeq.src.cell_call.datatypes import Cells, Spots, Genes, SingleCell, CellType
-from pciSeq.src.cell_call.summary import collect_data
-import pciSeq.src.cell_call.utils as utils
+from pciSeq.src.core.datatypes import Cells, Spots, Genes, SingleCell, CellType
+from pciSeq.src.core.summary import collect_data
+import pciSeq.src.core.utils as utils
 from pciSeq.src.diagnostics.utils import redis_db
-from pciSeq.src.cell_call.log_config import logger
+from pciSeq.src.core.log_config import logger
 
 
 class VarBayes:

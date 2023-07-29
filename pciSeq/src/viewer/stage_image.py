@@ -1,7 +1,7 @@
 import shutil
 import os
 import pyvips
-from pciSeq.src.cell_call.log_config import logger
+from pciSeq.src.core.log_config import logger
 
 
 def split_image(im):

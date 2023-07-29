@@ -6,7 +6,7 @@ import numexpr as ne
 import numpy_groupies as npg
 from natsort import natsort_keygen
 from sklearn.neighbors import NearestNeighbors
-from pciSeq.src.cell_call.log_config import logger
+from pciSeq.src.core.log_config import logger
 
 
 class Cells(object):

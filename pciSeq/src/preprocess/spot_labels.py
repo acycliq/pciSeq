@@ -10,7 +10,7 @@ import skimage.measure as skmeas
 from typing import Tuple
 from scipy.sparse import coo_matrix, csr_matrix
 from pciSeq.src.preprocess.cell_borders import extract_borders_dip, extract_borders
-from pciSeq.src.cell_call.log_config import logger
+from pciSeq.src.core.log_config import logger
 
 
 def inside_cell(label_image, spots) -> np.array:

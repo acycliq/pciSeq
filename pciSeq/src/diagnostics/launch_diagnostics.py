@@ -1,7 +1,7 @@
 import os
 import sys
 import subprocess
-from pciSeq.src.cell_call.log_config import logger, attach_to_log
+from pciSeq.src.core.log_config import logger, attach_to_log
 import pciSeq.src.diagnostics.utils as utils
 
 

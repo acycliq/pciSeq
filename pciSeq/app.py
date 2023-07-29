@@ -6,8 +6,8 @@ import pickle
 import redis
 from typing import Tuple
 from scipy.sparse import coo_matrix, save_npz, load_npz
-from pciSeq.src.cell_call.main import VarBayes
-from pciSeq.src.cell_call.utils import get_out_dir
+from pciSeq.src.core.main import VarBayes
+from pciSeq.src.core.utils import get_out_dir
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.preprocess.utils import get_img_shape
 from pciSeq.src.diagnostics.utils import redis_db
@@ -15,7 +15,7 @@ from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 from pciSeq.src.viewer.run_flask import flask_app_start
 from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js, make_classConfig_js
 from pciSeq import config
-from pciSeq.src.cell_call.log_config import attach_to_log, logger
+from pciSeq.src.core.log_config import attach_to_log, logger
 
 ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 

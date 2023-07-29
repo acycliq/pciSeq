@@ -1,7 +1,7 @@
 import subprocess
 import sys
 import os
-from pciSeq.src.cell_call.log_config import logger
+from pciSeq.src.core.log_config import logger
 
 # logger = logging.getLogger(__name__)
 # logging.basicConfig(
@@ -53,8 +53,8 @@ from pciSeq.src._version import __version__
 from pciSeq.app import fit
 from pciSeq.app import cell_type
 from pciSeq.src.preprocess.spot_labels import stage_data
-import pciSeq.src.cell_call.utils as utils
-from pciSeq.src.cell_call.log_config import attach_to_log
+import pciSeq.src.core.utils as utils
+from pciSeq.src.core.log_config import attach_to_log
 
 if check_libvips():
     from pciSeq.src.viewer.stage_image import tile_maker

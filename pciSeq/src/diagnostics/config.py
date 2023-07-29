@@ -1,4 +1,4 @@
-from pciSeq.src.cell_call.utils import get_out_dir
+from pciSeq.src.core.utils import get_out_dir
 import pciSeq.config as pciSeq_cfg
 import redis
 import os
