@@ -77,8 +77,11 @@ class VarBayes:
 
             # 6. Update single cell data
             if self.single_cell.isMissing:
+                # 6.1 update correlation matrix and variance of the gaussian distribution
                 self.gaussian_upd()
+                # 6.2 update the dirichlet distribution
                 self.dalpha_upd()
+                # 6.3 update single cell data
                 self.mu_upd()
 
             self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
