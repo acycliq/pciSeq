@@ -1,7 +1,11 @@
 // NOTES:
-// 1. paths are with respect to the location of 'streaming-tsv-parser.js
-// 2. roi is the image size in pixels. Leave x0 and y0 at zero and set x1 to the width and y1 to the height
-// 3. layers is a dict. Each key/value pair contains the string (the name) of the background image and the
+// 1. paths in 'cellData', 'geneData' and 'cellBoundaries' are with respect to the location of
+//    'streaming-tsv-parser.js'
+// 2. size is the tsv size in bytes. I use os.path.getsize() to get it. Not crucial if you
+//    don't get it right, ie the full tsv will still be parsed despite this being wrong. It
+//    is used by the loading page piecharts to calc how far we are.
+// 3. roi is the image size in pixels. Leave x0 and y0 at zero and set x1 to the width and y1 to the height.
+// 4. layers is a dict. Each key/value pair contains the string (the name) of the background image and the
 //    location of the folder that the corresponding pyramid of tiles. If the tiles are stored locally, they
 //    should be kept in a folder which is served, for example next to the tsv flatfiles. The path should be
 //    in relation to the location of the index.html If you do not have a pyramid of tiles just
@@ -9,9 +13,6 @@
 //    The viewer should work without the dapi background though.
 //    If the dict has more than one entries then a small control with radio button will appear at the top
 //    right of the viewer to switch between different background images.
-// 4. size is the tsv size in bytes. I use os.path.getsize() to get it. Not crucial if you
-//    dont get it right, ie the full tsv will still be parsed despite this being wrong. It
-//    is used by the loading page piecharts to calc how far we are
 // 5. maxZoom: maximum zoom levels. In most cases a value of 8 if good enough. If you have a big image, like
 //    full coronal section for example then a value of 10 would make sense. Note that this should be typically
 //    inline with the zoom level you used when you did

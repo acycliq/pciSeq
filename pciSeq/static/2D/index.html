@@ -61,8 +61,6 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/v1.10.1/mapbox-gl.js"></script>
 
     <!-- leaflet.textpath -->
-    <!--  Not sure what is happening here. Is this getting overriden if I move it to another line, higher up. -->
-    <!--  No errors are being raised, it just looks as if the browser hasnt parsed it!-->
     <script src='viewer/js/lib/js/leaflet.textpath.js'></script>
 
     <!-- user js scripts -->
@@ -71,7 +69,6 @@
     <script src='viewer/js/dataLoader.js'></script>
     <script src='viewer/js/viewerUtils.js'></script>
     <script src='viewer/js/customControl.js'></script>
-    <script src="https://api.mapbox.com/mapbox-gl-js/v1.10.1/mapbox-gl.js"></script>
     <script src='viewer/js/donut.js'></script>
     <script src='viewer/js/dt.js'></script>
     <script src='viewer/js/stage_polygons.js'></script>
@@ -83,7 +80,7 @@
     <script src="viewer/js/glyphConfig.js"></script>
     <script src='viewer/js/dapi.js'></script>
     <link rel="stylesheet" href="viewer/js/lib/css/L.Control.Layers.Tree.css">
-    <script src="viewer/js/lib/js/L.Control.Layers.Tree.js"></script> <!-- Patched Control.Layers.Tree: Must be parsed after dapi.js -->
+    <script src="viewer/js/lib/js/L.Control.Layers.Tree.js"></script>
     <link rel="stylesheet" href="viewer/css/progress.css">
     <script src='viewer/js/progress.js'></script>
     <link rel='stylesheet' href='viewer/css/index.css'>
@@ -94,22 +91,7 @@
 </head>
 <body style="height: 100%; margin: 0; overflow: hidden;">
 
-<div id="webgl" class="map-content">
-    <!-- This div is not used, should be safe to remove-->
-    <span class="greenDot"> </span>
-    <span style="margin-top: 5px;">Hardware acceleration is enable</span>
-</div>
-
-<!--<div id="preloader" class="a" style="font-size:32px;text-align:center;">-->
-<!--    <h1>Prototype viewer for high throughput in situ transcriptomics.</h1>-->
-<!--  <p>Data can take a moment to load, please be patient </p>-->
-<!--    <div class="b">Please set your browser to use hardware acceleration. <br>-->
-<!--        Tested on Chrome under Windows, cannot yet guarantee operation on other browsers </div>-->
-<!--    <div id="status"></div>-->
-<!--</div>-->
-
 <div id="stats-container" class="stack-top">
-<!--    <div id="chart"></div>-->
     <div class="loading">
         <div id="container"></div>
         <div id="loading" class="loading"><span>loading...</span></div>

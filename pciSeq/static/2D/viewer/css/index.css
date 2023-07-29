@@ -9,49 +9,21 @@ html {
     overflow-y: hidden;
 }
 
-/*#preloader {*/
-/*    position: fixed;*/
-/*    top: 0;*/
-/*    left: 0;*/
-/*    right: 0;*/
-/*    bottom: 0;*/
-/*    background-color: #000000;*/
-/*    !* change if the mask should have another color then white *!*/
-/*    z-index: 1100;*/
-/*    !* makes sure it stays on top *!*/
-/*}*/
-
-#status {
-    width: 200px;
-    height: 200px;
-    position: absolute;
-    left: 50%;
-    /* centers the loading animation horizontally one the screen */
-    top: 50%;
-    /* centers the loading animation vertically one the screen */
-    background-image: url('./OD80myK.gif');
-    /* path to your loading animation */
-    background-repeat: no-repeat;
-    background-position: center;
-    margin: -100px 0 0 -100px;
-    /* is width and height divided by two */
-}
-
 /*fullscreen map*/
 html, body, #mymap {
     height: 100%;
     width: 100%;
 }
 
-[class*="popup_block_"] {
-    position: absolute;
-    bottom: 85px;
-    left: 50px;
-    zIndex: 1002;
-    background-color: white;
-    padding: 8px;
-    border: 1px solid #ccc;
-}
+/*[class*="popup_block_"] {*/
+/*    position: absolute;*/
+/*    bottom: 85px;*/
+/*    left: 50px;*/
+/*    zIndex: 1002;*/
+/*    background-color: white;*/
+/*    padding: 8px;*/
+/*    border: 1px solid #ccc;*/
+/*}*/
 
 .leaflet-container {
     background: #000000;
@@ -66,28 +38,28 @@ td {
 }
 
 
-/*piemarkers settings*/
-.piemarker .leaflet-popup-tip-container {
-    display: none;
-}
+/*!*piemarkers settings*!*/
+/*.piemarker .leaflet-popup-tip-container {*/
+/*    display: none;*/
+/*}*/
 
-.piemarker .leaflet-popup-close-button {
-    display: none;
-}
+/*.piemarker .leaflet-popup-close-button {*/
+/*    display: none;*/
+/*}*/
 
-.piemarker .leaflet-popup-content {
-    margin: 0px 0px;
-}
+/*.piemarker .leaflet-popup-content {*/
+/*    margin: 0px 0px;*/
+/*}*/
 
-.piemarker .leaflet-popup-content-wrapper, .leaflet-popup-tip {
-    background: none;
-    color: #333;
-    box-shadow: 0 0px 0px rgba(0, 0, 0, 0.0);
-}
+/*.piemarker .leaflet-popup-content-wrapper, .leaflet-popup-tip {*/
+/*    background: none;*/
+/*    color: #333;*/
+/*    box-shadow: 0 0px 0px rgba(0, 0, 0, 0.0);*/
+/*}*/
 
-.piemarker {
-    margin-bottom: -10px;
-}
+/*.piemarker {*/
+/*    margin-bottom: -10px;*/
+/*}*/
 
 
 /*mouse coordinates control settings*/
