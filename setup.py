@@ -29,7 +29,7 @@ if platform in ['linux', 'darwin']:
     install_deps.append('redis-server')
 
 version = None
-with open(os.path.join('pciSeq', 'src', '_version.py'), 'r') as fid:
+with open(os.path.join('pciSeq', '_version.py'), 'r') as fid:
     for line in (line.strip() for line in fid):
         if line.startswith('__version__'):
             version = line.split('=')[1].strip().strip('\'')
