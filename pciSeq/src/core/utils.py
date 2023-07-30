@@ -279,4 +279,5 @@ def get_out_dir(path, sub_folder=''):
 def get_pciSeq_install_dir():
     p = subprocess.run(['pip', 'show', 'pciSeq'], stdout=subprocess.PIPE)
     h = BytesHeaderParser().parsebytes(p.stdout)
+    assert h['Location'] is not None, 'Could not locate pciSeq installation folder, maybe the package is not installed.'
     return os.path.join(h['Location'], 'pciSeq')
