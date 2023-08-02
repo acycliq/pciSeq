@@ -89,7 +89,9 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     cfg = init(opts)
 
     # 3. validate inputs
-    cfg = validate(spots, coo, scRNAseq, cfg)  # cfg is **MUTATED** here by adding the key: 'is_redis_running'
+    spots, cfg = validate(spots, coo, scRNAseq, cfg)    # cfg is **MUTATED** here by adding the key: 'is_redis_running'.
+                                                        # Spots may also have been mutated by removing entries not found
+                                                        # in the single cell data
 
     # 4. launch the diagnostics
     if cfg['launch_diagnostics'] and cfg['is_redis_running']:
@@ -199,7 +201,21 @@ def validate(spots, coo, sc, cfg):
         assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
 
     cfg['is_redis_running'] = check_redis_server()
-    return cfg
+
+    if not set(spots.Gene).issubset(sc.index):
+        # remove genes that cannot been found in the single cell data
+        spots = purge_spots(spots, sc)
+
+    return spots, cfg
+
+
+def purge_spots(spots, sc):
+    drop_spots = list(set(spots.Gene) - set(sc.index))
+    logger.warning('Found %d genes that are not included in the single cell data' % len(drop_spots))
+    idx = ([i for i, v in enumerate(spots.Gene) if v not in drop_spots]) # can you speed this up?? What happens if the spot df has millions of rows?
+    spots = spots.iloc[idx]
+    logger.warning('Removed from spots: %s' % drop_spots)
+    return spots
 
 
 def parse_args(*args, **kwargs):
@@ -248,6 +264,9 @@ def pre_launch(cellData, coo, scRNAseq, cfg):
     '''
     Does some housekeeping, pre-flight control checking before the
     viewer is triggered
+
+    Returns the destination folder that keeps the viewer code and
+    will be served to launch the website
     '''
     [h, w] = get_img_shape(coo)
     dst = get_out_dir(cfg['output_path'])
