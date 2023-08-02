@@ -20,9 +20,9 @@ def get_browser(port_num):
     else:
         chrome_path = None
 
-    print('Platform is %s' % my_os)
+    logger.info('Platform is %s' % my_os)
     if chrome_path:
-        print('Chrome path: %s' % chrome_path)
+        logger.info('Chrome path: %s' % chrome_path)
 
     if chrome_path and os.path.isfile(chrome_path):
         webbrowser.register('chrome', None, webbrowser.BackgroundBrowser(chrome_path), preferred=True)
@@ -31,7 +31,7 @@ def get_browser(port_num):
         wb = webbrowser.open_new(url)
 
     if not wb:
-        print('Could not open browser')
+        logger.info('Could not open browser')
 
 
 def open_browser():
