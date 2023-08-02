@@ -39,9 +39,13 @@ def make_config_js(dst, w, h):
     appDict['spotSize'] = 1/16
 
     config_str = "// NOTES: \n" \
-                 "// 1. paths are with respect to the location of 'streaming-tsv-parser.js \n" \
-                 "// 2. roi is the image size in pixels. Leave x0 and y0 at zero and set x1 to the width and y1 to the height \n" \
-                 "// 3. layers is a dict. Each key/value pair contains the string (the name) of the background image and the \n" \
+                 "// 1. paths in 'cellData', 'geneData' and 'cellBoundaries' are with respect to the location of \n" \
+                 "//    'streaming-tsv-parser.js' \n" \
+                 "// 2. size is the tsv size in bytes. I use os.path.getsize() to get it. Not crucial if you \n" \
+                 "//    don't get it right, ie the full tsv will still be parsed despite this being wrong. It \n" \
+                 "//    is used by the loading page piecharts to calc how far we are. \n" \
+                 "// 3. roi is the image size in pixels. Leave x0 and y0 at zero and set x1 to the width and y1 to the height. \n" \
+                 "// 4. layers is a dict. Each key/value pair contains the string (the name) of the background image and the \n" \
                  "//    location of the folder that the corresponding pyramid of tiles. If the tiles are stored locally, they \n" \
                  "//    should be kept in a folder which is served, for example next to the tsv flatfiles. The path should be \n" \
                  "//    in relation to the location of the index.html If you do not have a pyramid of tiles just \n" \
@@ -49,9 +53,6 @@ def make_config_js(dst, w, h):
                  "//    The viewer should work without the dapi background though. \n" \
                  "//    If the dict has more than one entries then a small control with radio button will appear at the top \n" \
                  "//    right of the viewer to switch between different background images. \n" \
-                 "// 4. size is the tsv size in bytes. I use os.path.getsize() to get it. Not crucial if you \n" \
-                 "//    dont get it right, ie the full tsv will still be parsed despite this being wrong. It \n" \
-                 "//    is used by the loading page piecharts to calc how far we are \n" \
                  "// 5. maxZoom: maximum zoom levels. In most cases a value of 8 if good enough. If you have a big image, like \n" \
                  "//    full coronal section for example then a value of 10 would make sense. Note that this should be typically \n" \
                  "//    inline with the zoom level you used when you did \n" \
