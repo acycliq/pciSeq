@@ -82,72 +82,34 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
             Name: neighbour_prob, dtype: Object, array-like with the prob the corresponding cell from neighbour_array has risen the spot.
     """
 
-    if not {'spots', 'coo'}.issubset(set(kwargs)):
-        try:
-            assert len(args) == 2, 'Need to provide the spots and the coo matrix as the first ' \
-                                   'and second args to the fit() method '
-            kwargs['spots'] = args[0]
-            kwargs['coo'] = args[1]
-        except Exception as err:
-            raise
+    # 1. parse/check the arguments
+    spots, coo, scRNAseq, opts = parse_args(*args, **kwargs)
 
-    try:
-        spots = kwargs['spots']
-        coo = kwargs['coo']
-    except Exception as err:
-        raise
-
-    try:
-        scRNAseq = kwargs['scRNAseq']
-    except KeyError:
-        scRNAseq = None
-    except Exception as err:
-        raise
-
-    try:
-        opts = kwargs['opts']
-    except KeyError:
-        opts = None
-    except Exception as err:
-        raise
-
-    # 1. get the hyperparameters
+    # 2. get the hyperparameters
     cfg = init(opts)
 
-    # 2. validate inputs
-    cfg = validate(spots, coo, scRNAseq, cfg)  # cfg is mutated here by adding the key: 'is_redis_running'
+    # 3. validate inputs
+    cfg = validate(spots, coo, scRNAseq, cfg)  # cfg is **MUTATED** here by adding the key: 'is_redis_running'
 
-    # 3. launch the diagnostics
+    # 4. launch the diagnostics
     if cfg['launch_diagnostics'] and cfg['is_redis_running']:
         logger.info('Launching the diagnostics dashboard')
         launch_dashboard()
 
-    # 4. prepare the data
+    # 5. prepare the data
     logger.info(' Preprocessing data')
     _cells, cellBoundaries, _spots = stage_data(spots, coo)
 
-    # 5. cell typing
+    # 6. cell typing
     cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
 
-    # 6. save to the filesystem
+    # 7. save to the filesystem
     if (cfg['save_data'] and varBayes.has_converged) or cfg['launch_viewer']:
         write_data(cellData, geneData, cellBoundaries, varBayes, cfg)
 
-    # 6. do the viewer if needed
+    # 8. do the viewer if needed
     if cfg['launch_viewer']:
-        [h, w] = get_img_shape(coo)
-        dst = get_out_dir(cfg['output_path'])
-        copy_viewer_code(cfg, dst)
-        make_config_js(dst, w, h)
-        if scRNAseq is None:
-            label_list = [d[:] for d in cellData.ClassName.values]
-            labels = [item for sublist in label_list for item in sublist]
-            labels = sorted(set(labels))
-            if 'Zero' in labels:
-                # remove Zero because it will be appended later on by
-                # the make_classConfig_js script
-                labels.remove('Zero')
-            make_classConfig_js(labels, dst)
+        dst = pre_launch(cellData, coo, scRNAseq, cfg)
         flask_app_start(dst)
 
     logger.info(' Done')
@@ -238,6 +200,66 @@ def validate(spots, coo, sc, cfg):
 
     cfg['is_redis_running'] = check_redis_server()
     return cfg
+
+
+def parse_args(*args, **kwargs):
+    '''
+    Do soma basic checking of the args
+    '''
+
+    spots = None
+    coo = None
+    scRNAseq = None
+    opts = None
+
+    if not {'spots', 'coo'}.issubset(set(kwargs)):
+        try:
+            assert len(args) == 2, 'Need to provide the spots and the coo matrix as the first ' \
+                                   'and second args to the fit() method '
+            kwargs['spots'] = args[0]
+            kwargs['coo'] = args[1]
+        except Exception as err:
+            raise
+
+    try:
+        spots = kwargs['spots']
+        coo = kwargs['coo']
+    except Exception as err:
+        raise
+
+    try:
+        scRNAseq = kwargs['scRNAseq']
+    except KeyError:
+        scRNAseq = None
+    except Exception as err:
+        raise
+
+    try:
+        opts = kwargs['opts']
+    except KeyError:
+        opts = None
+    except Exception as err:
+        raise
+
+    return spots, coo, scRNAseq, opts
+
+
+def pre_launch(cellData, coo, scRNAseq, cfg):
+    '''
+    Does some housekeeping, pre-flight control checking before the
+    viewer is triggered
+    '''
+    [h, w] = get_img_shape(coo)
+    dst = get_out_dir(cfg['output_path'])
+    copy_viewer_code(cfg, dst)
+    make_config_js(dst, w, h)
+    if scRNAseq is None:
+        label_list = [d[:] for d in cellData.ClassName.values]
+        labels = [item for sublist in label_list for item in sublist]
+        labels = sorted(set(labels))
+
+        make_classConfig_js(labels, dst)
+    return dst
 
 
 def confirm_prompt(question):

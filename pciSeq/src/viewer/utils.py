@@ -66,6 +66,10 @@ def make_config_js(dst, w, h):
 
 
 def make_classConfig_js(labels, dst):
+    # remove Zero. It is appended later on
+    if 'Zero' in labels:
+        labels.remove('Zero')
+
     colours = ["#f3c300", "#875692", "#f38400", "#a1caf1", "#be0032",
                "#c2b280", "#848482", "#008856", "#e68fac", "#0067a5",
                "#f99379", "#604e97", "#f6a600", "#b3446c", "#dcd300",
