@@ -57,6 +57,9 @@ DEFAULT = {
 
     'launch_diagnostics': False,
 
+    # Initialise this to False, the correct value is set internally by the code itself
+    'is_redis_running': False,
+
     # Use either np.float16 or np.float32 to reduce memory usage. In most cases RAM consumption shouldnt
     # need more than 32Gb RAM. If you have a dataset from a full coronal mouse slice with a high number of
     # segmented cells (around 150,000) a gene panel of more than 250 genes and 100 or more different

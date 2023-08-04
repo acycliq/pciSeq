@@ -89,9 +89,8 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     cfg = init(opts)
 
     # 3. validate inputs
-    spots, cfg = validate(spots, coo, scRNAseq, cfg)    # cfg is **MUTATED** here by adding the key: 'is_redis_running'.
-                                                        # Spots may also have been mutated by removing entries not found
-                                                        # in the single cell data
+    spots = validate(spots, coo, scRNAseq)     # Spots may also have been mutated by removing entries not found
+                                                    # in the single cell data
 
     # 4. launch the diagnostics
     if cfg['launch_diagnostics'] and cfg['is_redis_running']:
@@ -174,7 +173,7 @@ def init(opts):
     are used without any change.
     """
     cfg = config.DEFAULT
-    cfg['is_redis_running'] = False  # this is set at the validate function below
+    cfg['is_redis_running'] = check_redis_server()
     if opts is not None:
         default_items = set(cfg.keys())
         user_items = set(opts.keys())
@@ -191,7 +190,7 @@ def init(opts):
     return cfg
 
 
-def validate(spots, coo, sc, cfg):
+def validate(spots, coo, sc):
     assert isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y'}, \
         "Spots should be passed-in to the fit() method as a dataframe with columns ['Gene', 'x', 'y']"
 
@@ -200,13 +199,11 @@ def validate(spots, coo, sc, cfg):
     if sc is not None:
         assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
 
-    cfg['is_redis_running'] = check_redis_server()
-
     if not set(spots.Gene).issubset(sc.index):
         # remove genes that cannot been found in the single cell data
         spots = purge_spots(spots, sc)
 
-    return spots, cfg
+    return spots
 
 
 def purge_spots(spots, sc):
