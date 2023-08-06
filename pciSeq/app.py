@@ -89,8 +89,8 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     cfg = init(opts)
 
     # 3. validate inputs
-    spots = validate(spots, coo, scRNAseq)     # Spots may also have been mutated by removing entries not found
-                                                    # in the single cell data
+    spots = validate(spots, coo, scRNAseq)  # Spots might be mutated here by removing entries not found
+                                            # in the single cell data
 
     # 4. launch the diagnostics
     if cfg['launch_diagnostics'] and cfg['is_redis_running']:
