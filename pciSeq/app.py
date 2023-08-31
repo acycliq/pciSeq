@@ -199,9 +199,9 @@ def validate(spots, coo, sc):
     if sc is not None:
         assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
 
-    if not set(spots.Gene).issubset(sc.index):
-        # remove genes that cannot been found in the single cell data
-        spots = purge_spots(spots, sc)
+        if not set(spots.Gene).issubset(sc.index):
+            # remove genes that cannot been found in the single cell data
+            spots = purge_spots(spots, sc)
 
     return spots
 
