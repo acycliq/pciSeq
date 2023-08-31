@@ -8,10 +8,11 @@ import pciSeq.src.diagnostics.utils as utils
 def launch_dashboard():
     dirname = os.path.dirname(__file__)
     filename = os.path.join(dirname, 'diagnostics.py')
-    exe = sys.executable
+    # redirect to dev/null to bypass the welcome message from streamlit
+    devnull = '> /dev/null' if sys.platform in ['linux', 'darwin'] else '> NUL'
     code_1, code_2 = utils.validate_redis()
     if code_1 == 0 and code_2 == 0:
-        p = subprocess.Popen([exe, "-m" "streamlit", "run", filename])
+        p = subprocess.Popen(["streamlit", "run", filename, devnull])
         # TODO: you need to kill the process on exit
         # logger.info('Starting process with pid: %d to run the diagnostics' % p.pid)
     else:
