@@ -25,8 +25,8 @@ install_deps = ['numpy_groupies', 'pandas', 'scipy', 'streamlit', 'altair',
                 'scikit-image', 'scikit-learn', 'tqdm', 'flask',
                 'numexpr', 'diplib', 'pyvips', 'natsort', 'redis']
 
-if platform in ['linux', 'darwin']:
-    install_deps.append('redis-server')
+# if platform in ['linux', 'darwin']:
+#     install_deps.append('redis-server')
 
 version = None
 with open(os.path.join('pciSeq', '_version.py'), 'r') as fid:
