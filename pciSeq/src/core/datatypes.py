@@ -293,7 +293,7 @@ class Spots(object):
         # last column (nN-closest) keeps the misreads,
         D[:, -1] = np.log(cfg['MisreadDensity'])
 
-        mask = np.greater(self.data.label, 0, where=~np.isnan(self.data.label))
+        mask = np.greater(self.data.label.values, 0, where=~np.isnan(self.data.label.values))
         D[mask, 0] = D[mask, 0] + cfg['InsideCellBonus']
         return D
 
