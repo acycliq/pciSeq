@@ -67,6 +67,9 @@ ignored. If you are interested in this feature you may find this notebook [![Ope
  useful
 
 ## Change Log
+### [0.0.59] - 2023-09-22
+ - Fixed a SIGSERV error under pandas '2.1.1'
+
 ### [0.0.56] - 2023-07-03
  - Diagnostics dashboard
 
