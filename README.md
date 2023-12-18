@@ -1,4 +1,16 @@
 # pciSeq: Probabilistic Cell typing by In situ Sequencing
+
+
+[![repo size](https://img.shields.io/github/repo-size/acycliq/pciSeq)](https://github.com/acycliq/pciSeq/)
+[![Downloads](https://pepy.tech/badge/pciSeq)](https://pepy.tech/project/pciSeq)
+[![Python version](https://img.shields.io/pypi/pyversions/pciSeq)](https://pypistats.org/packages/pciSeq)
+[![Licence: GPL v3](https://img.shields.io/github/license/acycliq/pciSeq)](https://github.com/acycliq/pciSeq/blob/master/LICENSE)
+[![Contributors](https://img.shields.io/github/contributors-anon/acycliq/pciSeq)](https://github.com/acycliq/pciSeq/graphs/contributors)
+
+[![GitHub stars](https://img.shields.io/github/stars/acycliq/pciSeq?style=social)](https://github.com/acycliq/pciSeq/)
+[![GitHub forks](https://img.shields.io/github/forks/acycliq/pciSeq?style=social)](https://github.com/acycliq/pciSeq/)
+
+
 A Python package that implements the cell calling algorithm as described in [Qian, X., et al. Nature Methods (2020)](https://www.nature.com/articles/s41592-019-0631-4)
 <p align="center">
     <img src="https://github.com/acycliq/pciSeq/blob/master/assets/screencast_resized.gif?raw=true" alt="screenshot"/>
