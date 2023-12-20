@@ -1,0 +1,431 @@
+
+body .container {
+    min-width: 90%;
+    padding: 0 15px;
+    margin: 0 -15px;
+}
+body {background-color: #fff}
+html {
+    min-height: 100%;
+}
+
+html {
+    overflow-y: scroll;
+}
+
+/*Bar colors. Overiders bar colors in the barchart*/
+/*.bar {*/
+/*fill: steelblue;*/
+/*}*/
+
+#mymap {
+    position: relative;
+    height: 790px;
+}
+
+
+th {
+    font-size: 12px;
+}
+
+td {
+    font-size: 11px;
+}
+
+.dataTables_wrapper {
+    font-size: 10px
+}
+
+.dataTables {
+"pageLength": 5
+}
+
+
+.tooltip {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    position: absolute;
+    width: auto;
+    height: auto;
+    /*background: none repeat scroll 0 0 white;*/
+    border: 0 none;
+    border-radius: 8px 8px 8px 8px;
+    box-shadow: -3px 3px 15px #888888;
+    background-color: #2B292E;
+    color: white;
+    font: 12px sans-serif;
+    padding: 5px;
+    text-align: center;
+}
+
+.grid line {
+    stroke: #ddd;
+}
+
+.leaflet-container {
+    background: #000000;
+}
+
+/* Controls transition of the toggle switch on the leaflet map */
+.slow .toggle-group {
+    transition: left 1.0s;
+    -webkit-transition: left 1.0s;
+}
+
+.fast .toggle-group {
+    transition: left 0.1s;
+    -webkit-transition: left 0.1s;
+}
+
+.quick .toggle-group {
+    transition: none;
+    -webkit-transition: none;
+}
+
+/* Pleasewait spinner gif */
+#pleasewait {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin-left: -30px;
+    margin-top: -30px;
+    padding: 5px 5px 0 5px;
+    border-radius: 5px;
+    background-color: white;
+    z-index: 1000000;
+}
+
+.leaflet-verticalcenter {
+    /********************************************/
+    /* Same as .leaflet-top and .leaflet-bottom */
+    position: absolute;
+    z-index: 1000;
+    pointer-events: none;
+    /********************************************/
+    top: 50%;
+    transform: translateY(-50%);
+    padding-top: 10px;
+}
+
+.leaflet-verticalcenter .leaflet-control {
+    margin-bottom: 10px;
+}
+
+.leaflet-horizontalcenter {
+    /********************************************/
+    /* Same as .leaflet-top and .leaflet-bottom */
+    position: absolute;
+    z-index: 1000;
+    pointer-events: none;
+    /********************************************/
+    left: 50%;
+    transform: translateX(-50%);
+    padding-left: 10px;
+}
+
+.leaflet-clickable {
+    /*I dont think this transition works!*/
+    transition: all .3s;
+}
+
+/*Info popup settings*/
+.info {
+    padding: 6px 8px;
+    font: 14px/16px Verdana, Geneva, sans-serif;
+    background: white;
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+}
+
+.info h4 {
+    font-family: Verdana, Geneva, sans-serif;
+    margin: 0 0 5px;
+    color: #065581;
+}
+
+/*Info popup settings*/
+
+/*Donut chart settings*/
+path.slice {
+    stroke: #3d4a57;
+    /*stroke-dasharray: 10,5;*/
+    /*stroke-linecap: butt;*/
+    stroke-width: 1px;
+}
+
+polyline {
+    opacity: .3;
+    stroke: black;
+    stroke-width: 2px;
+    fill: none;
+}
+
+.sliceLabels {
+    font-family: sans-serif;
+    font-size: 10px;
+    opacity: 1;
+
+}
+
+.text {
+    font-size: 16pt;
+    font-family: Arial;
+}
+
+.toolTip {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    position: absolute;
+    /*display: none;*/
+    width: auto;
+    height: auto;
+    background: none repeat scroll 0 0 white;
+    border: 0 none;
+    border-radius: 8px 8px 8px 8px;
+    box-shadow: -3px 3px 15px #888888;
+    color: black;
+    font: 12px sans-serif;
+    padding: 5px;
+    text-align: center;
+}
+
+/*Donut chart settings*/
+
+
+/*.popupToolTip {*/
+/*font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;*/
+/*position: absolute;*/
+/*z-index: 1000;*/
+/*display: none;*/
+/*width: auto;*/
+/*height: auto;*/
+/*background: none repeat scroll 0 0 white;*/
+/*border: 0 none;*/
+/*border-radius: 8px 8px 8px 8px;*/
+/*box-shadow: -3px 3px 15px #888888;*/
+/*color: black;*/
+/*font: 12px sans-serif;*/
+/*padding: 5px;*/
+/*text-align: center;*/
+/*}*/
+
+/***** Styling for the leaflet popup *****/
+.popupCustom .leaflet-popup-tip-container {
+    display: none;
+}
+
+.popupCustom .leaflet-popup-content {
+    margin: 0px 0px;
+}
+
+.popupCustom .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+    background: #d7d7d7;
+    color: #333;
+    opacity: 1.0;
+    box-shadow: 0 0px 0px rgba(0, 0, 0, 0.0);
+}
+
+.popupCustom {
+    margin-bottom: 20px;
+}
+
+.popupCustom a.leaflet-popup-close-button {
+    color: #777777;
+}
+/*******************************************/
+
+
+/*.popupCustom .leaflet-popup-tip,*/
+/*.popupCustom .leaflet-popup-content-wrapper {*/
+/*background: green;*/
+/*color: #234c5e;*/
+
+
+/***** Styling for the leaflet tooltip *****/
+.myCSSClass {
+    font-size: 15px;
+    font-weight: bold;
+    padding: 20px !important;
+    background: none;
+    border: none;
+    color: #FFCE00;
+    text-shadow: 0px 0px 10px black;
+    box-shadow: #888888;
+    outline: none;
+}
+
+.leaflet-tooltip-left.myCSSClass::before {
+    border-left-color: cyan;
+}
+
+.leaflet-tooltip-right.myCSSClass::before {
+    border-right-color: cyan;
+}
+
+.leaflet-tooltip-left.myCSSClass::before {
+    border-left-color: transparent;
+}
+
+.leaflet-tooltip-right.myCSSClass::before {
+    border-right-color: transparent;
+}
+
+/*Show/hide dropdown menu on mouse hover*/
+.dropdown:hover > .dropdown-menu {
+    display: block;
+}
+/*******************************************/
+
+/*bootstrap multilevel dropdown*/
+/*.dropdown-submenu {*/
+/*position: relative;*/
+/*}*/
+
+/*.dropdown-submenu > a.dropdown-item:after {*/
+/*font-family: FontAwesome;*/
+/*content: "\f054";*/
+/*float: right;*/
+/*}*/
+
+/*.dropdown-submenu > .dropdown-menu {*/
+/*top: 0;*/
+/*left: 100%;*/
+/*margin-top: 0px;*/
+/*margin-left: 0px;*/
+/*}*/
+
+/*.dropdown-submenu:hover > .dropdown-menu {*/
+/*display: block;*/
+/*}*/
+
+/*transition for the rect on the section chart*/
+.highlight-rect {
+    transition: all 0.3s;
+}
+
+#alignleft {
+    float: left;
+}
+
+#alignright {
+    float: right;
+}
+
+.chromeIcon {
+    position: relative; /* Declared position allows for location changes */
+    top: -2px; /* Moves the image 2px closer to the top of the page */
+}
+
+/*this prevents a dotted outline line from appearing on the active tab*/
+a, a:active, a:focus {
+    outline: none;
+}
+
+/*styles for the layer control itself */
+.layer-control {
+    padding: 7px;
+    font-size: 12px;
+    line-height: 15px;
+    position: absolute;
+    top: 106px;
+    left: 20px;
+    background: #fff;
+    border-radius: 4px;
+    color: #333;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+    z-index: 1005;
+}
+
+.layer-control label {
+    display: block;
+    font-weight: normal;
+    margin-left: 3px;
+}
+
+.layer-control input {
+    margin: -3px 0 0;
+    vertical-align: middle;
+}
+
+/*styles for the layer control itself */
+.layer-control-2 {
+    padding: 7px;
+    font-size: 12px;
+    line-height: 15px;
+    position: relative;
+    background: #fff;
+    border-radius: 4px;
+    color: #333;
+    z-index: 1005;
+}
+
+.layer-control-2 label {
+    display: inline;
+    font-weight: normal;
+    margin-left: 3px;
+}
+
+.layer-control-2 input {
+    margin: -3px 0 0;
+    vertical-align: middle;
+}
+
+/* Darker background on mouse-over */
+.btn:hover {
+    background-color: #C0C0C0;
+}
+
+.btn:focus {
+    outline: 0;
+}
+
+table.genes42 td {
+    /*margin: 12px 12px 12px 12px;*/
+    padding: 1px 10px 1px 1px;
+    font-size: 0.71em;
+}
+
+table.genes42 {
+    margin-top: 5px;
+    /*border-collapse: separate;*/
+    /*border-spacing: 10px;*/
+    /**border-collapse: expression('separate', cellSpacing = '10px');*/
+}
+
+
+table.sectionChartControls {
+    border: 0px;
+    border-collapse: collapse;
+    border-spacing: 0px;
+    /*font-family: sans-serif;*/
+    /*font-size: 10px;*/
+    /*margin: 1em 1em 0 1em;*/
+}
+
+table.sectionChartControls td {
+    font-family: sans-serif;
+    font-size: 8px;
+    padding-left: 0px;
+    padding-right: 0px;
+    border-width: 0px;
+    margin: 0px;
+}
+
+.checkBoxLabel {
+    padding-left: 10px;
+    padding-right: 0px;
+}
+
+table.no-spacing {
+    border-spacing: 0; /* Removes the cell spacing via CSS */
+    border-collapse: collapse; /* Optional - if you don't want to have double border where cells touch */
+}
+
+table.no-spacing td {
+    font-family: sans-serif;
+    font-size: 10px;
+}
+
+/*!*transition for the circles on the section chart*!*/
+/*.dotOnScatter {*/
+    /*transition: all 0.75s ease;*/
+/*}*/

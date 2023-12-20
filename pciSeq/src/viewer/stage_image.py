@@ -1,23 +1,11 @@
-''''
-splits the big background image  into smaller images size 2000x2000px.
-Look also at https://stackoverflow.com/questions/10853119/chop-image-into-tiles-using-vips-command-line/15293104
-for an alternative (and probably better way)
-It also creates the pyramid tiles for the viewer
-'''
-import pyvips
 import shutil
 import os
-import logging
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s:%(levelname)s:%(message)s"
-)
-
-logger = logging.getLogger()
+import pyvips
+from pciSeq.src.core.log_config import logger
 
 
 def split_image(im):
+    # DEPRECATED to be removed
     '''
     you can just do:
         im.dzsave('./out', suffix='.tif', skip_blanks=-1, background=0, depth='one', overlap=0, tile_size=2000, layout='google')
@@ -61,7 +49,7 @@ def split_image(im):
 
 def map_image_size(z):
     '''
-    return the image size for each zoom level. Assumes that each map tile is 256x255
+    returns the image size for each zoom level. Assumes that each map tile is 256x256 pixels
     :param z: 
     :return: 
     '''
@@ -69,7 +57,16 @@ def map_image_size(z):
     return 256 * 2 ** z
 
 
-def tile_maker(z_depth, out_dir, img_path):
+def tile_maker(img_path, z_depth=10, out_dir=r"./tiles"):
+    """
+    Makes a pyramid of tiles.
+    img_path:(str) The path to the image
+    z_depth: (int) Specifies how many zoom levels will be produced. Default value is 10.
+    out_dir: (str) The path to the folder where the output (the pyramid of map tiles) will be saved to. If the folder
+                   does not exist, it will be created automatically. If it exists, it will be deleted before being populated
+                   with the new tiles. Dy default the tiles will be saved inside the current
+                   directory in a folder named "tiles".
+    """
     # img_path = os.path.join(dir_path, 'demo_data', 'background_boundaries.tif')
 
     dim = map_image_size(z_depth)
@@ -102,24 +99,10 @@ def tile_maker(z_depth, out_dir, img_path):
 
     # now you can create a fresh one and populate it with tiles
     logger.info('Started doing the image tiles ')
-    im.dzsave(out_dir, layout='google', suffix='.jpg', background=0, skip_blanks=0)
+    im.dzsave(out_dir, layout='google', suffix='.jpg', background=0)
     logger.info('Done. Pyramid of tiles saved at: %s' % out_dir)
 
     return pixel_dims
-
-
-
-if __name__ == "__main__":
-    imPath = r'data/background_image/background_image_landscape.tif'
-    # split_image(im)
-
-    # # to rotate the image do:
-    # im = pyvips.Image.new_from_file(imPath)
-    # im = im.rotate(90, interpolate=pyvips.Interpolate.new("nearest"))
-    # im.write_to_file(r'data/background_image/background_image_adj_rot.tif')
-
-    tile_maker(10, 'dashboard/img/262144px_landscape_jpg', imPath)
-
 
 
 

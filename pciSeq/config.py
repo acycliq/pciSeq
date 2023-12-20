@@ -4,6 +4,7 @@ hyperparameters for the pciSeq method
 import numpy as np
 
 DEFAULT = {
+
     # list of genes to be excluded during cell-typing, e.g ['Aldoc', 'Id2'] to exclude all spots from Aldoc and Id2
     'exclude_genes': [],
 
@@ -45,6 +46,20 @@ DEFAULT = {
     # The value for rSpot will control the variance/dispersion of the counts
     'rSpot': 2,
 
+    # Boolean, if True the output will be saved as tsv files in a folder named 'pciSeq' in your system's temp dir.
+    'save_data': False,
+
+    # Set here where the results will be saved. If default then they will be saved at your system's temp folder
+    'output_path': ['default'],
+
+    # if true the viewer will be launched once convergence has been achieved
+    'launch_viewer': False,
+
+    'launch_diagnostics': False,
+
+    # Initialise this to False, the correct value is set internally by the code itself
+    'is_redis_running': False,
+
     # Use either np.float16 or np.float32 to reduce memory usage. In most cases RAM consumption shouldnt
     # need more than 32Gb RAM. If you have a dataset from a full coronal mouse slice with a high number of
     # segmented cells (around 150,000) a gene panel of more than 250 genes and 100 or more different
@@ -53,8 +68,12 @@ DEFAULT = {
     # level
     'dtype': np.float64,
 
-    # Hyperparameters for the gamma-distributed alpha variate
-    'rho_1': 100,  # need to move that into config.py
-    'rho_2': 100,  # need to move that into config.py
+
+    # *******************************************************************************
+    # Hyperparameters below come into action **ONLY** if single cell data are missing
+    # *******************************************************************************
+    'mean_gene_counts_per_class': 60,
+    'mean_gene_counts_per_cell': 15,
+
 }
 
