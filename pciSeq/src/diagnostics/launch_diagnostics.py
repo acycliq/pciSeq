@@ -12,7 +12,7 @@ def launch_dashboard():
     # devnull = '> /dev/null' if sys.platform in ['linux', 'darwin'] else '> NUL'
     code_1, code_2 = utils.validate_redis()
     if code_1 == 0 and code_2 == 0:
-        p = subprocess.Popen(["streamlit", "run", filename, os.devnull])
+        p = subprocess.Popen(["streamlit", "run", filename, " --server.headless true"])
         # TODO: you need to kill the process on exit
         # logger.info('Starting process with pid: %d to run the diagnostics' % p.pid)
     else:
