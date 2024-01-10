@@ -477,8 +477,6 @@ class VarBayes:
             'gene_efficiency': self.genes.eta_bar,
             'gene': self.genes.gene_panel
         })
-        self.redis_db.to_redis(eta_bar_df, "gene_efficiency", iteration=self.iter_num,
-                               has_converged=self.has_converged, unix_time=time.time())
         self.redis_db.publish(eta_bar_df, "gene_efficiency", iteration=self.iter_num,
                                has_converged=self.has_converged, unix_time=time.time())
 
@@ -499,7 +497,6 @@ class VarBayes:
             'class_name': self.cellTypes.names,
             'counts': counts
         })
-        self.redis_db.to_redis(df, "cell_type_posterior", iter_num=self.iter_num, has_converged=self.has_converged, unix_time=time.time())
         self.redis_db.publish(df, "cell_type_posterior", iteration=self.iter_num, has_converged=self.has_converged, unix_time=time.time())
 
 
