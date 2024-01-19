@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
-from pciSeq.src.core.log_config import logger
+import logging
+
+summary_logger = logging.getLogger(__name__)
 
 
 def _iss_summary(cells, genes, single_cell):
@@ -20,7 +22,7 @@ def _iss_summary(cells, genes, single_cell):
 
     tol = 0.001
 
-    logger.info(' Start collecting data ...')
+    summary_logger.info('Start collecting data ...')
     N = len(cell_id)
     isCount_nonZero = [gene_count[n, :] > tol for n in range(N)]
     name_list = [gene_names[isCount_nonZero[n]].tolist() for n in range(N)]
@@ -44,7 +46,7 @@ def _iss_summary(cells, genes, single_cell):
 
     # Ignore the first row. It is the pseudocell to keep the misreads (ie the background)
     iss_df = iss_df[1:]
-    logger.info(' Data collected!')
+    summary_logger.info('Data collected!')
 
     return iss_df
 

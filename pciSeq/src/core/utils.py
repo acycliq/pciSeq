@@ -11,36 +11,9 @@ import os
 import glob
 import subprocess
 from email.parser import BytesHeaderParser
+import logging
 
-dir_path = os.path.dirname(os.path.realpath(__file__))
-# logger = logging.getLogger(__name__)
-
-
-# def read_image_objects(img_obj, cfg):
-#     meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
-#     relCellRadius = np.sqrt(img_obj.area / np.pi) / meanCellRadius
-#
-#     # append 1 for the misreads
-#     relCellRadius = np.append(1, relCellRadius)
-#
-#     nom = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
-#     denom = np.exp(-0.5) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
-#     CellAreaFactor = nom / denom
-#
-#     out = {}
-#     out['area_factor'] = CellAreaFactor
-#     # out['area_factor'] = np.ones(CellAreaFactor.shape)
-#     # logger.info('Overriden CellAreaFactor = 1')
-#     out['rel_radius'] = relCellRadius
-#     out['area'] = np.append(np.nan, img_obj.area)
-#     out['x'] = np.append(-sys.maxsize, img_obj.x.values)
-#     out['y'] = np.append(-sys.maxsize, img_obj.y.values)
-#     out['cell_label'] = np.append(0, img_obj.label.values)
-#     # First cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
-#     # and will be used to get all the misreads. It was given the label=0 and some very small
-#     # negative coords
-#
-#     return out
+utils_logger = logging.getLogger(__name__)
 
 
 def negBinLoglik(x, r, p):
@@ -60,31 +33,6 @@ def negBinLoglik(x, r, p):
     x = x[:, :, None]
     ne.evaluate("x * log(p) + r * log(1 - p)", out=contr)
     return contr
-
-
-# @nb.njit(parallel=True, fastmath=True)
-# def nb_negBinLoglik(x, r, p):
-#     '''
-#     Negative Binomial loglikehood
-#     :param x:
-#     :param r:
-#     :param p:
-#     :return:
-#     '''
-#     out = np.empty(p.shape,p.dtype)
-#
-#     for i in nb.prange(p.shape[0]):
-#         for j in range(p.shape[1]):
-#             if x[i, j, 0] != 0.:
-#                 x_ = x[i, j, 0]
-#                 for k in range(p.shape[2]):
-#                     out[i, j, k] = x_ * np.log(p[i, j, k]) + r * np.log(1.-p[i, j, k])
-#             else:
-#                 for k in range(p.shape[2]):
-#                     out[i, j, k] = r * np.log(1.-p[i, j, k])
-#
-#     return out
-
 
 
 def softmax(X, theta = 1.0, axis = None):
@@ -164,7 +112,7 @@ def splitter_mb(filepath, mb_size):
     for line in handle:
         size = os.stat(file_out).st_size
         if size > mb_size*1024*1024:
-            logger.info('saved %s with file size %4.3f MB' % (file_out, size/(1024*1024)))
+            utils_logger.info('saved %s with file size %4.3f MB' % (file_out, size/(1024*1024)))
             n += 1
             handle_out.close()
             file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)

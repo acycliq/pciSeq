@@ -1,9 +1,11 @@
 import pandas as pd
 import streamlit as st
-from pciSeq.src.core.log_config import logger
 from pciSeq.src.diagnostics.utils import redis_db
 import altair as alt
 import pickle
+import logging
+
+diagnostics_logger = logging.getLogger(__name__)
 
 
 def barchart(df, nominal_col, val_col):
@@ -49,7 +51,7 @@ def main():
     p = redis.redis_client.pubsub()
     subscribe_to = ['gene_efficiency', 'cell_type_posterior']
     p.psubscribe(*subscribe_to)
-    logger.info("subscribed to channels: '%s'" % '\', \''.join(subscribe_to))
+    diagnostics_logger.info("subscribed to channels: '%s'" % '\', \''.join(subscribe_to))
     for message in p.listen():
         gene_efficiency, cell_type_posterior = parse_msg(message)
         with placeholder.container():

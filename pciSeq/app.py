@@ -15,9 +15,9 @@ from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 from pciSeq.src.viewer.run_flask import flask_app_start
 from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js, make_classConfig_js
 from pciSeq import config
-from pciSeq.src.core.log_config import attach_to_log, logger
+import logging
 
-ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
+app_logger = logging.getLogger(__name__)
 
 
 def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -73,7 +73,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         Index:
             RangeIndex
         Columns:
-            Name: Gene, dtype: string, The gene name
+            Name: Gene, dtype: string, The gene name.
             Name: Gene_id, dtype: int64, The gene id, the position of the gene if all genes are sorted.
             Name: x, dtype: int64, X-axis coordinate of the spot
             Name: y, dtype: int64, Y-axis coordinate of the spot
@@ -94,11 +94,11 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     # 4. launch the diagnostics
     if cfg['launch_diagnostics'] and cfg['is_redis_running']:
-        logger.info('Launching the diagnostics dashboard')
+        app_logger.info('Launching the diagnostics dashboard')
         launch_dashboard()
 
     # 5. prepare the data
-    logger.info(' Preprocessing data')
+    app_logger.info('Preprocessing data')
     _cells, cellBoundaries, _spots = stage_data(spots, coo)
 
     # 6. cell typing
@@ -113,14 +113,14 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         dst = pre_launch(cellData, coo, scRNAseq, cfg)
         flask_app_start(dst)
 
-    logger.info(' Done')
+    app_logger.info(' Done')
     return cellData, geneData
 
 
 def cell_type(_cells, _spots, scRNAseq, ini):
     varBayes = VarBayes(_cells, _spots, scRNAseq, ini)
 
-    logger.info(' Start cell typing')
+    app_logger.info('Start cell typing')
     cellData, geneData = varBayes.run()
     return cellData, geneData, varBayes
 
@@ -132,13 +132,13 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
         os.makedirs(out_dir)
 
     cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
-    logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
+    app_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
 
     geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
-    logger.info(' Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
+    app_logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
 
     cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-    logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+    app_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
     serialise(varBayes, os.path.join(out_dir, 'debug'))
 
@@ -149,7 +149,7 @@ def serialise(varBayes, debug_dir):
     pickle_dst = os.path.join(debug_dir, 'pciSeq.pickle')
     with open(pickle_dst, 'wb') as outf:
         pickle.dump(varBayes, outf)
-        logger.info(' Saved at %s' % pickle_dst)
+        app_logger.info('Saved at %s' % pickle_dst)
 
 
 def export_db_tables(out_dir, con):
@@ -162,7 +162,7 @@ def export_db_table(table_name, out_dir, con):
     df = con.from_redis(table_name)
     fname = os.path.join(out_dir, table_name + '.csv')
     df.to_csv(fname, index=False)
-    logger.info(' Saved at %s' % fname)
+    app_logger.info('Saved at %s' % fname)
 
 
 def init(opts):
@@ -186,7 +186,7 @@ def init(opts):
             else:
                 raise TypeError("Only integers, floats and lists are allowed")
             cfg[item[0]] = val
-            logger.info(' %s is set to %s' % (item[0], cfg[item[0]]))
+            app_logger.info('%s is set to %s' % (item[0], cfg[item[0]]))
     return cfg
 
 
@@ -208,10 +208,10 @@ def validate(spots, coo, sc):
 
 def purge_spots(spots, sc):
     drop_spots = list(set(spots.Gene) - set(sc.index))
-    logger.warning('Found %d genes that are not included in the single cell data' % len(drop_spots))
+    app_logger.warning('Found %d genes that are not included in the single cell data' % len(drop_spots))
     idx = ([i for i, v in enumerate(spots.Gene) if v not in drop_spots]) # can you speed this up?? What happens if the spot df has millions of rows?
     spots = spots.iloc[idx]
-    logger.warning('Removed from spots: %s' % drop_spots)
+    app_logger.warning('Removed from spots: %s' % drop_spots)
     return spots
 
 
@@ -286,12 +286,12 @@ def confirm_prompt(question):
 
 
 def check_redis_server():
-    logger.info("check_redis_server")
+    app_logger.info("check_redis_server")
     try:
         redis_db()
         return True
     except (redis.exceptions.ConnectionError, ConnectionRefusedError, OSError):
-        logger.info("Redis ping failed!. Diagnostics will not be called unless redis is installed and the service is running")
+        app_logger.info("Redis ping failed!. Diagnostics will not be called unless redis is installed and the service is running")
         return False
         # logger.info("Redis ping failed!. Trying to install redis server")
         # if confirm_prompt("Do you want to install redis server?"):
@@ -299,8 +299,12 @@ def check_redis_server():
 
 
 if __name__ == "__main__":
+    from pciSeq.src.core.log_config import logger_setup
+
+    ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
+
     # set up the logger
-    attach_to_log()
+    logger_setup()
 
     # read some demo data
     _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'))

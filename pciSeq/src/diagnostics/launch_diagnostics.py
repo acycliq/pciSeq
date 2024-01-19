@@ -1,7 +1,9 @@
 import os
 import subprocess
-from pciSeq.src.core.log_config import logger, attach_to_log
 import pciSeq.src.diagnostics.utils as utils
+import logging
+
+launch_diagnostics_logger = logging.getLogger(__name__)
 
 
 def launch_dashboard():
@@ -13,9 +15,11 @@ def launch_dashboard():
         # TODO: you need to kill the process on exit
         # logger.info('Starting process with pid: %d to run the diagnostics' % p.pid)
     else:
-        logger.info("Skipping diagnostics, cannot run them. Either redis not installed or not running.")
+        launch_diagnostics_logger.info("Skipping diagnostics, cannot run them. Either redis not installed or not running.")
 
 
 if __name__ == "__main__":
+    from pciSeq.src.core.log_config import attach_to_log
+
     attach_to_log()
     launch_dashboard()

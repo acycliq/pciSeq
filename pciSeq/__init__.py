@@ -1,13 +1,9 @@
 import subprocess
 import sys
 import os
-from pciSeq.src.core.log_config import logger
+import logging
 
-# logger = logging.getLogger(__name__)
-# logging.basicConfig(
-#     level=logging.INFO,
-#     format="%(asctime)s:%(levelname)s:%(message)s"
-# )
+init_logger = logging.getLogger(__name__)
 
 
 def confirm_prompt(question):
@@ -59,10 +55,10 @@ from pciSeq.src.core.log_config import attach_to_log
 if check_libvips():
     from pciSeq.src.viewer.stage_image import tile_maker
 else:
-    logger.warning('>>>> libvips is not installed. Please see https://www.libvips.org/install.html <<<<')
-    logger.warning('>>>> This is required only if you want to add a background image to the viewer. <<<<')
-    logger.warning('>>>> and visualise your results after cell typing. <<<<')
-    logger.warning('>>>> To do cell typing, libvips can be ignored, it is *not* necessary.  <<<<')
+    init_logger.warning('>>>> libvips is not installed. Please see https://www.libvips.org/install.html <<<<')
+    init_logger.warning('>>>> This is required only if you want to add a background image to the viewer. <<<<')
+    init_logger.warning('>>>> and visualise your results after cell typing. <<<<')
+    init_logger.warning('>>>> To do cell typing, libvips can be ignored, it is *not* necessary.  <<<<')
     # logger.warning('>>>> LIBVIPS_ENABLED is %s.  <<<<' % check_libvips())
 
 

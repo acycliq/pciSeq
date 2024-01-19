@@ -10,7 +10,9 @@ import skimage.measure as skmeas
 from typing import Tuple
 from scipy.sparse import coo_matrix, csr_matrix
 from pciSeq.src.preprocess.cell_borders import extract_borders_dip, extract_borders
-from pciSeq.src.core.log_config import logger
+import logging
+
+spot_labels_logger = logging.getLogger(__name__)
 
 
 def inside_cell(label_image, spots) -> np.array:
@@ -63,12 +65,12 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.D
 
     label_map = None
     if coo.data.max() != len(set(coo.data)):
-        logger.info(' The labels in the label image do not seem to be a sequence of successive integers. Relabelling the label image.')
+        spot_labels_logger.info('The labels in the label image do not seem to be a sequence of successive integers. Relabelling the label image.')
         coo, label_map = reorder_labels(coo)
 
-    logger.info(' Number of spots passed-in: %d' % spots.shape[0])
-    logger.info(' Number of segmented cells: %d' % len(set(coo.data)))
-    logger.info(' Segmentation array implies that image has width: %dpx and height: %dpx' % (coo.shape[1], coo.shape[0]))
+    spot_labels_logger.info('Number of spots passed-in: %d' % spots.shape[0])
+    spot_labels_logger.info('Number of segmented cells: %d' % len(set(coo.data)))
+    spot_labels_logger.info('Segmentation array implies that image has width: %dpx and height: %dpx' % (coo.shape[1], coo.shape[0]))
     mask_x = (spots.x >= 0) & (spots.x <= coo.shape[1])
     mask_y = (spots.y >= 0) & (spots.y <= coo.shape[0])
     spots = spots[mask_x & mask_y]
