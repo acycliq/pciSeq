@@ -38,14 +38,12 @@ class redis_db():
         df = df.assign(**kwargs)
         self.redis_client.publish(channel, pickle.dumps(df))
 
-
     def publish(self, df_in, key, **kwargs):
         """
         convenience function, first it writes to redis db and then publishes
         """
         self.to_redis(df_in, key, **kwargs)
         self._publish(df_in, key, **kwargs)
-
 
     def from_redis(self, key):
         """Retrieve Numpy array from Redis key 'key'"""
