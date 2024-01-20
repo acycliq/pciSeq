@@ -25,9 +25,6 @@ install_deps = ['numpy_groupies', 'pandas', 'scipy', 'streamlit', 'altair',
                 'scikit-image', 'scikit-learn', 'tqdm', 'flask',
                 'numexpr', 'diplib', 'pyvips', 'natsort', 'redis']
 
-# if platform in ['linux', 'darwin']:
-#     install_deps.append('redis-server')
-
 version = None
 with open(os.path.join('pciSeq', '_version.py'), 'r') as fid:
     for line in (line.strip() for line in fid):
@@ -50,12 +47,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/acycliq/pciSeq",
-    # setup_requires=[
-    #   'pytest-runner',
-    #   'setuptools_scm',
-    # ],
     packages=find_packages(),
-    # use_scm_version=True,
     install_requires=install_deps,
     extras_require={
         'interactive': ['matplotlib>=2.2.0', 'jupyter'],
@@ -67,8 +59,4 @@ setup(
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
-     entry_points = {
-        'console_scripts': [
-          'pciSeq = pciSeq.__main__:main']
-     }
 )
