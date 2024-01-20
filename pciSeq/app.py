@@ -299,7 +299,7 @@ def check_redis_server():
 
 
 if __name__ == "__main__":
-    from pciSeq.src.core.log_config import logger_setup
+    from pciSeq.src.core.logger import logger_setup
 
     ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
 

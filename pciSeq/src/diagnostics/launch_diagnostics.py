@@ -19,7 +19,7 @@ def launch_dashboard():
 
 
 if __name__ == "__main__":
-    from pciSeq.src.core.log_config import attach_to_log
+    from pciSeq.src.core.logger import attach_to_log
 
     attach_to_log()
     launch_dashboard()

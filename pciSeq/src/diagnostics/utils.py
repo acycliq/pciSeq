@@ -213,7 +213,7 @@ def validate_redis():
 
 
 if __name__ == "__main__":
-    from pciSeq.src.core.log_config import logger_setup
+    from pciSeq.src.core.logger import logger_setup
 
     logger_setup()
     du_logger.info("hwllo")
