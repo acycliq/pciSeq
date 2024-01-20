@@ -1,6 +1,12 @@
 import subprocess
 import sys
 import os
+from pciSeq._version import __version__
+from pciSeq.app import fit
+from pciSeq.app import cell_type
+from pciSeq.src.preprocess.spot_labels import stage_data
+import pciSeq.src.core.utils as utils
+from pciSeq.src.core.logger import attach_to_log, logger_setup
 import logging
 
 init_logger = logging.getLogger(__name__)
@@ -44,13 +50,6 @@ def check_libvips():
         raise
     return status
 
-
-from pciSeq._version import __version__
-from pciSeq.app import fit
-from pciSeq.app import cell_type
-from pciSeq.src.preprocess.spot_labels import stage_data
-import pciSeq.src.core.utils as utils
-from pciSeq.src.core.logger import attach_to_log, logger_setup
 
 if check_libvips():
     from pciSeq.src.viewer.stage_image import tile_maker
