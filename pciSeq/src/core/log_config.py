@@ -18,7 +18,7 @@ def logger_setup():
     """
     cp_dir = Path.home().joinpath('.pciSeq')
     cp_dir.mkdir(exist_ok=True)
-    log_file = cp_dir.joinpath('coppafish.log')
+    log_file = cp_dir.joinpath('pciSeq.log')
     try:
         log_file.unlink()
     except:
