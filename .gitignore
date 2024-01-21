@@ -3,6 +3,7 @@ venv/
 .idea/
 __pycache__/
 source/__pycache__/
+*/__pycache__/*
 .xml
 
 # hide the user name/passwd from tracking
