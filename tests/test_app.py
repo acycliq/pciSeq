@@ -90,3 +90,7 @@ def test_app(test_data, expected):
     csum_pickle = calculate_checksum(os.path.join(pathlib.Path(tmp_dir), 'debug', 'pciSeq.pickle'))
     print(csum_pickle)
     assert csum_pickle == expected_csum
+
+    # Clean the temporary dir
+    shutil.rmtree(get_out_dir())
+
