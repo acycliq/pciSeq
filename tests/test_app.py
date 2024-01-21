@@ -4,10 +4,12 @@ from scipy.sparse import load_npz, coo_matrix
 import pandas as pd
 import tempfile, shutil
 import os
+import numpy as np
 import pathlib
 import hashlib
 import pytest
 from generate_test_data import make_test_data
+from pandas.testing import assert_frame_equal
 
 
 # set up the logger
@@ -45,6 +47,18 @@ def get_out_dir():
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     return out_dir
+
+
+# def read_dataframe():
+#     """
+#     This is for the test at the bottom, needs a lot more work
+#     """
+#     cellData_path = os.path.join(get_out_dir(), 'pciSeq', 'data', 'cellData.tsv')
+#     cellData = pd.read_csv(cellData_path, sep='\t')
+#     cellData[['Cell_Num', 'X', 'Y']].round(6)
+#     cellData['CellGeneCount'] = cellData['CellGeneCount'].apply(lambda x: np.round(np.array(eval(x)), 3))
+#     cellData['Prob'] = cellData['Prob'].apply(lambda x: np.round(np.array(eval(x)), 3))
+#     return cellData
 
 
 bbox = [
@@ -94,3 +108,15 @@ def test_app(test_data, expected):
     # Clean the temporary dir
     shutil.rmtree(get_out_dir())
 
+
+# THE TEST BELOW NEEDS MORE WORK
+# test_cellData_df = read_dataframe()
+# expected_cellData_df = read_dataframe()
+
+
+# @pytest.mark.parametrize('test_cellData, expected_cellData', [
+#     (test_cellData_df, expected_cellData_df)
+# ])
+# def test_celldata_df(test_cellData, expected_cellData):
+#     ## This needs more work. it is not finished!
+#     assert assert_frame_equal(test_cellData, expected_cellData)
