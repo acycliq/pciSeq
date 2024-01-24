@@ -1,34 +1,9 @@
-venv/
 .vscode/
 .idea/
 __pycache__/
-source/__pycache__/
-*/__pycache__/*
-.xml
 
-# hide the user name/passwd from tracking
-credentials.py
-
-# hide notebook checkpoints
 .ipynb_checkpoints
 
-# exclude pyramid of the png tiles used by the viewer
-viewer/data/mouse/img/default_98genes/16384px/
-viewer/data/mouse/img/default/32768px/
-
-
-gsf-save*.*
-*.7z
-*.png
-viewer/img
-
-/pciSeq/data/mouse/ca1/background_image/mouse/background_boundaries.tif
-/pciSeq/data/mouse/ca1/background_image/mouse/.ipynb_checkpoints/
-/pciSeq/data/mouse/ca1/background_image/mouse/background_image.tif
-/pciSeq/data/mouse/ca1/background_image/mouse/CellMap.mat
-/pciSeq/data/mouse/ca1/background_image/mouse/Untitled.ipynb
-/pciSeq/data/mouse/ca1/background_image/mouse/Untitled1.ipynb
-/pciSeq/data/mouse/ca1/segmentation/label_image.npy
 /dist/
 /.eggs/
 /build/
