@@ -11,26 +11,25 @@ def _iss_summary(cells, genes, single_cell):
     :param spots:
     :return:
     '''
-    # x = cells.cell_props['x']
-    # y = cells.cell_props['y']
-    cell_id = cells.ini_cell_props['cell_label']
+    iCounts = [np.argsort(-1 * d) for d in cells.geneCount]
+    iProb = [np.argsort(-1 * d) for d in cells.classProb]
 
-    gene_count = cells.geneCount
-    class_prob = cells.classProb
-    gene_names = genes.gene_panel
-    class_names = single_cell.classes
+    gene_names = [genes.gene_panel[d] for d in iCounts]
+    gene_count = [cells.geneCount[i][d] for i, d in enumerate(iCounts)]
+
+    class_names = [single_cell.classes[d] for d in iProb]
+    class_prob = [cells.classProb[i][d] for i, d in enumerate(iProb)]
 
     tol = 0.001
 
     summary_logger.info('Start collecting data ...')
-    N = len(cell_id)
-    isCount_nonZero = [gene_count[n, :] > tol for n in range(N)]
-    name_list = [gene_names[isCount_nonZero[n]].tolist() for n in range(N)]
-    count_list = [gene_count[n, isCount_nonZero[n]].tolist() for n in range(N)]
+    isCount_nonZero = [d > tol for d in gene_count]
+    name_list = [list(np.array(gene_names[i])[d]) for (i, d) in enumerate(isCount_nonZero)]
+    count_list = [list(np.array(gene_count[i])[d]) for (i, d) in enumerate(isCount_nonZero)]
 
-    isProb_nonZero = [class_prob[n, :] > tol for n in range(N)]
-    class_name_list = [class_names[isProb_nonZero[n]].tolist() for n in range(N)]
-    prob_list = [class_prob[n, isProb_nonZero[n]].tolist() for n in range(N)]
+    isProb_nonZero = [d > tol for d in class_prob]
+    class_name_list = [list(np.array(class_names[i])[d]) for (i, d) in enumerate(isProb_nonZero)]
+    prob_list = [list(np.array(class_prob[i])[d]) for (i, d) in enumerate(isProb_nonZero)]
 
     iss_df = pd.DataFrame({'Cell_Num': cells.centroid.index.tolist(),
                            'X': cells.centroid['x'].tolist(),
@@ -47,7 +46,6 @@ def _iss_summary(cells, genes, single_cell):
     # Ignore the first row. It is the pseudocell to keep the misreads (ie the background)
     iss_df = iss_df[1:]
     summary_logger.info('Data collected!')
-
     return iss_df
 
 
