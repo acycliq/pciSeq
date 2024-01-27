@@ -11,25 +11,25 @@ def _iss_summary(cells, genes, single_cell):
     :param spots:
     :return:
     '''
-    iCounts = [np.argsort(-1 * d) for d in cells.geneCount]
-    iProb = [np.argsort(-1 * d) for d in cells.classProb]
+    iCounts = np.argsort(-1 * cells.geneCount, axis=1)
+    gene_names = genes.gene_panel[iCounts]
+    gene_count = np.take_along_axis(cells.geneCount, iCounts, axis=1)
 
-    gene_names = [genes.gene_panel[d] for d in iCounts]
-    gene_count = [cells.geneCount[i][d] for i, d in enumerate(iCounts)]
-
-    class_names = [single_cell.classes[d] for d in iProb]
-    class_prob = [cells.classProb[i][d] for i, d in enumerate(iProb)]
+    iProb = np.argsort(-1 * cells.classProb, axis=1)
+    class_names = single_cell.classes[iProb]
+    class_prob = np.take_along_axis(cells.classProb, iProb, axis=1)
 
     tol = 0.001
 
     summary_logger.info('Start collecting data ...')
+
     isCount_nonZero = [d > tol for d in gene_count]
-    name_list = [list(np.array(gene_names[i])[d]) for (i, d) in enumerate(isCount_nonZero)]
-    count_list = [list(np.array(gene_count[i])[d].round(3)) for (i, d) in enumerate(isCount_nonZero)]
+    name_list = [list(gene_names[i][d]) for (i, d) in enumerate(isCount_nonZero)]
+    count_list = [list(gene_count[i][d].round(3)) for (i, d) in enumerate(isCount_nonZero)]
 
     isProb_nonZero = [d > tol for d in class_prob]
-    class_name_list = [list(np.array(class_names[i])[d]) for (i, d) in enumerate(isProb_nonZero)]
-    prob_list = [list(np.array(class_prob[i])[d].round(3)) for (i, d) in enumerate(isProb_nonZero)]
+    class_name_list = [list(class_names[i][d]) for (i, d) in enumerate(isProb_nonZero)]
+    prob_list = [list(class_prob[i][d].round(3)) for (i, d) in enumerate(isProb_nonZero)]
 
     iss_df = pd.DataFrame({'Cell_Num': cells.centroid.index.tolist(),
                            'X': cells.centroid['x'].round(3).tolist(),
@@ -55,10 +55,6 @@ def _summary(spots):
     p = np.take_along_axis(spots.parent_cell_prob, idx, axis=1).round(3)
     nbrs = np.take_along_axis(spots.parent_cell_id, idx, axis=1)
     max_nbrs = nbrs[:, 0]
-
-    # p = [cell_prob[i, :].tolist() for i in range(num_rows)]
-    # nbrs = [neighbors[i, :].tolist() for i in range(num_rows)]
-    # max_nbrs = [neighbors[i, idx].tolist() for i in range(num_rows) for idx in [np.argmax(cell_prob[i, :])]]
 
     out = pd.DataFrame({'Gene': spots.data.gene_name.tolist(),
                         'Gene_id': spots.gene_id.tolist(),
