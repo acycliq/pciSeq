@@ -36,8 +36,7 @@ class VarBayes:
         # set here attributes to be excluded from serialisation (pickling)
         # It makes the pickle filesize smaller but maybe this will have to
         # change in the future.
-        # These two attributes take up a lot of space on the disk:
-        # _gamma_bar and _log_gamma_bar
+        # Removing redis so I can pickle
         # FYI: https://realpython.com/python-pickle-module/
         attributes = self.__dict__.copy()
         del attributes['redis_db']
@@ -166,9 +165,7 @@ class VarBayes:
         :return:
         """
 
-        # gene_gamma = self.genes.eta
         dtype = self.config['dtype']
-        # ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.alpha, self.genes.eta, sc.mean_expression.data) + self.config['SpotReg']
         ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.ini_cell_props['area_factor'], self.genes.eta_bar, self.single_cell.mean_expression).astype(dtype)
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
@@ -176,12 +173,7 @@ class VarBayes:
         wCellClass = np.sum(contr, axis=1) + self.cellTypes.log_prior
         pCellClass = utils.softmax(wCellClass, axis=1)
 
-        ## self.cells.classProb = pCellClass
-        # logger.info('Cell 0 is classified as %s with prob %4.8f' % (
-        #     self.cells.class_names[np.argmax(wCellClass[0, :])], pCellClass[0, np.argmax(wCellClass[0, :])]))
-        # logger.info('cell ---> cell class probabilities updated')
         self.cells.classProb = pCellClass
-        # return pCellClass
 
     # -------------------------------------------------------------------- #
     def spots_to_cell(self):
@@ -284,14 +276,6 @@ class VarBayes:
         x_agg = npg.aggregate(idx.ravel(), a.ravel(), size=len(N_c))
         y_agg = npg.aggregate(idx.ravel(), b.ravel(), size=len(N_c))
 
-        # x_agg = np.zeros(N_c.shape)
-        # mask = np.arange(len(_x_agg))
-        # x_agg[mask] = _x_agg
-        #
-        # y_agg = np.zeros(N_c.shape)
-        # mask = np.arange(len(_y_agg))
-        # y_agg[mask] = _y_agg
-
         # get the estimated cell centers
         x_bar = np.nan * np.ones(N_c.shape)
         y_bar = np.nan * np.ones(N_c.shape)
@@ -330,46 +314,13 @@ class VarBayes:
         # Note: need to add code to handle the case N_c + nu_0 <= d + 2
         cov = (S + S_0) / denom
 
-        # delta = self.cells.ledoit_wolf(self.spots, cov)
-        # stein = self.cells.stein(cov)
-        # delta = self.cells.rblw(cov)
-
+        # shrinkage
         delta = 0.5
-        # logger.info('Mean shrinkage %4.2f' % delta.mean())
-        # logger.info('cell 601 shrinkage %4.2f, %4.2f' % (shrinkage[601], sh[601]))
-        #  logger.info('cell 601 gene counts %d' % self.cells.total_counts[601])
-        # logger.info('cell 605 shrinkage %4.2f, %4.2f' % (shrinkage[605], sh[605]))
-        #  logger.info('cell 605 gene counts %d' % self.cells.total_counts[605])
-        # logger.info('cell 610 shrinkage %4.2f, %4.2f' % (shrinkage[610], sh[610]))
-        #  logger.info('cell 610 gene counts %d' % self.cells.total_counts[610])
-
-        # delta = delta.reshape(self.nC, 1, 1)
-        # target = [np.trace(d)/2 * np.eye(2) for d in cov]  # shrinkage target
         cov = delta * cov_0 + (1 - delta) * cov
-        # cov = delta * target + (1 - delta) * cov
         self.cells.cov = cov
 
     # -------------------------------------------------------------------- #
     def mu_upd(self):
-        # logger.info('Update single cell data')
-        # # make an array nS-by-nN and fill it with the spots id
-        # gene_ids = np.tile(self.spots.gene_id, (self.nN, 1)).T
-        #
-        # # flatten it
-        # gene_ids = gene_ids.ravel()
-        #
-        # # make corresponding arrays for cell_id and probs
-        # cell_ids = self.spots.parent_cell_id.ravel()
-        # probs = self.spots.parent_cell_prob.ravel()
-        #
-        # # make the array to be used as index in the group-by operation
-        # group_idx = np.vstack((cell_ids, gene_ids))
-        #
-        # # For each cell aggregate the number of spots from the same gene.
-        # # It will produce an array of size nC-by-nG where the entry at (c,g)
-        # # is the gene counts of gene g within cell c
-        # N_cg = npg.aggregate(group_idx, probs, size=(self.nC, self.nG))
-
         classProb = self.cells.classProb[1:, :-1].copy()
         geneCount = self.cells.geneCount[1:, :].copy()
         gamma_bar = self.spots.gamma_bar[1:, :, :-1].copy()
@@ -378,18 +329,9 @@ class VarBayes:
         numer = np.einsum('ck, cg -> gk', classProb, geneCount)
         denom = np.einsum('ck, c, cgk, g -> gk', classProb, area_factor, gamma_bar, self.genes.eta_bar)
 
-        # set the hyperparameter for the gamma prior
-        # m = 1
-
-        # ignore the last class, it is the zero class
-        # numer = numer[:, :-1]
-        # denom = denom[:, :-1]
-        # mu_gk = (numer + m * self.single_cell.raw_data) / (denom + m)
         me, lme = self.single_cell._gene_expressions(numer, denom)
         self.single_cell._mean_expression = me
         self.single_cell._log_mean_expression = lme
-
-        # logger.info('Single cell data updated')
 
     # -------------------------------------------------------------------- #
     def dalpha_upd(self):
@@ -397,10 +339,6 @@ class VarBayes:
         zeta = self.cells.classProb.sum(axis=0)  # this the class size
         alpha = self.cellTypes.ini_alpha()
         out = zeta + alpha
-
-        # logger.info("***************************************************")
-        # logger.info("**** Dirichlet alpha is zero if class size <=%d ****" % self.config['min_class_size'])
-        # logger.info("***************************************************")
 
         # 07-May-2023: Hiding 'min_class_size' from the config file. Should bring it back at a later version
         # mask = zeta <= self.config['min_class_size']
@@ -482,14 +420,7 @@ class VarBayes:
         self.redis_db.publish(eta_bar_df, "gene_efficiency", iteration=self.iter_num,
                                has_converged=self.has_converged, unix_time=time.time())
 
-        # pi_bar_df = pd.DataFrame({
-        #     'weight': np.bincount(self.cells.classProb.argmax(axis=1))/np.bincount(self.cells.classProb.argmax(axis=1)).sum(),
-        #     'class': self.cellTypes.names
-        # })
-        # self.redis_db.to_redis(pi_bar_df, "cell_type_prior", iter_num=self.iter_num,
-        #                        has_converged=self.has_converged, unix_time=time.time())
-
-        idx=[]
+        idx = []
         size = self.cellTypes.names.shape[0]
         for i, row in enumerate(self.cells.classProb[1:, :]):  # ignore the top row, it corresponds to the background, it is not an actual cell
             idx.append(np.argmax(row))
