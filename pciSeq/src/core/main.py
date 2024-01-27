@@ -54,7 +54,7 @@ class VarBayes:
     # -------------------------------------------------------------------- #
     def run(self):
         p0 = None
-        iss_df = None
+        cell_df = None
         gene_df = None
         max_iter = self.config['max_iter']
 
@@ -97,12 +97,12 @@ class VarBayes:
 
             if self.has_converged:
                 # self.counts_within_radius(20)
-                iss_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
+                cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
                 break
 
             if i == max_iter-1:
                 main_logger.info('Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
-        return iss_df, gene_df
+        return cell_df, gene_df
 
     # -------------------------------------------------------------------- #
     def geneCount_upd(self):

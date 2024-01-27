@@ -5,7 +5,7 @@ import logging
 summary_logger = logging.getLogger(__name__)
 
 
-def _iss_summary(cells, genes, single_cell):
+def cells_summary(cells, genes, single_cell):
     '''
     returns a dataframe summarising the main features of each cell, ie gene counts and cell types
     :param spots:
@@ -47,7 +47,7 @@ def _iss_summary(cells, genes, single_cell):
     return iss_df
 
 
-def _summary(spots):
+def spots_summary(spots):
     # check for duplicates (ie spots with the same coordinates with or without the same gene name).
     # is_duplicate = spots.data.duplicated(subset=['x', 'y'])
 
@@ -75,6 +75,6 @@ def collect_data(cells, spots, genes, single_cell):
     :param spots:
     :return:
     '''
-    iss_df = _iss_summary(cells, genes, single_cell)
-    gene_df = _summary(spots)
-    return iss_df, gene_df
+    cell_df = cells_summary(cells, genes, single_cell)
+    gene_df = spots_summary(spots)
+    return cell_df, gene_df
