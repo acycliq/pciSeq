@@ -1,12 +1,13 @@
+import time
 import numpy as np
 import pandas as pd
-import scipy.spatial as spatial
-import time
 import numpy_groupies as npg
-from pciSeq.src.core.datatypes import Cells, Spots, Genes, SingleCell, CellType
-from pciSeq.src.core.summary import collect_data
+import scipy.spatial as spatial
+from scipy.special import softmax
 import pciSeq.src.core.utils as utils
+from pciSeq.src.core.summary import collect_data
 from pciSeq.src.diagnostics.utils import redis_db
+from pciSeq.src.core.datatypes import Cells, Spots, Genes, SingleCell, CellType
 import logging
 
 main_logger = logging.getLogger(__name__)
@@ -22,13 +23,13 @@ class VarBayes:
         self.single_cell = SingleCell(scRNAseq, self.genes.gene_panel, self.config)
         self.cellTypes = CellType(self.single_cell)
         self.cells.class_names = self.single_cell.classes
-        self.nC = self.cells.nC                         # number of cells
-        self.nG = self.genes.nG                         # number of genes
-        self.nK = self.cellTypes.nK                     # number of classes
-        self.nS = self.spots.nS                         # number of spots
-        self.nN = self.config['nNeighbors'] + 1         # number of closest nearby cells, candidates for being parent
-                                                        # cell of any given spot. The last cell will be used for the
-                                                        # misread spots. (ie cell at position nN is the background)
+        self.nC = self.cells.nC  # number of cells
+        self.nG = self.genes.nG  # number of genes
+        self.nK = self.cellTypes.nK  # number of classes
+        self.nS = self.spots.nS  # number of spots
+        self.nN = self.config['nNeighbors'] + 1  # number of closest nearby cells, candidates for being parent
+        # cell of any given spot. The last cell will be used for the
+        # misread spots. (ie cell at position nN is the background)
         self.iter_num = None
         self.has_converged = False
 
@@ -99,7 +100,7 @@ class VarBayes:
                 cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
                 break
 
-            if i == max_iter-1:
+            if i == max_iter - 1:
                 main_logger.info('Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
         return cell_df, gene_df
 
@@ -147,7 +148,8 @@ class VarBayes:
         cells = self.cells
         cfg = self.config
         dtype = self.config['dtype']
-        beta = np.einsum('c, gk, g -> cgk', cells.ini_cell_props['area_factor'], self.single_cell.mean_expression, self.genes.eta_bar).astype(dtype) + cfg['rSpot']
+        beta = np.einsum('c, gk, g -> cgk', cells.ini_cell_props['area_factor'], self.single_cell.mean_expression,
+                         self.genes.eta_bar).astype(dtype) + cfg['rSpot']
         # beta = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
@@ -166,7 +168,8 @@ class VarBayes:
         """
 
         dtype = self.config['dtype']
-        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.ini_cell_props['area_factor'], self.genes.eta_bar, self.single_cell.mean_expression).astype(dtype)
+        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.ini_cell_props['area_factor'], self.genes.eta_bar,
+                              self.single_cell.mean_expression).astype(dtype)
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
@@ -208,7 +211,7 @@ class VarBayes:
         wSpotCell = aSpotCell + self.spots.loglik(self.cells, self.config)
 
         # update the prob a spot belongs to a neighboring cell
-        self.spots.parent_cell_prob = utils.softmax(wSpotCell, axis=1)
+        self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
 
         # Since the spot-to-cell assignments changed you need to update the gene counts now
         self.geneCount_upd()
@@ -242,12 +245,10 @@ class VarBayes:
                                        gamma_bar[:, :, :-1])
         background_counts = self.cells.background_counts
         alpha = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
-        beta = self.config['rGene']/self.config['Inefficiency'] + class_total_counts
-        # res = num / denom
+        beta = self.config['rGene'] / self.config['Inefficiency'] + class_total_counts
 
         # Finally, update gene_gamma
         self.genes.calc_eta(alpha, beta)
-        # self.genes.eta_bar = res.values
 
     # -------------------------------------------------------------------- #
     def gaussian_upd(self):
@@ -368,7 +369,8 @@ class VarBayes:
         assert self.cells.ini_cell_props['cell_label'][0] == 0
 
         # spots = pd.concat([self.spots.data, self.spots.data_excluded])
-        gene_names, gene_id = np.unique(self.spots.data.gene_name.values, return_inverse=True)  # that needs to be encapsulated!!! Make a function in the class to set the ids
+        gene_names, gene_id = np.unique(self.spots.data.gene_name.values,
+                                        return_inverse=True)  # that needs to be encapsulated!!! Make a function in the class to set the ids
         spots = self.spots.data.assign(gene_id=gene_id)
 
         xy_coords = spots[['x', 'y']].values
@@ -418,11 +420,12 @@ class VarBayes:
             'gene': self.genes.gene_panel
         })
         self.redis_db.publish(eta_bar_df, "gene_efficiency", iteration=self.iter_num,
-                               has_converged=self.has_converged, unix_time=time.time())
+                              has_converged=self.has_converged, unix_time=time.time())
 
         idx = []
         size = self.cellTypes.names.shape[0]
-        for i, row in enumerate(self.cells.classProb[1:, :]):  # ignore the top row, it corresponds to the background, it is not an actual cell
+        for i, row in enumerate(self.cells.classProb[1:,
+                                :]):  # ignore the top row, it corresponds to the background, it is not an actual cell
             idx.append(np.argmax(row))
         counts = np.bincount(idx, minlength=size)
         # prob = np.bincount(idx) / np.bincount(idx).sum()
@@ -430,11 +433,5 @@ class VarBayes:
             'class_name': self.cellTypes.names,
             'counts': counts
         })
-        self.redis_db.publish(df, "cell_type_posterior", iteration=self.iter_num, has_converged=self.has_converged, unix_time=time.time())
-
-
-
-
-
-
-
+        self.redis_db.publish(df, "cell_type_posterior", iteration=self.iter_num, has_converged=self.has_converged,
+                              unix_time=time.time())
