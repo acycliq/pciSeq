@@ -292,9 +292,6 @@ def check_redis_server():
     except (redis.exceptions.ConnectionError, ConnectionRefusedError, OSError):
         app_logger.info("Redis ping failed!. Diagnostics will not be called unless redis is installed and the service is running")
         return False
-        # logger.info("Redis ping failed!. Trying to install redis server")
-        # if confirm_prompt("Do you want to install redis server?"):
-        #     logger.info("...installing...")
 
 
 if __name__ == "__main__":
