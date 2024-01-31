@@ -214,8 +214,8 @@ def load_from_url(url):
     return filename
 
 
-def get_out_dir(path, sub_folder=''):
-    if path[0] == 'default':
+def get_out_dir(path=None, sub_folder=''):
+    if path is None or path[0] == 'default':
         out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq')
     else:
         out_dir = os.path.join(path[0], sub_folder, 'pciSeq')
