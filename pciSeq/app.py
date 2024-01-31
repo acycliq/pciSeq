@@ -1,20 +1,19 @@
 import os
-import pandas as pd
-import numpy as np
-import tempfile
-import pickle
 import redis
+import pickle
+import numpy as np
+import pandas as pd
 from typing import Tuple
-from scipy.sparse import coo_matrix, save_npz, load_npz
+from pciSeq import config
 from pciSeq.src.core.main import VarBayes
 from pciSeq.src.core.utils import get_out_dir
-from pciSeq.src.preprocess.spot_labels import stage_data
-from pciSeq.src.preprocess.utils import get_img_shape
+from scipy.sparse import coo_matrix, load_npz
 from pciSeq.src.diagnostics.utils import redis_db
-from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
+from pciSeq.src.preprocess.utils import get_img_shape
 from pciSeq.src.viewer.run_flask import flask_app_start
+from pciSeq.src.preprocess.spot_labels import stage_data
+from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js, make_classConfig_js
-from pciSeq import config
 import logging
 
 app_logger = logging.getLogger(__name__)
