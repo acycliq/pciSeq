@@ -17,9 +17,3 @@ def launch_dashboard():
     else:
         launch_diagnostics_logger.info("Skipping diagnostics, cannot run them. Either redis not installed or not running.")
 
-
-if __name__ == "__main__":
-    from pciSeq.src.core.logger import attach_to_log
-
-    attach_to_log()
-    launch_dashboard()

@@ -58,5 +58,3 @@ def flask_app_start(dir):
     flask_app.run(port=port, debug=False)
 
 
-if __name__ == "__main__":
-    flask_app_start()

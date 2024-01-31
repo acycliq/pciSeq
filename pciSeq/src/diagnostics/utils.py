@@ -212,15 +212,3 @@ def validate_redis():
     return code_1, code_2
 
 
-if __name__ == "__main__":
-    from pciSeq.src.core.logger import logger_setup
-
-    logger_setup()
-    du_logger.info("hwllo")
-    # os = "windows"
-    os = "linux"
-    is_redis_installed(os)
-    is_redis_running(os)
-    stop_server(os)
-    print('done!')
-
