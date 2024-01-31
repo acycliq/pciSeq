@@ -294,27 +294,4 @@ def check_redis_server():
         return False
 
 
-if __name__ == "__main__":
-    from pciSeq.src.core.logger import logger_setup
-
-    ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
-
-    # set up the logger
-    logger_setup()
-
-    # read some demo data
-    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'))
-
-    _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'))
-
-    _scRNAseq = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),
-                            header=None, index_col=0, compression='gzip', dtype=object)
-    _scRNAseq = _scRNAseq.rename(columns=_scRNAseq.iloc[0], copy=False).iloc[1:]
-    _scRNAseq = _scRNAseq.astype(float).astype(np.uint32)
-
-    # main task
-    # _opts = {'max_iter': 10}
-    _opts = {'save_data': True,'launch_viewer': True, 'launch_diagnostics': True}
-    fit(spots=_iss_spots, coo=_coo, scRNAseq=_scRNAseq, opts=_opts)
-
 
