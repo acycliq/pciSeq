@@ -9,6 +9,7 @@ import pathlib
 import hashlib
 import pytest
 from generate_test_data import make_test_data
+from pciSeq.src.core.utils import get_out_dir
 from pandas.testing import assert_frame_equal
 
 
@@ -42,8 +43,8 @@ def calculate_checksum(str_path):
     return checksum
 
 
-def get_out_dir():
-    out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq', 'tests')
+def test_tmpdir():
+    out_dir = os.path.join(get_out_dir(), 'tests')
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     return out_dir
@@ -66,21 +67,17 @@ bbox = [
     (5160, 933)  # topright, [x1, y1]
 ]
 
-spots, image_label = make_test_data(get_out_dir(), bbox=None)
+spots, image_label = make_test_data(test_tmpdir(), bbox=None)
 coo = coo_matrix(image_label)
 
-scRNAseq = pd.read_csv('test_scRNAseq.csv', header=None, dtype=object)
-scRNAseq.columns = scRNAseq.iloc[0]
-scRNAseq = scRNAseq.iloc[1:, :]
-scRNAseq = scRNAseq.set_index('gene_name')
-scRNAseq = scRNAseq.applymap(lambda x: eval(x))
+scRNAseq = pd.read_csv('test_scRNAseq.csv').set_index('gene_name')
 
 # main task
 # _opts = {'max_iter': 10}
 opts = {'save_data': True,
          'launch_viewer': False,
          'launch_diagnostics': False,
-         'output_path': [get_out_dir()]
+         'output_path': [test_tmpdir()]
         }
 
 test_list = [
@@ -90,7 +87,7 @@ test_list = [
     opts
 ]
 
-expected_list = ['2e1264e90c12aebf51717f8faab27aa95eb620175d013aa36163fff414caed08']
+expected_list = ['51271241d3dc9d922c06d3f4e81ee57a7415da061bb80ce7b49ff97160f5d013']
 
 
 @pytest.mark.parametrize('test_data, expected', [
@@ -100,13 +97,12 @@ def test_app(test_data, expected):
     expected_csum = expected[0]
     cellData, geneData = fit(spots=spots, coo=coo, scRNAseq=scRNAseq, opts=opts)
 
-    tmp_dir = os.path.join(get_out_dir(), 'pciSeq', 'data')
-    csum_pickle = calculate_checksum(os.path.join(pathlib.Path(tmp_dir), 'debug', 'pciSeq.pickle'))
+    csum_pickle = calculate_checksum(os.path.join(pathlib.Path(test_tmpdir()), 'pciSeq', 'data', 'debug', 'pciSeq.pickle'))
     print(csum_pickle)
     assert csum_pickle == expected_csum
 
     # Clean the temporary dir
-    shutil.rmtree(get_out_dir())
+    shutil.rmtree(test_tmpdir())
 
 
 # THE TEST BELOW NEEDS MORE WORK
