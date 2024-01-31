@@ -28,8 +28,8 @@ class VarBayes:
         self.nK = self.cellTypes.nK  # number of classes
         self.nS = self.spots.nS  # number of spots
         self.nN = self.config['nNeighbors'] + 1  # number of closest nearby cells, candidates for being parent
-        # cell of any given spot. The last cell will be used for the
-        # misread spots. (ie cell at position nN is the background)
+                                                # cell of any given spot. The last cell will be used for the
+                                                # misread spots. (ie cell at position nN is the background)
         self.iter_num = None
         self.has_converged = False
 
