@@ -31,6 +31,7 @@ class VarBayes:
                                                 # cell of any given spot. The last cell will be used for the
                                                 # misread spots. (ie cell at position nN is the background)
         self.iter_num = None
+        self.iter_delta = []
         self.has_converged = False
 
     def __getstate__(self):
@@ -88,6 +89,9 @@ class VarBayes:
 
             self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
             main_logger.info('Iteration %d, mean prob change %f' % (i, delta))
+
+            # keep track of the deltas
+            self.iter_delta.append(delta)
 
             # replace p0 with the latest probabilities
             p0 = self.spots.parent_cell_prob
