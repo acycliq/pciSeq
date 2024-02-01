@@ -16,15 +16,14 @@ bbox = [
     (5160, 933)  # topright, [x1, y1]
 ]
 
-@pytest.fixture
-def input_value():
-    spots, image_label = make_test_data(get_out_dir(), bbox=None)
-    coo = coo_matrix(image_label)
 
-    scRNAseq = pd.read_csv('test_scRNAseq.csv').set_index('gene_name')
-    input = (1,2, 39)
-    return (spots, coo, scRNAseq)
-
+def pytest_configure():
+    """
+    https://docs.pytest.org/en/7.1.x/deprecations.html#pytest-namespace
+    """
+    pytest.fspots = None
+    pytest.fcells = None
+    pytest.fscData = None
 
 @pytest.fixture
 def get_test_data():
