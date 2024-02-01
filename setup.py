@@ -23,7 +23,7 @@ def get_static_files(root):
 
 install_deps = ['numpy_groupies', 'pandas', 'scipy', 'streamlit', 'altair',
                 'scikit-image', 'scikit-learn', 'tqdm', 'flask', 'fastremap',
-                'numexpr', 'diplib', 'pyvips', 'natsort', 'redis']
+                'numexpr', 'diplib', 'pyvips', 'natsort', 'redis', 'pytest']
 
 version = None
 with open(os.path.join('pciSeq', '_version.py'), 'r') as fid:
