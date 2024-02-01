@@ -15,10 +15,11 @@ from pciSeq.src.core.main import VarBayes
 import pciSeq.config as config
 from pciSeq.app import parse_args, init, validate, stage_data, cell_type
 from pandas.testing import assert_frame_equal
+import logging
 
 
 # set up the logger
-logger_setup()
+# logger_setup()
 
 
 def calculate_checksum(str_path):
@@ -54,7 +55,23 @@ def tmpdir():
     return out_dir
 
 
+def test_parse_args(get_test_data):
+    logging.getLogger().info('test_2')
+    spots = get_test_data[0]
+    coo = get_test_data[1]
+
+    with pytest.raises(AssertionError) as excinfo:
+        parse_args(spots)
+    assert str(excinfo.value) == ('Need to provide the spots and the coo matrix as the first '
+                                  'and second args to the fit() method.')
+
+    _, _, scData, opts = parse_args(spots, coo)
+    assert scData is None
+    assert opts is None
+
+
 def test_2(get_test_data):
+    logging.getLogger().info('test_2')
     spots = get_test_data[0]
     coo = get_test_data[1]
     scData = get_test_data[2]
