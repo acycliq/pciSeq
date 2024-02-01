@@ -227,7 +227,7 @@ def parse_args(*args, **kwargs):
     if not {'spots', 'coo'}.issubset(set(kwargs)):
         try:
             assert len(args) == 2, 'Need to provide the spots and the coo matrix as the first ' \
-                                   'and second args to the fit() method '
+                                   'and second args to the fit() method.'
             kwargs['spots'] = args[0]
             kwargs['coo'] = args[1]
         except Exception as err:
