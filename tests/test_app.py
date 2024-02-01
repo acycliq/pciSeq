@@ -70,6 +70,18 @@ def test_parse_args(get_test_data):
     assert opts is None
 
 
+def test_validate(get_test_data):
+    logging.getLogger().info('test_2')
+    spots = get_test_data[0]
+    coo = get_test_data[1]
+
+    with pytest.raises(AssertionError) as excinfo:
+        validate(coo, coo, config.DEFAULT)
+    assert str(excinfo.value) == ("Spots should be passed-in to the fit() method as "
+                                  "a dataframe with columns ['Gene', 'x', 'y']")
+
+
+
 def test_2(get_test_data):
     logging.getLogger().info('test_2')
     spots = get_test_data[0]
