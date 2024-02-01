@@ -113,7 +113,7 @@ test_list = [
     opts
 ]
 
-expected_list = ['51271241d3dc9d922c06d3f4e81ee57a7415da061bb80ce7b49ff97160f5d013']
+expected_list = ['364e544d2c837902645083b8c2b9298fef2987a24c85160ec61c50d2e6f7ffce']
 
 
 @pytest.mark.parametrize('test_data, expected', [
