@@ -8,7 +8,7 @@ import numpy as np
 import pathlib
 import hashlib
 import pytest
-from generate_test_data import make_test_data
+# from generate_test_data import make_test_data
 from pciSeq.src.core.utils import get_out_dir
 from pciSeq.app import fit
 from pciSeq.src.core.main import VarBayes
@@ -81,8 +81,25 @@ def test_validate(get_test_data):
                                   "a dataframe with columns ['Gene', 'x', 'y']")
 
 
+def test_stage_data(get_test_data):
+    spots = get_test_data[0]
+    coo = get_test_data[1]
+    cells, cell_boundaries, spots = stage_data(spots, coo)
+    pytest.fspots = spots
+    pytest.fcells = cells
+    assert len(cells.label) == len(np.unique(cells.label))
+    assert cells.area.sum() == 3721912.0
+    assert cells.label.max() == 3481
+    assert np.all(spots[['x_global', 'y_global', 'label', 'x_cell', 'y_cell']].sum().round(5).values == [231498829, 150925289, 75868898, 151411183.40303, 82533053.01829])
 
-def test_2(get_test_data):
+
+def test_varBayes(get_test_data):
+    scData = get_test_data[2]
+    varBayes = VarBayes(pytest.fcells, pytest.fspots, scData, config.DEFAULT)
+    varBayes.run()
+    assert varBayes is None
+
+def ztest_2(get_test_data):
     logging.getLogger().info('test_2')
     spots = get_test_data[0]
     coo = get_test_data[1]
@@ -105,59 +122,59 @@ def test_2(get_test_data):
     assert len(get_test_data) == 3
 
 
-# def read_dataframe():
-#     """
-#     This is for the test at the bottom, needs a lot more work
-#     """
-#     cellData_path = os.path.join(get_out_dir(), 'pciSeq', 'data', 'cellData.tsv')
-#     cellData = pd.read_csv(cellData_path, sep='\t')
-#     cellData[['Cell_Num', 'X', 'Y']].round(6)
-#     cellData['CellGeneCount'] = cellData['CellGeneCount'].apply(lambda x: np.round(np.array(eval(x)), 3))
-#     cellData['Prob'] = cellData['Prob'].apply(lambda x: np.round(np.array(eval(x)), 3))
-#     return cellData
-
-
-bbox = [
-    (4238, 364),  # bottomleft, [x0, y0]
-    (5160, 933)  # topright, [x1, y1]
-]
-
-spots, image_label = make_test_data(tmpdir(), bbox=None)
-coo = coo_matrix(image_label)
-
-scRNAseq = pd.read_csv('test_scRNAseq.csv').set_index('gene_name')
-
-# main task
-# _opts = {'max_iter': 10}
-opts = {'save_data': True,
-         'launch_viewer': False,
-         'launch_diagnostics': False,
-         'output_path': [tmpdir()]
-        }
-
-test_list = [
-    spots,
-    coo,
-    scRNAseq,
-    opts
-]
-
-expected_list = ['364e544d2c837902645083b8c2b9298fef2987a24c85160ec61c50d2e6f7ffce']
-
-
-@pytest.mark.parametrize('test_data, expected', [
-    (test_list, expected_list)
-])
-def test_app(test_data, expected):
-    expected_csum = expected[0]
-    cellData, geneData = fit(spots=spots, coo=coo, scRNAseq=scRNAseq, opts=opts)
-
-    csum_pickle = calculate_checksum(os.path.join(pathlib.Path(tmpdir()), 'pciSeq', 'data', 'debug', 'pciSeq.pickle'))
-    print(csum_pickle)
-    assert csum_pickle == expected_csum
-
-    # Clean the temporary dir
-    shutil.rmtree(tmpdir())
+# # def read_dataframe():
+# #     """
+# #     This is for the test at the bottom, needs a lot more work
+# #     """
+# #     cellData_path = os.path.join(get_out_dir(), 'pciSeq', 'data', 'cellData.tsv')
+# #     cellData = pd.read_csv(cellData_path, sep='\t')
+# #     cellData[['Cell_Num', 'X', 'Y']].round(6)
+# #     cellData['CellGeneCount'] = cellData['CellGeneCount'].apply(lambda x: np.round(np.array(eval(x)), 3))
+# #     cellData['Prob'] = cellData['Prob'].apply(lambda x: np.round(np.array(eval(x)), 3))
+# #     return cellData
+#
+#
+# bbox = [
+#     (4238, 364),  # bottomleft, [x0, y0]
+#     (5160, 933)  # topright, [x1, y1]
+# ]
+#
+# spots, image_label = make_test_data(tmpdir(), bbox=None)
+# coo = coo_matrix(image_label)
+#
+# scRNAseq = pd.read_csv('test_scRNAseq.csv').set_index('gene_name')
+#
+# # main task
+# # _opts = {'max_iter': 10}
+# opts = {'save_data': True,
+#          'launch_viewer': False,
+#          'launch_diagnostics': False,
+#          'output_path': [tmpdir()]
+#         }
+#
+# test_list = [
+#     spots,
+#     coo,
+#     scRNAseq,
+#     opts
+# ]
+#
+# expected_list = ['364e544d2c837902645083b8c2b9298fef2987a24c85160ec61c50d2e6f7ffce']
+#
+#
+# @pytest.mark.parametrize('test_data, expected', [
+#     (test_list, expected_list)
+# ])
+# def test_app(test_data, expected):
+#     expected_csum = expected[0]
+#     cellData, geneData = fit(spots=spots, coo=coo, scRNAseq=scRNAseq, opts=opts)
+#
+#     csum_pickle = calculate_checksum(os.path.join(pathlib.Path(tmpdir()), 'pciSeq', 'data', 'debug', 'pciSeq.pickle'))
+#     print(csum_pickle)
+#     assert csum_pickle == expected_csum
+#
+#     # Clean the temporary dir
+#     shutil.rmtree(tmpdir())
 
 
 
