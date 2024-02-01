@@ -10,6 +10,10 @@ import hashlib
 import pytest
 from generate_test_data import make_test_data
 from pciSeq.src.core.utils import get_out_dir
+from pciSeq.app import fit
+from pciSeq.src.core.main import VarBayes
+import pciSeq.config as config
+from pciSeq.app import parse_args, init, validate, stage_data, cell_type
 from pandas.testing import assert_frame_equal
 
 
@@ -43,11 +47,33 @@ def calculate_checksum(str_path):
     return checksum
 
 
-def test_tmpdir():
+def tmpdir():
     out_dir = os.path.join(get_out_dir(), 'tests')
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     return out_dir
+
+
+def test_2(get_test_data):
+    spots = get_test_data[0]
+    coo = get_test_data[1]
+    scData = get_test_data[2]
+
+    spots, coo, scRNAseq, opts = parse_args(spots=spots, coo=coo, scRNAseq=scData, opts=config.DEFAULT)
+
+    # 2. get the hyperparameters
+    cfg = init(opts)
+
+    # 3. validate inputs
+    spots = validate(spots.copy(), coo, scRNAseq)   # Spots might get mutated here. Genes not found
+                                                    # in the single cell data will be removed.
+
+    _cells, cellBoundaries, _spots = stage_data(spots, coo)
+
+    cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
+
+
+    assert len(get_test_data) == 3
 
 
 # def read_dataframe():
@@ -67,7 +93,7 @@ bbox = [
     (5160, 933)  # topright, [x1, y1]
 ]
 
-spots, image_label = make_test_data(test_tmpdir(), bbox=None)
+spots, image_label = make_test_data(tmpdir(), bbox=None)
 coo = coo_matrix(image_label)
 
 scRNAseq = pd.read_csv('test_scRNAseq.csv').set_index('gene_name')
@@ -77,7 +103,7 @@ scRNAseq = pd.read_csv('test_scRNAseq.csv').set_index('gene_name')
 opts = {'save_data': True,
          'launch_viewer': False,
          'launch_diagnostics': False,
-         'output_path': [test_tmpdir()]
+         'output_path': [tmpdir()]
         }
 
 test_list = [
@@ -97,12 +123,14 @@ def test_app(test_data, expected):
     expected_csum = expected[0]
     cellData, geneData = fit(spots=spots, coo=coo, scRNAseq=scRNAseq, opts=opts)
 
-    csum_pickle = calculate_checksum(os.path.join(pathlib.Path(test_tmpdir()), 'pciSeq', 'data', 'debug', 'pciSeq.pickle'))
+    csum_pickle = calculate_checksum(os.path.join(pathlib.Path(tmpdir()), 'pciSeq', 'data', 'debug', 'pciSeq.pickle'))
     print(csum_pickle)
     assert csum_pickle == expected_csum
 
     # Clean the temporary dir
-    shutil.rmtree(test_tmpdir())
+    shutil.rmtree(tmpdir())
+
+
 
 
 # THE TEST BELOW NEEDS MORE WORK
