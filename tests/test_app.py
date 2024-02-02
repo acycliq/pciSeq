@@ -1,20 +1,12 @@
-from pciSeq.src.core.logger import logger_setup
-from pciSeq import fit
-from scipy.sparse import load_npz, coo_matrix
-import pandas as pd
-import tempfile, shutil
 import os
 import numpy as np
 import pathlib
 import hashlib
 import pytest
-# from generate_test_data import make_test_data
 from pciSeq.src.core.utils import get_out_dir
-from pciSeq.app import fit
 from pciSeq.src.core.main import VarBayes
 import pciSeq.config as config
-from pciSeq.app import parse_args, init, validate, stage_data, cell_type
-from pandas.testing import assert_frame_equal
+from pciSeq.app import parse_args, validate, stage_data
 import logging
 
 
@@ -55,10 +47,10 @@ def tmpdir():
     return out_dir
 
 
-def test_parse_args(get_test_data):
+def test_parse_args(read_demo_data):
     logging.getLogger().info('test_2')
-    spots = get_test_data[0]
-    coo = get_test_data[1]
+    spots = read_demo_data[0]
+    coo = read_demo_data[1]
 
     with pytest.raises(AssertionError) as excinfo:
         parse_args(spots)
@@ -70,10 +62,10 @@ def test_parse_args(get_test_data):
     assert opts is None
 
 
-def test_validate(get_test_data):
+def test_validate(read_demo_data):
     logging.getLogger().info('test_2')
-    spots = get_test_data[0]
-    coo = get_test_data[1]
+    spots = read_demo_data[0]
+    coo = read_demo_data[1]
 
     with pytest.raises(AssertionError) as excinfo:
         validate(coo, coo, config.DEFAULT)
@@ -81,45 +73,32 @@ def test_validate(get_test_data):
                                   "a dataframe with columns ['Gene', 'x', 'y']")
 
 
-def test_stage_data(get_test_data):
-    spots = get_test_data[0]
-    coo = get_test_data[1]
+def test_stage_data(read_demo_data):
+    spots = read_demo_data[0]
+    coo = read_demo_data[1]
     cells, cell_boundaries, spots = stage_data(spots, coo)
     pytest.fspots = spots
     pytest.fcells = cells
     assert len(cells.label) == len(np.unique(cells.label))
     assert cells.area.sum() == 3721912.0
     assert cells.label.max() == 3481
-    assert np.all(spots[['x_global', 'y_global', 'label', 'x_cell', 'y_cell']].sum().round(5).values == [231498829, 150925289, 75868898, 151411183.40303, 82533053.01829])
+    assert np.all(spots[['x_global', 'y_global', 'label', 'x_cell', 'y_cell']].sum().round(5).values == [231498829.00000, 150952363.00000, 75868924.00000, 151411235.74292, 82555694.21166])
 
 
-def test_varBayes(get_test_data):
-    scData = get_test_data[2]
+def test_varBayes(read_demo_data):
+    scData = read_demo_data[2]
     varBayes = VarBayes(pytest.fcells, pytest.fspots, scData, config.DEFAULT)
     varBayes.run()
-    assert varBayes is None
 
-def ztest_2(get_test_data):
-    logging.getLogger().info('test_2')
-    spots = get_test_data[0]
-    coo = get_test_data[1]
-    scData = get_test_data[2]
+    expected_delta = np.array([1.0, 0.8998741535450602, 0.6707994416612973, 0.4703557918803584, 0.6274678470436773, 0.5809977507020871,
+     0.6050537780421158, 0.281664156778341, 0.26291180844419526, 0.1911332823201044, 0.5582350505154667,
+     0.1904928001599277, 0.2482987581795233, 0.2825277025986648, 0.06827397193459617, 0.16097980010421764,
+     0.5828276333586281, 0.16734418317139443, 0.14889440752498986, 0.1229702319182493, 0.08985526872588012,
+     0.044863509416499414, 0.0678009601806856, 0.10751329267974208, 0.19152470052524656, 0.16275473631515358,
+     0.06207517767135862, 0.04486396122645342, 0.0315151843141393, 0.01963733267979928]).round(11)
 
-    spots, coo, scRNAseq, opts = parse_args(spots=spots, coo=coo, scRNAseq=scData, opts=config.DEFAULT)
+    assert np.all(np.array(varBayes.iter_delta).round(11) == expected_delta)
 
-    # 2. get the hyperparameters
-    cfg = init(opts)
-
-    # 3. validate inputs
-    spots = validate(spots.copy(), coo, scRNAseq)   # Spots might get mutated here. Genes not found
-                                                    # in the single cell data will be removed.
-
-    _cells, cellBoundaries, _spots = stage_data(spots, coo)
-
-    cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
-
-
-    assert len(get_test_data) == 3
 
 
 # # def read_dataframe():
