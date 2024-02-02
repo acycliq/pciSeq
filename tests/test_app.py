@@ -72,17 +72,29 @@ def test_validate(read_demo_data):
     assert str(excinfo.value) == ("Spots should be passed-in to the fit() method as "
                                   "a dataframe with columns ['Gene', 'x', 'y']")
 
+# first element is the expected area.sum
+# second element is the expected max label
+# third element is the expected column-wize sum of the spots dataframe
+expected_list = [
+    3721912.0,
+    3481,
+    [231498829.00000, 150952363.00000, 75868924.00000, 151411235.74292, 82555694.21166]
+]
 
-def test_stage_data(read_demo_data):
+@pytest.mark.parametrize('filename, expected', [
+    ('read_demo_data', expected_list)
+])
+def test_stage_data(filename, expected, request):
+    read_demo_data = request.getfixturevalue(filename)
     spots = read_demo_data[0]
     coo = read_demo_data[1]
     cells, cell_boundaries, spots = stage_data(spots, coo)
     pytest.fspots = spots
     pytest.fcells = cells
     assert len(cells.label) == len(np.unique(cells.label))
-    assert cells.area.sum() == 3721912.0
-    assert cells.label.max() == 3481
-    assert np.all(spots[['x_global', 'y_global', 'label', 'x_cell', 'y_cell']].sum().round(5).values == [231498829.00000, 150952363.00000, 75868924.00000, 151411235.74292, 82555694.21166])
+    assert cells.area.sum() == expected_list[0]
+    assert cells.label.max() == expected_list[1]
+    assert np.all(spots[['x_global', 'y_global', 'label', 'x_cell', 'y_cell']].sum().round(5).values == expected_list[2])
 
 
 def test_varBayes(read_demo_data):
