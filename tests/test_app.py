@@ -1,18 +1,14 @@
 import os
-import numpy as np
+import pytest
 import pathlib
 import hashlib
-import pytest
-from pciSeq.src.core.utils import get_out_dir
-from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
-from pciSeq.src.core.main import VarBayes
+import numpy as np
 import pciSeq.config as config
+from pciSeq.src.core.main import VarBayes
+from pciSeq.src.core.utils import get_out_dir
 from pciSeq.app import parse_args, validate, stage_data, init, fit
+from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 import logging
-
-
-# set up the logger
-# logger_setup()
 
 
 def calculate_checksum(str_path):
