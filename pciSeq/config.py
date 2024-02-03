@@ -55,7 +55,7 @@ DEFAULT = {
     # if true the viewer will be launched once convergence has been achieved
     'launch_viewer': False,
 
-    'launch_diagnostics': False,
+    'launch_diagnostics': True,
 
     # Initialise this to False, the correct value is set internally by the code itself
     'is_redis_running': False,
