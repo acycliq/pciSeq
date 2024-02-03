@@ -36,7 +36,7 @@ def read_demo_data(bbox=None):
     spots = pd.read_csv(os.path.join(path_str, 'iss', 'spots.csv'))
     label_image = load_npz(os.path.join(path_str, 'segmentation', 'label_image.coo.npz'))
 
-    scData = pd.read_csv('test_scRNAseq.csv').set_index('gene_name')
+    scData = pd.read_csv('data/test_scRNAseq.csv').set_index('gene_name')
     if bbox is not None:
         spots, label_image = clip_data(spots.copy(), label_image.copy, bbox)
     return spots, label_image, scData
