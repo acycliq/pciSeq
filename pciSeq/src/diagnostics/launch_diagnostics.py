@@ -2,6 +2,7 @@ import os
 import subprocess
 import pciSeq.src.diagnostics.utils as utils
 import logging
+from threading import Timer
 
 launch_diagnostics_logger = logging.getLogger(__name__)
 
@@ -11,7 +12,10 @@ def launch_dashboard():
     filename = os.path.join(dirname, 'diagnostics.py')
     code_1, code_2 = utils.validate_redis()
     if code_1 == 0 and code_2 == 0:
-        p = subprocess.Popen(["streamlit", "run", filename, " --server.headless true"])
+        Timer(1,
+              subprocess.Popen,
+              [["streamlit", "run", filename, " --server.headless true"]]
+              ).start()
         # TODO: you need to kill the process on exit
         # logger.info('Starting process with pid: %d to run the diagnostics' % p.pid)
     else:
