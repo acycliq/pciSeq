@@ -4,9 +4,10 @@ import pathlib
 import hashlib
 import pytest
 from pciSeq.src.core.utils import get_out_dir
+from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 from pciSeq.src.core.main import VarBayes
 import pciSeq.config as config
-from pciSeq.app import parse_args, validate, stage_data
+from pciSeq.app import parse_args, validate, stage_data, init, fit
 import logging
 
 
@@ -120,11 +121,25 @@ expected_iter_delta = [
 ])
 def test_varBayes(filename, expected, request):
     read_demo_data = request.getfixturevalue(filename)
+    spots = read_demo_data[0]
+    coo = read_demo_data[1]
     scData = read_demo_data[2]
-    opts = config.DEFAULT
-    opts['launch_viewer'] = True
-    varBayes = VarBayes(pytest.fcells, pytest.fspots, scData, opts)
-    varBayes.run()
+
+    cfg = init({'launch_viewer': True,
+                'launch_diagnostics': True,
+                'max_iter': 30
+                })
+    validate(spots, coo, scData)
+
+    if cfg['launch_diagnostics'] and cfg['is_redis_running']:
+        launch_dashboard()
+
+    # prepare the data
+    _cells, cellBoundaries, _spots = stage_data(spots, coo)
+
+    # cell typing
+    varBayes = VarBayes(_cells, _spots, scData, cfg)
+    cellData, geneData = varBayes.run()
 
     arr_1 = np.array(varBayes.iter_delta).round(11)
     arr_2 = np.array(expected_iter_delta).round(11)
