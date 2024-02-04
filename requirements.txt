@@ -1,5 +1,4 @@
 pip
-opencv-python
 numpy_groupies
 pandas
 scipy
