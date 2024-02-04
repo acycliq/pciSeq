@@ -1,6 +1,6 @@
 # pciSeq: Probabilistic Cell typing by In situ Sequencing
 
-
+[![Actions Status](https://github.com/acycliq/pciSeq/workflows/Run%20tests/badge.svg)](https://github.com/acycliq/pciSeq/actions)
 [![repo size](https://img.shields.io/github/repo-size/acycliq/pciSeq)](https://github.com/acycliq/pciSeq/)
 
 [//]: # ([![codecov]&#40;https://codecov.io/gh/acycliq/pciSeq/branch/unit_tests/graph/badge.svg&#41;]&#40;https://codecov.io/gh/acycliq/pciSeq&#41;)
@@ -8,7 +8,6 @@
 [![Python version](https://img.shields.io/pypi/pyversions/pciSeq)](https://pypistats.org/packages/pciSeq)
 [![Licence: GPL v3](https://img.shields.io/github/license/acycliq/pciSeq)](https://github.com/acycliq/pciSeq/blob/master/LICENSE)
 [![Contributors](https://img.shields.io/github/contributors-anon/acycliq/pciSeq)](https://github.com/acycliq/pciSeq/graphs/contributors)
-
 [![GitHub stars](https://img.shields.io/github/stars/acycliq/pciSeq?style=social)](https://github.com/acycliq/pciSeq/)
 [![GitHub forks](https://img.shields.io/github/forks/acycliq/pciSeq?style=social)](https://github.com/acycliq/pciSeq/)
 
