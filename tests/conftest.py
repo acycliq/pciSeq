@@ -3,6 +3,7 @@ import pytest
 import tempfile
 import pandas as pd
 from scipy.sparse import load_npz
+from pciSeq.src.core.utils import load_from_url
 import logging
 
 gtd_logger = logging.getLogger(__name__)
@@ -32,11 +33,16 @@ def get_out_dir():
 
 @pytest.fixture
 def read_demo_data(bbox=None):
-    path_str = os.path.join('..', 'pciSeq', 'data', 'mouse', 'ca1')
+    ROOT = r'https://github.com/acycliq/pciSeq/raw/master'
+    path_str = os.path.join(ROOT, 'pciSeq', 'data', 'mouse', 'ca1')
     spots = pd.read_csv(os.path.join(path_str, 'iss', 'spots.csv'))
-    label_image = load_npz(os.path.join(path_str, 'segmentation', 'label_image.coo.npz'))
 
-    scData = pd.read_csv('data/test_scRNAseq.csv').set_index('gene_name')
+    coo_file = load_from_url(
+        'https://github.com/acycliq/pciSeq/blob/dev/pciSeq/data/mouse/ca1/segmentation/label_image.coo.npz?raw=true')
+    label_image = load_npz(coo_file)
+
+    path_str = os.path.join(ROOT, 'tests', 'data', 'test_scRNAseq.csv')
+    scData = pd.read_csv(path_str).set_index('gene_name')
     if bbox is not None:
         spots, label_image = clip_data(spots.copy(), label_image.copy, bbox)
     return spots, label_image, scData

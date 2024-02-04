@@ -14,15 +14,6 @@ import logging
 def calculate_checksum(str_path):
     """
     Calculate SHA256 hash/checksum of a file
-
-    Args:
-        path (str): Path to file
-
-    Returns:
-        str: checksum as hexadecimal string
-
-    From :
-    https://github.com/metoppv/improver/blob/master/improver_tests/acceptance/acceptance.py
     """
     hasher = hashlib.sha256()
     path = pathlib.Path(str_path)
@@ -123,7 +114,7 @@ def test_varBayes(filename, expected, request):
 
     cfg = init({'launch_viewer': True,
                 'launch_diagnostics': True,
-                'max_iter': 30
+                'max_iter': 30,
                 })
     validate(spots, coo, scData)
 
@@ -138,7 +129,7 @@ def test_varBayes(filename, expected, request):
     cellData, geneData = varBayes.run()
 
     arr_1 = np.array(varBayes.iter_delta).round(11)
-    arr_2 = np.array(expected_iter_delta).round(11)
+    arr_2 = np.array(expected_iter_delta[: cfg['max_iter']]).round(11)
     assert np.all(arr_1 == arr_2)
 
 
