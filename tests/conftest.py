@@ -34,14 +34,14 @@ def get_out_dir():
 @pytest.fixture
 def read_demo_data(bbox=None):
     ROOT = r'https://github.com/acycliq/pciSeq/raw/master'
-    path_str = os.path.join(ROOT, 'pciSeq', 'data', 'mouse', 'ca1')
-    spots = pd.read_csv(os.path.join(path_str, 'iss', 'spots.csv'))
+    path_str = "{}".format("/".join([ROOT, 'pciSeq', 'data', 'mouse', 'ca1', 'iss', 'spots.csv']))
+    spots = pd.read_csv(os.path.join(path_str))
 
     coo_file = load_from_url(
         'https://github.com/acycliq/pciSeq/blob/dev/pciSeq/data/mouse/ca1/segmentation/label_image.coo.npz?raw=true')
     label_image = load_npz(coo_file)
 
-    path_str = os.path.join(ROOT, 'tests', 'data', 'test_scRNAseq.csv')
+    path_str = "{}".format("/".join([ROOT, 'tests', 'data', 'test_scRNAseq.csv']))
     scData = pd.read_csv(path_str).set_index('gene_name')
     if bbox is not None:
         spots, label_image = clip_data(spots.copy(), label_image.copy, bbox)
