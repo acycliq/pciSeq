@@ -20,3 +20,4 @@ dependencies:
       - diplib
       - pyvips
       - redis
+      - fastremap

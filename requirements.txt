@@ -14,3 +14,4 @@ jupyterlab
 diplib
 pyvips
 redis
+fastremap
