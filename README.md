@@ -2,7 +2,8 @@
 
 
 [![repo size](https://img.shields.io/github/repo-size/acycliq/pciSeq)](https://github.com/acycliq/pciSeq/)
-[![codecov](https://codecov.io/gh/acycliq/pciSeq/branch/unit_tests/graph/badge.svg)](https://codecov.io/gh/acycliq/pciSeq)
+
+[//]: # ([![codecov]&#40;https://codecov.io/gh/acycliq/pciSeq/branch/unit_tests/graph/badge.svg&#41;]&#40;https://codecov.io/gh/acycliq/pciSeq&#41;)
 [![Downloads](https://pepy.tech/badge/pciSeq)](https://pepy.tech/project/pciSeq)
 [![Python version](https://img.shields.io/pypi/pyversions/pciSeq)](https://pypistats.org/packages/pciSeq)
 [![Licence: GPL v3](https://img.shields.io/github/license/acycliq/pciSeq)](https://github.com/acycliq/pciSeq/blob/master/LICENSE)
