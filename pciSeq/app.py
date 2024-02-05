@@ -112,7 +112,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         dst = pre_launch(cellData, coo, scRNAseq, cfg)
         flask_app_start(dst)
 
-    app_logger.info(' Done')
+    app_logger.info('Done')
     return cellData, geneData
 
 

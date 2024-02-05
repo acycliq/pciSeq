@@ -7,10 +7,10 @@ def attach_to_log():
     exists only for backwards compatibility.
     Replaced by logger_setup
     """
-    logger_setup()
+    setup_logger()
 
 
-def logger_setup():
+def setup_logger():
     # Remove all handlers associated with the root logger object.
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
