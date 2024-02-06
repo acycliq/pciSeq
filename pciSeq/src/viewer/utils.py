@@ -1,20 +1,112 @@
-""" Functions to manipulate flat files (split or minify them) """
-from typing import Union
-from distutils.dir_util import copy_tree
 import pandas as pd
 import numpy as np
+from pciSeq.src.core.utils import get_pciSeq_install_dir
+import shutil
 import json
 import os
 import glob
 import csv
-import subprocess
 import logging
 
-logger = logging.getLogger(__name__)
+viewer_utils_logger = logging.getLogger(__name__)
 
-from pciSeq import check_libvips
-if check_libvips():
-    import pyvips
+
+def make_config_base(dst):
+    cellData_tsv = os.path.join(dst, 'data', 'cellData.tsv')
+    geneData_tsv = os.path.join(dst, 'data', 'geneData.tsv')
+
+    cellData_dict = {"mediaLink": "../../data/cellData.tsv", "size": str(os.path.getsize(cellData_tsv))}
+    geneData_dict = {"mediaLink": "../../data/geneData.tsv", "size": str(os.path.getsize(geneData_tsv))}
+
+    return {
+        'cellData': cellData_dict,
+        'geneData': geneData_dict,
+    }
+
+
+def make_config_js(dst, w, h):
+    appDict = make_config_base(dst)
+    cellBoundaries_tsv = os.path.join(dst, 'data', 'cellBoundaries.tsv')
+    cellBoundaries_dict = {"mediaLink": "../../data/cellBoundaries.tsv",
+                           "size": str(os.path.getsize(cellBoundaries_tsv))}
+    roi_dict = {"x0": 0, "x1": w, "y0": 0, "y1": h}
+    appDict['cellBoundaries'] = cellBoundaries_dict
+    appDict['roi'] = roi_dict
+    appDict['maxZoom'] = 8
+    appDict['layers'] = {
+        'empty': "",
+        'dapi': "https://storage.googleapis.com/ca1-data/img/262144px/{z}/{y}/{x}.jpg",
+
+    }
+    appDict['spotSize'] = 1/16
+
+    config_str = "// NOTES: \n" \
+                 "// 1. paths in 'cellData', 'geneData' and 'cellBoundaries' are with respect to the location of \n" \
+                 "//    'streaming-tsv-parser.js' \n" \
+                 "// 2. size is the tsv size in bytes. I use os.path.getsize() to get it. Not crucial if you \n" \
+                 "//    don't get it right, ie the full tsv will still be parsed despite this being wrong. It \n" \
+                 "//    is used by the loading page piecharts to calc how far we are. \n" \
+                 "// 3. roi is the image size in pixels. Leave x0 and y0 at zero and set x1 to the width and y1 to the height. \n" \
+                 "// 4. layers is a dict. Each key/value pair contains the string (the name) of the background image and the \n" \
+                 "//    location of the folder that the corresponding pyramid of tiles. If the tiles are stored locally, they \n" \
+                 "//    should be kept in a folder which is served, for example next to the tsv flatfiles. The path should be \n" \
+                 "//    in relation to the location of the index.html If you do not have a pyramid of tiles just \n" \
+                 "//    change the link to a blind one (change the jpg extension for example or just use an empty string). \n" \
+                 "//    The viewer should work without the dapi background though. \n" \
+                 "//    If the dict has more than one entries then a small control with radio button will appear at the top \n" \
+                 "//    right of the viewer to switch between different background images. \n" \
+                 "// 5. maxZoom: maximum zoom levels. In most cases a value of 8 if good enough. If you have a big image, like \n" \
+                 "//    full coronal section for example then a value of 10 would make sense. Note that this should be typically \n" \
+                 "//    inline with the zoom level you used when you did \n" \
+                 "//    the pyramid of tiles. No harm is it less. If it is greater, then for these extra zoom levels there will \n" \
+                 "//    be no background image. \n" \
+                 "// 6. spotSize: Scalar. Use this to adjust the screen-size of your spots before they morph into glyphs. \n" \
+                 " function config() { return %s }" % json.dumps(appDict)
+    config = os.path.join(dst, 'viewer', 'js', 'config.js')
+    with open(config, 'w') as data:
+        data.write(str(config_str))
+    viewer_utils_logger.info(' viewer config saved at %s' % config)
+
+
+def make_classConfig_js(labels, dst):
+    # remove Zero. It is appended later on
+    if 'Zero' in labels:
+        labels.remove('Zero')
+
+    colours = ["#f3c300", "#875692", "#f38400", "#a1caf1", "#be0032",
+               "#c2b280", "#848482", "#008856", "#e68fac", "#0067a5",
+               "#f99379", "#604e97", "#f6a600", "#b3446c", "#dcd300",
+               "#882d17", "#8db600", "#654522", "#e25822", "#2b3d26"]
+    n = len(colours)
+    config_dict = [{'className': labels[i],
+                   'IdentifiedType': labels[i],
+                   'color': colours[i % n]}
+                  for i, v in enumerate(labels)]
+    config_dict.append({'className': 'Zero', 'IdentifiedType': 'Zero', 'color': '#000000'})
+    config_dict.append({'className': 'Other', 'IdentifiedType': 'Other', 'color': '#C0C0C0'})
+    config_str = " function classColorsCodes() { return %s }" % json.dumps(config_dict)
+    config = os.path.join(dst, 'viewer', 'js', 'classConfig.js')
+    with open(config, 'w') as data:
+        data.write(str(config_str))
+    viewer_utils_logger.info(' classConfig saved at %s' % config)
+
+
+def copy_viewer_code(cfg, dst):
+    pciSeq_dir = get_pciSeq_install_dir()
+    dim = '2D'
+    src = os.path.join(pciSeq_dir, 'static', dim)
+
+    shutil.copytree(src, dst, dirs_exist_ok=True)
+    viewer_utils_logger.info('viewer code (%s) copied from %s to %s' % (dim, src, dst))
+    return dst
+
+
+def _get_file(OUT_DIR, filepath, n, header_line):
+    [filename, ext] = os.path.basename(filepath).split('.')
+    file = os.path.join(OUT_DIR, filename + '_%d.%s' % (n, ext))
+    handle = open(file, "a")
+    handle.write(header_line)
+    return file, handle
 
 
 def splitter_mb(df, dir_path, mb_size):
@@ -40,8 +132,8 @@ def splitter_mb(df, dir_path, mb_size):
     for index, row in df.iterrows():
         row = row.tolist()
         size = os.stat(file_out).st_size
-        if size > mb_size*1024*1024:
-            logger.info('saved %s with file size %4.3f MB' % (file_out, size/(1024*1024)))
+        if size > mb_size * 1024 * 1024:
+            viewer_utils_logger.info('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
             n += 1
             handle_out.close()
             file_out, handle_out = _get_file(dir_path, n, header_line)
@@ -49,7 +141,7 @@ def splitter_mb(df, dir_path, mb_size):
         write.writerow(row)
 
     # print(str(file_out) + " file size = \t" + str(size))
-    logger.info('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
+    viewer_utils_logger.info('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
     handle_out.close()
 
 
@@ -74,8 +166,8 @@ def splitter_mb(filepath, mb_size):
     file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)
     for line in handle:
         size = os.stat(file_out).st_size
-        if size > mb_size*1024*1024:
-            print('saved %s with file size %4.3f MB' % (file_out, size/(1024*1024)))
+        if size > mb_size * 1024 * 1024:
+            print('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
             n += 1
             handle_out.close()
             file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)
@@ -108,180 +200,13 @@ def splitter_n(filepath, n):
     if not os.path.exists(OUT_DIR):
         os.makedirs(OUT_DIR)
     else:
-        files = glob.glob(OUT_DIR + '/*.'+ext)
+        files = glob.glob(OUT_DIR + '/*.' + ext)
         for f in files:
             os.remove(f)
 
     for i, d in enumerate(df_list):
         fname = os.path.join(OUT_DIR, filename + '_%d.%s' % (i, ext))
         if ext == 'json':
-            d.to_json(fname,  orient='records')
+            d.to_json(fname, orient='records')
         elif ext == 'tsv':
             d.to_csv(fname, sep='\t', index=False)
-
-
-def crush_data(d):
-    """ Minifies the flatfiles that will be fed to the viewer.
-    I keep only 3 decimal points and no more than the top 10 cell classes as
-    possible assignments for any given cell
-    """
-
-    cell_min = None
-    gene_min = None
-    n = 10 # for each cell keep only the top10 possible cell types. Discard the rest. USE THIS WITH CAUTION. MAYBE IT IS NOT A GOOD IDEA AND I SHOULD KEEP ALL POSSIBLE CELL TYPES
-    try:
-        cellData_path = d['cellData']
-        cell_min = _crush_cellData(cellData_path, n)
-    except KeyError as e:
-        print('key doesnt exist...')
-
-    try:
-        geneData_path = d['geneData']
-        gene_min = _crush_geneData(geneData_path)
-    except KeyError as e:
-        print('key doesnt exist...')
-
-    return [cell_min, gene_min]
-
-
-def _crush_cellData(filepath, n):
-    filename_ext = os.path.basename(filepath)
-    [filename, ext] = filename_ext.split('.')
-
-    cellData = pd.read_csv(filepath, sep='\t')
-    temp = _order_prob(cellData, n)
-    cellData['ClassName'] = temp[0]
-    cellData['Prob'] = temp[1]
-
-    cellData['Prob'] = _round_data2(cellData, 'Prob')
-    cellData['CellGeneCount'] = _round_data(cellData, 'CellGeneCount')
-
-    out_dir: Union[bytes, str] = os.path.join(os.path.dirname(filepath), filename + '_min')
-    target_path = os.path.join(out_dir, filename_ext)
-    _clean_dir(out_dir, ext)
-
-    cellData.to_csv(target_path, sep='\t', index=False)
-    print('Minimised file saved at: %s' % target_path)
-
-    return target_path
-
-
-def _crush_geneData(filepath):
-    filename_ext = os.path.basename(filepath)
-    [filename, ext] = filename_ext.split('.')
-
-    geneData = pd.read_csv(filepath, sep='\t')
-
-    # 1. First, do geneData
-    # use int for the coordinates, not floats
-    geneData = geneData.astype({'x': 'int32', 'y': 'int32'})
-    geneData['neighbour_prob'] = _round_data(geneData, 'neighbour_prob')
-
-    out_dir = os.path.join(os.path.dirname(filepath), filename + '_min')
-    target_path = os.path.join(out_dir, filename_ext)
-    _clean_dir(out_dir, ext)
-
-    # save geneData
-    geneData.to_csv(target_path, sep='\t', index=False)
-    print('Minimised file saved at: %s' % target_path)
-
-    return target_path
-
-
-def _clean_dir(out_dir, ext):
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-    else:
-        files = glob.glob(out_dir + '/*.'+ext)
-        for f in files:
-            print('removed file %s' % f)
-            os.remove(f)
-
-
-def _get_file(OUT_DIR, n, header_line):
-    filename = os.path.basename(OUT_DIR).split('.')[0]
-    file = os.path.join(OUT_DIR, filename + '_%d.%s' % (n, 'tsv'))
-    handle = open(file, "a", newline='', encoding='utf-8')
-    write = csv.writer(handle, delimiter='\t')
-    write.writerow(header_line)
-    return file, handle
-
-
-def _order_prob(df, n, class_name=[], prob=[]):
-    '''
-    orders the list that keeps the cell classes probs from highest to lowest.
-    Rearranges then the cell class names appropriately
-    :param df:
-    :param n:
-    :param class_name:
-    :param prob:
-    :return:
-    '''
-    for index, row in df.iterrows():
-        cn = np.array(json.loads(row['ClassName'].replace("'", '"')))
-        p = np.array(json.loads(row['Prob']))
-
-        idx = np.argsort(p)[::-1]
-        cn = cn[idx]
-        cn = cn.tolist()
-        p = p[idx]
-        class_name.append(cn[:n]) # keep the top-n only and append
-        prob.append(p[:n])
-    return [class_name, prob]
-
-
-def rotate_image(img_in, img_out, deg):
-    """
-    rotates an image.
-    img_in: path to the image to be rotated
-    img_out: path to save the rotated image to
-    deg: degrees to rotate the image by (clockwise)
-    """
-    x = pyvips.Image.new_from_file(img_in)
-    x = x.rotate(deg, interpolate=pyvips.Interpolate.new("nearest"))
-    x.write_to_file(img_out, compression="jpeg", tile=True)
-
-
-_format = lambda x: round(x, 3) # keep only 3 decimal points
-
-
-def _round_data(df, name):
-    neighbour_prob = [json.loads(x) for x in df[name]]
-    return [list(map(_format, x)) for x in neighbour_prob]
-
-
-def _round_data2(df, name):
-    return [list(map(_format, x)) for x in df[name]]
-
-
-def clone_repo(repo_url, target_dir):
-    """
-    Clones the repo at repo_url and saves it to target_dir`
-    """
-    args = ['git', 'clone', '--depth=1', repo_url, target_dir]
-    res = subprocess.Popen(args, stdout=subprocess.PIPE)
-    output, _error = res.communicate()
-
-    if not _error:
-        print(output)
-    else:
-        print(_error)
-
-
-def get_static_files(root):
-    out = []
-    for path, subdirs, files in os.walk(root):
-        for name in files:
-            out.append(os.path.join(path, name))
-
-    return [d.strip('./pciSeq/') for d in out if (d.endswith('.html') or d.endswith('.js') or d.endswith('.css'))]
-
-
-
-if __name__ == "__main__":
-    mb_size = 99
-    n = 4
-    filepaths = [r"geneData.tsv"]
-    for filepath in filepaths:
-        splitter_mb(filepath, mb_size)
-        splitter_n(filepath, n)

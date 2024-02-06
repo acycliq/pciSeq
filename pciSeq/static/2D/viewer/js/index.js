@@ -28,7 +28,6 @@ var cellBoundaries,
     masterMarkerContainer,
     masterMarkerRenderer,
     geneContainer_array = [],
-    // layerControl, //you sure this has to be global?
     geneLayers,
     geneOverlays,
     legendWindow,
@@ -308,6 +307,16 @@ function aggregate(data) {
         return out
     }
 
+    function getIdentifiedType(className){
+        return cellColorMap.get(className)? cellColorMap.get(className).IdentifiedType:
+            cellColorMap.get('Generic').IdentifiedType
+    }
+
+    function getColor(className){
+        return cellColorMap.get(className)? cellColorMap.get(className).color:
+            cellColorMap.get('Generic').color
+    }
+
     function dataManager(data) {
         var chartData = [];
         for (var i = 0; i < data.length; ++i) {
@@ -315,8 +324,8 @@ function aggregate(data) {
             for (var j = 0; j < data[i].ClassName.length; ++j) {
                 // console.log(data[i].ClassName[j])
                 temp.push({
-                    IdentifiedType: cellColorMap.get(data[i].ClassName[j]).IdentifiedType,
-                    color: cellColorMap.get(data[i].ClassName[j]).color,
+                    IdentifiedType: getIdentifiedType(data[i].ClassName[j]),
+                    color: getColor(data[i].ClassName[j]),
                     Prob: data[i].Prob[j] ? data[i].Prob[j] : [data[i].Prob] //Maybe that one is better
                 })
             }
