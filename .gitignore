@@ -33,3 +33,7 @@ viewer/img
 /build/
 /pciSeq.egg-info/
 /other_files/
+/notebooks/label_image.coo.npz
+/notebooks/spots.csv
+/notebooks/scRNAseq.csv.gz
+/run_app.py
