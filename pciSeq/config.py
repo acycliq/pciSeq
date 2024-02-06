@@ -5,7 +5,6 @@ import numpy as np
 
 DEFAULT = {
 
-
     # list of genes to be excluded during cell-typing, e.g ['Aldoc', 'Id2'] to exclude all spots from Aldoc and Id2
     'exclude_genes': [],
 
@@ -28,8 +27,7 @@ DEFAULT = {
 
     # To account for spots far from the some a uniform distribution is introduced to describe those misreads.
     # By default this uniform distribution has a density of 1e-5 misreads per pixel.
-    # 'MisreadDensity': 0.00001,  # use this for 2d
-    'MisreadDensity': 1e-06,    # use that for 3d
+    'MisreadDensity': 0.00001,
 
     # Gene detection might come with irregularities due to technical errors. A small value is introduced
     # here to account for these errors. It is an additive factor, applied to the single cell expression
@@ -51,8 +49,16 @@ DEFAULT = {
     # Boolean, if True the output will be saved as tsv files in a folder named 'pciSeq' in your system's temp dir.
     'save_data': False,
 
-    # output directory 'default' will save to temp location
+    # Set here where the results will be saved. If default then they will be saved at your system's temp folder
     'output_path': ['default'],
+
+    # if true the viewer will be launched once convergence has been achieved
+    'launch_viewer': False,
+
+    'launch_diagnostics': True,
+
+    # Initialise this to False, the correct value is set internally by the code itself
+    'is_redis_running': False,
 
     # Use either np.float16 or np.float32 to reduce memory usage. In most cases RAM consumption shouldnt
     # need more than 32Gb RAM. If you have a dataset from a full coronal mouse slice with a high number of
@@ -62,35 +68,12 @@ DEFAULT = {
     # level
     'dtype': np.float64,
 
-    'launch_viewer': True,
 
-    'is_3D': True,
-
-    'relax_segmentation': False,
-
-    # pixels per micron
-    '3D:anisotropy': 6.0121,
-
-    # if these are not None then the data (spots, and zstack) will be truncated between 'from_plane_num'
-    # and 'to_plane_num'
-    '3D:from_plane_num': None,
-    '3D:to_plane_num': None,
-
-    # Hyperparameters for the gamma-distributed alpha variate
-    'relax_segmentation: rho_1': 100,
-    'relax_segmentation: rho_2': 100,
-
-    # the prior on mean expression follows a Gamma(m * M , m), where M is the starting point (the initial
-    # array) of single cell data
-    'm': 1,
-
-    # used by the Dirichlet distribution. If a class size is smaller than 'min_class_size' then it will be
-    # assigned a weight of almost zero
-    'min_class_size': 5,
-
-
-
-
+    # *******************************************************************************
+    # Hyperparameters below come into action **ONLY** if single cell data are missing
+    # *******************************************************************************
+    'mean_gene_counts_per_class': 60,
+    'mean_gene_counts_per_cell': 15,
 
 }
 

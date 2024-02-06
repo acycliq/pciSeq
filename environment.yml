@@ -1,0 +1,23 @@
+name: pciSeq
+channels:
+  - conda-forge
+dependencies:
+  - pip
+  - python=3.8
+  - numpy_groupies
+  - pandas
+  - scipy
+  - scikit-image
+  - scikit-learn
+  - tqdm
+  - numexpr
+  - flask
+  - natsort
+  - streamlit
+  - altair
+  - pip:
+      - jupyterlab
+      - diplib
+      - pyvips
+      - redis
+      - fastremap

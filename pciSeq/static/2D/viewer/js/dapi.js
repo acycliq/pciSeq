@@ -1,38 +1,61 @@
 function dapi(cfg) {
     console.log('Doing Dapi plot');
 
-    var map_dims = mapSize(cfg.zoomLevels),
+    var map_dims = mapSize(cfg.maxZoom),
         tiles = cfg.tiles,
         roi = cfg.roi;
-    // var img = [227951, 262144],
-    //     roi = {"x0": 0, "x1": 40000, "y0": 0, "y1": 46000};
 
     var a = map_dims[0] / (roi.x1 - roi.x0),
         b = -map_dims[0] / (roi.x1 - roi.x0) * roi.x0,
         c = map_dims[1] / (roi.y1 - roi.y0),
         d = -map_dims[1] / (roi.y1 - roi.y0) * roi.y0;
 
-    // This transformation maps a point from the roi domain to the domain defined by [0,0] amd [img[0], img[1]].
+    // This transformation maps a point from the roi domain to the domain defined by [0,0] and [someScalarX*256*2^maxZoom, someScalarY*256*2^maxZoom].
+    // The scalar is there to make the bounding have the same shape as the roi.
     var t = new L.Transformation(a, b, c, d);
 
     // The transformation in this CRS maps the the top left corner to (0,0) and the bottom right to (256, 256)
+    // Leaflet thinks that the map is 256px-by-256px wide. These are the dimension of the tile at zoom = 0.
+    // Each side of the map however is 256 * 2 ** maxZoomLevel pixels wide.
+    // For maxZoomLevel = 10 for example the map is 262144px-262144px
+    // Hence we have to specify a factor of 256/262144 = 1/1024.
+    // in general the factor is 256 / (256 * 2 ** maxZoomLevel)
+    var a_x = 256 / (256 * 2 ** cfg.maxZoom),
+        c_y = 256 / (256 * 2 ** cfg.maxZoom)
     L.CRS.MySimple = L.extend({}, L.CRS.Simple, {
-        transformation: new L.Transformation(1 / 1024, 0, 1 / 1024, 0),
+        transformation: new L.Transformation(a_x, 0, c_y, 0),
     });
 
     var southWest = L.latLng(map_dims[1], map_dims[0]),
         northEast = L.latLng(0, 0),
         mapBounds = L.latLngBounds(southWest, northEast);
 
-    map = L.map('mymap', {
+       map = L.map('mymap', {
         crs: L.CRS.MySimple,
         attributionControl: false,
-    }).setView([map_dims[1], map_dims[0] / 2], 2);
-    L.tileLayer(tiles, {
         minZoom: 0,
-        maxZoom: 8,
+        maxZoom: cfg.maxZoom,
         bounds: mapBounds,
-    }).addTo(map);
+    }).setView([map_dims[1]/2, map_dims[0]/2], 2);
+
+
+    var baseLayers = {}
+    for (const [key, value] of Object.entries(cfg.layers)) {
+      baseLayers[key] = L.tileLayer(value);
+    }
+
+    var nLayers = Object.values(baseLayers).length
+    //Add control layers to map
+    if (nLayers > 1){
+        L.control.layers(baseLayers, null, {collapsed: false}).addTo(map);
+    }
+
+    // It seems I can set the active layer, however on the control it looks as
+    // if the active one is the last layer. The bullet point always stays at
+    // the last layer
+    var selectedLayer = Object.values(baseLayers)[nLayers-1]
+    // var selectedLayer = Object.values(baseLayers)[0] // that sets the top layer active, the bullet is still at the bottom!!!
+    selectedLayer.addTo(map)
 
     function getTaxonomy(gene) {
         if (glyphMap.get(gene)) {
@@ -43,12 +66,17 @@ function dapi(cfg) {
         return out
     }
 
+    function inGlyphConfig(gene){
+        return glyphMap.get(gene)? 1 : 0
+    }
+
     function getGlyphName(gene) {
         if (glyphMap.get(gene)) {
             out = glyphMap.get(gene).glyphName
         } else {
             out = glyphMap.get('Generic').glyphName
         }
+        console.log(out)
         return out
     }
 
@@ -58,9 +86,9 @@ function dapi(cfg) {
         } else {
             out = glyphMap.get('Generic').color
         }
+        console.log(out)
         return out
     }
-
 
     // get the svg markers (glyphs)
     var glyphs = glyphSettings();
@@ -162,11 +190,9 @@ function dapi(cfg) {
             //create feature properties
             var p = {
                 "gene": gene,
-                // "Cell_Num": origin.Cell_Num,
                 "fromPoint": fromPoint,
                 "toPoint": toPoint,
                 "color": getColor(gene),
-                // "color": getColor(glyphMap.get(gene).taxonomy),
             };
 
             //create features with proper geojson structure
@@ -303,29 +329,21 @@ function dapi(cfg) {
                                     "<div class='myTitle' id='dtTitle' style='margin-bottom:5px'> <h4>Highlighted Cell</h4>  " +
                                     " <img src='https://cdn2.iconfinder.com/data/icons/snipicons/500/pin-128.png' class='ribbon'/> " +
                                 "</div>" +
-                                "</div>" +
-                                "<div class='row' style='background-color: rgba(255, 255, 255, 0.0)'>" +
-                                    "<div class='chart-wrapper'>" +
-                                    // "<div class='chart-title' id='dtTitle'> </div>" +
-                                        "<div class='chart-stage'>" +
-                                            "<div class='col-sm-5'>" +
-                                                "<div class='chart-stage' style='background-color: rgba(255, 255, 255, 0.8)'>" +
-                                                    "<table id='dtTable' class='display compact custom' data-page-length='5' width=100%></table>" +
-                                                "</div>" +
-                                            "</div>" +
-                                            "<div class='col-sm-7'>" +
-                                                "<div class='chart-stage' style='background-color: rgba(255, 255, 255, 0.0)'> " +
-                                                    "<div class='summary' id='pie'> " +
-                                                        "<svg width='300' height='180'></svg>" +
-                                                    "</div>" +
-                                                "</div>" +
-                                            "</div>" +
+                                "<div class='row'>" +
+                                    "<div class='col-sm-5'>" +
+                                        "<div class='col-sm-12' style='background-color: darkgrey; padding-left: 0px'>" +
+                                            "<table id='dtTable' class='display compact custom' data-page-length='5' width=100%'></table>" +
                                         "</div>" +
+                                    "</div>" +
+                                    "<div class='col-sm-7'>" +
+                                        "<div class='chart-stage' style='background-color: rgba(255, 255, 255, 0.0)'> " +
+                                            "<div class='summary' id='pie'> " +
+                                        "<svg width='300' height='180'></svg>" +
                                     "</div>" +
                                 "</div>" +
                             "</div>" +
                         "</div>" +
-                    "</div>";
+                     "</div>" ;
 
         return myDiv
     }
@@ -431,6 +449,7 @@ function dapi(cfg) {
     dapiData.style = style;
     dapiData.getTaxonomy = getTaxonomy;
     dapiData.getGlyphName = getGlyphName;
+    dapiData.inGlyphConfig = inGlyphConfig;
     dapiData.getNeighbours = getNeighbours;
     dapiData.getColor = getColor;
     dapiData.getRadius = getRadius;

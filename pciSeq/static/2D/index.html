@@ -1,17 +1,6 @@
 <!DOCTYPE html>
 <html style="height: 100%; margin: 0;">
 <head>
-    <!-- Global site tag (gtag.js) - Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-128060564-9"></script>
-    <script>
-        var host = window.location.hostname;
-        if (host != 'localhost') {
-            window.dataLayer = window.dataLayer || [];
-            function gtag() {dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'UA-128060564-9');
-        }
-    </script>
 
     <title>Visage</title>
     <meta charset="utf-8">
@@ -33,9 +22,6 @@
 
     <!-- leaflet-pip v1.1.0 -->
     <script src="viewer/js/lib/js/leaflet-pip.js"></script>
-
-<!--    &lt;!&ndash; leaflet.textpath &ndash;&gt;-->
-<!--    <script src='viewer/viewer/js/lib/js/leaflet.textpath.js'></script>-->
 
     <!-- topojson -->
     <script src="https://unpkg.com/topojson@3"></script>
@@ -64,16 +50,7 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/v1.10.1/mapbox-gl.js"></script>
 
     <!-- leaflet.textpath -->
-    <!--  Not sure what is happening here. Is this getting overriden if I move it to another line, higher up. -->
-    <!--  No errors are being raised, it just looks as if the browser hasnt parsed it!-->
     <script src='viewer/js/lib/js/leaflet.textpath.js'></script>
-
-<!--    &lt;!&ndash; progressbar &ndash;&gt;-->
-<!--    <script src="https://rawgit.com/kimmobrunfeldt/progressbar.js/1.0.0/dist/progressbar.js"></script>-->
-
-<!--    &lt;!&ndash; Loading bar &ndash;&gt;-->
-<!--    <link rel="stylesheet" href="viewer/js/lib/css/loading-bar.css">-->
-<!--    <script src="viewer/js/lib/js/loading-bar.js"></script>-->
 
     <!-- user js scripts -->
     <script> console.log('reading source files')</script>
@@ -81,20 +58,18 @@
     <script src='viewer/js/dataLoader.js'></script>
     <script src='viewer/js/viewerUtils.js'></script>
     <script src='viewer/js/customControl.js'></script>
-    <script src="https://api.mapbox.com/mapbox-gl-js/v1.10.1/mapbox-gl.js"></script>
-    <script src='viewer/js/my_collision.js'></script>
     <script src='viewer/js/donut.js'></script>
     <script src='viewer/js/dt.js'></script>
     <script src='viewer/js/stage_polygons.js'></script>
     <script src='viewer/js/stage_markers_patched.js'></script>
     <script src='viewer/js/stage_glyphs.js'></script>
-    <script src="viewer/js/classColors.js"></script>
+    <script src="viewer/js/classConfig.js"></script>
     <script src="viewer/js/glyphPaths.js"></script>
     <script src="viewer/js/glyphs.js"></script>
     <script src="viewer/js/glyphConfig.js"></script>
     <script src='viewer/js/dapi.js'></script>
     <link rel="stylesheet" href="viewer/js/lib/css/L.Control.Layers.Tree.css">
-    <script src="viewer/js/lib/js/L.Control.Layers.Tree.js"></script> <!-- Patched Control.Layers.Tree: Must be parsed after dapi.js -->
+    <script src="viewer/js/lib/js/L.Control.Layers.Tree.js"></script>
     <link rel="stylesheet" href="viewer/css/progress.css">
     <script src='viewer/js/progress.js'></script>
     <link rel='stylesheet' href='viewer/css/index.css'>
@@ -105,24 +80,7 @@
 </head>
 <body style="height: 100%; margin: 0; overflow: hidden;">
 
-<div id="webgl" class="map-content">
-    <span class="greenDot"> </span>
-    <span style="margin-top: 5px;">Hardware acceleration is enable</span>
-</div>
-
-
-
-<!--<div id="preloader" class="a" style="font-size:32px;text-align:center;">-->
-<!--    <h1>Prototype viewer for high throughput in situ transcriptomics.</h1>-->
-<!--  <p>Data can take a moment to load, please be patient </p>-->
-<!--    <div class="b">Please set your browser to use hardware acceleration. <br>-->
-<!--        Tested on Chrome under Windows, cannot yet guarantee operation on other browsers </div>-->
-<!--    <div id="status"></div>-->
-<!--</div>-->
-
-
 <div id="stats-container" class="stack-top">
-<!--    <div id="chart"></div>-->
     <div class="loading">
         <div id="container"></div>
         <div id="loading" class="loading"><span>loading...</span></div>
@@ -133,84 +91,86 @@
 </div>
 
 <div class="container-fluid aligned-middle stack-top" id="preloader">
-    <div class="row">
-        <div class="col-sm-12">
-            <div class="col-sm-4">
-                <div class="row">
-                    <div id="specificChart" class="donut-size">
-                        <div class="pie-wrapper">
-                        <span class="label">
-                            <span class="num">0</span><span class="smaller">%</span>
-                        </span>
-                            <div class="pie">
-                                <div class="left-side half-circle"></div>
-                                <div class="right-side half-circle"></div>
+    <div class="midplaced">
+        <div class="row">
+            <div class="col-sm-12">
+                <div class="col-sm-4">
+                    <div class="row">
+                        <div id="specificChart" class="donut-size">
+                            <div class="pie-wrapper">
+                            <span class="label">
+                                <span class="num">0</span><span class="smaller">%</span>
+                            </span>
+                                <div class="pie">
+                                    <div class="left-side half-circle"></div>
+                                    <div class="right-side half-circle"></div>
+                                </div>
+                                <div class="shadow"></div>
                             </div>
-                            <div class="shadow"></div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="text-center">
+                            <p>Num of boundaries: <span id="datapoints" class="meter">0</span></p>
+                            <p>Size: <span id="mb" class="meter">0MB</span></p>
                         </div>
                     </div>
                 </div>
-                <div class="row">
-                    <div class="text-center">
-                        <p>Num of boundaries: <span id="datapoints" class="meter">0</span></p>
-                        <p>Size: <span id="mb" class="meter">0MB</span></p>
-                    </div>
-                </div>
-            </div>
 
-            <div class="col-sm-4">
-                <div class="row">
-                    <div id="specificChart2" class="donut-size">
-                        <div class="pie-wrapper">
-                        <span class="label">
-                            <span class="num">0</span><span class="smaller">%</span>
-                        </span>
-                            <div class="pie">
-                                <div class="left-side half-circle"></div>
-                                <div class="right-side half-circle"></div>
+                <div class="col-sm-4">
+                    <div class="row">
+                        <div id="specificChart2" class="donut-size">
+                            <div class="pie-wrapper">
+                            <span class="label">
+                                <span class="num">0</span><span class="smaller">%</span>
+                            </span>
+                                <div class="pie">
+                                    <div class="left-side half-circle"></div>
+                                    <div class="right-side half-circle"></div>
+                                </div>
+                                <div class="shadow"></div>
                             </div>
-                            <div class="shadow"></div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="text-center">
+                            <p>Num of cells: <span id="datapoints2" class="meter">0</span></p>
+                            <p>Size: <span id="mb2" class="meter">0MB</span></p>
                         </div>
                     </div>
                 </div>
-                <div class="row">
-                    <div class="text-center">
-                        <p>Num of cells: <span id="datapoints2" class="meter">0</span></p>
-                        <p>Size: <span id="mb2" class="meter">0MB</span></p>
-                    </div>
-                </div>
-            </div>
 
-            <div class="col-sm-4">
-                <div class="row">
-                    <div id="specificChart3" class="donut-size">
-                        <div class="pie-wrapper">
-                        <span class="label">
-                            <span class="num">0</span><span class="smaller">%</span>
-                        </span>
-                            <div class="pie">
-                                <div class="left-side half-circle"></div>
-                                <div class="right-side half-circle"></div>
+                <div class="col-sm-4">
+                    <div class="row">
+                        <div id="specificChart3" class="donut-size">
+                            <div class="pie-wrapper">
+                            <span class="label">
+                                <span class="num">0</span><span class="smaller">%</span>
+                            </span>
+                                <div class="pie">
+                                    <div class="left-side half-circle"></div>
+                                    <div class="right-side half-circle"></div>
+                                </div>
+                                <div class="shadow"></div>
                             </div>
-                            <div class="shadow"></div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="text-center">
+                            <p>Num of spots: <span id="datapoints3" class="meter">0</span></p>
+                            <p>Size: <span id="mb3" class="meter">0MB</span></p>
                         </div>
                     </div>
                 </div>
-                <div class="row">
-                    <div class="text-center">
-                        <p>Num of spots: <span id="datapoints3" class="meter">0</span></p>
-                        <p>Size: <span id="mb3" class="meter">0MB</span></p>
-                    </div>
-                </div>
-            </div>
 
+            </div>
         </div>
-    </div>
-    <div class="row">
+        <div class="row">
         <div class="col-sm-12" id="wait_chart">
             Building the chart. Please wait...
         </div>
         <script>$('#wait_chart').hide()</script>
+    </div>
     </div>
 </div>
 
@@ -257,6 +217,7 @@
 
 
 <script>
+    // This line starts the viewer
     document.addEventListener("DOMContentLoaded", run(), false);
 </script>
 

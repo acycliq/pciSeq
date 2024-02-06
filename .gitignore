@@ -1,14 +1,8 @@
-venv/
 .vscode/
 .idea/
 __pycache__/
-source/__pycache__/
-.xml
-
-# hide the user name/passwd from tracking
-credentials.py
-
-# hide notebook checkpoints
+.pytest_cache
+/tests/.pytest_cache/
 .ipynb_checkpoints
 
 # exclude pyramid of the png tiles used by the viewer
@@ -32,6 +26,11 @@ viewer/img
 /.eggs/
 /build/
 /pciSeq.egg-info/
+/pciSeq/static/2D/data/
+notebooks/label_image.coo.npz
+notebooks/scRNAseq.csv.gz
+notebooks/spots.csv
+run_app.py
 /other_files/
 /notebooks/label_image.coo.npz
 /notebooks/spots.csv
