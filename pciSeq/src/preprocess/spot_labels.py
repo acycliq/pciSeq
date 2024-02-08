@@ -85,7 +85,7 @@ def reorder_labels(label_image):
     # labels = np.concatenate([np.unique(d.data) for d in label_image])
     labels = np.concatenate(get_unique_labels(label_image))
     if labels.max() != len(set(labels)):
-        spot_labels_logger.info(' Labels in segmentation array are not a sequence of integers without gaps between them. Relabelling...')
+        spot_labels_logger.info('Labels in segmentation array are not a sequence of integers without gaps between them. Relabelling...')
         labels = np.append(0, labels)  # append 0 (the background label). Makes sure the background is at position 0
         _, idx = np.unique(labels, return_inverse=True)
         label_dict = dict(zip(labels, idx.astype(np.uint32))) # maps the cellpose ids to the new ids
@@ -151,6 +151,7 @@ def remove_cells(coo_list, cfg):
         s = set(coo.data).intersection(set(single_page_labels))
         for d in s:
             coo.data[coo.data == d] = 0
+            coo.eliminate_zeros()
             removed_cells.append(d)
             # _frames.append(i + cfg['from_plane_num'])
             _frames.append(i)
@@ -200,14 +201,14 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.Data
     coo, label_map = reorder_labels(coo)
     [n, h, w] = get_img_shape(coo)
     spots = remove_oob(spots.copy(), [h, w])
-    spots_xyz = adjust_for_anisotropy(spots, cfg['voxel_size'])
+    spots = adjust_for_anisotropy(spots, cfg['voxel_size'])
 
     spot_labels_logger.info('Number of spots passed-in: %d' % spots.shape[0])
     spot_labels_logger.info('Number of segmented cells: %d' % max([d.data.max() for d in coo if len(d.data) > 0]))
     if n == 1:
         spot_labels_logger.info('Segmentation array implies that image has width: %dpx and height: %dpx' % (w, h))
     else:
-        spot_labels_logger.info('Segmentation array implies that image has %d planes width: %dpx and height: %dpx' % (n, w, h))
+        spot_labels_logger.info('Segmentation array implies that image has %d planes, width: %dpx and height: %dpx' % (n, w, h))
 
     mask_x = (spots.x >= 0) & (spots.x <= w)
     mask_y = (spots.y >= 0) & (spots.y <= h)
@@ -233,21 +234,25 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.Data
     # 3. Get the cell boundaries
     # cell_boundaries = extract_borders_dip(coo.toarray().astype(np.uint32))
     mid_plane = int(np.floor(len(coo) / 2))
-    cell_boundaries = extract_borders(coo[mid_plane].toarray().astype(np.uint32))
-    assert props_df.shape[0] == cell_boundaries.shape[0] == len(set(np.concatenate(get_unique_labels(coo))))
+    _cell_boundaries = extract_borders(coo[mid_plane].toarray().astype(np.uint32))
+    _cell_boundaries = _cell_boundaries.rename(columns={'label': 'cell_id'})
+    assert props_df.shape[0] == len(set(np.concatenate(get_unique_labels(coo))))
     assert set(spots.label[spots.label > 0]) <= set(props_df.label)
 
-    cells = props_df.merge(cell_boundaries)
-    cells.sort_values(by=['label', 'x_cell', 'y_cell'])
-    assert cells.shape[0] == cell_boundaries.shape[0] == props_df.shape[0]
+    _cells = props_df.rename(columns={'x_cell': 'x0', 'y_cell': 'y0', 'z_cell': 'z0'})
+    _spots = spots[['x', 'y', 'z', 'label', 'Gene']].rename_axis('spot_id').rename(columns={'Gene': 'gene_name'})
 
-    # join spots and cells on the cell label so you can get the x,y coords of the cell for any given spot
-    spots = spots.merge(cells, how='left', on=['label'])
-
-    _cells = cells.drop(columns=['coords'])
-    _cells = _cells.rename(columns={'x_cell': 'x0', 'y_cell': 'y0'})
-    _cell_boundaries = cells[['label', 'coords']].rename(columns={'label': 'cell_id'})
-    _spots = spots[['x', 'y', 'label', 'Gene', 'x_cell', 'y_cell']].rename(columns={'Gene': 'target', 'x': 'x_global', 'y': 'y_global'})
+    # cells = props_df.merge(cell_boundaries)
+    # cells.sort_values(by=['label', 'x_cell', 'y_cell'])
+    # assert cells.shape[0] == cell_boundaries.shape[0]
+    #
+    # # join spots and cells on the cell label so you can get the x,y coords of the cell for any given spot
+    # spots = spots.merge(cells, how='left', on=['label'])
+    #
+    # _cells = cells.drop(columns=['coords'])
+    # _cells = _cells.rename(columns={'x_cell': 'x0', 'y_cell': 'y0'})
+    # _cell_boundaries = cells[['label', 'coords']].rename(columns={'label': 'cell_id'})
+    # _spots = spots[['x', 'y', 'label', 'Gene', 'x_cell', 'y_cell']].rename(columns={'Gene': 'target', 'x': 'x_global', 'y': 'y_global'})
 
     return _cells, _cell_boundaries, _spots
 
