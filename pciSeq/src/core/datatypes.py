@@ -251,7 +251,7 @@ class Spots(object):
 
         # remove a gene if it is on the exclude list
         exclude_genes = self.config['exclude_genes']
-        gene_mask = [True if d not in exclude_genes else False for d in spots_df.target]
+        gene_mask = [True if d not in exclude_genes else False for d in spots_df.gene_name]
         spots_df = spots_df.loc[gene_mask]
         return spots_df.rename_axis('spot_id').rename(columns={'target': 'gene_name'})
 
