@@ -9,7 +9,7 @@ from pciSeq.src.core.main import VarBayes
 from pciSeq.src.core.utils import get_out_dir, adjust_for_anisotropy
 from scipy.sparse import coo_matrix
 from pciSeq.src.diagnostics.utils import redis_db
-from pciSeq.src.preprocess.utils import get_img_shape
+from pciSeq.src.core.utils import get_img_shape
 from pciSeq.src.viewer.run_flask import flask_app_start
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
@@ -87,11 +87,10 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     # 2. get the hyperparameters
     cfg = init(opts)
 
-    # 3. validate inputs
-    spots, coo, is3D = validate(spots.copy(), coo, scRNAseq)  # Spots might get mutated here. Genes not found in the single cell data will be removed.
-    cfg['is3D'] = is3D
-
-    # adjust_for_anisotropy(spots[['x', 'y', 'z_stack']].T, [0.1663, 0.1663, 1]).T
+    # 3. validate inputs:
+    # WARNING 1: Spots might get mutated here. Genes not found in the single cell data will be removed.
+    # WARNING 2: cfg might also get mutated. Fields 'is3D' and 'remove_planes' might get overriden
+    spots, coo, cfg = validate(spots.copy(), coo, scRNAseq, cfg)
 
     # 4. launch the diagnostics
     if cfg['launch_diagnostics'] and cfg['is_redis_running']:
@@ -175,6 +174,9 @@ def init(opts):
     """
     cfg = config.DEFAULT
     cfg['is_redis_running'] = check_redis_server()
+    if isinstance(cfg['exclude_planes'], list) and len(cfg['exclude_planes']) == 0:
+        # if you have passed in an empty list, consider it as a None
+        cfg['exclude_planes'] = None
     if opts is not None:
         default_items = set(cfg.keys())
         user_items = set(opts.keys())
@@ -191,9 +193,24 @@ def init(opts):
     return cfg
 
 
-def validate(spots, coo, sc):
-    is3D = None
-    # check the label image
+def validate(spots, coo, scData, cfg):
+    # check the label
+    coo = _validate_coo(coo)
+
+    # The label image will determine whether dataset is 3d or 2d
+    cfg['is3D'] = False if len(coo) == 1 else True
+
+    # check the spots and see if all genes are in your single cell library
+    spots = _validate_spots(spots, coo, scData, cfg)
+
+    # if you are in 2D there is no meaning having an actual value for 'remove_planes'.The image has only
+    # one plane, probably a DAPI.
+    if not cfg['is3D']:
+        cfg['remove_planes'] = None
+    return spots, coo, cfg
+
+
+def _validate_coo(coo):
     if isinstance(coo, coo_matrix):
         coo = [coo]
     if isinstance(coo, list):
@@ -206,16 +223,14 @@ def validate(spots, coo, sc):
     else:
         raise ValueError('The segmentation masks should be passed-in as a coo_matrix')
 
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    if len(coo) == 1:
-        is3D = False
-    else:
-        is3D = True
+    return coo
 
+
+def _validate_spots(spots, coo, sc, cfg):
     assert (isinstance(spots, pd.DataFrame)), 'Spots should be provided as a dataframe'
 
     # check the spots
-    if not is3D:
+    if not cfg['is3D']:
         assert {'Gene', 'x', 'y'}.issubset(spots.columns), ("Spots should be passed-in to the fit() "
                                                             "method as a dataframe with columns ['Gene', 'x', 'y']")
     else:
@@ -230,9 +245,7 @@ def validate(spots, coo, sc):
     # be treated as 3d
     if isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y'}:
         spots = spots.assign(z_plane=0)
-        is3D = False
 
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # check the single cell data
     if sc is not None:
         assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
@@ -241,7 +254,7 @@ def validate(spots, coo, sc):
             # remove genes that cannot been found in the single cell data
             spots = purge_spots(spots, sc)
 
-    return spots, coo, is3D
+    return spots
 
 
 def purge_spots(spots, sc):
@@ -304,7 +317,7 @@ def pre_launch(cellData, coo, scRNAseq, cfg):
     Returns the destination folder that keeps the viewer code and
     will be served to launch the website
     '''
-    [h, w] = get_img_shape(coo)
+    [_, h, w] = get_img_shape(coo)
     dst = get_out_dir(cfg['output_path'])
     copy_viewer_code(cfg, dst)
     make_config_js(dst, w, h)

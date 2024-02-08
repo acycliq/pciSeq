@@ -233,14 +233,18 @@ def get_pciSeq_install_dir():
 
 def adjust_for_anisotropy(spots, voxel_size):
     gene_col = spots.Gene.values[:, None]
-    z_plane = spots.z_plane.values[:, None]
+    z_plane = np.float32(spots.z_plane.values[:, None])
 
     data = spots[['x', 'y', 'z_plane']]
     spots_adj = anisotropy_calc(data, voxel_size)
 
     spots_adj = np.hstack([gene_col, spots_adj, z_plane])
     spots_adj = pd.DataFrame(spots_adj, columns=['Gene', 'x', 'y', 'z', 'z_plane'])
-
+    spots_adj = spots_adj.astype({'x': 'int32',
+                                  'y': 'int32',
+                                  'z': 'int32',
+                                  'z_plane': 'int32',
+                                  'Gene': str})
     return spots_adj  # Nspots x 3
 
 
@@ -255,7 +259,7 @@ def anisotropy_calc(data, voxel_size):
         [0, 0, Sz]
     ])
     out = scaling_matrix.dot(data.T)  # 3 x Nspots
-    return out.T  # Nspots x 3
+    return np.float32(out.T)  # Nspots x 3
 
 
 
@@ -274,9 +278,10 @@ def truncate_spots(spots, zmin, zmax):
 
 
 def get_img_shape(coo):
+    n = len(coo)
     img_shape = set([d.shape for d in coo])
     assert len(img_shape) == 1, 'pages do not have the same shape'
     img_shape = img_shape.pop()
     w = img_shape[1]
     h = img_shape[0]
-    return [h, w]
+    return [n, h, w]

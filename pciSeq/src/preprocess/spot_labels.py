@@ -198,30 +198,32 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.Data
             removed.frame_num = removed.frame_num + min_plane
 
     coo, label_map = reorder_labels(coo)
-    [h, w] = get_img_shape(coo)
+    [n, h, w] = get_img_shape(coo)
     spots = remove_oob(spots.copy(), [h, w])
     spots_xyz = adjust_for_anisotropy(spots, cfg['voxel_size'])
 
-
-    label_map = None
-    if coo.data.max() != len(set(coo.data)):
-        spot_labels_logger.info('The labels in the label image do not seem to be a sequence of successive integers. Relabelling the label image.')
-        coo, label_map = reorder_labels(coo)
-
     spot_labels_logger.info('Number of spots passed-in: %d' % spots.shape[0])
-    spot_labels_logger.info('Number of segmented cells: %d' % len(set(coo.data)))
-    spot_labels_logger.info('Segmentation array implies that image has width: %dpx and height: %dpx' % (coo.shape[1], coo.shape[0]))
-    mask_x = (spots.x >= 0) & (spots.x <= coo.shape[1])
-    mask_y = (spots.y >= 0) & (spots.y <= coo.shape[0])
+    spot_labels_logger.info('Number of segmented cells: %d' % max([d.data.max() for d in coo if len(d.data) > 0]))
+    if n == 1:
+        spot_labels_logger.info('Segmentation array implies that image has width: %dpx and height: %dpx' % (w, h))
+    else:
+        spot_labels_logger.info('Segmentation array implies that image has %d planes width: %dpx and height: %dpx' % (n, w, h))
+
+    mask_x = (spots.x >= 0) & (spots.x <= w)
+    mask_y = (spots.y >= 0) & (spots.y <= h)
     spots = spots[mask_x & mask_y]
 
     # 1. Find which cell the spots lie within
-    inc = inside_cell(coo.tocsr(), spots)
-    spots = spots.assign(label=inc)
+    spots = spots.assign(label=np.zeros(spots.shape[0]))
+    for z in np.unique(spots.z_plane):
+        spots_z = spots[spots.z_plane == z]
+        inc = inside_cell(coo[int(z)].tocsr(), spots_z)
+        spots.loc[spots.z_plane == z, 'label'] = inc
 
     # 2. Get cell centroids and area
-    props = skmeas.regionprops_table(coo.toarray().astype(np.int32), properties=['label', 'area', 'centroid'])
-    props_df = pd.DataFrame(props).rename(columns={'centroid-0': 'y_cell', 'centroid-1': 'x_cell'})
+    masks = np.stack([d.toarray().astype(np.uint32) for d in coo])
+    props = skmeas.regionprops_table(masks, properties=['label', 'area', 'centroid'])
+    props_df = pd.DataFrame(props).rename(columns={'centroid-0': 'z_cell', 'centroid-1': 'y_cell', 'centroid-2': 'x_cell'})
 
     # if there is a label map, attach it to the cell props.
     if label_map is not None:
@@ -230,8 +232,9 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.Data
 
     # 3. Get the cell boundaries
     # cell_boundaries = extract_borders_dip(coo.toarray().astype(np.uint32))
-    cell_boundaries = extract_borders(coo.toarray().astype(np.uint32))
-    assert props_df.shape[0] == cell_boundaries.shape[0] == np.unique(coo.data).shape[0]
+    mid_plane = int(np.floor(len(coo) / 2))
+    cell_boundaries = extract_borders(coo[mid_plane].toarray().astype(np.uint32))
+    assert props_df.shape[0] == cell_boundaries.shape[0] == len(set(np.concatenate(get_unique_labels(coo))))
     assert set(spots.label[spots.label > 0]) <= set(props_df.label)
 
     cells = props_df.merge(cell_boundaries)
