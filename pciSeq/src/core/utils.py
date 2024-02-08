@@ -229,3 +229,54 @@ def get_pciSeq_install_dir():
     h = BytesHeaderParser().parsebytes(p.stdout)
     assert h['Location'] is not None, 'Could not locate pciSeq installation folder, maybe the package is not installed.'
     return os.path.join(h['Location'], 'pciSeq')
+
+
+def adjust_for_anisotropy(spots, voxel_size):
+    gene_col = spots.Gene.values[:, None]
+    z_plane = spots.z_plane.values[:, None]
+
+    data = spots[['x', 'y', 'z_plane']]
+    spots_adj = anisotropy_calc(data, voxel_size)
+
+    spots_adj = np.hstack([gene_col, spots_adj, z_plane])
+    spots_adj = pd.DataFrame(spots_adj, columns=['Gene', 'x', 'y', 'z', 'z_plane'])
+
+    return spots_adj  # Nspots x 3
+
+
+def anisotropy_calc(data, voxel_size):
+    x, y, z = voxel_size
+    Sx = x / x
+    Sy = y / x
+    Sz = z / x
+    scaling_matrix = np.array([
+        [Sx, 0, 0],
+        [0, Sy, 0],
+        [0, 0, Sz]
+    ])
+    out = scaling_matrix.dot(data.T)  # 3 x Nspots
+    return out.T  # Nspots x 3
+
+
+
+def truncate_data(spots, label_image, z_min, z_max):
+    if z_min is not None and z_max is not None:
+        utils_logger.info(' Truncating masks and spots. Keeping those between frame %d and %d only' % (z_min, z_max))
+        spots = truncate_spots(spots, z_min, z_max)
+    return spots, label_image
+
+
+def truncate_spots(spots, zmin, zmax):
+    spots_min = spots[(spots.z_stack <= zmax) & (spots.z_stack >= zmin)]
+    spots_min = spots_min.assign(z_stack=spots_min.z_stack - zmin)
+    # out = spots_min.z - zmin
+    return spots_min.reset_index(drop=True)
+
+
+def get_img_shape(coo):
+    img_shape = set([d.shape for d in coo])
+    assert len(img_shape) == 1, 'pages do not have the same shape'
+    img_shape = img_shape.pop()
+    w = img_shape[1]
+    h = img_shape[0]
+    return [h, w]

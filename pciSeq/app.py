@@ -6,8 +6,8 @@ import pandas as pd
 from typing import Tuple
 from pciSeq import config
 from pciSeq.src.core.main import VarBayes
-from pciSeq.src.core.utils import get_out_dir
-from scipy.sparse import coo_matrix, load_npz
+from pciSeq.src.core.utils import get_out_dir, adjust_for_anisotropy
+from scipy.sparse import coo_matrix
 from pciSeq.src.diagnostics.utils import redis_db
 from pciSeq.src.preprocess.utils import get_img_shape
 from pciSeq.src.viewer.run_flask import flask_app_start
@@ -88,8 +88,10 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     cfg = init(opts)
 
     # 3. validate inputs
-    spots = validate(spots.copy(), coo, scRNAseq)   # Spots might get mutated here. Genes not found
-                                                    # in the single cell data will be removed.
+    spots, coo, is3D = validate(spots.copy(), coo, scRNAseq)  # Spots might get mutated here. Genes not found in the single cell data will be removed.
+    cfg['is3D'] = is3D
+
+    # adjust_for_anisotropy(spots[['x', 'y', 'z_stack']].T, [0.1663, 0.1663, 1]).T
 
     # 4. launch the diagnostics
     if cfg['launch_diagnostics'] and cfg['is_redis_running']:
@@ -98,7 +100,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     # 5. prepare the data
     app_logger.info('Preprocessing data')
-    _cells, cellBoundaries, _spots = stage_data(spots, coo)
+    _cells, cellBoundaries, _spots = stage_data(spots, coo, cfg)
 
     # 6. cell typing
     cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
@@ -190,11 +192,48 @@ def init(opts):
 
 
 def validate(spots, coo, sc):
-    assert isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y'}, \
-        "Spots should be passed-in to the fit() method as a dataframe with columns ['Gene', 'x', 'y']"
+    is3D = None
+    # check the label image
+    if isinstance(coo, coo_matrix):
+        coo = [coo]
+    if isinstance(coo, list):
+        assert np.all([isinstance(d, coo_matrix) for d in coo]), (
+            'The segmentation masks should be passed-in as a coo_matrix')
 
-    assert isinstance(coo, coo_matrix), 'The segmentation masks should be passed-in as a coo_matrix'
+        # check all planes have the same shape
+        shapes = [d.shape for d in coo]
+        assert shapes.count(shapes[0]) == len(shapes), 'Not all elements in coo have the same shape'
+    else:
+        raise ValueError('The segmentation masks should be passed-in as a coo_matrix')
 
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    if len(coo) == 1:
+        is3D = False
+    else:
+        is3D = True
+
+    assert (isinstance(spots, pd.DataFrame)), 'Spots should be provided as a dataframe'
+
+    # check the spots
+    if not is3D:
+        assert {'Gene', 'x', 'y'}.issubset(spots.columns), ("Spots should be passed-in to the fit() "
+                                                            "method as a dataframe with columns ['Gene', 'x', 'y']")
+    else:
+        assert set(spots.columns) == {'Gene', 'x', 'y', 'z_plane'}, ("Spots should be passed-in to the fit() method "
+                                                                     "as a dataframe with columns 'Gene', 'x',  'y', "
+                                                                     "'z_plane'")
+
+    if len(coo) > 1 and set(spots.columns) == {'Gene', 'x', 'y'}:
+        raise ValueError("Label image is 3D, the spots are 2D")
+
+    # if you have feed a 2d spot, append a flat z dimension so that everything in the code from now on will
+    # be treated as 3d
+    if isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y'}:
+        spots = spots.assign(z_plane=0)
+        is3D = False
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # check the single cell data
     if sc is not None:
         assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
 
@@ -202,13 +241,14 @@ def validate(spots, coo, sc):
             # remove genes that cannot been found in the single cell data
             spots = purge_spots(spots, sc)
 
-    return spots
+    return spots, coo, is3D
 
 
 def purge_spots(spots, sc):
     drop_spots = list(set(spots.Gene) - set(sc.index))
     app_logger.warning('Found %d genes that are not included in the single cell data' % len(drop_spots))
-    idx = ([i for i, v in enumerate(spots.Gene) if v not in drop_spots]) # can you speed this up?? What happens if the spot df has millions of rows?
+    idx = ([i for i, v in enumerate(spots.Gene) if
+            v not in drop_spots])  # can you speed this up?? What happens if the spot df has millions of rows?
     spots = spots.iloc[idx]
     app_logger.warning('Removed from spots: %s' % drop_spots)
     return spots
@@ -290,8 +330,6 @@ def check_redis_server():
         redis_db()
         return True
     except (redis.exceptions.ConnectionError, ConnectionRefusedError, OSError):
-        app_logger.info("Redis ping failed!. Diagnostics will not be called unless redis is installed and the service is running")
+        app_logger.info(
+            "Redis ping failed!. Diagnostics will not be called unless redis is installed and the service is running")
         return False
-
-
-

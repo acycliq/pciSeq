@@ -75,5 +75,15 @@ DEFAULT = {
     'mean_gene_counts_per_class': 60,
     'mean_gene_counts_per_cell': 15,
 
+
+    ## added for 3d
+    'voxel_size': [0.2765, 0.2765, 0.9],  # x, y, z
+
+    'exclude_planes': None,
+
+    # this will be set automatically by the code
+    'is3D': None
+
+
 }
 
