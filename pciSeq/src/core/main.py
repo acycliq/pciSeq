@@ -181,7 +181,7 @@ class VarBayes:
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
         wCellClass = np.sum(contr, axis=1) + self.cellTypes.log_prior
-        pCellClass = utils.softmax(wCellClass, axis=1)
+        pCellClass = softmax(wCellClass, axis=1)
 
         self.cells.classProb = pCellClass
 
@@ -218,7 +218,7 @@ class VarBayes:
         wSpotCell = aSpotCell + self.spots.loglik(self.cells, self.config)
 
         # update the prob a spot belongs to a neighboring cell
-        self.spots.parent_cell_prob = utils.softmax(wSpotCell, axis=1)
+        self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
 
         # Since the spot-to-cell assignments changed you need to update the gene counts now
         self.geneCount_upd()
@@ -255,7 +255,7 @@ class VarBayes:
         # logger.info('end multiprocessing')
 
         # update the prob a spot belongs to a neighboring cell
-        pSpotNeighb = utils.softmax(wSpotCell, axis=1)
+        pSpotNeighb = softmax(wSpotCell, axis=1)
         self.spots.parent_cell_prob = pSpotNeighb
         # Since the spot-to-cell assignments changed you need to update the gene counts now
         self.geneCount_upd()
