@@ -223,8 +223,23 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.Data
 
     # 2. Get cell centroids and area
     masks = np.stack([d.toarray().astype(np.uint32) for d in coo])
-    props = skmeas.regionprops_table(masks, properties=['label', 'area', 'centroid'])
-    props_df = pd.DataFrame(props).rename(columns={'centroid-0': 'z_cell', 'centroid-1': 'y_cell', 'centroid-2': 'x_cell'})
+    vs = cfg['voxel_size']
+    scaling = [vs[0] / vs[0], vs[1] / vs[0], vs[2] / vs[0]]
+    scaling = scaling[::-1]  # bring to zyx order, same as the image
+    properties = ['label', 'area', 'centroid', 'equivalent_diameter_area', 'bbox']
+    props = skmeas.regionprops_table(label_image=masks,
+                                     spacing=scaling,
+                                     properties=properties)
+
+    props_df = pd.DataFrame(props)
+    props_df['mean_area_per_slice'] = props_df['area'].values/ (props_df['bbox-3'].values - props_df['bbox-0'].values)
+    props_df = props_df.rename(columns={
+        "mean_area_per_slice": 'area',
+        'area': 'volume',
+        'centroid-0': 'z_cell',
+        'centroid-1': 'y_cell',
+        'centroid-2': 'x_cell'})
+    props_df = props_df[['label', 'area', 'z_cell', 'y_cell', 'x_cell']]
 
     # if there is a label map, attach it to the cell props.
     if label_map is not None:

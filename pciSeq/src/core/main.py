@@ -6,6 +6,7 @@ import scipy.spatial as spatial
 from scipy.special import softmax
 import pciSeq.src.core.utils as utils
 from pciSeq.src.core.summary import collect_data
+from multiprocessing.dummy import Pool as ThreadPool
 from pciSeq.src.diagnostics.utils import redis_db
 from pciSeq.src.core.datatypes import Cells, Spots, Genes, SingleCell, CellType
 import logging
@@ -48,7 +49,7 @@ class VarBayes:
         self.cellTypes.ini_prior()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
         self.genes.init_eta(1, 1 / self.config['Inefficiency'])
-        self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
+        self.spots.parent_cell_id, _ = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
 
@@ -69,22 +70,24 @@ class VarBayes:
             # 2. calc expected gamma
             self.gamma_upd()
 
+            # 6 update correlation matrix and variance of the gaussian distribution
+            if self.config['is3D']:
+                self.gaussian_upd()
+
             # 3. assign cells to cell types
             self.cell_to_cellType()
 
             # 4. assign spots to cells
-            self.spots_to_cell()
+            self.spots_to_cell_par()
 
             # 5. update gene efficiency
             self.eta_upd()
 
-            # 6. Update single cell data
+            # 7. Update single cell data
             if self.single_cell.isMissing:
-                # 6.1 update correlation matrix and variance of the gaussian distribution
-                self.gaussian_upd()
-                # 6.2 update the dirichlet distribution
+                # 7.1 update the dirichlet distribution
                 self.dalpha_upd()
-                # 6.3 update single cell data
+                # 7.2 update single cell data
                 self.mu_upd()
 
             self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
@@ -215,10 +218,84 @@ class VarBayes:
         wSpotCell = aSpotCell + self.spots.loglik(self.cells, self.config)
 
         # update the prob a spot belongs to a neighboring cell
-        self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
+        self.spots.parent_cell_prob = utils.softmax(wSpotCell, axis=1)
 
         # Since the spot-to-cell assignments changed you need to update the gene counts now
         self.geneCount_upd()
+
+    # -------------------------------------------------------------------- #
+    def spots_to_cell_par(self):
+        """
+        spot to cell assignment.
+        Implements equation (4) of the Qian paper
+        """
+        # nN = self.config['nNeighbors'] + 1
+        nN = self.nN
+        nS = self.spots.data.gene_name.shape[0]
+
+        misread_density_adj_factor = -1 * np.log(2 * np.pi * self.cells.mcr ** 2) / 2
+        misread_density_adj = np.exp(misread_density_adj_factor) * self.config['MisreadDensity']
+        # initialise array with the misread density
+        wSpotCell = np.zeros([nS, nN]) + np.log(misread_density_adj)
+        gn = self.spots.data.gene_name.values
+        sc_mean = self.single_cell.log_mean_expression.loc[gn].values
+        logeta_bar = self.genes.logeta_bar[self.spots.gene_id]
+
+        # logger.info('start multiprocessing')
+        # logger.info('start zip')
+        args_in = list(zip(np.arange(nN - 1), [logeta_bar] * len(np.arange(nN - 1)), [sc_mean] * len(np.arange(nN - 1))))
+        # logger.info('end zip')
+        pool = ThreadPool()
+        pout = pool.map(self.calc_loglik, args_in)
+        pool.close()
+        pool.join()
+        for i, d in enumerate(pout):
+            assert i == d[0]
+            wSpotCell[:, i] = d[1]
+        # logger.info('end multiprocessing')
+
+        # update the prob a spot belongs to a neighboring cell
+        pSpotNeighb = utils.softmax(wSpotCell, axis=1)
+        self.spots.parent_cell_prob = pSpotNeighb
+        # Since the spot-to-cell assignments changed you need to update the gene counts now
+        self.geneCount_upd()
+        assert np.isfinite(wSpotCell).all(), "wSpotCell array contains non numeric values"
+        # logger.info(' Spot to cell loglikelihood: %f' % wSpotCell.sum())
+        # self.spots.update_cell_prob(pSpotNeighb, self.cells)
+        # logger.info('spot ---> cell probabilities updated')
+
+    # -------------------------------------------------------------------- #
+    def inside_bonus(self, cell_id):
+        mask = self.spots.data.label.values == cell_id
+        bonus = self.config['InsideCellBonus']
+        return np.where(mask, bonus, 0)
+
+    # -------------------------------------------------------------------- #
+    def calc_loglik(self, args):
+        n = args[0]
+        logeta_bar = args[1]
+        sc_mean = args[2]
+
+        # get the spots' nth-closest cell
+        sn = self.spots.parent_cell_id[:, n]
+
+        # get the respective cell type probabilities
+        cp = self.cells.classProb[sn]
+
+        # multiply and sum over cells
+        term_1 = np.einsum('ij, ij -> i', sc_mean, cp)
+
+        log_gamma_bar = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
+
+        term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
+        # logger.info('start mvn_loglik')
+        loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells)
+
+        # if 2D, add the bonus for the spots inside the boundaries.
+        if not self.config['is3D']:
+            loglik = loglik + self.inside_bonus(sn)
+
+        return n, term_1 + term_2 + logeta_bar + loglik
 
     # -------------------------------------------------------------------- #
     def eta_upd(self):
@@ -266,41 +343,47 @@ class VarBayes:
         # get the total gene counts per cell
         N_c = self.cells.total_counts
 
-        xy_spots = spots.xy_coords
+        xyz_spots = spots.xyz_coords
         prob = spots.parent_cell_prob
         n = self.cells.config['nNeighbors'] + 1
 
-        # multiply the x coord of the spots by the cell prob
-        a = np.tile(xy_spots[:, 0], (n, 1)).T * prob
+        # mulitply the x coord of the spots by the cell prob
+        a = np.tile(xyz_spots[:, 0], (n, 1)).T * prob
 
-        # multiply the y coord of the spots by the cell prob
-        b = np.tile(xy_spots[:, 1], (n, 1)).T * prob
+        # mulitply the y coord of the spots by the cell prob
+        b = np.tile(xyz_spots[:, 1], (n, 1)).T * prob
+
+        # mulitply the z coord of the spots by the cell prob
+        c = np.tile(xyz_spots[:, 2], (n, 1)).T * prob
 
         # aggregated x and y coordinate
         idx = spots.parent_cell_id
         x_agg = npg.aggregate(idx.ravel(), a.ravel(), size=len(N_c))
         y_agg = npg.aggregate(idx.ravel(), b.ravel(), size=len(N_c))
+        z_agg = npg.aggregate(idx.ravel(), c.ravel(), size=len(N_c))
 
         # get the estimated cell centers
         x_bar = np.nan * np.ones(N_c.shape)
         y_bar = np.nan * np.ones(N_c.shape)
+        z_bar = np.nan * np.ones(N_c.shape)
 
         x_bar[N_c > 0] = x_agg[N_c > 0] / N_c[N_c > 0]
         y_bar[N_c > 0] = y_agg[N_c > 0] / N_c[N_c > 0]
+        z_bar[N_c > 0] = z_agg[N_c > 0] / N_c[N_c > 0]
 
         # cells with N_c = 0 will end up with x_bar = y_bar = np.nan
-        xy_bar_fitted = np.array(list(zip(x_bar.T, y_bar.T)))
+        xyz_bar_fitted = np.array(list(zip(x_bar.T, y_bar.T, z_bar.T)))
 
         # if you have a value for the estimated centroid use that, otherwise
         # use the initial (starting values) centroids
         ini_cent = self.cells.ini_centroids()
-        xy_bar = np.array(tuple(zip(*[ini_cent['x'], ini_cent['y']])))
+        xyz_bar = np.array(tuple(zip(*[ini_cent['x'], ini_cent['y'], ini_cent['z']])))
 
         # # sanity check. NaNs or Infs should appear together
         # assert np.all(np.isfinite(x_bar) == np.isfinite(y_bar))
         # use the fitted centroids where possible otherwise use the initial ones
-        xy_bar[np.isfinite(x_bar)] = xy_bar_fitted[np.isfinite(x_bar)]
-        self.cells.centroid = pd.DataFrame(xy_bar, columns=['x', 'y'])
+        xyz_bar[np.isfinite(x_bar)] = xyz_bar_fitted[np.isfinite(x_bar)]
+        self.cells.centroid = pd.DataFrame(xyz_bar, columns=['x', 'y', 'z'])
         # print(np.array(list(zip(x_bar.T, y_bar.T))))
 
     # -------------------------------------------------------------------- #

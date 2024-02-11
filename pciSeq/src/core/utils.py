@@ -240,10 +240,10 @@ def adjust_for_anisotropy(spots, voxel_size):
 
     spots_adj = np.hstack([gene_col, spots_adj, z_plane])
     spots_adj = pd.DataFrame(spots_adj, columns=['Gene', 'x', 'y', 'z', 'z_plane'])
-    spots_adj = spots_adj.astype({'x': 'int32',
-                                  'y': 'int32',
-                                  'z': 'int32',
-                                  'z_plane': 'int32',
+    spots_adj = spots_adj.astype({'x': 'float32',
+                                  'y': 'float32',
+                                  'z': 'float32',
+                                  'z_plane': 'float32',
                                   'Gene': str})
     return spots_adj  # Nspots x 3
 

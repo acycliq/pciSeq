@@ -88,8 +88,8 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     cfg = init(opts)
 
     # 3. validate inputs:
-    # WARNING 1: Spots might get mutated here. Genes not found in the single cell data will be removed.
-    # WARNING 2: cfg might also get mutated. Fields 'is3D' and 'remove_planes' might get overriden
+    # NOTE 1: Spots might get mutated here. Genes not found in the single cell data will be removed.
+    # NOTE 2: cfg might also get mutated. Fields 'is3D' and 'remove_planes' might get overriden
     spots, coo, cfg = validate(spots.copy(), coo, scRNAseq, cfg)
 
     # 4. launch the diagnostics
