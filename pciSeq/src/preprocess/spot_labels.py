@@ -106,13 +106,13 @@ def reorder_labels(label_image):
     return out, label_map
 
 
-def truncate_label_image(coo, cfg):
+def label_image_remove_planes(coo, cfg):
     arr = np.arange(len(coo))
     coo = [coo[d] for d in arr if d not in cfg['exclude_planes']]
     return coo
 
 
-def truncate_spots(spots, cfg):
+def spots_remove_planes(spots, cfg):
     int_z = np.floor(spots.z_plane)
     mask = [True if d not in cfg['exclude_planes'] else False for d in int_z]
     spots = spots[mask]
@@ -137,7 +137,7 @@ def truncate_spots(spots, cfg):
     return spots, min_plane
 
 
-def remove_cells(coo_list, cfg):
+def cells_remove_planes(coo_list, cfg):
     """
     removes cells that exist on just one single frame of the
     z-stack
@@ -176,9 +176,17 @@ def remove_oob(spots, img_shape):
     """
     removes out of bounds spots (if any...)
     """
-    mask_x = (spots.x >= 0) & (spots.x <= img_shape[1])
-    mask_y = (spots.y >= 0) & (spots.y <= img_shape[0])
-    return spots[mask_x & mask_y]
+    mask_x = (spots.x >= 0) & (spots.x <= img_shape[2])
+    mask_y = (spots.y >= 0) & (spots.y <= img_shape[1])
+    mask_z = (spots.z_plane >= 0) & (spots.z_plane <= img_shape[0])
+    return spots[mask_x & mask_y & mask_z]
+
+
+def remove_planes(spots, coo, cfg):
+    coo = label_image_remove_planes(coo, cfg)
+    spots, min_plane = spots_remove_planes(spots, cfg)
+    coo, removed = cells_remove_planes(coo, cfg)
+    return spots, coo, min_plane, removed
 
 
 def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -190,9 +198,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.Data
 
     # drop planes in the exclude planes list
     if cfg['is3D'] and cfg['exclude_planes'] is not None:
-        coo = truncate_label_image(coo, cfg)
-        spots, min_plane = truncate_spots(spots, cfg)
-        coo, removed = remove_cells(coo, cfg)
+        spots, coo, min_plane, removed = remove_planes(spots, coo, cfg)
         if removed.shape[0] > 0:
             # add the min_plane back so that the planes refer to the original 3d image before
             # the the removal of the planes described in the exclude_planes list
@@ -200,7 +206,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.Data
 
     coo, label_map = reorder_labels(coo)
     [n, h, w] = get_img_shape(coo)
-    spots = remove_oob(spots.copy(), [h, w])
+    spots = remove_oob(spots.copy(), [n, h, w])
     spots = adjust_for_anisotropy(spots, cfg['voxel_size'])
 
     spot_labels_logger.info('Number of spots passed-in: %d' % spots.shape[0])
@@ -209,10 +215,6 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.Data
         spot_labels_logger.info('Segmentation array implies that image has width: %dpx and height: %dpx' % (w, h))
     else:
         spot_labels_logger.info('Segmentation array implies that image has %d planes, width: %dpx and height: %dpx' % (n, w, h))
-
-    mask_x = (spots.x >= 0) & (spots.x <= w)
-    mask_y = (spots.y >= 0) & (spots.y <= h)
-    spots = spots[mask_x & mask_y]
 
     # 1. Find which cell the spots lie within
     spots = spots.assign(label=np.zeros(spots.shape[0]))

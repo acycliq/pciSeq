@@ -39,7 +39,8 @@ DEFAULT = {
     # the misreads to. Could be seen as the background. Hence, by default the algorithm tries examines
     # whether any of the 3 nearest cells is a possible parent cell to a given cell or whether the spot is
     # a misread
-    'nNeighbors': 6,
+    # 'nNeighbors': 6, # 6 for 3D
+    'nNeighbors': 3,   # 3 for 2D
 
     # A gamma distributed variate from Gamma(rSpot, 1) is applied to the mean expression, hence the counts
     # are distributed according to a Negative Binomial distribution.
@@ -77,7 +78,8 @@ DEFAULT = {
 
 
     ## added for 3d
-    'voxel_size': [0.2765, 0.2765, 0.9],  # x, y, z
+    'voxel_size': [1, 1, 1],  # x, y, z
+    # 'voxel_size': [0.2765, 0.2765, 0.9],
 
     'exclude_planes': None,
 
