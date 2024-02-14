@@ -4,6 +4,7 @@ import laspy
 import os
 import subprocess
 import re
+import json
 from matplotlib.colors import to_hex, to_rgb
 import random
 
@@ -22,7 +23,7 @@ def build_las(data, las_path):
 
     hdr = laspy.LasHeader(version="1.4", point_format=7)
     mins = np.floor(np.min(xyz, axis=0))
-    np.min(spots[['x', 'y', 'z']].values, axis=0)
+    np.min(data[['x', 'y', 'z']].values, axis=0)
     # mins = [352, 6126, 0]
     hdr.offset = mins
     hdr.scales = np.array([0.001, 0.001, 0.001])
@@ -57,6 +58,24 @@ def build_octree(my_path):
     print(result)
 
 
+def parse_js(path_str):
+    f = open(path_str, "r", encoding='utf8')
+    text = f.read()
+
+    # find the text between the square brackets
+    sq_brackets = re.findall("\[(.*?)\]", text, flags=re.DOTALL)[0]
+
+    # find now the text between the curly brackets
+    crly_brackets = re.findall("{(.*?)}", sq_brackets, flags=re.DOTALL)
+
+    # finally get them as a dataframe
+    try:
+        df = pd.DataFrame([eval("{" + d + "}") for d in crly_brackets])
+    except:
+        df = pd.DataFrame(["{" + d + "}" for d in crly_brackets])
+    return df
+
+
 def gene_settings():
     path_str = os.path.join('..', '..', 'static', '2D', 'viewer', 'js', 'glyphConfig.js')
     f = open(path_str, "r", encoding='utf8')
@@ -69,7 +88,8 @@ def gene_settings():
     crly_brackets = re.findall("{(.*?)}", sq_brackets, flags=re.DOTALL)
 
     # finally get them as a dataframe
-    df = pd.DataFrame([eval("{" + d + "}") for d in crly_brackets])
+    df_2 = pd.DataFrame([eval("{" + d + "}") for d in crly_brackets])
+    df = parse_js(path_str)
 
     # add the pointsource column (ie the gene id)
     # _, pointSourceID = np.unique(df.gene, return_inverse=True)
@@ -85,6 +105,14 @@ def gene_settings():
     rgb = rgb.astype(np.uint8)
     out = pd.concat([df, rgb], axis=1)
 
+    return out
+
+
+def rgb_helper(df):
+    rgb = pd.DataFrame(df.color.map(lambda x: to_rgb(x)).tolist(), columns=['r', 'g', 'b'])
+    rgb = 255 * rgb
+    rgb = rgb.astype(np.uint8)
+    out = pd.concat([df, rgb], axis=1)
     return out
 
 
@@ -122,7 +150,54 @@ def cell_gene_counts(spots_df):
         temp.to_json(os.path.join(output_dir,  '%d.json' % n), orient='records')
 
 
+def cellData_rgb(cellData):
+    cellData['Genenames'] = cellData['Genenames'].apply(lambda x: eval(x))
+    cellData['CellGeneCount'] = cellData['CellGeneCount'].apply(lambda x: eval(x))
+    cellData['ClassName'] = cellData['ClassName'].apply(lambda x: eval(x))
+    cellData['Prob'] = cellData['Prob'].apply(lambda x: eval(x))
+    cellData['ellipsoid_border'] = cellData['ellipsoid_border'].apply(lambda x: eval(x))
+    cellData['sphere_scale'] = cellData['sphere_scale'].apply(lambda x: eval(x))
+    cellData['sphere_rotation'] = cellData['sphere_rotation'].apply(lambda x: eval(x))
+
+    cellData['BestClass'] = cellData.apply(lambda r: r['ClassName'][np.argmax(r['Prob'])], axis=1)
+    cellData['BestProb'] = cellData.apply(lambda r: np.max(r['Prob']), axis=1)
+    cellData = cellData[['Cell_Num', 'X', 'Y', 'Z', 'ClassName', 'Prob', 'sphere_scale', 'sphere_rotation', 'BestClass']]
+
+    uCell_classes = np.unique(sum([d for d in cellData.ClassName], []))
+    cellData = cellData.assign(class_id=cellData.ClassName.map(lambda x: [np.where(uCell_classes == d)[0][0] for d in x]))
+
+
+    path_str = os.path.join('..', '..', 'static', '2D', 'viewer', 'js', 'classConfig.js')
+    classConfig = parse_js(path_str)
+
+
+    # classColours = pd.DataFrame(data)
+    classConfig = rgb_helper(classConfig)
+    cellData = cellData.merge(classConfig, how='left', left_on='BestClass', right_on="className")
+    cellData = cellData[['Cell_Num', 'X', 'Y', 'Z', 'ClassName', 'class_id', 'Prob', 'sphere_scale', 'sphere_rotation', 'r', 'g', 'b']]
+
+    cellData = cellData.rename(columns={"Cell_Num": "label",
+                                        "X": "x",
+                                        "Y": "y",
+                                        "Z": "z",
+                                        "Prob": "class_prob"})
+
+    # fill the nans with the generic values
+    generic = classConfig[classConfig.className == 'Generic']
+    fields = ['r', 'g', 'b']
+    for f in fields:
+        cellData[f] = cellData[f].fillna(generic[f].values[0])
+
+    cellData.to_csv('cellData_rgb.tsv', sep='\t', index=False)
+
+
+
 if __name__ == "__main__":
     spots = pd.read_csv(r'E:\data\Mathieu\WT94_alpha072\pciSeq\data\geneData.tsv', sep='\t')
     build_pointcloud(spots)
     cell_gene_counts(spots)
+
+    cells = pd.read_csv(r'E:\data\Mathieu\WT94_alpha072\pciSeq\data\cellData.tsv', sep='\t')
+    cellData_rgb(cells)
+
+    print('Done')
