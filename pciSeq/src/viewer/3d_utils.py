@@ -44,7 +44,8 @@ def build_las(data, las_path):
 
 
 def build_octree(my_path):
-    exe = r"D:\Home\Dimitris\OneDrive - University College London\dev\Javascript\pciSeq_3dviewer\PotreeConverter_windows_x64\PotreeConverter.exe"
+    # exe = r"..\..\static\PotreeConverter_windows_x64\PotreeConverter.exe"
+    exe = os.path.join('..', '..', 'static', 'PotreeConverter_windows_x64', 'PotreeConverter.exe')
     output_dir = os.path.join(my_path, 'octree', 'Mathieu_z')
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
