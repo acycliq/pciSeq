@@ -78,32 +78,16 @@ def parse_js(path_str):
 
 def gene_settings():
     path_str = os.path.join('..', '..', 'static', '2D', 'viewer', 'js', 'glyphConfig.js')
-    f = open(path_str, "r", encoding='utf8')
-    text = f.read()
-
-    # find the text between the square brackets
-    sq_brackets = re.findall("\[(.*?)\]", text, flags=re.DOTALL)[0]
-
-    # find now the text between the curly brackets
-    crly_brackets = re.findall("{(.*?)}", sq_brackets, flags=re.DOTALL)
 
     # finally get them as a dataframe
-    df_2 = pd.DataFrame([eval("{" + d + "}") for d in crly_brackets])
     df = parse_js(path_str)
-
-    # add the pointsource column (ie the gene id)
-    # _, pointSourceID = np.unique(df.gene, return_inverse=True)
-    # df['pointSourceID'] = pointSourceID
 
     # add the classification column (ie the glyph id)
     _, classification = np.unique(df.glyphName, return_inverse=True)
     df['classification'] = classification
 
     # attach now the rgb colors
-    rgb = pd.DataFrame(df.color.map(lambda x: to_rgb(x)).tolist(), columns=['r', 'g', 'b'])
-    rgb = 255 * rgb
-    rgb = rgb.astype(np.uint8)
-    out = pd.concat([df, rgb], axis=1)
+    out = rgb_helper(df)
 
     return out
 
@@ -117,17 +101,16 @@ def rgb_helper(df):
 
 
 def build_pointcloud(spots_df):
-    spots = pd.read_csv(r'E:\data\Mathieu\WT94_alpha072\pciSeq\data\geneData.tsv', sep='\t')
     gs = gene_settings()
-    spots = spots.merge(gs, how='left', left_on='Gene', right_on="gene")
+    spots_df = spots_df.merge(gs, how='left', left_on='Gene', right_on="gene")
 
     # fill the nans with the generic values
     generic = gs[gs.gene == 'generic']
     fields = ['color', 'glyphName', 'classification', 'r', 'g', 'b']
     for f in fields:
-        spots[f] = spots[f].fillna(generic[f].values[0])
+        spots_df[f] = spots_df[f].fillna(generic[f].values[0])
 
-    spots = spots.rename(columns={'Gene_id': 'pointSourceID'})
+    spots = spots_df.rename(columns={'Gene_id': 'pointSourceID'})
 
     target_path = r'.\test_2'
     build_las(spots, target_path)
