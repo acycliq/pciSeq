@@ -107,6 +107,22 @@ def build_pointcloud(spots_df):
     print(gs)
 
 
+def cell_gene_counts(spots_df):
+    df = spots_df[['Gene', 'x', 'y', 'z', 'neighbour']]
+
+    df = df[df.neighbour > 0]
+    df = df.rename({'Gene': 'gene'}, axis=1)
+
+    output_dir = 'cellData'
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    for n in np.unique((df.neighbour)):
+        temp = df[df.neighbour == n]
+        temp.to_json(os.path.join(output_dir,  '%d.json' % n), orient='records')
+
+
 if __name__ == "__main__":
     spots = pd.read_csv(r'E:\data\Mathieu\WT94_alpha072\pciSeq\data\geneData.tsv', sep='\t')
     build_pointcloud(spots)
+    cell_gene_counts(spots)
