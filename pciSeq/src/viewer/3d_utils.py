@@ -16,11 +16,6 @@ def build_las(data, las_path):
     classification = np.ascontiguousarray(data.classification.values, dtype='float32')
     pointSourceID = np.ascontiguousarray(data.pointSourceID.values, dtype='float32')
 
-    # xyz = np.ascontiguousarray(raw[:, 1:4], dtype='float32')
-    # rgb = np.ascontiguousarray(raw[:, 7:10], dtype='float32')
-    # classification = np.ascontiguousarray(raw[:, 6], dtype='float32')
-    # pointSourceID = np.ascontiguousarray(raw[:, -1], dtype='float32')
-
     hdr = laspy.LasHeader(version="1.4", point_format=7)
     mins = np.floor(np.min(xyz, axis=0))
     np.min(data[['x', 'y', 'z']].values, axis=0)
@@ -41,7 +36,6 @@ def build_las(data, las_path):
     las.pt_src_id = pointSourceID
     # las.intensity = i
 
-    # out_path = r"gene_pointclouds_z_spacing_1.5micron/las/%s.las" % gene
     out_filename = os.path.join(las_path, 'izzie.las')
     if not os.path.exists(os.path.dirname(out_filename)):
         os.makedirs(os.path.dirname(out_filename))
