@@ -6,6 +6,7 @@ import subprocess
 import re
 import json
 from matplotlib.colors import to_hex, to_rgb
+from pathlib import Path
 import random
 
 
@@ -54,9 +55,11 @@ def build_octree(my_path):
 
     # result = subprocess.run(['LD_PRELOAD=', lib,  exe, my_path, "-o", output_dir, "-m", "poisson"], capture_output=True, shell=True)
     # print(result)
+    root_dir = Path(os.path.abspath(os.curdir)).parent.parent
+    lib = "LD_PRELOAD=%s" % os.path.join(root_dir, 'static', 'PotreeConverter_linux_x64', 'liblaszip.so')
 
-    result = subprocess.run(["LD_PRELOAD=/home/dimitris/dev/python/pciSeq/pciSeq/static/PotreeConverter_linux_x64/liblaszip.so "
-                             "/home/dimitris/dev/python/pciSeq/pciSeq/static/PotreeConverter_linux_x64/PotreeConverter "
+    result = subprocess.run([lib +
+                             " /home/dimitris/dev/python/pciSeq/pciSeq/static/PotreeConverter_linux_x64/PotreeConverter "
                              # ,exe,
                              " /home/dimitris/dev/python/pciSeq/pciSeq/src/viewer/my_test "
                              " -o /home/dimitris/dev/python/pciSeq/pciSeq/static/PotreeConverter_linux_x64 "
