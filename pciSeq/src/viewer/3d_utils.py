@@ -5,6 +5,7 @@ import os
 import subprocess
 import re
 import json
+import stat
 from matplotlib.colors import to_hex, to_rgb
 from pathlib import Path
 import random
@@ -56,6 +57,11 @@ def build_octree(my_path):
     output_folder = os.path.join(root_dir, 'static', 'PotreeConverter_linux_x64')
     opts = " - m  poisson"
 
+    # change file permissions to allow executing
+    st = os.stat(exe)
+    os.chmod(exe, st.st_mode | stat.S_IEXEC)
+
+    # generate now the octree
     cmd = [lib + " " + exe + " " + input_folder + " -o " + output_folder + opts]
     result = subprocess.run(cmd, capture_output=True, shell=True)
     print(result)
