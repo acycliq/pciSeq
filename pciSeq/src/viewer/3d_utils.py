@@ -45,11 +45,19 @@ def build_las(data, las_path):
 
 def build_octree(my_path):
     # exe = r"..\..\static\PotreeConverter_windows_x64\PotreeConverter.exe"
-    exe = os.path.join('..', '..', 'static', 'PotreeConverter_windows_x64', 'PotreeConverter.exe')
+    lib = os.path.join('..', '..', 'static', 'PotreeConverter_linux_x64', 'liblaszip.so')
+    exe = os.path.join('..', '..', 'static', 'PotreeConverter_linux_x64', 'PotreeConverter')
     output_dir = os.path.join(my_path, 'octree', 'Mathieu_z')
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    result = subprocess.run([exe, my_path, "-o", output_dir, "-m", "poisson"], capture_output=True, shell=True)
+    # result = subprocess.run(['export LD_LIBRARY_PATH=', fldr], capture_output=True, shell=True)
+
+    # result = subprocess.run(['LD_PRELOAD=', lib,  exe, my_path, "-o", output_dir, "-m", "poisson"], capture_output=True, shell=True)
+    # print(result)
+
+    result = subprocess.run(["LD_PRELOAD=/home/dimitris/dev/python/pciSeq/pciSeq/static/PotreeConverter_linux_x64/liblaszip.so "
+                             "/home/dimitris/dev/python/pciSeq/pciSeq/static/PotreeConverter_linux_x64/PotreeConverter "
+                             "/home/dimitris/dev/python/pciSeq/pciSeq/src/viewer/my_test -o /home/dimitris/dev/python/pciSeq/pciSeq/static/PotreeConverter_linux_x64 - m  poisson"], capture_output=True, shell=True)
     print(result)
 
 
@@ -107,7 +115,7 @@ def build_pointcloud(spots_df):
 
     spots = spots_df.rename(columns={'Gene_id': 'pointSourceID'})
 
-    target_path = r'.\test_2'
+    target_path = r'my_test'
     build_las(spots, target_path)
     build_octree(target_path)
     print(gs)
@@ -171,11 +179,11 @@ def cellData_rgb(cellData):
 
 
 if __name__ == "__main__":
-    spots = pd.read_csv(r'E:\data\Mathieu\WT94_alpha072\pciSeq\data\geneData.tsv', sep='\t')
+    spots = pd.read_csv(r'/media/dimitris/New Volume/data/Mathieu/WT94_alpha072/pciSeq/data/geneData.tsv', sep='\t')
     build_pointcloud(spots)
     cell_gene_counts(spots)
 
-    cells = pd.read_csv(r'E:\data\Mathieu\WT94_alpha072\pciSeq\data\cellData.tsv', sep='\t')
-    cellData_rgb(cells)
+    # cells = pd.read_csv(r'/media/dimitris/New Volume/data/Mathieu/WT94_alpha072/pciSeq/data/cellData.tsv', sep='\t')
+    # cellData_rgb(cells)
 
     print('Done')
