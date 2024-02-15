@@ -56,7 +56,7 @@ def build_octree(my_path):
     # result = subprocess.run(['LD_PRELOAD=', lib,  exe, my_path, "-o", output_dir, "-m", "poisson"], capture_output=True, shell=True)
     # print(result)
     root_dir = Path(os.path.abspath(os.curdir)).parent.parent
-    lib = "LD_PRELOAD=%s" % os.path.join(root_dir, 'static', 'PotreeConverter_linux_x64', 'liblaszip.so')
+    lib = "LD_PRELOAD=%s" % os.path.join('..', '..', 'static', 'PotreeConverter_linux_x64', 'liblaszip.so')
 
     result = subprocess.run([lib +
                              " /home/dimitris/dev/python/pciSeq/pciSeq/static/PotreeConverter_linux_x64/PotreeConverter "
