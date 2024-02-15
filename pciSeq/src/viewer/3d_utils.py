@@ -45,25 +45,19 @@ def build_las(data, las_path):
 
 
 def build_octree(my_path):
-    # exe = r"..\..\static\PotreeConverter_windows_x64\PotreeConverter.exe"
-    lib = os.path.join('..', '..', 'static', 'PotreeConverter_linux_x64', 'liblaszip.so')
-    exe = os.path.join('../../static', 'PotreeConverter_linux_x64', 'PotreeConverter')
-    output_dir = os.path.join(my_path, 'octree', 'Mathieu_z')
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    # result = subprocess.run(['export LD_LIBRARY_PATH=', fldr], capture_output=True, shell=True)
+    # output_dir = os.path.join(my_path, 'octree', 'Mathieu_z')
+    # if not os.path.exists(output_dir):
+    #     os.makedirs(output_dir)
 
-    # result = subprocess.run(['LD_PRELOAD=', lib,  exe, my_path, "-o", output_dir, "-m", "poisson"], capture_output=True, shell=True)
-    # print(result)
-    root_dir = Path(os.path.abspath(os.curdir)).parent.parent
-    lib = "LD_PRELOAD=%s" % os.path.join('..', '..', 'static', 'PotreeConverter_linux_x64', 'liblaszip.so')
+    root_dir = os.path.join('..', '..')
+    lib = "LD_PRELOAD=%s" % os.path.join(root_dir, 'static', 'PotreeConverter_linux_x64', 'liblaszip.so')
+    exe = os.path.join(root_dir, 'static', 'PotreeConverter_linux_x64', 'PotreeConverter')
+    input_folder = os.path.join(root_dir, 'src', 'viewer', 'my_test')
+    output_folder = os.path.join(root_dir, 'static', 'PotreeConverter_linux_x64')
+    opts = " - m  poisson"
 
-    result = subprocess.run([lib +
-                             " /home/dimitris/dev/python/pciSeq/pciSeq/static/PotreeConverter_linux_x64/PotreeConverter "
-                             # ,exe,
-                             " /home/dimitris/dev/python/pciSeq/pciSeq/src/viewer/my_test "
-                             " -o /home/dimitris/dev/python/pciSeq/pciSeq/static/PotreeConverter_linux_x64 "
-                             " - m  poisson"], capture_output=True, shell=True)
+    cmd = [lib + " " + exe + " " + input_folder + " -o " + output_folder + opts]
+    result = subprocess.run(cmd, capture_output=True, shell=True)
     print(result)
 
 # pciSeq/src/viewer/3d_utils.py
