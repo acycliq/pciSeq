@@ -46,7 +46,7 @@ def build_las(data, las_path):
 def build_octree(my_path):
     # exe = r"..\..\static\PotreeConverter_windows_x64\PotreeConverter.exe"
     lib = os.path.join('..', '..', 'static', 'PotreeConverter_linux_x64', 'liblaszip.so')
-    exe = os.path.join('..', '..', 'static', 'PotreeConverter_linux_x64', 'PotreeConverter')
+    exe = os.path.join('../../static', 'PotreeConverter_linux_x64', 'PotreeConverter')
     output_dir = os.path.join(my_path, 'octree', 'Mathieu_z')
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -57,10 +57,14 @@ def build_octree(my_path):
 
     result = subprocess.run(["LD_PRELOAD=/home/dimitris/dev/python/pciSeq/pciSeq/static/PotreeConverter_linux_x64/liblaszip.so "
                              "/home/dimitris/dev/python/pciSeq/pciSeq/static/PotreeConverter_linux_x64/PotreeConverter "
-                             "/home/dimitris/dev/python/pciSeq/pciSeq/src/viewer/my_test -o /home/dimitris/dev/python/pciSeq/pciSeq/static/PotreeConverter_linux_x64 - m  poisson"], capture_output=True, shell=True)
+                             # ,exe,
+                             " /home/dimitris/dev/python/pciSeq/pciSeq/src/viewer/my_test "
+                             " -o /home/dimitris/dev/python/pciSeq/pciSeq/static/PotreeConverter_linux_x64 "
+                             " - m  poisson"], capture_output=True, shell=True)
     print(result)
 
-
+# pciSeq/src/viewer/3d_utils.py
+# pciSeq/static/PotreeConverter_linux_x64/PotreeConverter
 def parse_js(path_str):
     f = open(path_str, "r", encoding='utf8')
     text = f.read()
