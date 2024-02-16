@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+<head>
+
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-128060564-7"></script>
+    <script>
+        var host = window.location.hostname;
+        if (host != 'localhost') {
+            window.dataLayer = window.dataLayer || [];
+
+            function gtag() {
+                dataLayer.push(arguments);
+            }
+
+            gtag('js', new Date());
+            gtag('config', 'UA-128060564-7');
+        }
+    </script>
+
+    <style>
+        body{font-family:metric;}
+			.background{fill:#fff1e0;}
+			.anno-capture{fill-opacity:0;}
+
+        .annotation-note-bg {
+            fill-opacity: 0.8;
+        }
+
+        .annotation-note-label,
+        .annotation-note-title {
+          fill: black;
+          font-size: 0.8em;
+        }
+
+        #dataTableControl {
+            position: absolute;
+            z-index:1000;
+            bottom: 10px;
+            left: 10px;
+        }
+
+        #donutChartControl {
+            position: absolute;
+            z-index:1000;
+            bottom: 10px;
+            right: 10px;
+        }
+
+        #cellCoordsControl {
+            position: absolute;
+            z-index:1000;
+            top: 10px;
+            right: 10px;
+        }
+
+        #svg_div{
+            position: absolute;
+            z-index:1000;
+        }
+
+        #spot_tooltip {
+            display: none;
+            background: #d4d1d1;
+            position: absolute;
+            font-family: 'Helvetica Neue', monospace;
+            padding: 0px;
+            min-width:150px;
+            max-width:250px;
+            border-style: solid;
+            border-color: #555555;
+            border-width: 0.5px;
+            z-index: 10000;
+            opacity: 0.8;
+        }
+
+        td.tooltip_gene {
+            font-size: large;
+        }
+
+        td {
+            font-size: large;
+            vertical-align: text-bottom;
+        }
+
+        td.label {
+            text-align: left;
+            font-size: large;
+            font-weight: normal;
+        }
+
+        td.tooltip_spot_coord_x {
+             font-size: large;
+        }
+
+        td.tooltip_spot_coord_y {
+             font-size: large;
+        }
+
+        td.tooltip_spot_coord_z {
+             font-size: large;
+        }
+
+        #GenePanelButton {
+            top: 9px;
+            left: 10px;
+            cursor: pointer;
+        }
+
+        .map-content {
+            position: absolute;
+            z-index: 1000;
+            padding: 4px 7px 5px;
+            border-top: 1px solid #777;
+            border-left: 1px solid #777;
+            border-right: 2px solid #444;
+            border-bottom: 2px solid #444;
+            line-height: 1.6;
+            font-size: 1em;
+            /*font-family: Apercu-Light;*/
+            background: white;
+            -moz-border-radius: 5px;
+            -webkit-border-radius: 5px;
+            border-radius: 5px;
+        }
+
+        #jstree_demo {
+            top: 10px;
+            right: 10px;
+            /*background-color: #C0C0C0;*/
+            /*padding: 6px 10px 6px 6px;*/
+            /*color: #333;*/
+            /*background: #fff;*/
+            /*position: absolute;*/
+            /*z-index: 1000;*/
+        }
+
+    </style>
+
+    <meta charset="utf-8">
+	<meta name="description" content="">
+	<meta name="author" content="">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+	<title>Viewer</title>
+
+	<link rel="stylesheet" type="text/css" href="viewer/build/potree/potree.css">
+	<link rel="stylesheet" type="text/css" href="viewer/libs/jquery-ui/jquery-ui.min.css">
+	<link rel="stylesheet" type="text/css" href="viewer/libs/openlayers3/ol.css">
+	<link rel="stylesheet" type="text/css" href="viewer/libs/spectrum/spectrum.css">
+	<link rel="stylesheet" type="text/css" href="viewer/libs/jstree/themes/mixed/style.css">
+
+    <!--jquery -->
+    <script src="https://code.jquery.com/jquery-3.3.1.js"></script>
+
+    <!-- stylesheets -->
+    <link rel="stylesheet" href="viewer/css/bootstrap.min.css">
+    <link rel="stylesheet" href="viewer/css/progress.css">
+    <link rel='stylesheet' href='viewer/css/index.css'>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.19/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="vakata-jstree/dist/themes/default/style.css">
+
+</head>
+<body>
+	<script src="viewer/libs/jquery/jquery-3.1.1.min.js"></script>
+	<script src="viewer/libs/spectrum/spectrum.js"></script>
+	<script src="viewer/libs/jquery-ui/jquery-ui.min.js"></script>
+	<script src="viewer/libs/other/BinaryHeap.js"></script>
+	<script src="viewer/libs/tween/tween.min.js"></script>
+	<script src="viewer/libs/proj4/proj4.js"></script>
+	<script src="viewer/libs/openlayers3/ol.js"></script>
+	<script src="viewer/libs/i18next/i18next.js"></script>
+	<script src="viewer/libs/jstree/jstree.js"></script>
+	<script src="viewer/build/potree/potree.js"></script>
+	<script src="viewer/libs/plasio/js/laslaz.js"></script>
+    <script src="https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
+
+    <!-- bootstrap -->
+    <script src="data/lib/js/bootstrap.min.js"></script>
+
+    <!--user scripts -->
+    <script src="viewer/libs/d3/d3.v4.js"></script>
+    <script src="https://rawgit.com/susielu/d3-annotation/master/d3-annotation.min.js"></script>
+    <script src='viewer/libs/dt.js'></script>
+    <script src='viewer/libs/donut.js'></script>
+    <script src='viewer/libs/progress.js'></script>
+<!--    <script src='data/streaming-tsv-parser.js'></script>-->
+
+
+    <div class="potree_container" style="position: absolute; width: 100%; height: 100%; left: 0px; top: 0px; ">
+        <div id="potree_render_area"></div>
+        <div id="potree_sidebar_container"> </div>
+
+
+        <div class='tab-pane active fade in' id='cellCoordsControl'>
+            <div class='container-fluid'>
+                <div class='col-sm-12'>
+                    <div class='row myTitle', id='cellCoordsControlText' style='margin-bottom:5px'>
+                        <h4>Highlighted Cell</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane active fade in" id="dataTableControl">
+            <div class="container-fluid col-sm-12" style="background-color: darkgrey;">
+                <table id='dtTable' class='display compact custom' data-page-length='5' width=100%></table>
+            </div>
+        </div>
+
+        <div class='tab-pane active fade in' id='donutChartControl'>
+            <div class='container-fluid'>
+                <div class='row' style='background-color: rgba(255, 255, 255, 0.0)'>
+                    <div class='chart-wrapper'>
+                        <div class='chart-stage'>
+                            <div class='col-sm-12'>
+                                <div class='chart-stage' style='background-color: rgba(255, 255, 255, 0.0)'>
+                                    <div class='summary' id='piechart'>
+                                        <svg width='300' height='180'></svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="container-fluid" id="preloader">
+        <div id="stats-container" class="stack-top">
+            <div class="loading">
+                <div id="container"></div>
+                <div id="loading" class="loading"><span>loading...</span></div>
+                <div id="loading_perc" class="loading"><span>loading...</span></div>
+                <div id="loading_mb" class="loading"><span>loading...</span></div>
+                <div id="done" class="loading"><span></span></div>
+            </div>
+        </div>
+
+        <div class="col-sm-12">
+            <div class="midplaced">
+                <div class="row">
+                    <div id="specificChart" class="donut-size">
+                        <div class="pie-wrapper">
+                            <span class="label">
+                                <span class="num">0</span><span class="smaller">%</span>
+                            </span>
+                            <div class="pie">
+                                <div class="left-side half-circle"></div>
+                                <div class="right-side half-circle"></div>
+                            </div>
+                            <div class="shadow"></div>
+                        </div>
+                    </div>
+                </div>
+<!--                        <div class="row">-->
+<!--                            <div class="text-center">-->
+<!--                                <p>Num of cells: <span id="datapoints" class="meter">0</span></p>-->
+<!--                                <p>Size: <span id="mb" class="meter">0MB</span></p>-->
+<!--                            </div>-->
+<!--                        </div>-->
+
+                <div class="col-sm-12" id="wait_chart">
+                    Building the chart. Please wait...
+                </div>
+            </div>
+        </div>
+
+
+
+        <script>$('#wait_chart').hide()</script>
+        <script>$('#stats-container').hide()</script>
+    </div>
+
+<!--    <svg id='example1' style="position: absolute; width: 100%; height: 100%; left: 0px; top: 0px; "></svg>-->
+
+    <div id="spot_tooltip">
+            <table style="border:none;outline:none;" >
+                <tr>
+                    <td class="label">Gene:</td>
+                    <td class="tooltip_gene"></td>
+                </tr>
+                <tr>
+                    <td class="label">x:</td>
+                    <td class="tooltip_spot_coord_x"></td>
+                </tr>
+                <tr>
+                    <td class="label">y:</td>
+                    <td class="tooltip_spot_coord_y"></td>
+                </tr>
+                <tr>
+                    <td class="label">z:</td>
+                    <td class="tooltip_spot_coord_z"></td>
+                </tr>
+<!--                <tr>-->
+<!--                    <td class="label">Note:</td>-->
+<!--                    <td class="tooltip_note"></td>-->
+<!--                </tr>-->
+            </table>
+        </div>
+
+    <script>
+        function removePreloader() {
+            $('#preloader').delay(350).fadeOut(250); // will fade out the white DIV that covers the website.
+            $('body').delay(350).css({'overflow': 'visible'});
+        }
+    </script>
+
+    <script>
+        function remove_lines(){
+            var scene = viewer.scene.scene
+            scene.children.filter(d => d.type === "Line").forEach(el => scene.remove(el))
+        }
+
+        function clearScreen(){
+            remove_lines()
+            hideControls()
+        }
+
+        function hideControls(){
+            $('#dataTableControl').hide();
+            $('#donutChartControl').hide();
+            $('#cellCoordsControl').hide();
+        }
+
+        function showControls(){
+            $('#dataTableControl').show();
+            $('#donutChartControl').show();
+            $('#cellCoordsControl').show();
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from "./viewer/libs/three.js/build/three.module.js";
+        import config from "./viewer/libs/config.module.js"
+        import data_loader from './viewer/libs/dataLoader.module.js'
+        import { instanceShow, hideAll, showAll } from "./viewer/libs/my_utils.js"
+        import {groupBy} from "./viewer/libs/initScene.module.js"
+
+        window.viewer = new Potree.Viewer(document.getElementById("potree_render_area"));
+        window.scene = viewer.scene;
+        window.cells = {};
+        window.cellData = [];
+        window.instanceShow = instanceShow
+        window.hideAll = hideAll
+        window.showAll = showAll
+        window.groupBy = groupBy
+
+		viewer.setEDLEnabled(false); //disable this so that transparency in the meshes works fine
+		viewer.setFOV(60);
+		viewer.setPointBudget(2_000_000);
+		viewer.loadSettingsFromURL();
+
+		// viewer.setDescription("merfish data: Brad Lowell lab (75million spots)");
+		viewer.renderer
+
+        viewer.setFilterFloatArray([]);
+
+		var legend_added = false
+
+
+        let url = './data/pointclouds/octree/metadata.json';
+        Potree.loadPointCloud(url, 'merfish', onloaded)
+
+		function onloaded(e) {
+            let scene = viewer.scene;
+            let pointcloud = e.pointcloud;
+            let material = pointcloud.material;
+
+            material.size = 0.02;
+            material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
+            material.shape = Potree.PointShape.CIRCLE
+            material.activeAttributeName = "rgba";
+
+
+            scene.addPointCloud(pointcloud);
+            scene.view.position.set(0.0, 330, 17000);
+            scene.view.lookAt(0, 0, 0);
+
+            run()
+
+        }
+
+        function run(){
+            console.log('app starts');
+            var configSettings = config();
+            configSettings.cellData["name"] = "cellData";
+            // configSettings.geneData["name"] = "geneData";
+            // configSettings.cellBoundaries["name"] = "cellBoundaries";
+
+            make_package([configSettings.cellData])
+        }
+
+
+
+        function make_package(result) {
+            var workPackage = result.reduce((a, b) => a.concat(b), []);
+            workPackage.forEach(d => d.root_name = strip_url(d.name));
+            workPackage.forEach(d => d.bytes_streamed = 0); //will keep how many bytes have been streamed
+            workPackage.forEach(d => d.data = []);          //will keep the actual data from the flatfiles
+            workPackage.forEach(d => d.data_length = 0);    //will keep the number of points that have been fetched
+            // workPackage = d3.map(workPackage, d => d.name.split('.')[0]);
+            // workPackage = workPackage.map(d => [d.name, d.download_url, d.size]);
+            data_loader(workPackage);
+
+            console.log(result)
+        }
+
+        function strip_url(d) {
+            // if the url has / get the last substring
+            var fName = d.substring(d.lastIndexOf('/')+1);
+
+            // then strip the extension and return the value
+            return fName.split('.')[0]
+        }
+
+
+
+    </script>
+
+</body>
+</html>
