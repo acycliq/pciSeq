@@ -66,8 +66,7 @@ def build_octree(my_path):
     result = subprocess.run(cmd, capture_output=True, shell=True)
     print(result)
 
-# pciSeq/src/viewer/3d_utils.py
-# pciSeq/static/PotreeConverter_linux_x64/PotreeConverter
+
 def parse_js(path_str):
     f = open(path_str, "r", encoding='utf8')
     text = f.read()
