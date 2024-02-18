@@ -91,7 +91,7 @@ def make_classConfig_js(labels, dst):
     viewer_utils_logger.info(' classConfig saved at %s' % config)
 
 
-def copy_viewer_code(cfg, dst):
+def copy_viewer_code(cfg, dst, dim='2D'):
     pciSeq_dir = get_pciSeq_install_dir()
     dim = '2D'
     src = os.path.join(pciSeq_dir, 'static', dim)
