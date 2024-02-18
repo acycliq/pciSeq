@@ -6,8 +6,10 @@ import subprocess
 import re
 import json
 import stat
+import shutil
 from matplotlib.colors import to_hex, to_rgb
 from pathlib import Path
+from run_flask import flask_app_start
 import random
 
 
@@ -38,14 +40,14 @@ def build_las(data, las_path):
     las.pt_src_id = pointSourceID
     # las.intensity = i
 
-    out_filename = os.path.join(las_path, 'izzie.las')
+    out_filename = os.path.join(las_path, 'pciSeq.las')
     if not os.path.exists(os.path.dirname(out_filename)):
         os.makedirs(os.path.dirname(out_filename))
     las.write(out_filename)
     # print('las file saved at: %s ' % out_filename)
 
 
-def build_octree(my_path):
+def build_octree(input_folder):
     # output_dir = os.path.join(my_path, 'octree', 'Mathieu_z')
     # if not os.path.exists(output_dir):
     #     os.makedirs(output_dir)
@@ -53,8 +55,7 @@ def build_octree(my_path):
     root_dir = os.path.join('..', '..')
     lib = "LD_PRELOAD=%s" % os.path.join(root_dir, 'static', 'PotreeConverter_linux_x64', 'liblaszip.so')
     exe = os.path.join(root_dir, 'static', 'PotreeConverter_linux_x64', 'PotreeConverter')
-    input_folder = os.path.join(root_dir, 'src', 'viewer', 'my_test')
-    output_folder = os.path.join(root_dir, 'static', 'PotreeConverter_linux_x64')
+    output_folder = os.path.join(input_folder, 'pointclouds')
     opts = " - m  poisson"
 
     # change file permissions to allow executing
@@ -62,6 +63,7 @@ def build_octree(my_path):
     os.chmod(exe, st.st_mode | stat.S_IEXEC)
 
     # generate now the octree
+    Path(output_folder).mkdir(parents=True, exist_ok=True)
     cmd = [lib + " " + exe + " " + input_folder + " -o " + output_folder + opts]
     result = subprocess.run(cmd, capture_output=True, shell=True)
     print(result)
@@ -121,28 +123,27 @@ def build_pointcloud(spots_df):
 
     spots = spots_df.rename(columns={'Gene_id': 'pointSourceID'})
 
-    target_path = r'my_test'
-    build_las(spots, target_path)
-    build_octree(target_path)
+    las_folder = r'/tmp/pciSeq/data'
+    Path(las_folder).mkdir(parents=True, exist_ok=True)
+    build_las(spots, las_folder)
+    build_octree(las_folder)
     print(gs)
 
 
-def cell_gene_counts(spots_df):
+def cell_gene_counts(spots_df, output_dir):
     df = spots_df[['Gene', 'x', 'y', 'z', 'neighbour']]
 
     df = df[df.neighbour > 0]
     df = df.rename({'Gene': 'gene'}, axis=1)
 
-    output_dir = 'cellData'
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
     for n in np.unique((df.neighbour)):
         temp = df[df.neighbour == n]
         temp.to_json(os.path.join(output_dir,  '%d.json' % n), orient='records')
+        print("saved at %s" % output_dir)
 
 
-def cellData_rgb(cellData):
+def cellData_rgb(cellData, output_dir):
     cellData['Genenames'] = cellData['Genenames'].apply(lambda x: eval(x))
     cellData['CellGeneCount'] = cellData['CellGeneCount'].apply(lambda x: eval(x))
     cellData['ClassName'] = cellData['ClassName'].apply(lambda x: eval(x))
@@ -180,16 +181,27 @@ def cellData_rgb(cellData):
     for f in fields:
         cellData[f] = cellData[f].fillna(generic[f].values[0])
 
-    cellData.to_csv('cellData_rgb.tsv', sep='\t', index=False)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    cellData.to_csv(os.path.join(output_dir, 'cellData_rgb.tsv'), sep='\t', index=False)
 
 
+def copy_viewer_code(cfg, dst, dim='2D'):
+    pciSeq_dir = '/home/dimitris/dev/python/pciSeq/pciSeq'
+    src = os.path.join(pciSeq_dir, 'static', dim)
+
+    shutil.copytree(src, dst, dirs_exist_ok=True)
+    print('viewer code (%s) copied from %s to %s' % (dim, src, dst))
+    return dst
 
 if __name__ == "__main__":
     spots = pd.read_csv(r'/media/dimitris/New Volume/data/Mathieu/WT94_alpha072/pciSeq/data/geneData.tsv', sep='\t')
     build_pointcloud(spots)
-    cell_gene_counts(spots)
+    cell_gene_counts(spots, '/tmp/pciSeq/data/cell_gene_counts')
 
-    # cells = pd.read_csv(r'/media/dimitris/New Volume/data/Mathieu/WT94_alpha072/pciSeq/data/cellData.tsv', sep='\t')
-    # cellData_rgb(cells)
+    cells = pd.read_csv(r'/media/dimitris/New Volume/data/Mathieu/WT94_alpha072/pciSeq/data/cellData.tsv', sep='\t')
+    cellData_rgb(cells, r'/tmp/pciSeq/data')
+
+    copy_viewer_code(None, '/tmp/pciSeq/', dim='3D')
+    flask_app_start(r'/tmp/pciSeq/')
 
     print('Done')

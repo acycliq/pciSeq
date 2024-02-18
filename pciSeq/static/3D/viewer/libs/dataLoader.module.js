@@ -49,7 +49,7 @@ function data_loader(workPackage) {
     var worker
     function setupWorker() {
         // create a web worker that streams the chart data
-        worker = new Worker("./data/streaming-tsv-parser.js");
+        worker = new Worker("./viewer/libs/streaming-tsv-parser.js");
         worker.onmessage = function (event) {
             if (event.data.finished) {
                 console.log(agg_data);
@@ -119,7 +119,7 @@ function data_loader(workPackage) {
         data.forEach(function(d,i) {
             if (d.class_prob.length>0){
                 var imax = d.class_prob.indexOf(Math.max(...d.class_prob));
-                var top_class = d.classes[imax]
+                var top_class = d.ClassName[imax]
                 if (top_class !== "undefined") {
                     this[i]['top_class'] = top_class.toString()
                 }
