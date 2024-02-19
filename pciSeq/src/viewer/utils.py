@@ -68,7 +68,7 @@ def make_config_js(dst, w, h):
     viewer_utils_logger.info(' viewer config saved at %s' % config)
 
 
-def make_classConfig_js(labels, dst):
+def make_classConfig_nsc_js(labels, dst):
     # remove Zero. It is appended later on
     if 'Zero' in labels:
         labels.remove('Zero')
@@ -91,6 +91,35 @@ def make_classConfig_js(labels, dst):
     viewer_utils_logger.info(' classConfig saved at %s' % config)
 
 
+def make_glyphConfig_js(pciSeq_dir, dst):
+    json_file = os.path.join(pciSeq_dir, 'static', 'color_scheme', 'geneColors.json')
+    json_file = r'pciSeq/static/color_scheme/geneColors.json'
+    with open(json_file, 'r') as f:
+        data = json.load(f)
+
+    config_dict = [d for d in data if '//' not in d.keys()]
+    config_str = " function glyphSettings() { return %s }" % json.dumps(config_dict)
+    config = os.path.join(dst, 'viewer', 'js', 'glyphConfig.js')
+    with open(config, 'w') as data:
+        data.write(str(config_str))
+    viewer_utils_logger.info(' glyphConfig.js saved at %s' % config)
+
+
+def make_classConfig_js(pciSeq_dir, dst):
+    json_file = os.path.join(pciSeq_dir, 'static', 'color_scheme', 'classColors.json')
+    json_file = r'pciSeq/static/color_scheme/classColors.json'
+    with open(json_file, 'r') as f:
+        data = json.load(f)
+
+    config_dict = [d for d in data if '//' not in d.keys()]
+    config_str = " function classColorsCodes() { return %s }" % json.dumps(config_dict)
+    config = os.path.join(dst, 'viewer', 'js', 'classConfig.js')
+    with open(config, 'w') as data:
+        data.write(str(config_str))
+    viewer_utils_logger.info(' glyphConfig.js saved at %s' % config)
+
+
+
 def copy_viewer_code(cfg, dst, dim='2D'):
     pciSeq_dir = get_pciSeq_install_dir()
     dim = '2D'
@@ -98,7 +127,7 @@ def copy_viewer_code(cfg, dst, dim='2D'):
 
     shutil.copytree(src, dst, dirs_exist_ok=True)
     viewer_utils_logger.info('viewer code (%s) copied from %s to %s' % (dim, src, dst))
-    return dst
+    return pciSeq_dir
 
 
 def _get_file(OUT_DIR, filepath, n, header_line):

@@ -13,7 +13,7 @@ from pciSeq.src.core.utils import get_img_shape
 from pciSeq.src.viewer.run_flask import flask_app_start
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
-from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js, make_classConfig_js
+from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js, make_classConfig_js, make_glyphConfig_js
 import logging
 
 app_logger = logging.getLogger(__name__)
@@ -319,15 +319,35 @@ def pre_launch(cellData, coo, scRNAseq, cfg):
     '''
     [_, h, w] = get_img_shape(coo)
     dst = get_out_dir(cfg['output_path'])
-    copy_viewer_code(cfg, dst)
-    make_config_js(dst, w, h)
+    pciSeq_dir = copy_viewer_code(cfg, dst)
+    make_config(dst, pciSeq_dir, (scRNAseq, w, h))
+    return dst
+
+
+def make_config(target_dir, source_dir, data):
+    '''
+    makes the three javascript configuration files that drive the viewer.
+    They are getting saved into the dst folder. By default this is the tmp directory
+    '''
+
+    scRNAseq = data[0]
+    w, h =  data[1:]
+    # 1. make the main configuration file
+    make_config_js(target_dir, w, h)
+
+    # 2. make the file for the class colors
     if scRNAseq is None:
         label_list = [d[:] for d in cellData.ClassName.values]
         labels = [item for sublist in label_list for item in sublist]
         labels = sorted(set(labels))
 
-        make_classConfig_js(labels, dst)
-    return dst
+        make_classConfig_nsc_js(labels, target_dir)
+    else:
+        make_classConfig_js(source_dir, target_dir)
+
+    # 3. make the file for the glyph colors
+    make_glyphConfig_js(source_dir, target_dir)
+
 
 
 def confirm_prompt(question):
