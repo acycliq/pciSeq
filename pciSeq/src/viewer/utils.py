@@ -38,7 +38,7 @@ def make_config_js(dst, w, h):
         'dapi': "https://storage.googleapis.com/ca1-data/img/262144px/{z}/{y}/{x}.jpg",
 
     }
-    appDict['spotSize'] = 1/16
+    appDict['spotSize'] = 1 / 16
 
     config_str = "// NOTES: \n" \
                  "// 1. paths in 'cellData', 'geneData' and 'cellBoundaries' are with respect to the location of \n" \
@@ -79,9 +79,9 @@ def make_classConfig_nsc_js(labels, dst):
                "#882d17", "#8db600", "#654522", "#e25822", "#2b3d26"]
     n = len(colours)
     config_dict = [{'className': labels[i],
-                   'IdentifiedType': labels[i],
-                   'color': colours[i % n]}
-                  for i, v in enumerate(labels)]
+                    'IdentifiedType': labels[i],
+                    'color': colours[i % n]}
+                   for i, v in enumerate(labels)]
     config_dict.append({'className': 'Zero', 'IdentifiedType': 'Zero', 'color': '#000000'})
     config_dict.append({'className': 'Other', 'IdentifiedType': 'Other', 'color': '#C0C0C0'})
     config_str = " function classColorsCodes() { return %s }" % json.dumps(config_dict)
@@ -117,7 +117,6 @@ def make_classConfig_js(pciSeq_dir, dst):
     with open(config, 'w') as data:
         data.write(str(config_str))
     viewer_utils_logger.info(' glyphConfig.js saved at %s' % config)
-
 
 
 def copy_viewer_code(cfg, dst, dim='2D'):
