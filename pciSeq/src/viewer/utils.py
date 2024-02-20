@@ -24,12 +24,12 @@ def make_config_base(dst):
     }
 
 
-def make_config_js(dst, w, h):
+def make_config_js(dst, img_shape):
     appDict = make_config_base(dst)
     cellBoundaries_tsv = os.path.join(dst, 'data', 'cellBoundaries.tsv')
     cellBoundaries_dict = {"mediaLink": "../../data/cellBoundaries.tsv",
                            "size": str(os.path.getsize(cellBoundaries_tsv))}
-    roi_dict = {"x0": 0, "x1": w, "y0": 0, "y1": h}
+    roi_dict = {"x0": 0, "x1": img_shape[1], "y0": 0, "y1": img_shape[0]}
     appDict['cellBoundaries'] = cellBoundaries_dict
     appDict['roi'] = roi_dict
     appDict['maxZoom'] = 8

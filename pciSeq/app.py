@@ -13,7 +13,9 @@ from pciSeq.src.core.utils import get_img_shape
 from pciSeq.src.viewer.run_flask import flask_app_start
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
-from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js, make_classConfig_js, make_glyphConfig_js
+from pciSeq.src.viewer.utils import (copy_viewer_code, make_config_js,
+                                     make_classConfig_js, make_glyphConfig_js,
+                                     make_classConfig_nsc_js)
 import logging
 
 app_logger = logging.getLogger(__name__)
@@ -320,7 +322,7 @@ def pre_launch(cellData, coo, scRNAseq, cfg):
     [_, h, w] = get_img_shape(coo)
     dst = get_out_dir(cfg['output_path'])
     pciSeq_dir = copy_viewer_code(cfg, dst)
-    make_config(dst, pciSeq_dir, (scRNAseq, w, h))
+    make_config(dst, pciSeq_dir, (cellData, scRNAseq, h, w))
     return dst
 
 
@@ -330,10 +332,11 @@ def make_config(target_dir, source_dir, data):
     They are getting saved into the dst folder. By default this is the tmp directory
     '''
 
-    scRNAseq = data[0]
-    w, h =  data[1:]
+    cellData = data[0]
+    scRNAseq = data[1]
+    img_shape = data[2:]
     # 1. make the main configuration file
-    make_config_js(target_dir, w, h)
+    make_config_js(target_dir, img_shape)
 
     # 2. make the file for the class colors
     if scRNAseq is None:
