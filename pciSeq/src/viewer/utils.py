@@ -65,7 +65,7 @@ def make_config_js(dst, img_shape):
     config = os.path.join(dst, 'viewer', 'js', 'config.js')
     with open(config, 'w') as data:
         data.write(str(config_str))
-    viewer_utils_logger.info(' viewer config saved at %s' % config)
+    viewer_utils_logger.info('viewer config saved at %s' % config)
 
 
 def make_classConfig_nsc_js(labels, dst):
@@ -88,21 +88,7 @@ def make_classConfig_nsc_js(labels, dst):
     config = os.path.join(dst, 'viewer', 'js', 'classConfig.js')
     with open(config, 'w') as data:
         data.write(str(config_str))
-    viewer_utils_logger.info(' classConfig saved at %s' % config)
-
-
-def make_glyphConfig_js(pciSeq_dir, dst):
-    json_file = os.path.join(pciSeq_dir, 'static', 'color_scheme', 'geneColors.json')
-    json_file = r'pciSeq/static/color_scheme/geneColors.json'
-    with open(json_file, 'r') as f:
-        data = json.load(f)
-
-    config_dict = [d for d in data if '//' not in d.keys()]
-    config_str = " function glyphSettings() { return %s }" % json.dumps(config_dict)
-    config = os.path.join(dst, 'viewer', 'js', 'glyphConfig.js')
-    with open(config, 'w') as data:
-        data.write(str(config_str))
-    viewer_utils_logger.info(' glyphConfig.js saved at %s' % config)
+    viewer_utils_logger.info('cell class color scheme saved at %s' % config)
 
 
 def make_classConfig_js(pciSeq_dir, dst):
@@ -116,12 +102,26 @@ def make_classConfig_js(pciSeq_dir, dst):
     config = os.path.join(dst, 'viewer', 'js', 'classConfig.js')
     with open(config, 'w') as data:
         data.write(str(config_str))
-    viewer_utils_logger.info(' glyphConfig.js saved at %s' % config)
+    viewer_utils_logger.info('cell class color scheme saved at %s' % config)
+
+
+def make_glyphConfig_js(pciSeq_dir, dst):
+    json_file = os.path.join(pciSeq_dir, 'static', 'color_scheme', 'geneColors.json')
+    json_file = r'pciSeq/static/color_scheme/geneColors.json'
+    with open(json_file, 'r') as f:
+        data = json.load(f)
+
+    config_dict = [d for d in data if '//' not in d.keys()]
+    config_str = " function glyphSettings() { return %s }" % json.dumps(config_dict)
+    config = os.path.join(dst, 'viewer', 'js', 'glyphConfig.js')
+    with open(config, 'w') as data:
+        data.write(str(config_str))
+    viewer_utils_logger.info('glyph color scheme saved at %s' % config)
 
 
 def copy_viewer_code(cfg, dst, dim='2D'):
     pciSeq_dir = get_pciSeq_install_dir()
-    dim = '2D'
+    dim = '3D' if cfg['is3D'] else '2D'
     src = os.path.join(pciSeq_dir, 'static', dim)
 
     shutil.copytree(src, dst, dirs_exist_ok=True)
