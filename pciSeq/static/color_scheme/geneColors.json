@@ -146,7 +146,7 @@
   {"gene": "Sulf2",        "color": "#FFFFFF",   "glyphName": "star5"},
 
   
-  {"//": "Do not remove this. If a gene is missing from the settings above, use these as default"},
+  {"//": "Do not remove the line below. If a gene is missing from the settings above, use these as default"},
   {"gene": "generic",       "color": "#0000FF",   "glyphName": "circle"}
 
 ]
