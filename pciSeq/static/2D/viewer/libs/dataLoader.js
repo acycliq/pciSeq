@@ -46,7 +46,7 @@ function data_loader(workPackage) {
 
     function setupWorker() {
         // create a web worker that streams the chart data
-        worker = new Worker("viewer/js/streaming-tsv-parser.js");
+        worker = new Worker("viewer/libs/streaming-tsv-parser.js");
         worker.onmessage = function (event) {
             if (event.data.finished) {
                 console.log(agg_data);
