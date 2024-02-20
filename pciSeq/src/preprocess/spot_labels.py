@@ -160,7 +160,7 @@ def cells_remove_planes(coo_list, cfg):
     len_f = len(set(_frames))
 
     if len(removed_cells) > 0:
-        spot_labels_logger.info('Found %d cells that exist on just one single plane. Those cells have been removed '
+        spot_labels_logger.warning('Found %d cells that exist on just one single plane. Those cells have been removed '
                                 'from %i planes.' % (len_c, len_f))
 
     removed_df = pd.DataFrame({
