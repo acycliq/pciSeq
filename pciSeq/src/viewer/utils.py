@@ -62,7 +62,7 @@ def make_config_js(dst, img_shape):
                  "//    be no background image. \n" \
                  "// 6. spotSize: Scalar. Use this to adjust the screen-size of your spots before they morph into glyphs. \n" \
                  " function config() { return %s }" % json.dumps(appDict)
-    config = os.path.join(dst, 'viewer', 'js', 'config.js')
+    config = os.path.join(dst, 'viewer', 'libs', 'config.js')
     with open(config, 'w') as data:
         data.write(str(config_str))
     viewer_utils_logger.info('viewer config saved at %s' % config)
@@ -85,7 +85,7 @@ def make_classConfig_nsc_js(labels, dst):
     config_dict.append({'className': 'Zero', 'IdentifiedType': 'Zero', 'color': '#000000'})
     config_dict.append({'className': 'Other', 'IdentifiedType': 'Other', 'color': '#C0C0C0'})
     config_str = " function classColorsCodes() { return %s }" % json.dumps(config_dict)
-    config = os.path.join(dst, 'viewer', 'js', 'classConfig.js')
+    config = os.path.join(dst, 'viewer', 'libs', 'classConfig.js')
     with open(config, 'w') as data:
         data.write(str(config_str))
     viewer_utils_logger.info('cell class color scheme saved at %s' % config)
@@ -99,7 +99,7 @@ def make_classConfig_js(pciSeq_dir, dst):
 
     config_dict = [d for d in data if '//' not in d.keys()]
     config_str = " function classColorsCodes() { return %s }" % json.dumps(config_dict)
-    config = os.path.join(dst, 'viewer', 'js', 'classConfig.js')
+    config = os.path.join(dst, 'viewer', 'libs', 'classConfig.js')
     with open(config, 'w') as data:
         data.write(str(config_str))
     viewer_utils_logger.info('cell class color scheme saved at %s' % config)
@@ -113,7 +113,7 @@ def make_glyphConfig_js(pciSeq_dir, dst):
 
     config_dict = [d for d in data if '//' not in d.keys()]
     config_str = " function glyphSettings() { return %s }" % json.dumps(config_dict)
-    config = os.path.join(dst, 'viewer', 'js', 'glyphConfig.js')
+    config = os.path.join(dst, 'viewer', 'libs', 'glyphConfig.js')
     with open(config, 'w') as data:
         data.write(str(config_str))
     viewer_utils_logger.info('glyph color scheme saved at %s' % config)

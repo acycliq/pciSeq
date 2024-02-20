@@ -88,7 +88,7 @@ def parse_js(path_str):
 
 
 def gene_settings():
-    path_str = os.path.join('..', '..', 'static', '2D', 'viewer', 'js', 'glyphConfig.js')
+    path_str = os.path.join('..', '..', 'static', '2D', 'viewer', 'libs', 'glyphConfig.js')
 
     # finally get them as a dataframe
     df = parse_js(path_str)
@@ -160,7 +160,7 @@ def cellData_rgb(cellData, output_dir):
     cellData = cellData.assign(class_id=cellData.ClassName.map(lambda x: [np.where(uCell_classes == d)[0][0] for d in x]))
 
 
-    path_str = os.path.join('..', '..', 'static', '2D', 'viewer', 'js', 'classConfig.js')
+    path_str = os.path.join('..', '..', 'static', '2D', 'viewer', 'libs', 'classConfig.js')
     classConfig = parse_js(path_str)
 
 
