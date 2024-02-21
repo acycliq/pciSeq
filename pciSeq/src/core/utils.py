@@ -285,3 +285,25 @@ def get_img_shape(coo):
     w = img_shape[1]
     h = img_shape[0]
     return [n, h, w]
+
+
+def gaussian_ellipsoid_props(cov, sdwidth=3):
+    """
+    get the scaling, rotation of the ellipsoid
+    """
+    tol = 1.0e-10
+    cov = np.where(cov < tol, 0, cov)
+    eigvals, eigvecs = np.linalg.eig(cov)
+    scaling = sdwidth * np.sqrt(eigvals)
+    # rotation = roll_pitch_yaw(eigvecs)
+    rotation = euler_angles(eigvecs.T)
+    scaling = scaling.tolist()
+    return scaling, rotation
+
+
+def euler_angles(r):
+    theta_x = np.arctan2(r[2, 1], r[2, 2])
+    theta_y = np.arcsin(r[2,0])
+    theta_z = np.arctan2(r[1, 0], r[0, 0])
+
+    return [theta_x, theta_y, theta_z]

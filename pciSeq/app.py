@@ -15,7 +15,8 @@ from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 from pciSeq.src.viewer.utils import (copy_viewer_code, make_config_js,
                                      make_classConfig_js, make_glyphConfig_js,
-                                     make_classConfig_nsc_js)
+                                     make_classConfig_nsc_js, build_pointcloud,
+                                     cellData_rgb)
 import logging
 
 app_logger = logging.getLogger(__name__)
@@ -112,7 +113,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     # 8. do the viewer if needed
     if cfg['launch_viewer']:
-        dst = pre_launch(cellData, coo, scRNAseq, cfg)
+        dst = pre_launch(cellData, geneData, coo, scRNAseq, cfg)
         flask_app_start(dst)
 
     app_logger.info('Done')
@@ -311,7 +312,7 @@ def parse_args(*args, **kwargs):
     return spots, coo, scRNAseq, opts
 
 
-def pre_launch(cellData, coo, scRNAseq, cfg):
+def pre_launch(cellData, geneData, coo, scRNAseq, cfg):
     '''
     Does some housekeeping, pre-flight control checking before the
     viewer is triggered
@@ -323,6 +324,9 @@ def pre_launch(cellData, coo, scRNAseq, cfg):
     dst = get_out_dir(cfg['output_path'])
     pciSeq_dir = copy_viewer_code(cfg, dst)
     make_config(dst, pciSeq_dir, (cellData, scRNAseq, h, w))
+    if cfg['is3D']:
+        build_pointcloud(geneData, dst)
+        cellData_rgb(cellData, dst)
     return dst
 
 
@@ -350,7 +354,6 @@ def make_config(target_dir, source_dir, data):
 
     # 3. make the file for the glyph colors
     make_glyphConfig_js(source_dir, target_dir)
-
 
 
 def confirm_prompt(question):

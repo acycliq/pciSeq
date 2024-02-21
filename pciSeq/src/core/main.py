@@ -104,7 +104,7 @@ class VarBayes:
 
             if self.has_converged:
                 # self.counts_within_radius(20)
-                cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
+                cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config['is3D'])
                 break
 
             if i == max_iter - 1:
