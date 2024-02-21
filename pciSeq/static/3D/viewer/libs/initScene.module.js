@@ -119,9 +119,8 @@ function splitArgs(label) {
     return (err, ...args) => {
 
         var data = args[0];
-        var geneColors = args[1];
         var targetCell = cellData.filter(d => d.label === label)[0]
-        var lines = make_line(data, targetCell, geneColors)
+        var lines = make_line(data, targetCell)
         lines.map(d => viewer.scene.scene.add(d));
         var spots = groupBy(data, 'gene');
         showControls()

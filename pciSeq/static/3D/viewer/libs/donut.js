@@ -260,12 +260,12 @@ function donutchart(dataset) {
     var percentFormat = d3.format('.2%');
 
     var data = []
-    for (var i=0; i < dataset.classes.length; i++) {
+    for (var i=0; i < dataset.ClassName.length; i++) {
         data.push({
             // value: Math.floor(dataset[i].value*10000)/100,
             // label: dataset[i].label,
             value: dataset.class_prob[i],
-            label: "class_" + dataset.classes[i],
+            label: dataset.ClassName[i],
         })
     }
 
@@ -275,7 +275,7 @@ function donutchart(dataset) {
     var sdata = [];
     var ClassName;
     for (var i = 0; i < dataset.class_prob.length; i++) {
-        dataset.class_prob[i] < 0.02? ClassName = 'Other': ClassName = "class_" + dataset.classes[i]
+        dataset.class_prob[i] < 0.02? ClassName = 'Other': ClassName = dataset.ClassName[i]
         sdata.push({
             Prob: dataset.class_prob[i],
             labels: ClassName,
@@ -309,7 +309,15 @@ function donutchart(dataset) {
     }
 
     var labels = d3.map(data, function (d) {return d.label;}).keys();
-    
+
+    function class_color(class_label){
+        let o = donutData.colorMap.get(class_label)
+        if (!o){
+            o = donutData.colorMap.get('Generic')
+        }
+        return o.color
+    }
+
     // var color = d3.scaleOrdinal()
 	// .domain(labels)
 	// .range(donutData.colors);
@@ -327,7 +335,7 @@ function donutchart(dataset) {
         })
     .merge(slice)
         //.style("fill", 'url(#myPattern)')
-        .style("fill", function(d) { return donutData.colorMap.get(d.data.label).color; })
+        .style("fill", function(d) { return class_color(d.data.label); })
 		.transition().duration(1000)
 		.attrTween("d", function(d) {
 			this._current = this._current || d;

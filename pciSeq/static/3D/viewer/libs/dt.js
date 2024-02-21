@@ -14,7 +14,7 @@ function renderDataTable(spots, cell) {
     var n = cell.class_prob.length;
     for (i = 0; i < n; i++) {
         mydata2.push({
-            "ClassName": cell.classes[i],
+            "ClassName": cell.ClassName[i],
             "Prob": +cell.class_prob[i], // d.Prob can be just a float, make sure it is an array
         })
     }
