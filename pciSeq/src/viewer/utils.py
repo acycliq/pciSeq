@@ -288,6 +288,19 @@ def cellData_rgb(cellData, dst):
     cellData.to_csv(os.path.join(data_folder, 'cellData_rgb.tsv'), sep='\t', index=False)
 
 
+def cell_gene_counts(spots_df, dst):
+    df = spots_df[['Gene', 'x', 'y', 'z', 'neighbour']]
+
+    df = df[df.neighbour > 0]
+    df = df.rename({'Gene': 'gene'}, axis=1)
+
+    data_folder = os.path.join(dst, 'data', 'cell_gene_counts')
+    Path(data_folder).mkdir(parents=True, exist_ok=True)
+    for n in np.unique((df.neighbour)):
+        temp = df[df.neighbour == n]
+        temp.to_json(os.path.join(data_folder,  '%d.json' % n), orient='records')
+
+
 def _get_file(OUT_DIR, filepath, n, header_line):
     [filename, ext] = os.path.basename(filepath).split('.')
     file = os.path.join(OUT_DIR, filename + '_%d.%s' % (n, ext))

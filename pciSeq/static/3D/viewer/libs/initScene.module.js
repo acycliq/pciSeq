@@ -109,9 +109,9 @@ function cellMouseHover(label) {
     // d3.json("./py/cellData/" + label + ".json", outer(label));
     d3.queue()
         // .defer(d3.json, "https://storage.googleapis.com/izzie_sfn/cellData/"+ label + ".json")
-        .defer(d3.json, "data/cell_counts_json/"+ label + ".json")
+        .defer(d3.json, "data/cell_gene_counts/"+ label + ".json")
         // .defer(d3.json, "./py/cellData/" + label + ".json")
-        .defer(d3.csv, "data/colour_scheme.csv")
+        //.defer(d3.json, "viewer//libs/glyphConfig.")
         .await(splitArgs(label))
 }
 
@@ -144,21 +144,20 @@ function splitArgs(label) {
 //     }
 // }
 
-function get_color(gene, geneColors){
-    var specs = geneColors.filter(d => d.gene == gene)
-    if (specs){
-        return {'r': +specs[0].r, 'g': +specs[0].g, 'b': +specs[0].b}
+function get_color(gene){
+    let hex;
+    hex = glyphSettings().filter(d => d.gene === gene)
+    if (hex.length === 0) {
+       hex = glyphSettings().filter(d => d.gene === 'generic')
     }
-    else{
-        return {'r': [], 'g': [], 'b': []}
-    }
+    return d3.color(hex[0].color).rgb()
 }
 
 function make_line(obj, targetCell, geneColors){
     var arr = Object.entries(obj).map(d => d[1]).flat()
-    arr.forEach(d => d['r'] = get_color(d.gene, geneColors).r)
-    arr.forEach(d => d['g'] = get_color(d.gene, geneColors).g)
-    arr.forEach(d => d['b'] = get_color(d.gene, geneColors).b)
+    arr.forEach(d => d['r'] = get_color(d.gene).r)
+    arr.forEach(d => d['g'] = get_color(d.gene).g)
+    arr.forEach(d => d['b'] = get_color(d.gene).b)
     var out = arr.map(d => {
         return make_line_helper(d, targetCell)
     });

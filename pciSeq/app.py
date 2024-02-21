@@ -16,7 +16,7 @@ from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 from pciSeq.src.viewer.utils import (copy_viewer_code, make_config_js,
                                      make_classConfig_js, make_glyphConfig_js,
                                      make_classConfig_nsc_js, build_pointcloud,
-                                     cellData_rgb)
+                                     cellData_rgb, cell_gene_counts)
 import logging
 
 app_logger = logging.getLogger(__name__)
@@ -327,6 +327,7 @@ def pre_launch(cellData, geneData, coo, scRNAseq, cfg):
     if cfg['is3D']:
         build_pointcloud(geneData, dst)
         cellData_rgb(cellData, dst)
+        cell_gene_counts(geneData, dst)
     return dst
 
 
