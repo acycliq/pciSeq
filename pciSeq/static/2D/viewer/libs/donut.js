@@ -309,6 +309,14 @@ function donutchart(dataset) {
     }
 
     var labels = d3.map(data, function (d) {return d.label;}).keys();
+
+    function class_color(class_label){
+        let o = donutData.colorMap.get(class_label)
+        if (!o){
+            o = donutData.colorMap.get('Generic')
+        }
+        return o.color
+    }
     
     // var color = d3.scaleOrdinal()
 	// .domain(labels)
@@ -327,7 +335,7 @@ function donutchart(dataset) {
         })
     .merge(slice)
         //.style("fill", 'url(#myPattern)')
-        .style("fill", function(d) { return donutData.colorMap.get(d.data.label).color; })
+        .style("fill", function(d) { return class_color(d.data.label); })
 		.transition().duration(1000)
 		.attrTween("d", function(d) {
 			this._current = this._current || d;

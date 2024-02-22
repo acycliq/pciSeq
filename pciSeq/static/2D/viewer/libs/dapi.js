@@ -102,6 +102,14 @@ function dapi(cfg) {
         return d.className;
     });
 
+    function getIdentifiedType(class_name){
+        let o = classColorsMap.get(class_name)
+        if(!o){
+            o = classColorsMap.get('Generic')
+        }
+        return o.IdentifiedType
+    }
+
     //calculate radius so that resulting circles will be proportional by area
     function getRadius(y) {
         r = Math.sqrt(y / Math.PI)
@@ -227,7 +235,7 @@ function dapi(cfg) {
             for (var i = 0; i < cellFeatures.ClassName.length; ++i) {
                 temp.push({
                     ClassName: cellFeatures.ClassName[i],
-                    IdentifiedType: classColorsMap.get(cellFeatures.ClassName[i]).IdentifiedType,
+                    IdentifiedType: getIdentifiedType(cellFeatures.ClassName[i]),
                     Prob: cellFeatures.Prob[i],
                 })
             }
