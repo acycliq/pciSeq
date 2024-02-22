@@ -154,7 +154,6 @@ def build_pointcloud(spots_df, dst):
     build_las(spots, data_folder)
     build_octree(data_folder)
     viewer_utils_logger.info('octree saved at: %s' % data_folder)
-    print(gs)
 
 
 def gene_settings():
