@@ -17,7 +17,10 @@ def get_static_files(root):
             if (d.endswith('.html')
                 or d.endswith('.js')
                 or d.endswith('.css')
-                or d.endswith('.msi'))
+                or d.endswith('.msi')
+                or d.endswith('.so')
+                or d.endswith('.json')
+                or d.endswith('PotreeConverter'))
             ]
 
 
