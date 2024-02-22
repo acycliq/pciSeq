@@ -336,8 +336,8 @@ def pre_launch(cellData, geneData, coo, scRNAseq, cfg):
         geneData.z = geneData.z - n / 2
         # ***************************************
 
-        build_pointcloud(geneData, dst)
-        cellData_rgb(cellData, dst)
+        build_pointcloud(geneData, pciSeq_dir, dst)
+        cellData_rgb(cellData, pciSeq_dir, dst)
         cell_gene_counts(geneData, dst)
     return dst
 

@@ -99,7 +99,6 @@ def make_classConfig_nsc_js(labels, dst):
 
 def make_classConfig_js(pciSeq_dir, dst):
     json_file = os.path.join(pciSeq_dir, 'static', 'color_scheme', 'classColors.json')
-    json_file = r'pciSeq/static/color_scheme/classColors.json'
     with open(json_file, 'r') as f:
         data = json.load(f)
 
@@ -113,7 +112,6 @@ def make_classConfig_js(pciSeq_dir, dst):
 
 def make_glyphConfig_js(pciSeq_dir, dst):
     json_file = os.path.join(pciSeq_dir, 'static', 'color_scheme', 'geneColors.json')
-    json_file = r'pciSeq/static/color_scheme/geneColors.json'
     with open(json_file, 'r') as f:
         data = json.load(f)
 
@@ -136,8 +134,8 @@ def copy_viewer_code(cfg, dst):
     return pciSeq_dir
 
 
-def build_pointcloud(spots_df, dst):
-    gs = gene_settings()
+def build_pointcloud(spots_df, pciSeq_dir, dst):
+    gs = gene_settings(pciSeq_dir)
     spots_df = spots_df.merge(gs, how='left', left_on='Gene', right_on="gene")
 
     # fill the nans with the generic values
@@ -152,15 +150,22 @@ def build_pointcloud(spots_df, dst):
     Path(data_folder).mkdir(parents=True, exist_ok=True)
 
     build_las(spots, data_folder)
-    build_octree(data_folder)
+    build_octree(pciSeq_dir, data_folder)
     viewer_utils_logger.info('octree saved at: %s' % data_folder)
 
 
-def gene_settings():
-    path_str = os.path.join('pciSeq', 'static', '2D', 'viewer', 'libs', 'glyphConfig.js')
+def gene_settings(pciSeq_dir):
+    json_file = os.path.join(pciSeq_dir, 'static', 'color_scheme', 'geneColors.json')
+    with open(json_file, 'r') as f:
+        data = json.load(f)
+
+    config_dict = [d for d in data if '//' not in d.keys()]
+    df = pd.DataFrame(config_dict)
+
+    # path_str = os.path.join('pciSeq', 'static', '2D', 'viewer', 'libs', 'glyphConfig.js')
 
     # finally get them as a dataframe
-    df = parse_js(path_str)
+    # df_2 = parse_js(path_str)
 
     # add the classification column (ie the glyph id)
     _, classification = np.unique(df.glyphName, return_inverse=True)
@@ -206,13 +211,13 @@ def build_las(data, las_path):
     # print('las file saved at: %s ' % out_filename)
 
 
-def build_octree(input_folder):
+def build_octree(pciSeq_dir, input_folder):
     # output_dir = os.path.join(my_path, 'octree', 'Mathieu_z')
     # if not os.path.exists(output_dir):
     #     os.makedirs(output_dir)
 
-    lib = "LD_PRELOAD=%s" % os.path.join('pciSeq', 'static', 'PotreeConverter_linux_x64', 'liblaszip.so')
-    exe = os.path.join('pciSeq', 'static', 'PotreeConverter_linux_x64', 'PotreeConverter')
+    lib = "LD_PRELOAD=%s" % os.path.join(pciSeq_dir, 'static', 'PotreeConverter_linux_x64', 'liblaszip.so')
+    exe = os.path.join(pciSeq_dir, 'static', 'PotreeConverter_linux_x64', 'PotreeConverter')
     output_folder = os.path.join(input_folder, 'pointclouds')
     opts = " - m  poisson"
 
@@ -253,7 +258,7 @@ def rgb_helper(df):
     return out
 
 
-def cellData_rgb(cellData, dst):
+def cellData_rgb(cellData, pciSeq_dir, dst):
     '''
     Better move this on the javascript side!
     '''
@@ -263,8 +268,15 @@ def cellData_rgb(cellData, dst):
     uCell_classes = np.unique(sum([d for d in cellData.ClassName], []))
     cellData = cellData.assign(class_id=cellData.ClassName.map(lambda x: [np.where(uCell_classes == d)[0][0] for d in x]))
 
-    path_str = os.path.join('pciSeq', 'static', '2D', 'viewer', 'libs', 'classConfig.js')
-    classConfig = parse_js(path_str)
+    # path_str = os.path.join(pciSeq_dir, 'static', '2D', 'viewer', 'libs', 'classConfig.js')
+    json_file = os.path.join(pciSeq_dir, 'static', 'color_scheme', 'classColors.json')
+    with open(json_file, 'r') as f:
+        data = json.load(f)
+
+    config_dict = [d for d in data if '//' not in d.keys()]
+    classConfig = pd.DataFrame(config_dict)
+
+    # classConfig = parse_js(path_str)
 
     classConfig = rgb_helper(classConfig)
     cellData = cellData.merge(classConfig, how='left', left_on='BestClass', right_on="className")
