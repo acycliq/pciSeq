@@ -263,8 +263,7 @@ def _validate_spots(spots, coo, sc, cfg):
 def purge_spots(spots, sc):
     drop_spots = list(set(spots.Gene) - set(sc.index))
     app_logger.warning('Found %d genes that are not included in the single cell data' % len(drop_spots))
-    idx = ([i for i, v in enumerate(spots.Gene) if
-            v not in drop_spots])  # can you speed this up?? What happens if the spot df has millions of rows?
+    idx = ~ np.in1d(spots.Gene, drop_spots)
     spots = spots.iloc[idx]
     app_logger.warning('Removed from spots: %s' % drop_spots)
     return spots
