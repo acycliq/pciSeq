@@ -320,11 +320,23 @@ def pre_launch(cellData, geneData, coo, scRNAseq, cfg):
     Returns the destination folder that keeps the viewer code and
     will be served to launch the website
     '''
-    [_, h, w] = get_img_shape(coo)
+    [n, h, w] = get_img_shape(coo)
     dst = get_out_dir(cfg['output_path'])
     pciSeq_dir = copy_viewer_code(cfg, dst)
     make_config(dst, pciSeq_dir, (cellData, scRNAseq, h, w))
     if cfg['is3D']:
+        # ***************************************
+        # OK FOR NOW BUT THIS IS A TEMP FIX ONLY
+        # THESE LINES MUST BE REMOVED
+        cellData.X = cellData.X - w / 2
+        cellData.Y = cellData.Y - h / 2
+        cellData.Z = cellData.Z - n / 2
+
+        geneData.x = geneData.x - w / 2
+        geneData.y = geneData.y - h / 2
+        geneData.z = geneData.z - n / 2
+        # ***************************************
+
         build_pointcloud(geneData, dst)
         cellData_rgb(cellData, dst)
         cell_gene_counts(geneData, dst)
