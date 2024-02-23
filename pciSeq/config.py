@@ -68,6 +68,9 @@ DEFAULT = {
     # level
     'dtype': np.float64,
 
+    # cell_radius
+    'cell_radius': None,
+
 
     # *******************************************************************************
     # Hyperparameters below come into action **ONLY** if single cell data are missing

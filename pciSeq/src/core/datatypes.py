@@ -15,7 +15,7 @@ class Cells(object):
     # Get rid of the properties where not necessary!!
     def __init__(self, _cells_df, config):
         self.config = config
-        self.ini_cell_props, self.mcr = self.read_image_objects(_cells_df, config)
+        self.ini_cell_props, self._mcr = self.read_image_objects(_cells_df, config)
         self.nC = len(self.ini_cell_props['cell_label'])
         self.classProb = None
         self.class_names = None
@@ -65,6 +65,15 @@ class Cells(object):
         df.index.name = 'cell_label'
         self._centroid = df.copy()
 
+    @property
+    def mcr(self):
+        if self.config['cell_radius'] is not None:
+            r = self.config['cell_radius']
+        else:
+            r = self._mcr
+        return r
+
+
     # -------- METHODS -------- #
     def ini_centroids(self):
         d = {
@@ -75,12 +84,12 @@ class Cells(object):
         return df.copy()
 
     def ini_cov(self):
-        mcr = self.dapi_mean_cell_radius()
+        mcr = self.mcr
         cov = mcr * mcr * np.eye(2, 2)
         return np.tile(cov, (self.nC, 1, 1))
 
-    def dapi_mean_cell_radius(self):
-        return np.nanmean(np.sqrt(self.ini_cell_props['area'] / np.pi)) * 0.5
+    # def dapi_mean_cell_radius(self):
+    #     return np.nanmean(np.sqrt(self.ini_cell_props['area'] / np.pi)) * 0.5
 
     def nn(self):
         n = self.config['nNeighbors'] + 1
