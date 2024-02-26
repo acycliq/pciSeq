@@ -69,6 +69,10 @@ class VarBayes:
             # 2. calc expected gamma
             self.gamma_upd()
 
+            # 6.1 update correlation matrix and variance of the gaussian distribution
+            if self.config['InsideCellBonus'] is not None:
+                self.gaussian_upd()
+
             # 3. assign cells to cell types
             self.cell_to_cellType()
 
@@ -80,8 +84,6 @@ class VarBayes:
 
             # 6. Update single cell data
             if self.single_cell.isMissing:
-                # 6.1 update correlation matrix and variance of the gaussian distribution
-                self.gaussian_upd()
                 # 6.2 update the dirichlet distribution
                 self.dalpha_upd()
                 # 6.3 update single cell data
@@ -191,10 +193,15 @@ class VarBayes:
         nN = self.nN
         nS = self.spots.data.gene_name.shape[0]
 
-        aSpotCell = np.zeros([nS, nN])
+        wSpotCell = np.zeros([nS, nN])
         gn = self.spots.data.gene_name.values
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
         logeta_bar = self.genes.logeta_bar[self.spots.gene_id]
+
+        # loglik = self.spots.loglik(self.cells, self.config)
+
+        # pre-populate last column
+        wSpotCell[:, -1] = np.log(self.config['MisreadDensity'])
 
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
         for n in range(nN - 1):
@@ -211,8 +218,10 @@ class VarBayes:
             log_gamma_bar = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
 
             term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
-            aSpotCell[:, n] = term_1 + term_2 + logeta_bar
-        wSpotCell = aSpotCell + self.spots.loglik(self.cells, self.config)
+
+            # d_loglik = term_1 + term_2 + logeta_bar + loglik[:, n]
+            mvn_loglik = self.spots.mvn_loglik(self.spots.xy_coords, sn, self.cells)
+            wSpotCell[:, n] = term_1 + term_2 + logeta_bar + mvn_loglik
 
         # update the prob a spot belongs to a neighboring cell
         self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
