@@ -147,9 +147,10 @@ class Cells(object):
         # append 1 for the misreads
         relCellRadius = np.append(1, relCellRadius)
 
-        nom = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
+        # if InsideCellBonus == 0 then CellAreaFactor will be equal to 1.0
+        numer = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
         denom = np.exp(-0.5) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
-        CellAreaFactor = nom / denom
+        CellAreaFactor = numer / denom
 
         out = {}
         out['area_factor'] = CellAreaFactor
