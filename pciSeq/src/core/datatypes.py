@@ -147,15 +147,18 @@ class Cells(object):
         # append 1 for the misreads
         relCellRadius = np.append(1, relCellRadius)
 
+        InsideCellBonus = cfg['InsideCellBonus']
+        if ~InsideCellBonus:
+            # This is more for clarity. The operation below will work fine even if InsideCellBonus is False
+            InsideCellBonus = 0
+
         # if InsideCellBonus == 0 then CellAreaFactor will be equal to 1.0
-        numer = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
-        denom = np.exp(-0.5) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
+        numer = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(InsideCellBonus)) + np.exp(InsideCellBonus)
+        denom = np.exp(-0.5) * (1 - np.exp(InsideCellBonus)) + np.exp(InsideCellBonus)
         CellAreaFactor = numer / denom
 
         out = {}
         out['area_factor'] = CellAreaFactor
-        # out['area_factor'] = np.ones(CellAreaFactor.shape)
-        # logger.info('Overriden CellAreaFactor = 1')
         out['rel_radius'] = relCellRadius
         out['area'] = np.append(np.nan, img_obj.area)
         out['x0'] = np.append(-sys.maxsize, img_obj.x0.values)
@@ -303,20 +306,20 @@ class Spots(object):
         ## Add a couple of checks here
         return pSpotNeighb
 
-    def loglik(self, cells, cfg):
-        # area = cells.ini_cell_props['area'][1:]
-        # mcr = np.mean(np.sqrt(area / np.pi)) * 0.5  # This is the meanCellRadius
-        mcr = cells.mcr
-        dim = 2  # dimensions of the normal distribution: Bivariate
-        # Assume a bivariate normal and calc the likelihood
-        D = -self.Dist ** 2 / (2 * mcr ** 2) - dim/2 * np.log(2 * np.pi * mcr ** 2)
-
-        # last column (nN-closest) keeps the misreads,
-        D[:, -1] = np.log(cfg['MisreadDensity'])
-
-        mask = np.greater(self.data.label.values, 0, where=~np.isnan(self.data.label.values))
-        D[mask, 0] = D[mask, 0] + cfg['InsideCellBonus']
-        return D
+    # def loglik(self, cells, cfg):
+    #     # area = cells.ini_cell_props['area'][1:]
+    #     # mcr = np.mean(np.sqrt(area / np.pi)) * 0.5  # This is the meanCellRadius
+    #     mcr = cells.mcr
+    #     dim = 2  # dimensions of the normal distribution: Bivariate
+    #     # Assume a bivariate normal and calc the likelihood
+    #     D = -self.Dist ** 2 / (2 * mcr ** 2) - dim/2 * np.log(2 * np.pi * mcr ** 2)
+    #
+    #     # last column (nN-closest) keeps the misreads,
+    #     D[:, -1] = np.log(cfg['MisreadDensity'])
+    #
+    #     mask = np.greater(self.data.label.values, 0, where=~np.isnan(self.data.label.values))
+    #     D[mask, 0] = D[mask, 0] + cfg['InsideCellBonus']
+    #     return D
 
 
     def mvn_loglik(self, data, cell_label, cells):

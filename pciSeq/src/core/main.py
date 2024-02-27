@@ -70,7 +70,7 @@ class VarBayes:
             self.gamma_upd()
 
             # 6.1 update correlation matrix and variance of the gaussian distribution
-            if self.config['InsideCellBonus'] < 0: # THIS IS TEMPORARY!! Switch back to None or maybe False when you are done
+            if self.config['InsideCellBonus'] is False:
                 self.gaussian_upd()
 
             # 3. assign cells to cell types
