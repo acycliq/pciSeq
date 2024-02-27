@@ -70,7 +70,7 @@ class VarBayes:
             self.gamma_upd()
 
             # 6.1 update correlation matrix and variance of the gaussian distribution
-            if self.config['InsideCellBonus'] is not None:
+            if self.config['InsideCellBonus'] < 0: # THIS IS TEMPORARY!! Switch back to None or maybe False when you are done
                 self.gaussian_upd()
 
             # 3. assign cells to cell types
@@ -219,9 +219,18 @@ class VarBayes:
 
             term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
 
-            # d_loglik = term_1 + term_2 + logeta_bar + loglik[:, n]
+            # wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik[:, n]
             mvn_loglik = self.spots.mvn_loglik(self.spots.xy_coords, sn, self.cells)
             wSpotCell[:, n] = term_1 + term_2 + logeta_bar + mvn_loglik
+
+        # apply inside cell bonus
+        # NOTE. This is not applied 100% correctly. For example the fourth spot in the demo data. Id2, (x, y) = (0, 4484)
+        # The spots is within the boundaries of cell with label 5 but this is not its closest cell. The closest cell is
+        # cell label = 4. Cell label=5 is the second closest cell and label=4 the first closest. Therefore, the bonus should be
+        # applied when we handle the column for the seconds closest near-by cell. The implementation below implies that if
+        # a spot is inside the cell boundaries then that cell is the closest one.
+        mask = np.greater(self.spots.data.label.values, 0, where=~np.isnan(self.spots.data.label.values))
+        wSpotCell[mask, 0] = wSpotCell[mask, 0] + self.config['InsideCellBonus']
 
         # update the prob a spot belongs to a neighboring cell
         self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
