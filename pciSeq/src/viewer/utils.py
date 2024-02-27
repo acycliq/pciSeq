@@ -65,7 +65,7 @@ def make_config_js(dst, w, h):
     config = os.path.join(dst, 'viewer', 'js', 'config.js')
     with open(config, 'w') as data:
         data.write(str(config_str))
-    viewer_utils_logger.info(' viewer config saved at %s' % config)
+    viewer_utils_logger.info('viewer config saved at %s' % config)
 
 
 def make_classConfig_js(labels, dst):
