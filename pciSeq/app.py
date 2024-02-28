@@ -88,7 +88,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     cfg = init(opts)
 
     # 3. validate inputs
-    spots = validate(spots.copy(), coo, scRNAseq)   # Spots might get mutated here. Genes not found
+    spots = validate(spots.copy(), coo, scRNAseq, cfg)   # Spots might get mutated here. Genes not found
                                                     # in the single cell data will be removed.
 
     # 4. launch the diagnostics
@@ -136,14 +136,17 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
     geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
     app_logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
 
-    if cfg['InsideCellBonus']:
-        cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-        app_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
-    else:
+    # Do not change the if-then branching flow. InsideCellBonus can take the value of zero
+    # and the logic below will ensure that in that case, the segmentation borders will be
+    # drawn instead of the gaussian contours.
+    if cfg['InsideCellBonus'] is False:
         ellipsoidBoundaries = cellData[['Cell_Num', 'gaussian_contour']]
         ellipsoidBoundaries = ellipsoidBoundaries.rename(columns={"Cell_Num": "cell_id", "gaussian_contour": "coords"})
         ellipsoidBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
         app_logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+    else:
+        cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
+        app_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
     serialise(varBayes, os.path.join(out_dir, 'debug'))
 
@@ -195,7 +198,7 @@ def init(opts):
     return cfg
 
 
-def validate(spots, coo, sc):
+def validate(spots, coo, sc, cfg):
     assert isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y'}, \
         "Spots should be passed-in to the fit() method as a dataframe with columns ['Gene', 'x', 'y']"
 
@@ -207,6 +210,16 @@ def validate(spots, coo, sc):
         if not set(spots.Gene).issubset(sc.index):
             # remove genes that cannot been found in the single cell data
             spots = purge_spots(spots, sc)
+
+    if cfg['InsideCellBonus'] is True:
+        """
+        This is not good enough! The default value for InsideCellBonus is now kept in two places, config.py and 
+        here. What happens if I change the config.py and I set InsideCellBonus = 3 for example? 
+        The line below will stll set it 2 which is not the default anymore! 
+        """
+        d = 2
+        cfg['InsideCellBonus'] = d
+        app_logger.warning('InsideCellBonus was passed-in as True. Overriding with the default value of %d' % d)
 
     return spots
 
