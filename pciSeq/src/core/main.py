@@ -21,7 +21,7 @@ class VarBayes:
         self.spots = Spots(_spots_df, config)
         self.genes = Genes(self.spots)
         self.single_cell = SingleCell(scRNAseq, self.genes.gene_panel, self.config)
-        self.cellTypes = CellType(self.single_cell)
+        self.cellTypes = CellType(self.single_cell, config)
         self.cells.class_names = self.single_cell.classes
         self.nC = self.cells.nC  # number of cells
         self.nG = self.genes.nG  # number of genes
@@ -78,13 +78,15 @@ class VarBayes:
             # 5. update gene efficiency
             self.eta_upd()
 
-            # 6. Update single cell data
-            if self.single_cell.isMissing:
-                # 6.1 update correlation matrix and variance of the gaussian distribution
-                self.gaussian_upd()
-                # 6.2 update the dirichlet distribution
+            # 6. update the dirichlet distribution
+            if self.single_cell.isMissing or self.config['cell_type_prior'] == 'weighted':
                 self.dalpha_upd()
-                # 6.3 update single cell data
+
+            # 7. Update single cell data
+            if self.single_cell.isMissing:
+                # 7.1 update correlation matrix and variance of the gaussian distribution
+                self.gaussian_upd()
+                # 7.2 update single cell data
                 self.mu_upd()
 
             self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])

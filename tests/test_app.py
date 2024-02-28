@@ -56,9 +56,10 @@ def test_validate(read_demo_data):
     logging.getLogger().info('test_2')
     spots = read_demo_data[0]
     coo = read_demo_data[1]
+    sc = read_demo_data[2]
 
     with pytest.raises(AssertionError) as excinfo:
-        validate(coo, coo, config.DEFAULT)
+        validate(coo, coo, sc, config.DEFAULT)
     assert str(excinfo.value) == ("Spots should be passed-in to the fit() method as "
                                   "a dataframe with columns ['Gene', 'x', 'y']")
 
@@ -116,7 +117,7 @@ def test_varBayes(filename, expected, request):
                 'launch_diagnostics': True,
                 'max_iter': 30,
                 })
-    validate(spots, coo, scData)
+    validate(spots, coo, scData, cfg)
 
     if cfg['launch_diagnostics'] and cfg['is_redis_running']:
         launch_dashboard()

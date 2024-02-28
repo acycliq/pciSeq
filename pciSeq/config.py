@@ -68,8 +68,18 @@ DEFAULT = {
     # level
     'dtype': np.float64,
 
-    # cell_radius
+    # cell radius. If None then pciSeq will calc that as the mean radius across all cells.
+    # Otherwise it will use the value provided below
     'cell_radius': None,
+
+    # cell type prior: The prior distribution on the classes. It expresses the view on
+    # how likely each class is to occur a-priori. It can be either 'uniform' or 'weighted'
+    # 'uniform' means that the Zero class gets 50% and the remaining 50% is equally split
+    # on the cell classes.
+    # 'weighted' means that the cell type which is more likely to occur will be given more
+    # weight. These weights are calculated dynamically within the algorithm based on
+    # a Dirichlet distribution assumption.
+    'cell_type_prior': 'uniform',
 
 
     # *******************************************************************************

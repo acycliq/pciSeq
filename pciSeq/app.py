@@ -88,8 +88,9 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     cfg = init(opts)
 
     # 3. validate inputs
-    spots = validate(spots.copy(), coo, scRNAseq)   # Spots might get mutated here. Genes not found
-                                                    # in the single cell data will be removed.
+    # NOTE 1: Spots might get mutated here. Genes not found in the single cell data will be removed.
+    # NOTE 2: cfg might also get mutated. Fields 'is3D' and 'remove_planes' might get overridden
+    cfg, spots = validate(spots.copy(), coo, scRNAseq, cfg)
 
     # 4. launch the diagnostics
     if cfg['launch_diagnostics'] and cfg['is_redis_running']:
@@ -178,7 +179,7 @@ def init(opts):
         user_items = set(opts.keys())
         assert user_items.issubset(default_items), ('Options passed-in should be a dict with keys: %s ' % default_items)
         for item in opts.items():
-            if isinstance(item[1], (int, float, list)) or isinstance(item[1](1), np.floating):
+            if isinstance(item[1], (int, float, list, str)) or isinstance(item[1](1), np.floating):
                 val = item[1]
             # elif isinstance(item[1], list):
             #     val = item[1]
@@ -189,7 +190,7 @@ def init(opts):
     return cfg
 
 
-def validate(spots, coo, sc):
+def validate(spots, coo, sc, cfg):
     assert isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y'}, \
         "Spots should be passed-in to the fit() method as a dataframe with columns ['Gene', 'x', 'y']"
 
@@ -202,7 +203,13 @@ def validate(spots, coo, sc):
             # remove genes that cannot been found in the single cell data
             spots = purge_spots(spots, sc)
 
-    return spots
+    if cfg['cell_type_prior'].lower() not in ['uniform'.lower(), 'weighted'.lower()]:
+        raise ValueError("'cel_type_prior' should be either 'uniform' or 'weighted' ")
+
+    # make sure the string is lowercase from now on
+    cfg['cell_type_prior'] = cfg['cell_type_prior'].lower()
+
+    return cfg, spots
 
 
 def purge_spots(spots, sc):

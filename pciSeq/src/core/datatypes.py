@@ -523,10 +523,11 @@ class SingleCell(object):
 
 # ---------------------------------------- Class: CellType --------------------------------------------------- #
 class CellType(object):
-    def __init__(self, single_cell):
+    def __init__(self, single_cell, config):
         assert single_cell.classes[-1] == 'Zero', "Last label should be the Zero class"
         self._names = single_cell.classes
         self._alpha = None
+        self.config = config
         self.single_cell_data_missing = single_cell.isMissing
 
     @property
@@ -560,7 +561,7 @@ class CellType(object):
 
     @property
     def log_prior(self):
-        if self.single_cell_data_missing:
+        if self.single_cell_data_missing or self.config['cell_type_prior'] == 'weighted':
             return self.logpi_bar
         else:
             return np.log(self.prior)
