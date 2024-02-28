@@ -148,7 +148,7 @@ class Cells(object):
         relCellRadius = np.append(1, relCellRadius)
 
         InsideCellBonus = cfg['InsideCellBonus']
-        if ~InsideCellBonus:
+        if not InsideCellBonus:
             # This is more for clarity. The operation below will work fine even if InsideCellBonus is False
             InsideCellBonus = 0
 
