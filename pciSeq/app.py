@@ -136,8 +136,14 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
     geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
     app_logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
 
-    cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-    app_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+    if cfg['InsideCellBonus']:
+        cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
+        app_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+    else:
+        ellipsoidBoundaries = cellData[['Cell_Num', 'gaussian_contour']]
+        ellipsoidBoundaries = ellipsoidBoundaries.rename(columns={"Cell_Num": "cell_id", "gaussian_contour": "coords"})
+        ellipsoidBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
+        app_logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
     serialise(varBayes, os.path.join(out_dir, 'debug'))
 

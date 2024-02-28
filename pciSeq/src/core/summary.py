@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from pciSeq.src.core.utils import gaussian_contour
 import logging
 
 summary_logger = logging.getLogger(__name__)
@@ -31,13 +32,22 @@ def cells_summary(cells, genes, single_cell):
     class_name_list = [list(class_names[i][d]) for (i, d) in enumerate(isProb_nonZero)]
     prob_list = [list(class_prob[i][d].round(3)) for (i, d) in enumerate(isProb_nonZero)]
 
+    contour = []
+    for i in range(cells.nC):
+        # ea = cells.ellipsoid_attributes[i]
+        mu = cells.centroid.iloc[i].tolist()
+        cov = cells.cov[i]
+        ellipsis = gaussian_contour(mu[:2], cov[:2, :2], 3).astype(np.int64)
+        contour.append(ellipsis.tolist())
+
     iss_df = pd.DataFrame({'Cell_Num': cells.centroid.index.tolist(),
                            'X': cells.centroid['x'].round(3).tolist(),
                            'Y': cells.centroid['y'].round(3).tolist(),
                            'Genenames': name_list,
                            'CellGeneCount': count_list,
                            'ClassName': class_name_list,
-                           'Prob': prob_list
+                           'Prob': prob_list,
+                           'gaussian_contour': contour
                            })
     iss_df.set_index(['Cell_Num'])
 

@@ -229,3 +229,55 @@ def get_pciSeq_install_dir():
     h = BytesHeaderParser().parsebytes(p.stdout)
     assert h['Location'] is not None, 'Could not locate pciSeq installation folder, maybe the package is not installed.'
     return os.path.join(h['Location'], 'pciSeq')
+
+
+def gaussian_contour(mu, cov, sdwidth=3):
+    """
+    Draws an ellipsoid for a given covariance matrix cov
+    and mean vector mu
+
+    Example
+    cov_1 = [[1, 0.5], [0.5, 1]]
+    means_1 = [1, 1]
+
+    cov_2 = [[1, -0.7], [-0.7, 1]]
+    means_2 = [2, 1.5]
+
+    cov_3 = [[1, 0], [0, 1]]
+    means_3 = [0, 0]
+
+    ellipsis_1 = gaussian_contour(means_1, cov_1)
+    ellipsis_2 = gaussian_contour(means_2, cov_2)
+    ellipsis_3 = gaussian_contour(means_3, cov_3)
+    ellipsis_3b = gaussian_contour(means_3, cov_3, sdwidth=2)
+    ellipsis_3c = gaussian_contour(means_3, cov_3, sdwidth=3)
+
+    plt.plot(ellipsis_1[0], ellipsis_1[1], c='b')
+    plt.plot(ellipsis_2[0], ellipsis_2[1], c='r')
+    plt.plot(ellipsis_3[0], ellipsis_3[1], c='g')
+    plt.plot(ellipsis_3b[0], ellipsis_3b[1], c='g')
+    plt.plot(ellipsis_3c[0], ellipsis_3c[1], c='g')
+    """
+
+    # cov_00 = sigma_x * sigma_x
+    # cov_10 = rho * sigma_x * sigma_y
+    # cov_11 = sigma_y * sigma_y
+    # cov = np.array([[cov_00, cov_10], [cov_10, cov_11]])
+    mu = np.array(mu)
+
+    npts = 40
+    tt = np.linspace(0, 2 * np.pi, npts)
+    ap = np.zeros((2, npts))
+    x = np.cos(tt)
+    y = np.sin(tt)
+    ap[0, :] = x
+    ap[1, :] = y
+
+    eigvals, eigvecs = np.linalg.eig(cov)
+    eigvals = sdwidth * np.sqrt(eigvals)
+    eigvals = eigvals * np.eye(2)
+
+    vd = eigvecs.dot(eigvals)
+    out = vd.dot(ap) + mu.reshape(2, -1)
+
+    return np.array(list(zip(*out)))
