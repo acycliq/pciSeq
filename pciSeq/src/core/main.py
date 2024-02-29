@@ -83,7 +83,7 @@ class VarBayes:
             self.eta_upd()
 
             # 7. update the dirichlet distribution
-            if self.single_cell.isMissing or self.config['cell_type_prior'] == 'weighted':
+            if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):
                 self.dalpha_upd()
 
             # 8. Update single cell data
