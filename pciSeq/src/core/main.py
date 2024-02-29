@@ -69,28 +69,25 @@ class VarBayes:
             # 2. calc expected gamma
             self.gamma_upd()
 
-            # 6.1 update correlation matrix and variance of the gaussian distribution
-            if self.config['InsideCellBonus'] is False:
+            # 3 update correlation matrix and variance of the gaussian distribution
+            if self.single_cell.isMissing or (self.config['InsideCellBonus'] is False):
                 self.gaussian_upd()
 
-            # 3. assign cells to cell types
+            # 4. assign cells to cell types
             self.cell_to_cellType()
 
-            # 4. assign spots to cells
+            # 5. assign spots to cells
             self.spots_to_cell()
 
-            # 5. update gene efficiency
+            # 6. update gene efficiency
             self.eta_upd()
 
-            # 6. update the dirichlet distribution
+            # 7. update the dirichlet distribution
             if self.single_cell.isMissing or self.config['cell_type_prior'] == 'weighted':
                 self.dalpha_upd()
 
-            # 7. Update single cell data
+            # 8. Update single cell data
             if self.single_cell.isMissing:
-                # 6.2 update the dirichlet distribution
-                self.dalpha_upd()
-                # 6.3 update single cell data
                 self.mu_upd()
 
             self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
