@@ -1,7 +1,7 @@
 function _removeOverlay(name) {
     if (geneOverlays) {
         var el = geneOverlays.filter(d => d.geneName === name);
-        if (el) {
+        if (el.length > 0) {
             geneLayers.removeLayer(el[0].geneLayer)
         }
     }
@@ -10,7 +10,7 @@ function _removeOverlay(name) {
 function _addOverlay(name) {
     if (geneOverlays) {
         var el = geneOverlays.filter(d => d.geneName === name);
-        if (el) {
+        if (el.length > 0) {
             geneLayers.addLayer(el[0].geneLayer)
         }
     }

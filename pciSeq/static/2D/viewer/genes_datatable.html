@@ -48,12 +48,31 @@
 
 
 <script>
+
+    function get_color(gene_name){
+        var o = []
+        o = glyphSettings().filter(d=>d.gene === gene_name)
+        if (o.length === 0 ){
+            return get_color('Generic')
+        }
+        return o[0].color
+    }
+
+   function get_glyphName(gene_name){
+        let o
+        o = glyphSettings().filter(d=>d.gene === gene_name)
+        if (o.length === 0 ){
+            return get_color('Generic')
+        }
+        return o[0].glyphName
+    }
+
+
     sessionStorage['dtCompleted'] =  0;
     var table;
     $(document).ready(function () {
         var gene_panel = JSON.parse(sessionStorage.getItem('gene_panel'));
-        var legendData = glyphSettings().filter(d => gene_panel.includes(d.gene))
-          .map((d,i) => {return [i, d.gene, d.glyphName, d.color]});
+        var legendData = gene_panel.map((d, i) => [i, d, get_glyphName(d), get_color(d)])
         table = $('#example').DataTable({
             'data': legendData,
             'columnDefs': [
