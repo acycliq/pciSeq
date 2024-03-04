@@ -16,6 +16,7 @@ try:
 except KeyError:
     import diplib as dip
 
+
 def extract_borders_dip(label_image, offset_x=0, offset_y=0, exclude_labels=(0,)):
     """
     Extracts the cell boundaries from the label image array. The background is
