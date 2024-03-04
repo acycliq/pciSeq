@@ -7,11 +7,14 @@ from multiprocessing.dummy import Pool as ThreadPool
 # All that below is to avoid diplib to show a welcome msg on import. If hasattr(sys,'ps1') return True, then
 # import diplib will print out the diplib name, version, description which I find annoying. I am deleting ps1
 # and then reinstate it after the import.
-import sys
-ps1 = sys.__dict__['ps1']
-del sys.ps1
-import diplib as dip
-sys.__dict__['ps1'] = ps1
+try:
+    import sys
+    ps1 = sys.__dict__['ps1']
+    del sys.ps1
+    import diplib as dip
+    sys.__dict__['ps1'] = ps1
+except KeyError:
+    import diplib as dip
 
 def extract_borders_dip(label_image, offset_x=0, offset_y=0, exclude_labels=(0,)):
     """
