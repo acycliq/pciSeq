@@ -90,6 +90,11 @@ function dapi(cfg) {
         return out
     }
 
+    function getIdentifiedType(class_name){
+        return classColorsMap.get(class_name)? classColorsMap.get(class_name).IdentifiedType: classColorsMap.get('Generic').IdentifiedType
+    }
+
+
     // get the svg markers (glyphs)
     var glyphs = glyphSettings();
     var glyphMap = d3.map(glyphs, function (d) {
@@ -227,7 +232,7 @@ function dapi(cfg) {
             for (var i = 0; i < cellFeatures.ClassName.length; ++i) {
                 temp.push({
                     ClassName: cellFeatures.ClassName[i],
-                    IdentifiedType: classColorsMap.get(cellFeatures.ClassName[i]).IdentifiedType,
+                    IdentifiedType: getIdentifiedType(cellFeatures.ClassName[i]),
                     Prob: cellFeatures.Prob[i],
                 })
             }
