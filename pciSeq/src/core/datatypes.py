@@ -204,9 +204,9 @@ class Cells(object):
         if cfg['is3D']:
             ## it was decided to set that only in the plain pciSeq.
             ## it is almost under a permanent revision
-            out['area_factor'] = np.ones(CellAreaFactor.shape[0])
+            out['area_factor'] = np.ones(CellAreaFactor.shape[0], dtype=np.uint8)
         else:
-            out['area_factor'] = CellAreaFactor
+            out['area_factor'] = CellAreaFactor.astype(np.float32)
         # out['area_factor'] = np.ones(CellAreaFactor.shape)
         # logger.info('Overriden CellAreaFactor = 1')
         out['rel_radius'] = relCellRadius
@@ -241,10 +241,14 @@ class Genes(object):
         return self._logeta_bar
 
     def init_eta(self, a, b):
-        self._eta_bar = np.ones(self.nG) * (a / b)
-        self._logeta_bar = np.ones(self.nG) * self._digamma(a, b)
+        eta_bar = np.ones(self.nG) * (a / b)
+        logeta_bar = np.ones(self.nG) * self._digamma(a, b)
+        self._eta_bar = eta_bar.astype(np.float32)
+        self._logeta_bar = logeta_bar.astype(np.float32)
 
     def calc_eta(self, a, b):
+        a = a.astype(np.float32)
+        b = b.astype(np.float32)
         self._eta_bar = a / b
         self._logeta_bar = self._digamma(a, b)
 
@@ -491,7 +495,6 @@ class SingleCell(object):
             datatypes_logger.info('Single Cell data are missing. Cannot determine meam expression per cell class.')
             datatypes_logger.info('We will try to estimate the array instead')
             datatypes_logger.info('Starting point is a diagonal array of size numGenes-by-numGenes')
-            # expr = self._naive(scdata, genes)
             expr = self._diag(genes)
             self.isMissing = True
         else:
@@ -500,11 +503,10 @@ class SingleCell(object):
 
         self.raw_data = expr
         me, lme = self._helper(expr.copy())
-        dtype = self.config['dtype']
 
         assert me.columns[-1] == 'Zero', "Last column should be the Zero class"
         assert lme.columns[-1] == 'Zero', "Last column should be the Zero class"
-        return me.astype(dtype), lme.astype(dtype)
+        return me.astype(np.float32), lme.astype(np.float32)
 
     # -------- PROPERTIES -------- #
     @property
