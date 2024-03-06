@@ -110,13 +110,33 @@ def make_classConfig_js(pciSeq_dir, dst):
     viewer_utils_logger.info('cell class color scheme saved at %s' % config)
 
 
-def make_glyphConfig_js(pciSeq_dir, dst):
+def make_glyphConfig_js(gene_panel, pciSeq_dir, dst):
     json_file = os.path.join(pciSeq_dir, 'static', 'color_scheme', 'geneColors.json')
     with open(json_file, 'r') as f:
         data = json.load(f)
 
     config_dict = [d for d in data if '//' not in d.keys()]
-    config_str = " function glyphSettings() { return %s }" % json.dumps(config_dict)
+
+    # read the preset settings (gene color and glyph)
+    df = pd.DataFrame(config_dict)
+
+    # for your gene panel get the color/glyph for the preset file
+    in_gene_panel = np.in1d(df.gene.values, gene_panel)
+    df1 = df[in_gene_panel]
+
+    # use the generic settings for those genes in the gene panel that do not have color/glyph,
+    unspecified = set(gene_panel) - set(df.gene)
+    generic = df[df.gene == 'generic']
+    df2 = pd.DataFrame({'gene': list(unspecified),
+                  'color': generic.color.tolist() * len(unspecified),
+                  'glyphName': generic.glyphName.tolist() * len(unspecified),
+                  })
+
+    # keep now everything in one dataframe
+    config_df = pd.concat([df1, df2], ignore_index=True)
+
+    # and save the color scheme to the glyphConfig.js file
+    config_str = " function glyphSettings() { return %s }" % json.dumps(config_df.to_dict(orient='records'))
     config = os.path.join(dst, 'viewer', 'libs', 'glyphConfig.js')
     with open(config, 'w') as data:
         data.write(str(config_str))

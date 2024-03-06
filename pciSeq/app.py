@@ -365,7 +365,8 @@ def make_config(target_dir, source_dir, data):
         make_classConfig_js(source_dir, target_dir)
 
     # 3. make the file for the glyph colors
-    make_glyphConfig_js(source_dir, target_dir)
+    gene_panel = scRNAseq.index.values
+    make_glyphConfig_js(gene_panel, source_dir, target_dir)
 
 
 def confirm_prompt(question):
