@@ -455,7 +455,7 @@ class Spots(object):
         # assert (np.all(rho.coords['gene_name'].data == beta.coords['gene_name'])), 'rho and beta are not aligned'
 
         r = rho[:, :, None]
-        return (r / beta)
+        return r / beta
 
     def logGammaExpectation(self, rho, beta):
         r = rho[:, :, None]
