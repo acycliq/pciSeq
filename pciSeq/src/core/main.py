@@ -51,7 +51,7 @@ class VarBayes:
         self.genes.init_eta(1, 1 / self.config['Inefficiency'])
         self.spots.parent_cell_id, _ = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
-        self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK], dtype=np.float32)
+        # self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK], dtype=np.float32)
 
     # -------------------------------------------------------------------- #
     def run(self):
@@ -178,7 +178,7 @@ class VarBayes:
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
-        wCellClass = np.sum(contr, axis=1) + self.cellTypes.log_prior
+        wCellClass = np.sum(contr, axis=1, dtype=np.float32) + self.cellTypes.log_prior.astype(np.float32)
         pCellClass = softmax(wCellClass, axis=1)
 
         self.cells.classProb = pCellClass
@@ -381,7 +381,7 @@ class VarBayes:
         # assert np.all(np.isfinite(x_bar) == np.isfinite(y_bar))
         # use the fitted centroids where possible otherwise use the initial ones
         xyz_bar[np.isfinite(x_bar)] = xyz_bar_fitted[np.isfinite(x_bar)]
-        self.cells.centroid = pd.DataFrame(xyz_bar, columns=['x', 'y', 'z'])
+        self.cells.centroid = pd.DataFrame(xyz_bar, columns=['x', 'y', 'z'], dtype=np.float32)
         # print(np.array(list(zip(x_bar.T, y_bar.T))))
 
     # -------------------------------------------------------------------- #

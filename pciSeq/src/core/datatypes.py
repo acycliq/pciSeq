@@ -118,13 +118,13 @@ class Cells(object):
             'y': self.ini_cell_props['y0'],
             'z': self.ini_cell_props['z0'],
         }
-        df = pd.DataFrame(d)
+        df = pd.DataFrame(d, dtype=np.float32)
         return df.copy()
 
     def ini_cov(self):
         dim = 3
         cov = self.mcr * self.mcr * np.eye(dim, dim)
-        return np.tile(cov, (self.nC, 1, 1))
+        return np.tile(cov.astype(np.float32), (self.nC, 1, 1))
 
 
     def dapi_mean_cell_radius(self):
@@ -661,14 +661,14 @@ class CellType(object):
 
     @property
     def prior(self):
-        return self.pi_bar
+        return self.pi_bar.astype(np.float32)
 
     @property
     def log_prior(self):
         if self.single_cell_data_missing:
-            return self.logpi_bar
+            return self.logpi_bar.astype(np.float32)
         else:
-            return np.log(self.prior)
+            return np.log(self.prior).astype(np.float32)
 
     def size(self, cells):
         """
