@@ -133,13 +133,13 @@ class VarBayes:
         # For each cell aggregate the number of spots from the same gene.
         # It will produce an array of size nC-by-nG where the entry at (c,g)
         # is the gene counts of gene g within cell c
-        N_cg = npg.aggregate(group_idx, probs, size=(self.nC, self.nG))
+        N_cg = npg.aggregate(group_idx, probs, size=(self.nC, self.nG), dtype=np.float32)
 
         # assert N_cg.sum() == self.spots.data.shape[0], \
         #     "The sum of the background spots and the cell gene counts should be equal to the total number of spots"
 
         # make output. This part needs to be rewritten
-        out = np.zeros([self.nC, self.nG])
+        out = np.zeros([self.nC, self.nG], dtype=np.float32)
         out[1:, :] = N_cg[1:, :]
 
         # cell at position zero is the background
