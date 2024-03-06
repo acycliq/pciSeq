@@ -454,24 +454,12 @@ class Spots(object):
         # assert (np.all(rho.coords['cell_id'].data == beta.coords['cell_id'])), 'rho and beta are not aligned'
         # assert (np.all(rho.coords['gene_name'].data == beta.coords['gene_name'])), 'rho and beta are not aligned'
 
-        dtype = self.config['dtype']
         r = rho[:, :, None]
-        if dtype == np.float64:
-            gamma = np.empty(beta.shape)
-            ne.evaluate('r/beta', out=gamma)
-            return gamma
-        else:
-            return (r / beta).astype(dtype)
+        return (r / beta)
 
     def logGammaExpectation(self, rho, beta):
-        dtype = self.config['dtype']
-        r = rho[:, :, None].astype(dtype)
-        if dtype == np.float64:
-            logb = np.empty(beta.shape)
-            ne.evaluate("log(beta)", out=logb)
-            return scipy.special.psi(r) - logb
-        else:
-            return scipy.special.psi(r) - np.log(beta).astype(dtype)
+        r = rho[:, :, None]
+        return scipy.special.psi(r) - np.log(beta)
 
 
 # ----------------------------------------Class: SingleCell--------------------------------------------------- #
