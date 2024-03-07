@@ -289,7 +289,7 @@ class Spots(object):
 
     @gamma_bar.setter
     def gamma_bar(self, val):
-        self._gamma_bar = val.astype(self.config['dtype'])
+        self._gamma_bar = val
 
     @property
     def log_gamma_bar(self):
