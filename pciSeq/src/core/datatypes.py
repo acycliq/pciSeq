@@ -302,7 +302,7 @@ class Spots(object):
     @property
     def xyz_coords(self):
         lst = list(zip(*[self.data.x, self.data.y, self.data.z]))
-        return np.array(lst)
+        return np.array(lst, dtype=np.float32)
 
     @property
     def parent_cell_prob(self):
@@ -310,7 +310,7 @@ class Spots(object):
 
     @parent_cell_prob.setter
     def parent_cell_prob(self, val):
-        self._parent_cell_prob = val
+        self._parent_cell_prob = val.astype(np.float32)
 
     @property
     def parent_cell_id(self):
@@ -318,7 +318,7 @@ class Spots(object):
 
     @parent_cell_id.setter
     def parent_cell_id(self, val):
-        self._parent_cell_id = val
+        self._parent_cell_id = val.astype(np.uint32)
 
     # -------- METHODS -------- #
     def read(self, spots_df):
