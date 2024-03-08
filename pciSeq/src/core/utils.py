@@ -240,10 +240,10 @@ def adjust_for_anisotropy(spots, voxel_size):
 
     spots_adj = np.hstack([gene_col, spots_adj, z_plane])
     spots_adj = pd.DataFrame(spots_adj, columns=['Gene', 'x', 'y', 'z', 'z_plane'])
-    spots_adj = spots_adj.astype({'x': 'float64',
-                                  'y': 'float64',
-                                  'z': 'float64',
-                                  'z_plane': 'float64',
+    spots_adj = spots_adj.astype({'x': 'float32',
+                                  'y': 'float32',
+                                  'z': 'float32',
+                                  'z_plane': 'float32',
                                   'Gene': str})
     return spots_adj  # Nspots x 3
 
@@ -257,9 +257,9 @@ def anisotropy_calc(data, voxel_size):
         [Sx, 0, 0],
         [0, Sy, 0],
         [0, 0, Sz]
-    ])
+    ], dtype=np.float32)
     out = scaling_matrix.dot(data.T)  # 3 x Nspots
-    return np.float64(out.T)  # Nspots x 3
+    return out.T  # Nspots x 3
 
 
 
@@ -307,3 +307,21 @@ def euler_angles(r):
     theta_z = np.arctan2(r[1, 0], r[0, 0])
 
     return [theta_x, theta_y, theta_z]
+
+
+def calc_pNegBin(area_factor, eta_bar, mean_expression, r):
+    # out = np.zeros([len(area_factor), *mean_expression.shape], dtype=np.float32)
+
+    out = np.einsum('c, g -> cg', area_factor, eta_bar)
+    out = np.einsum('cg, gk -> cgk', out, mean_expression)
+
+    p = r + np.einsum('c, g, gk -> cgk', area_factor, eta_bar, mean_expression)
+    # b = r + p
+    ne.evaluate("p/(r + p)", out=out)
+    # np.divide(p, r + p, out)
+    # ScaledExp = np.einsum('c, g, gk -> cgk', area_factor, eta_bar, mean_expression)
+    # pNegBin = ScaledExp / (rSpot + ScaledExp)
+    return out
+
+ # p / (r + p)
+ # r/p + 1

@@ -257,6 +257,11 @@ def _validate_spots(spots, coo, sc, cfg):
             # remove genes that cannot been found in the single cell data
             spots = purge_spots(spots, sc)
 
+    spots = spots.astype({
+        'Gene': str,
+        'x': np.float32,
+        'y': np.float32,
+        'z_plane': np.float32})
     return spots
 
 

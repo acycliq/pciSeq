@@ -27,7 +27,7 @@ def inside_cell(label_image, spots) -> np.array:
     else:
         raise Exception('label_image should be of type "csr_matrix" ')
     m = label_image[spots.y, spots.x]
-    out = np.asarray(m)
+    out = np.asarray(m, dtype=np.uint32)
     return out[0]
 
 
@@ -76,7 +76,7 @@ def reorder_labels(label_image):
     try:
         assert isinstance(label_image, np.ndarray)
         assert len(label_image.shape) in {2, 3}
-        label_image = [coo_matrix(d) for d in label_image]
+        label_image = [coo_matrix(d, dtype=np.uint32) for d in label_image]
     except AssertionError:
         assert np.all([isinstance(d, coo_matrix) for d in label_image]) and isinstance(label_image, list)
     else:
@@ -99,7 +99,7 @@ def reorder_labels(label_image):
             c = coo_matrix((data, (row, col)), shape=shape)
             out.append(c)
 
-        label_map = pd.DataFrame(label_dict.items(), columns=['old_label', 'new_label'])
+        label_map = pd.DataFrame(label_dict.items(), columns=['old_label', 'new_label'], dtype=np.uint32)
     else:
         out = label_image
         label_map = None
@@ -201,7 +201,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.Data
         spots, coo, min_plane, removed = remove_planes(spots, coo, cfg)
         if removed.shape[0] > 0:
             # add the min_plane back so that the planes refer to the original 3d image before
-            # the the removal of the planes described in the exclude_planes list
+            # the removal of the planes described in the exclude_planes list
             removed.frame_num = removed.frame_num + min_plane
 
     coo, label_map = reorder_labels(coo)
@@ -220,7 +220,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.Data
     spots = spots.assign(label=np.zeros(spots.shape[0]))
     for z in np.unique(spots.z_plane):
         spots_z = spots[spots.z_plane == z]
-        inc = inside_cell(coo[int(z)].tocsr(), spots_z)
+        inc = inside_cell(coo[int(z)].tocsr().astype(np.uint32), spots_z)
         spots.loc[spots.z_plane == z, 'label'] = inc
 
     # 2. Get cell centroids and area
@@ -243,6 +243,13 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.Data
         'centroid-2': 'x_cell'})
     props_df = props_df[['label', 'area', 'z_cell', 'y_cell', 'x_cell']]
 
+    # set the datatypes of the columns
+    props_df = props_df.astype({"label": np.uint32,
+                                "area": np.uint32,
+                                'z_cell': np.float32,
+                                'y_cell': np.float32,
+                                'x_cell': np.float32})
+
     # if there is a label map, attach it to the cell props.
     if label_map is not None:
         props_df = pd.merge(props_df, label_map, left_on='label', right_on='new_label', how='left')
@@ -258,18 +265,6 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.Data
 
     _cells = props_df.rename(columns={'x_cell': 'x0', 'y_cell': 'y0', 'z_cell': 'z0'})
     _spots = spots[['x', 'y', 'z', 'label', 'Gene']].rename_axis('spot_id').rename(columns={'Gene': 'gene_name'})
-
-    # cells = props_df.merge(cell_boundaries)
-    # cells.sort_values(by=['label', 'x_cell', 'y_cell'])
-    # assert cells.shape[0] == cell_boundaries.shape[0]
-    #
-    # # join spots and cells on the cell label so you can get the x,y coords of the cell for any given spot
-    # spots = spots.merge(cells, how='left', on=['label'])
-    #
-    # _cells = cells.drop(columns=['coords'])
-    # _cells = _cells.rename(columns={'x_cell': 'x0', 'y_cell': 'y0'})
-    # _cell_boundaries = cells[['label', 'coords']].rename(columns={'label': 'cell_id'})
-    # _spots = spots[['x', 'y', 'label', 'Gene', 'x_cell', 'y_cell']].rename(columns={'Gene': 'target', 'x': 'x_global', 'y': 'y_global'})
 
     return _cells, _cell_boundaries, _spots
 

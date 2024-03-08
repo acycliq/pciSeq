@@ -158,8 +158,8 @@ class VarBayes:
                          self.genes.eta_bar, dtype=np.float32) + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
-        self.spots.gamma_bar = self.spots.gammaExpectation(rho, beta)
         self.spots.log_gamma_bar = self.spots.logGammaExpectation(rho, beta)
+        self.spots.gamma_bar = self.spots.gammaExpectation(rho, beta)
 
     # -------------------------------------------------------------------- #
     def cell_to_cellType(self):
@@ -172,9 +172,16 @@ class VarBayes:
         :return:
         """
 
-        dtype = self.config['dtype']
-        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.ini_cell_props['area_factor'], self.genes.eta_bar,
-                              self.single_cell.mean_expression).astype(dtype)
+        p = utils.calc_pNegBin(self.cells.ini_cell_props['area_factor'],
+                           self.genes.eta_bar,
+                           self.single_cell.mean_expression.values,
+                           self.config['rSpot'])
+
+        ScaledExp = np.einsum('c, g, gk -> cgk',
+                              self.cells.ini_cell_props['area_factor'],
+                              self.genes.eta_bar,
+                              self.single_cell.mean_expression.values
+                              )
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
@@ -403,7 +410,7 @@ class VarBayes:
         # shrinkage
         delta = 0.5
         cov = delta * cov_0 + (1 - delta) * cov
-        self.cells.cov = cov
+        self.cells.cov = cov.astype(np.float32)
 
     # -------------------------------------------------------------------- #
     def mu_upd(self):

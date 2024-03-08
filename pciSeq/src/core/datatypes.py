@@ -187,7 +187,7 @@ class Cells(object):
         out[:, 2, 0] = agg_02
         out[:, 2, 1] = agg_12
 
-        return out
+        return out.astype(np.float32)
 
     def read_image_objects(self, img_obj, cfg):
         meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
@@ -211,9 +211,9 @@ class Cells(object):
         # logger.info('Overriden CellAreaFactor = 1')
         out['rel_radius'] = relCellRadius
         out['area'] = np.append(np.nan, img_obj.area)
-        out['x0'] = np.append(-sys.maxsize, img_obj.x0.values)
-        out['y0'] = np.append(-sys.maxsize, img_obj.y0.values)
-        out['z0'] = np.append(-sys.maxsize, img_obj.z0.values)
+        out['x0'] = np.append(-sys.maxsize, img_obj.x0.values.astype(np.float32))
+        out['y0'] = np.append(-sys.maxsize, img_obj.y0.values.astype(np.float32))
+        out['z0'] = np.append(-sys.maxsize, img_obj.z0.values.astype(np.float32))
         out['cell_label'] = np.append(0, img_obj.label.values)
         if 'old_label' in img_obj.columns:
             out['cell_label_old'] = np.append(0, img_obj.old_label.values)
@@ -285,7 +285,7 @@ class Spots(object):
     # -------- PROPERTIES -------- #
     @property
     def gamma_bar(self):
-        return self._gamma_bar.astype(self.config['dtype'])
+        return self._gamma_bar
 
     @gamma_bar.setter
     def gamma_bar(self, val):
