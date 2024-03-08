@@ -36,7 +36,7 @@ class Cells(object):
 
     @geneCount.setter
     def geneCount(self, val):
-        self._gene_counts = val
+        self._gene_counts = val.astype(np.float32)
 
     @property
     def background_counts(self):
@@ -158,19 +158,19 @@ class Cells(object):
         CellAreaFactor = numer / denom
 
         out = {}
-        out['area_factor'] = CellAreaFactor
-        out['rel_radius'] = relCellRadius
-        out['area'] = np.append(np.nan, img_obj.area)
-        out['x0'] = np.append(-sys.maxsize, img_obj.x0.values)
-        out['y0'] = np.append(-sys.maxsize, img_obj.y0.values)
-        out['cell_label'] = np.append(0, img_obj.label.values)
+        out['area_factor'] = CellAreaFactor.astype(np.float32)
+        out['rel_radius'] = relCellRadius.astype(np.float32)
+        out['area'] = np.append(np.nan, img_obj.area).astype(np.uint32)
+        out['x0'] = np.append(-sys.maxsize, img_obj.x0.values).astype(np.float32)
+        out['y0'] = np.append(-sys.maxsize, img_obj.y0.values).astype(np.float32)
+        out['cell_label'] = np.append(0, img_obj.label.values).astype(np.uint32)
         if 'old_label' in img_obj.columns:
-            out['cell_label_old'] = np.append(0, img_obj.old_label.values)
+            out['cell_label_old'] = np.append(0, img_obj.old_label.values).astype(np.uint32)
         # First cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
         # and will be used to get all the misreads. It was given the label=0 and some very small
         # negative coords
 
-        return out, meanCellRadius
+        return out, meanCellRadius.astype(np.float32)
 
 # ----------------------------------------Class: Genes--------------------------------------------------- #
 class Genes(object):
@@ -189,10 +189,12 @@ class Genes(object):
         return self._logeta_bar
 
     def init_eta(self, a, b):
-        self._eta_bar = np.ones(self.nG) * (a / b)
-        self._logeta_bar = np.ones(self.nG) * self._digamma(a, b)
+        self._eta_bar = np.ones(self.nG, dtype=np.float32) * (a / b)
+        self._logeta_bar = np.ones(self.nG, dtype=np.float32) * self._digamma(a, b)
 
     def calc_eta(self, a, b):
+        a = a.astype(np.float32)
+        b = b.astype(np.float32)
         self._eta_bar = a/b
         self._logeta_bar = self._digamma(a, b)
 
@@ -381,35 +383,18 @@ class Spots(object):
         return TotPredictedZ
 
     def gammaExpectation(self, rho, beta):
-        '''
+        """
         :param r:
         :param b:
         :return: Expectetation of a rv X following a Gamma(r,b) distribution with pdf
         f(x;\alpha ,\beta )= \frac{\beta^r}{\Gamma(r)} x^{r-1}e^{-\beta x}
-        '''
-
-        # sanity check
-        # assert (np.all(rho.coords['cell_id'].data == beta.coords['cell_id'])), 'rho and beta are not aligned'
-        # assert (np.all(rho.coords['gene_name'].data == beta.coords['gene_name'])), 'rho and beta are not aligned'
-
-        dtype = self.config['dtype']
+        """
         r = rho[:, :, None]
-        if dtype == np.float64:
-            gamma = np.empty(beta.shape)
-            ne.evaluate('r/beta', out=gamma)
-            return gamma
-        else:
-            return (r/beta).astype(dtype)
+        return r/beta
 
     def logGammaExpectation(self, rho, beta):
-        dtype = self.config['dtype']
-        r = rho[:, :, None].astype(dtype)
-        if dtype == np.float64:
-            logb = np.empty(beta.shape)
-            ne.evaluate("log(beta)", out=logb)
-            return scipy.special.psi(r) - logb
-        else:
-            return scipy.special.psi(r) - np.log(beta).astype(dtype)
+        r = rho[:, :, None]
+        return scipy.special.psi(r) - np.log(beta)
 
 
 # ----------------------------------------Class: SingleCell--------------------------------------------------- #
@@ -442,11 +427,10 @@ class SingleCell(object):
 
         self.raw_data = expr
         me, lme = self._helper(expr.copy())
-        dtype = self.config['dtype']
 
         assert me.columns[-1] == 'Zero', "Last column should be the Zero class"
         assert lme.columns[-1] == 'Zero', "Last column should be the Zero class"
-        return me.astype(dtype), lme.astype(dtype)
+        return me.astype(np.float32), lme.astype(np.float32)
 
     # -------- PROPERTIES -------- #
     @property

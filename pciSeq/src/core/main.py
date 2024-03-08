@@ -50,7 +50,6 @@ class VarBayes:
         self.genes.init_eta(1, 1 / self.config['Inefficiency'])
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
-        self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
 
     # -------------------------------------------------------------------- #
     def run(self):
@@ -154,10 +153,12 @@ class VarBayes:
         """
         cells = self.cells
         cfg = self.config
-        dtype = self.config['dtype']
-        beta = np.einsum('c, gk, g -> cgk', cells.ini_cell_props['area_factor'], self.single_cell.mean_expression,
-                         self.genes.eta_bar).astype(dtype) + cfg['rSpot']
-        # beta = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
+
+        beta = np.einsum('c, gk, g -> cgk',
+                         cells.ini_cell_props['area_factor'],
+                         self.single_cell.mean_expression.values,
+                         self.genes.eta_bar
+                         ) + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
         self.spots.gamma_bar = self.spots.gammaExpectation(rho, beta)
