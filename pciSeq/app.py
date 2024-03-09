@@ -228,6 +228,12 @@ def validate(spots, coo, sc, cfg):
     # make sure the string is lowercase from now on
     cfg['cell_type_prior'] = cfg['cell_type_prior'].lower()
 
+    # do some datatype casting
+    spots = spots.astype({
+        'Gene': str,
+        'x': np.float32,
+        'y': np.float32})
+
     return cfg, spots
 
 

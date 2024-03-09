@@ -25,7 +25,7 @@ def inside_cell(label_image, spots) -> np.array:
     else:
         raise Exception('label_image should be of type "csr_matrix" ')
     m = label_image[spots.y, spots.x]
-    out = np.asarray(m)
+    out = np.asarray(m, dtype=np.uint32)
     return out[0]
 
 
@@ -51,7 +51,10 @@ def reorder_labels(coo):
     flat_arr = label_image.flatten()
     u, idx = np.unique(flat_arr, return_inverse=True)
 
-    label_map = pd.DataFrame(set(zip(flat_arr, idx)), columns=['old_label', 'new_label'])
+    label_map = pd.DataFrame(
+        set(zip(flat_arr, idx)),
+        columns=['old_label', 'new_label'],
+        dtype=np.uint32)
     label_map = label_map.sort_values(by='old_label', ignore_index=True)
     return coo_matrix(idx.reshape(label_image.shape)), label_map
 
@@ -76,7 +79,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.D
     spots = spots[mask_x & mask_y]
 
     # 1. Find which cell the spots lie within
-    inc = inside_cell(coo.tocsr(), spots)
+    inc = inside_cell(coo.tocsr().astype(np.uint32), spots)
     spots = spots.assign(label=inc)
 
     # 2. Get cell centroids and area
@@ -87,6 +90,12 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix) -> Tuple[pd.DataFrame, pd.D
     if label_map is not None:
         props_df = pd.merge(props_df, label_map, left_on='label', right_on='new_label', how='left')
         props_df = props_df.drop(['new_label'], axis=1)
+
+    # set the datatypes of the columns
+    props_df = props_df.astype({"label": np.uint32,
+                                "area": np.uint32,
+                                'y_cell': np.float32,
+                                'x_cell': np.float32})
 
     # 3. Get the cell boundaries
     # cell_boundaries = extract_borders_dip(coo.toarray().astype(np.uint32))

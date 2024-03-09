@@ -175,9 +175,8 @@ class VarBayes:
         :return:
         """
 
-        dtype = self.config['dtype']
         ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.ini_cell_props['area_factor'], self.genes.eta_bar,
-                              self.single_cell.mean_expression).astype(dtype)
+                              self.single_cell.mean_expression)
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
@@ -342,7 +341,7 @@ class VarBayes:
         # shrinkage
         delta = 0.5
         cov = delta * cov_0 + (1 - delta) * cov
-        self.cells.cov = cov
+        self.cells.cov = cov.astype(np.float32)
 
     # -------------------------------------------------------------------- #
     def mu_upd(self):

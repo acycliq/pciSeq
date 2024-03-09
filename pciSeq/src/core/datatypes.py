@@ -65,7 +65,6 @@ class Cells(object):
         df.index.name = 'cell_label'
         self._centroid = df.copy()
 
-
     @property
     def cov(self):
         return self._cov
@@ -82,7 +81,6 @@ class Cells(object):
             r = self._mcr
         return r
 
-
     # -------- METHODS -------- #
     def ini_centroids(self):
         d = {
@@ -94,7 +92,7 @@ class Cells(object):
 
     def ini_cov(self):
         mcr = self.mcr
-        cov = mcr * mcr * np.eye(2, 2)
+        cov = mcr * mcr * np.eye(2, 2, dtype=np.float32)
         return np.tile(cov, (self.nC, 1, 1))
 
     # def dapi_mean_cell_radius(self):
@@ -138,7 +136,7 @@ class Cells(object):
         out[:, 0, 1] = agg_01
         out[:, 1, 0] = agg_01
 
-        return out
+        return out.astype(np.float32)
 
     def read_image_objects(self, img_obj, cfg):
         meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
@@ -160,7 +158,7 @@ class Cells(object):
         out = {}
         out['area_factor'] = CellAreaFactor.astype(np.float32)
         out['rel_radius'] = relCellRadius.astype(np.float32)
-        out['area'] = np.append(np.nan, img_obj.area).astype(np.uint32)
+        out['area'] = np.append(np.nan, img_obj.area.astype(np.uint32))
         out['x0'] = np.append(-sys.maxsize, img_obj.x0.values).astype(np.float32)
         out['y0'] = np.append(-sys.maxsize, img_obj.y0.values).astype(np.float32)
         out['cell_label'] = np.append(0, img_obj.label.values).astype(np.uint32)
@@ -171,6 +169,7 @@ class Cells(object):
         # negative coords
 
         return out, meanCellRadius.astype(np.float32)
+
 
 # ----------------------------------------Class: Genes--------------------------------------------------- #
 class Genes(object):
@@ -195,7 +194,7 @@ class Genes(object):
     def calc_eta(self, a, b):
         a = a.astype(np.float32)
         b = b.astype(np.float32)
-        self._eta_bar = a/b
+        self._eta_bar = a / b
         self._logeta_bar = self._digamma(a, b)
 
     def _digamma(self, a, b):
@@ -213,7 +212,8 @@ class Spots(object):
         self.unique_gene_names = None
         self._gamma_bar = None
         self._log_gamma_bar = None
-        [_, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True, return_counts=True)
+        [_, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True,
+                                                            return_counts=True)
 
     def __getstate__(self):
         # set here attributes to be excluded from serialisation (pickling)
@@ -230,11 +230,11 @@ class Spots(object):
     # -------- PROPERTIES -------- #
     @property
     def gamma_bar(self):
-        return self._gamma_bar.astype(self.config['dtype'])
+        return self._gamma_bar
 
     @gamma_bar.setter
     def gamma_bar(self, val):
-        self._gamma_bar = val.astype(self.config['dtype'])
+        self._gamma_bar = val
 
     @property
     def log_gamma_bar(self):
@@ -264,7 +264,6 @@ class Spots(object):
     @parent_cell_id.setter
     def parent_cell_id(self, val):
         self._parent_cell_id = val
-
 
     # -------- METHODS -------- #
     def read(self, spots_df):
@@ -323,7 +322,6 @@ class Spots(object):
     #     D[mask, 0] = D[mask, 0] + cfg['InsideCellBonus']
     #     return D
 
-
     def mvn_loglik(self, data, cell_label, cells):
         centroids = cells.centroid.values[cell_label]
         covs = cells.cov[cell_label]
@@ -332,7 +330,6 @@ class Spots(object):
         # out_2 = [multivariate_normal.logpdf(p[0], p[1], p[2]) for i, p in enumerate(param)]
         out = self.multiple_logpdfs(data, centroids, covs)
         return out
-
 
     def multiple_logpdfs(self, x, means, covs):
         """
@@ -364,7 +361,6 @@ class Spots(object):
 
         return -0.5 * (dim * log2pi + mahas + logdets)
 
-
     def zero_class_counts(self, geneNo, pCellZero):
         """
         Gene counts for the zero expressing class
@@ -390,7 +386,7 @@ class Spots(object):
         f(x;\alpha ,\beta )= \frac{\beta^r}{\Gamma(r)} x^{r-1}e^{-\beta x}
         """
         r = rho[:, :, None]
-        return r/beta
+        return r / beta
 
     def logGammaExpectation(self, rho, beta):
         r = rho[:, :, None]
@@ -401,8 +397,8 @@ class Spots(object):
 class SingleCell(object):
     def __init__(self, scdata: pd.DataFrame, genes: np.array, config):
         self.isMissing = None  # Will be set to False is single cell data are assumed known and given as an input
-                               # otherwise, if they are unknown, this will be set to True and the algorithm will
-                               # try to estimate them
+        # otherwise, if they are unknown, this will be set to True and the algorithm will
+        # try to estimate them
         # self.raw_data = self._raw_data(scdata, genes)
         self.config = config
         self._mean_expression, self._log_mean_expression = self._setup(scdata, genes, self.config)
@@ -528,7 +524,8 @@ class SingleCell(object):
         groups by the cell type
         """
         assert np.all(scdata >= 0), "Single cell dataframe has negative values"
-        datatypes_logger.info('Single cell data passed-in have %d genes and %d cells' % (scdata.shape[0], scdata.shape[1]))
+        datatypes_logger.info(
+            'Single cell data passed-in have %d genes and %d cells' % (scdata.shape[0], scdata.shape[1]))
 
         datatypes_logger.info('Single cell data: Keeping counts for the gene panel of %d only' % len(genes))
         df = scdata.loc[genes]
@@ -552,9 +549,10 @@ class SingleCell(object):
         # logger.info('*************** DIAGONAL SINGLE CELL DATA ***************')
         # logger.info('******************************************************')
         nG = len(genes)
-        mgc = self.config['mean_gene_counts_per_class']  # the avg gene count per cell. Better expose that so it can be set by the user.
+        mgc = self.config[
+            'mean_gene_counts_per_class']  # the avg gene count per cell. Better expose that so it can be set by the user.
         arr = mgc * np.eye(nG)
-        labels = ['class_%d' % (i+1) for i, _ in enumerate(genes)]
+        labels = ['class_%d' % (i + 1) for i, _ in enumerate(genes)]
         df = pd.DataFrame(arr).set_index(genes)
         df.columns = labels
         return df
@@ -615,9 +613,5 @@ class CellType(object):
         self.alpha = self.ini_alpha()
 
     def ini_alpha(self):
-        return np.append(np.ones(self.nK - 1), sum(np.ones(self.nK - 1)))
-
-
-
-
-
+        ones = np.ones(self.nK - 1)
+        return np.append(ones, sum(ones)).astype(np.float32)
