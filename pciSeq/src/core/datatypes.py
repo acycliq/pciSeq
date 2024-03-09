@@ -1,10 +1,9 @@
-import sys
+import scipy
 import numpy as np
 import pandas as pd
-import scipy
-import numexpr as ne
 import numpy_groupies as npg
 from natsort import natsort_keygen
+from .utils import read_image_objects, keep_labels_unique
 from sklearn.neighbors import NearestNeighbors
 import logging
 
@@ -15,7 +14,7 @@ class Cells(object):
     # Get rid of the properties where not necessary!!
     def __init__(self, _cells_df, config):
         self.config = config
-        self.ini_cell_props, self._mcr = self.read_image_objects(_cells_df, config)
+        self.ini_cell_props, self._mcr = read_image_objects(_cells_df, config)
         self.nC = len(self.ini_cell_props['cell_label'])
         self.classProb = None
         self.class_names = None
@@ -36,7 +35,7 @@ class Cells(object):
 
     @geneCount.setter
     def geneCount(self, val):
-        self._gene_counts = val.astype(np.float32)
+        self._gene_counts = val
 
     @property
     def background_counts(self):
@@ -138,38 +137,6 @@ class Cells(object):
 
         return out.astype(np.float32)
 
-    def read_image_objects(self, img_obj, cfg):
-        meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
-        relCellRadius = np.sqrt(img_obj.area / np.pi) / meanCellRadius
-
-        # append 1 for the misreads
-        relCellRadius = np.append(1, relCellRadius)
-
-        InsideCellBonus = cfg['InsideCellBonus']
-        if not InsideCellBonus:
-            # This is more for clarity. The operation below will work fine even if InsideCellBonus is False
-            InsideCellBonus = 0
-
-        # if InsideCellBonus == 0 then CellAreaFactor will be equal to 1.0
-        numer = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(InsideCellBonus)) + np.exp(InsideCellBonus)
-        denom = np.exp(-0.5) * (1 - np.exp(InsideCellBonus)) + np.exp(InsideCellBonus)
-        CellAreaFactor = numer / denom
-
-        out = {}
-        out['area_factor'] = CellAreaFactor.astype(np.float32)
-        out['rel_radius'] = relCellRadius.astype(np.float32)
-        out['area'] = np.append(np.nan, img_obj.area.astype(np.uint32))
-        out['x0'] = np.append(-sys.maxsize, img_obj.x0.values).astype(np.float32)
-        out['y0'] = np.append(-sys.maxsize, img_obj.y0.values).astype(np.float32)
-        out['cell_label'] = np.append(0, img_obj.label.values).astype(np.uint32)
-        if 'old_label' in img_obj.columns:
-            out['cell_label_old'] = np.append(0, img_obj.old_label.values).astype(np.uint32)
-        # First cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
-        # and will be used to get all the misreads. It was given the label=0 and some very small
-        # negative coords
-
-        return out, meanCellRadius.astype(np.float32)
-
 
 # ----------------------------------------Class: Genes--------------------------------------------------- #
 class Genes(object):
@@ -206,12 +173,15 @@ class Spots(object):
     def __init__(self, spots_df, config):
         self._parent_cell_prob = None
         self._parent_cell_id = None
+        self.Dist = None
         self.config = config
         self.data = self.read(spots_df)
         self.nS = self.data.shape[0]
         self.unique_gene_names = None
         self._gamma_bar = None
         self._log_gamma_bar = None
+        self._gene_id = None
+        self._counts_per_gene = None
         [_, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True,
                                                             return_counts=True)
 
@@ -228,6 +198,23 @@ class Spots(object):
         return attributes
 
     # -------- PROPERTIES -------- #
+    @property
+    def gene_id(self):
+        return self._gene_id
+
+    @gene_id.setter
+    def gene_id(self, val):
+        self._gene_id = val.astype(np.int32)
+
+    @property
+    def counts_per_gene(self):
+        return self._counts_per_gene
+
+    @counts_per_gene.setter
+    def counts_per_gene(self, val):
+        self._counts_per_gene = val.astype(np.int32)
+
+
     @property
     def gamma_bar(self):
         return self._gamma_bar
@@ -247,7 +234,7 @@ class Spots(object):
     @property
     def xy_coords(self):
         lst = list(zip(*[self.data.x, self.data.y]))
-        return np.array(lst)
+        return np.array(lst, dtype=np.float32)
 
     @property
     def parent_cell_prob(self):
@@ -282,12 +269,14 @@ class Spots(object):
         spotYX = self.data[['y', 'x']].values
 
         # for each spot find the closest cell (in fact the top nN-closest cells...)
+        # maybe return Dist instead of setting the attribute here
         nbrs = cells.nn()
-        self.Dist, neighbors = nbrs.kneighbors(spotYX)
+        Dist, neighbors = nbrs.kneighbors(spotYX)
+        self.Dist = Dist.astype(np.float32)
 
         # last column is for misreads.
         neighbors[:, -1] = 0
-        return neighbors
+        return neighbors.astype(np.int32)
 
     def ini_cellProb(self, neighbors, cfg):
         nS = self.data.shape[0]
@@ -300,7 +289,7 @@ class Spots(object):
         # sanity_check = neighbors[mask, 0] + 1 == SpotInCell[mask]
         # assert ~any(sanity_check), "a spot is in a cell not closest neighbor!"
 
-        pSpotNeighb = np.zeros([nS, nN])
+        pSpotNeighb = np.zeros([nS, nN], dtype=np.float32)
         pSpotNeighb[neighbors == SpotInCell.values[:, None]] = 1
         pSpotNeighb[SpotInCell == 0, -1] = 1
 
@@ -463,8 +452,6 @@ class SingleCell(object):
 
     def _helper(self, expr):
         # order by column name
-        # expr = expr.copy().sort_index(axis=0).sort_index(axis=1, key=lambda x: x.str.lower())
-        # expr = expr.copy().sort_index(axis=0).sort_index(axis=1, key=natsort_keygen())
         expr = expr.copy().sort_index(axis=0).sort_index(axis=1, key=natsort_keygen(key=lambda y: y.str.lower()))
 
         # append at the end the Zero class
@@ -503,21 +490,6 @@ class SingleCell(object):
         lme = lme.assign(Zero=zero_col_2)
         return me, lme
 
-    def _keep_labels_unique(self, scdata):
-        """
-        In the single cell data you might find cases where two or more rows have the same gene label
-        In these cases keep the row with the highest total gene count
-        """
-
-        # 1. get the row total and assign it to a new column
-        scdata = scdata.assign(total=scdata.sum(axis=1))
-
-        # 2. rank by gene label and total gene count and keep the one with the highest total
-        scdata = scdata.sort_values(['gene_name', 'total'], ascending=[True, False]).groupby('gene_name').head(1)
-
-        # 3. Drop the total column and return
-        return scdata.drop(['total'], axis=1)
-
     def _raw_data(self, scdata, genes):
         """
         Reads the raw single data, filters out any genes outside the gene panel and then it
@@ -534,7 +506,7 @@ class SingleCell(object):
         df = self._set_axes(df)
 
         # remove any rows with the same gene label
-        df = self._keep_labels_unique(df)
+        df = keep_labels_unique(df)
 
         df = self._remove_zero_cols(df.copy())
         dfT = df.T

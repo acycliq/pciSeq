@@ -35,7 +35,7 @@ def negBinLoglik(x, r, p):
     return contr
 
 
-def softmax(X, theta = 1.0, axis = None):
+def softmax(X, theta=1.0, axis=None):
     """
     From https://nolanbconaway.github.io/blog/2017/softmax-numpy
     Compute the softmax of each element along an axis of X.
@@ -63,13 +63,13 @@ def softmax(X, theta = 1.0, axis = None):
     y = y * float(theta)
 
     # subtract the max for numerical stability
-    y = y - np.expand_dims(np.max(y, axis = axis), axis)
+    y = y - np.expand_dims(np.max(y, axis=axis), axis)
 
     # exponentiate y
     y = np.exp(y)
 
     # take the sum along the specified axis
-    ax_sum = np.expand_dims(np.sum(y, axis = axis), axis)
+    ax_sum = np.expand_dims(np.sum(y, axis=axis), axis)
 
     # finally: divide elementwise
     p = y / ax_sum
@@ -111,8 +111,8 @@ def splitter_mb(filepath, mb_size):
     file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)
     for line in handle:
         size = os.stat(file_out).st_size
-        if size > mb_size*1024*1024:
-            utils_logger.info('saved %s with file size %4.3f MB' % (file_out, size/(1024*1024)))
+        if size > mb_size * 1024 * 1024:
+            utils_logger.info('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
             n += 1
             handle_out.close()
             file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)
@@ -145,14 +145,14 @@ def splitter_n(filepath, n):
     if not os.path.exists(OUT_DIR):
         os.makedirs(OUT_DIR)
     else:
-        files = glob.glob(OUT_DIR + '/*.'+ext)
+        files = glob.glob(OUT_DIR + '/*.' + ext)
         for f in files:
             os.remove(f)
 
     for i, d in enumerate(df_list):
         fname = os.path.join(OUT_DIR, filename + '_%d.%s' % (i, ext))
         if ext == 'json':
-            d.to_json(fname,  orient='records')
+            d.to_json(fname, orient='records')
         elif ext == 'tsv':
             d.to_csv(fname, sep='\t', index=False)
 
@@ -280,4 +280,53 @@ def gaussian_contour(mu, cov, sdwidth=3):
     vd = eigvecs.dot(eigvals)
     out = vd.dot(ap) + mu.reshape(2, -1)
 
-    return np.array(list(zip(*out)))
+    return np.array(list(zip(*out)), dtype=np.float32)
+
+
+def read_image_objects(img_obj, cfg):
+    meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
+    relCellRadius = np.sqrt(img_obj.area / np.pi) / meanCellRadius
+
+    # append 1 for the misreads
+    relCellRadius = np.append(1, relCellRadius)
+
+    InsideCellBonus = cfg['InsideCellBonus']
+    if not InsideCellBonus:
+        # This is more for clarity. The operation below will work fine even if InsideCellBonus is False
+        InsideCellBonus = 0
+
+    # if InsideCellBonus == 0 then CellAreaFactor will be equal to 1.0
+    numer = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(InsideCellBonus)) + np.exp(InsideCellBonus)
+    denom = np.exp(-0.5) * (1 - np.exp(InsideCellBonus)) + np.exp(InsideCellBonus)
+    CellAreaFactor = numer / denom
+
+    out = {}
+    out['area_factor'] = CellAreaFactor.astype(np.float32)
+    out['rel_radius'] = relCellRadius.astype(np.float32)
+    out['area'] = np.append(np.nan, img_obj.area.astype(np.uint32))
+    out['x0'] = np.append(-sys.maxsize, img_obj.x0.values).astype(np.float32)
+    out['y0'] = np.append(-sys.maxsize, img_obj.y0.values).astype(np.float32)
+    out['cell_label'] = np.append(0, img_obj.label.values).astype(np.uint32)
+    if 'old_label' in img_obj.columns:
+        out['cell_label_old'] = np.append(0, img_obj.old_label.values).astype(np.uint32)
+    # First cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
+    # and will be used to get all the misreads. It was given the label=0 and some very small
+    # negative coords
+
+    return out, meanCellRadius.astype(np.float32)
+
+
+def keep_labels_unique(scdata):
+    """
+    In the single cell data you might find cases where two or more rows have the same gene label
+    In these cases keep the row with the highest total gene count
+    """
+
+    # 1. get the row total and assign it to a new column
+    scdata = scdata.assign(total=scdata.sum(axis=1))
+
+    # 2. rank by gene label and total gene count and keep the one with the highest total
+    scdata = scdata.sort_values(['gene_name', 'total'], ascending=[True, False]).groupby('gene_name').head(1)
+
+    # 3. Drop the total column and return
+    return scdata.drop(['total'], axis=1)

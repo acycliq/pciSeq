@@ -138,7 +138,7 @@ class VarBayes:
         #     "The sum of the background spots and the cell gene counts should be equal to the total number of spots"
 
         # make output. This part needs to be rewritten
-        out = np.zeros([self.nC, self.nG])
+        out = np.zeros([self.nC, self.nG], dtype=np.float32)
         out[1:, :] = N_cg[1:, :]
 
         # cell at position zero is the background
@@ -194,7 +194,7 @@ class VarBayes:
         nN = self.nN
         nS = self.spots.data.gene_name.shape[0]
 
-        wSpotCell = np.zeros([nS, nN])
+        wSpotCell = np.zeros([nS, nN], dtype=np.float32)
         gn = self.spots.data.gene_name.values
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
         logeta_bar = self.genes.logeta_bar[self.spots.gene_id]
