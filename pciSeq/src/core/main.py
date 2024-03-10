@@ -154,8 +154,11 @@ class VarBayes:
         """
         cells = self.cells
         cfg = self.config
-        beta = np.einsum('c, gk, g -> cgk', cells.ini_cell_props['area_factor'], self.single_cell.mean_expression,
-                         self.genes.eta_bar, dtype=np.float32) + cfg['rSpot']
+        beta = np.einsum('c, gk, g -> cgk',
+                         cells.ini_cell_props['area_factor'],
+                         self.single_cell.mean_expression.values,
+                         self.genes.eta_bar
+                         ) + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
         self.spots.log_gamma_bar = self.spots.logGammaExpectation(rho, beta)
@@ -185,7 +188,7 @@ class VarBayes:
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
-        wCellClass = np.sum(contr, axis=1, dtype=np.float32) + self.cellTypes.log_prior.astype(np.float32)
+        wCellClass = np.sum(contr, axis=1) + self.cellTypes.log_prior
         pCellClass = softmax(wCellClass, axis=1)
 
         self.cells.classProb = pCellClass
