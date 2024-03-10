@@ -36,7 +36,7 @@ class Cells(object):
 
     @geneCount.setter
     def geneCount(self, val):
-        self._gene_counts = val
+        self._gene_counts = val.astype(np.float32)
 
     @property
     def background_counts(self):
@@ -209,19 +209,19 @@ class Cells(object):
             out['area_factor'] = CellAreaFactor.astype(np.float32)
         # out['area_factor'] = np.ones(CellAreaFactor.shape)
         # logger.info('Overriden CellAreaFactor = 1')
-        out['rel_radius'] = relCellRadius
-        out['area'] = np.append(np.nan, img_obj.area)
+        out['rel_radius'] = relCellRadius.astype(np.float32)
+        out['area'] = np.append(np.nan, img_obj.area).astype(np.uint32)
         out['x0'] = np.append(-sys.maxsize, img_obj.x0.values.astype(np.float32))
         out['y0'] = np.append(-sys.maxsize, img_obj.y0.values.astype(np.float32))
         out['z0'] = np.append(-sys.maxsize, img_obj.z0.values.astype(np.float32))
         out['cell_label'] = np.append(0, img_obj.label.values)
         if 'old_label' in img_obj.columns:
-            out['cell_label_old'] = np.append(0, img_obj.old_label.values)
+            out['cell_label_old'] = np.append(0, img_obj.old_label.values).astype(np.uint32)
         # First cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
         # and will be used to get all the misreads. It was given the label=0 and some very small
         # negative coords
 
-        return out, meanCellRadius
+        return out, meanCellRadius.astype(np.float32)
 
 
 # ----------------------------------------Class: Genes--------------------------------------------------- #
@@ -241,10 +241,9 @@ class Genes(object):
         return self._logeta_bar
 
     def init_eta(self, a, b):
-        eta_bar = np.ones(self.nG) * (a / b)
-        logeta_bar = np.ones(self.nG) * self._digamma(a, b)
-        self._eta_bar = eta_bar.astype(np.float32)
-        self._logeta_bar = logeta_bar.astype(np.float32)
+        self._eta_bar = np.ones(self.nG, dtype=np.float32) * (a / b)
+        self._logeta_bar = np.ones(self.nG, dtype=np.float32) * self._digamma(a, b)
+
 
     def calc_eta(self, a, b):
         a = a.astype(np.float32)
