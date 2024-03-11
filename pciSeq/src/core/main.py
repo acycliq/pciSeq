@@ -175,11 +175,6 @@ class VarBayes:
         :return:
         """
 
-        p = utils.calc_pNegBin(self.cells.ini_cell_props['area_factor'],
-                           self.genes.eta_bar,
-                           self.single_cell.mean_expression.values,
-                           self.config['rSpot'])
-
         ScaledExp = np.einsum('c, g, gk -> cgk',
                               self.cells.ini_cell_props['area_factor'],
                               self.genes.eta_bar,
