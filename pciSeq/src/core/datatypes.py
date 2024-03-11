@@ -680,14 +680,14 @@ class CellType(object):
 
     @property
     def prior(self):
-        return self.pi_bar.astype(np.float32)
+        return self.pi_bar
 
     @property
     def log_prior(self):
         if self.single_cell_data_missing:
-            return self.logpi_bar.astype(np.float32)
+            return self.logpi_bar
         else:
-            return np.log(self.prior).astype(np.float32)
+            return np.log(self.prior)
 
     def size(self, cells):
         """
@@ -699,4 +699,5 @@ class CellType(object):
         self.alpha = self.ini_alpha()
 
     def ini_alpha(self):
-        return np.append(np.ones(self.nK - 1), sum(np.ones(self.nK - 1)))
+        ones = np.ones(self.nK - 1)
+        return np.append(ones, sum(ones)).astype(np.float32)
