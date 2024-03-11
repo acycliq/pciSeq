@@ -217,7 +217,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.Data
         spot_labels_logger.info('Segmentation array implies that image has %d planes, width: %dpx and height: %dpx' % (n, w, h))
 
     # 1. Find which cell the spots lie within
-    spots = spots.assign(label=np.zeros(spots.shape[0]))
+    spots = spots.assign(label=np.zeros(spots.shape[0], dtype=np.uint32))
     for z in np.unique(spots.z_plane):
         spots_z = spots[spots.z_plane == z]
         inc = inside_cell(coo[int(z)].tocsr().astype(np.uint32), spots_z)
