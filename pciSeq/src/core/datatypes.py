@@ -210,7 +210,7 @@ class Cells(object):
         # out['area_factor'] = np.ones(CellAreaFactor.shape)
         # logger.info('Overriden CellAreaFactor = 1')
         out['rel_radius'] = relCellRadius.astype(np.float32)
-        out['area'] = np.append(np.nan, img_obj.area).astype(np.uint32)
+        out['area'] = np.append(np.nan, img_obj.area)
         out['x0'] = np.append(-sys.maxsize, img_obj.x0.values).astype(np.float32)
         out['y0'] = np.append(-sys.maxsize, img_obj.y0.values).astype(np.float32)
         out['z0'] = np.append(-sys.maxsize, img_obj.z0.values).astype(np.float32)
@@ -269,6 +269,7 @@ class Spots(object):
         self._log_gamma_bar = None
         self._gene_id = None
         self._counts_per_gene = None
+        self._gamma_bar_shape = None
         [_, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True,
                                                             return_counts=True)
 
@@ -301,21 +302,69 @@ class Spots(object):
     def counts_per_gene(self, val):
         self._counts_per_gene = val.astype(np.int32)
         
-    @property
-    def gamma_bar(self):
-        return self._gamma_bar
+    # @property
+    # def gamma_bar(self):
+    #     # return self._gamma_bar.astype(self.config['dtype'])
+    #     shape = self._gamma_bar_shape
+    #     d = np.memmap(self._gamma_bar, dtype='float64', mode='r+', shape=shape)
+    #     return d
+    #
+    # @gamma_bar.setter
+    # def gamma_bar(self, val):
+    #     # self._gamma_bar = val.astype(self.config['dtype'])
+    #     fname = 'gamma_bar'
+    #     f = np.memmap(fname, dtype='float64', mode='w+', shape=val.shape)
+    #     f[:] = val[:]
+    #     f.flush()
+    #     self._gamma_bar_shape = val.shape
+    #     self._gamma_bar = fname
+    #     del val
 
-    @gamma_bar.setter
-    def gamma_bar(self, val):
-        self._gamma_bar = val
+    # @property
+    # def log_gamma_bar(self):
+    #     shape = self._gamma_bar_shape
+    #     d = np.memmap(self._log_gamma_bar, dtype='float64', mode='r+', shape=shape)
+    #     return d
 
-    @property
-    def log_gamma_bar(self):
-        return self._log_gamma_bar
+    # @log_gamma_bar.setter
+    # def log_gamma_bar(self, val):
+    #     fname = 'log_gamma_bar'
+    #     f = np.memmap(fname, dtype='float64', mode='w+', shape=val.shape)
+    #     f[:] = val[:]
+    #     f.flush()
+    #     self._gamma_bar_shape = val.shape
+    #     self._log_gamma_bar = fname
+    #     del val
 
-    @log_gamma_bar.setter
-    def log_gamma_bar(self, val):
-        self._log_gamma_bar = val
+    def get_gamma_bar(self):
+        # return self._gamma_bar.astype(self.config['dtype'])
+        shape = self._gamma_bar_shape
+        d = np.memmap(self._gamma_bar, dtype='float32', mode='r+', shape=shape)
+        return d
+
+    def set_gamma_bar(self, val):
+        # self._gamma_bar = val.astype(self.config['dtype'])
+        fname = 'gamma_bar'
+        f = np.memmap(fname, dtype='float32', mode='w+', shape=val.shape)
+        f[:] = val[:]
+        f.flush()
+        self._gamma_bar_shape = val.shape
+        self._gamma_bar = fname
+        del val
+
+    def get_log_gamma_bar(self):
+        shape = self._gamma_bar_shape
+        d = np.memmap(self._log_gamma_bar, dtype='float32', mode='r+', shape=shape)
+        return d
+
+    def set_log_gamma_bar(self, val):
+        fname = 'log_gamma_bar'
+        f = np.memmap(fname, dtype='float32', mode='w+', shape=val.shape)
+        f[:] = val[:]
+        f.flush()
+        self._gamma_bar_shape = val.shape
+        self._log_gamma_bar = fname
+        del val
 
     @property
     def xyz_coords(self):

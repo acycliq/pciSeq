@@ -161,8 +161,8 @@ class VarBayes:
                          ) + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
-        self.spots.log_gamma_bar = self.spots.logGammaExpectation(rho, beta)
-        self.spots.gamma_bar = self.spots.gammaExpectation(rho, beta)
+        self.spots.set_log_gamma_bar(self.spots.logGammaExpectation(rho, beta))
+        self.spots.set_gamma_bar(self.spots.gammaExpectation(rho, beta))
 
     # -------------------------------------------------------------------- #
     def cell_to_cellType(self):
@@ -180,12 +180,17 @@ class VarBayes:
                               self.genes.eta_bar,
                               self.single_cell.mean_expression.values
                               )
-        pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
+        # preallocate pNegBin
+        pNegBin = np.zeros(ScaledExp.shape, dtype=np.float32)
+        np.divide(ScaledExp, self.config['rSpot'] + ScaledExp, pNegBin)
+
+        # pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
         wCellClass = np.sum(contr, axis=1) + self.cellTypes.log_prior
         pCellClass = softmax(wCellClass, axis=1)
 
+        del pNegBin
         self.cells.classProb = pCellClass
 
     # -------------------------------------------------------------------- #
@@ -214,7 +219,7 @@ class VarBayes:
             term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
 
             # logger.info('genes.spotNo should be something like spots.geneNo instead!!')
-            log_gamma_bar = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
+            log_gamma_bar = self.spots.get_log_gamma_bar()[self.spots.parent_cell_id[:, n], self.spots.gene_id]
 
             term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
             aSpotCell[:, n] = term_1 + term_2 + logeta_bar
@@ -288,7 +293,7 @@ class VarBayes:
         # multiply and sum over cells
         term_1 = np.einsum('ij, ij -> i', sc_mean, cp)
 
-        log_gamma_bar = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
+        log_gamma_bar = self.spots.get_log_gamma_bar()[self.spots.parent_cell_id[:, n], self.spots.gene_id]
 
         term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
         # logger.info('start mvn_loglik')
@@ -313,7 +318,7 @@ class VarBayes:
         classProb = self.cells.classProb
         mu = self.single_cell.mean_expression
         area_factor = self.cells.ini_cell_props['area_factor']
-        gamma_bar = self.spots.gamma_bar
+        gamma_bar = self.spots.get_gamma_bar()
 
         zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
         zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
