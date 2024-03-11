@@ -36,7 +36,7 @@ class Cells(object):
 
     @geneCount.setter
     def geneCount(self, val):
-        self._gene_counts = val.astype(np.float32)
+        self._gene_counts = val
 
     @property
     def background_counts(self):
@@ -260,12 +260,15 @@ class Spots(object):
     def __init__(self, spots_df, config):
         self._parent_cell_prob = None
         self._parent_cell_id = None
+        self.Dist = None
         self.config = config
         self.data, self.data_excluded = self.read(spots_df)
         self.nS = self.data.shape[0]
         self.unique_gene_names = None
         self._gamma_bar = None
         self._log_gamma_bar = None
+        self._gene_id = None
+        self._counts_per_gene = None
         [_, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True,
                                                             return_counts=True)
 
@@ -282,6 +285,22 @@ class Spots(object):
         return attributes
 
     # -------- PROPERTIES -------- #
+    @property
+    def gene_id(self):
+        return self._gene_id
+
+    @gene_id.setter
+    def gene_id(self, val):
+        self._gene_id = val.astype(np.int32)
+
+    @property
+    def counts_per_gene(self):
+        return self._counts_per_gene
+
+    @counts_per_gene.setter
+    def counts_per_gene(self, val):
+        self._counts_per_gene = val.astype(np.int32)
+        
     @property
     def gamma_bar(self):
         return self._gamma_bar
@@ -340,17 +359,18 @@ class Spots(object):
 
         # for each spot find the closest cell (in fact the top nN-closest cells...)
         nbrs = cells.nn()
-        self.Dist, neighbors = nbrs.kneighbors(spotZYX)
+        Dist, neighbors = nbrs.kneighbors(spotZYX)
+        self.Dist = Dist.astype(np.float32)
 
         # last column is for misreads.
         neighbors[:, -1] = 0
 
         # make an array assigning 100% prob of any given cell belonging to its closest neighbour
-        cellProb = np.zeros(neighbors.shape, dtype=np.uint32)
+        cellProb = np.zeros(neighbors.shape, dtype=np.float32)
         cellProb[:, 0] = np.ones(neighbors.shape[0])
 
         # the second return value is not getting used. maybe in the future
-        return neighbors, cellProb
+        return neighbors.astype(np.int32), cellProb
 
     def ini_cellProb(self, neighbors, cfg):
         nS = self.data.shape[0]
@@ -363,7 +383,7 @@ class Spots(object):
         # sanity_check = neighbors[mask, 0] + 1 == SpotInCell[mask]
         # assert ~any(sanity_check), "a spot is in a cell not closest neighbor!"
 
-        pSpotNeighb = np.zeros([nS, nN])
+        pSpotNeighb = np.zeros([nS, nN], dtype=np.float32)
         pSpotNeighb[neighbors == SpotInCell.values[:, None]] = 1
         pSpotNeighb[SpotInCell == 0, -1] = 1
 
