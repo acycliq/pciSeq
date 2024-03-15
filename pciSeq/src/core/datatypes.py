@@ -6,6 +6,8 @@ import numexpr as ne
 import numpy_groupies as npg
 from natsort import natsort_keygen
 from sklearn.neighbors import NearestNeighbors
+import dask.array as da
+import dask
 import logging
 
 datatypes_logger = logging.getLogger(__name__)
@@ -226,17 +228,26 @@ class Spots(object):
         return attributes
 
     # -------- PROPERTIES -------- #
+    def get_gamma_bar(self):
+        return self._gamma_bar.compute()
+
     @property
     def gamma_bar(self):
-        return self._gamma_bar.astype(self.config['dtype'])
+        return None
+        # return self._gamma_bar.compute()
+        # return self._gamma_bar.astype(self.config['dtype'])
 
     @gamma_bar.setter
     def gamma_bar(self, val):
-        self._gamma_bar = val.astype(self.config['dtype'])
+        self._gamma_bar = val
+
+    def get_log_gamma_bar(self):
+        return self._log_gamma_bar.compute()
 
     @property
     def log_gamma_bar(self):
-        return self._log_gamma_bar
+        return None
+        # return self._log_gamma_bar.compute()
 
     @log_gamma_bar.setter
     def log_gamma_bar(self, val):
@@ -401,6 +412,22 @@ class Spots(object):
         else:
             return (r/beta).astype(dtype)
 
+    @dask.delayed
+    def gammaExpectation_delayed(self, rho, beta):
+        """
+        :param r:
+        :param b:
+        :return: Expectetation of a rv X following a Gamma(r,b) distribution with pdf
+        f(x;\alpha ,\beta )= \frac{\beta^r}{\Gamma(r)} x^{r-1}e^{-\beta x}
+        """
+
+        # sanity check
+        # assert (np.all(rho.coords['cell_id'].data == beta.coords['cell_id'])), 'rho and beta are not aligned'
+        # assert (np.all(rho.coords['gene_name'].data == beta.coords['gene_name'])), 'rho and beta are not aligned'
+
+        r = rho[:, :, None]
+        return r / beta
+
     def logGammaExpectation(self, rho, beta):
         dtype = self.config['dtype']
         r = rho[:, :, None].astype(dtype)
@@ -410,6 +437,11 @@ class Spots(object):
             return scipy.special.psi(r) - logb
         else:
             return scipy.special.psi(r) - np.log(beta).astype(dtype)
+
+    @dask.delayed
+    def logGammaExpectation_delayed(self, rho, beta):
+        r = rho[:, :, None]
+        return scipy.special.psi(r) - np.log(beta)
 
 
 # ----------------------------------------Class: SingleCell--------------------------------------------------- #

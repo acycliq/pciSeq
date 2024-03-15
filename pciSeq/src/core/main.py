@@ -9,7 +9,7 @@ from pciSeq.src.core.summary import collect_data
 from pciSeq.src.diagnostics.utils import redis_db
 from pciSeq.src.core.datatypes import Cells, Spots, Genes, SingleCell, CellType
 import logging
-
+import time
 main_logger = logging.getLogger(__name__)
 
 
@@ -50,7 +50,7 @@ class VarBayes:
         self.genes.init_eta(1, 1 / self.config['Inefficiency'])
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
-        self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
+        # self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
 
     # -------------------------------------------------------------------- #
     def run(self):
@@ -60,6 +60,7 @@ class VarBayes:
         max_iter = self.config['max_iter']
 
         self.initialise()
+        tic = time.time()
         for i in range(max_iter):
             self.iter_num = i
 
@@ -75,6 +76,8 @@ class VarBayes:
 
             # 4. assign cells to cell types
             self.cell_to_cellType()
+
+            # self.cell_to_cellType_2()
 
             # 5. assign spots to cells
             self.spots_to_cell()
@@ -103,6 +106,8 @@ class VarBayes:
                 self.redis_upd()
 
             if self.has_converged:
+                toc = time.time()
+                print('elapsed time: %.3f' % (toc-tic))
                 # self.counts_within_radius(20)
                 cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
                 break
@@ -154,14 +159,18 @@ class VarBayes:
         """
         cells = self.cells
         cfg = self.config
-        dtype = self.config['dtype']
-        beta = np.einsum('c, gk, g -> cgk', cells.ini_cell_props['area_factor'], self.single_cell.mean_expression,
-                         self.genes.eta_bar).astype(dtype) + cfg['rSpot']
-        # beta = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
+
+        area_factor = cells.ini_cell_props['area_factor']
+        sc_mean_counts = self.single_cell.mean_expression.values
+        inefficiency = self.genes.eta_bar
+        beta = np.einsum('c, gk, g -> cgk',
+                         area_factor, sc_mean_counts, inefficiency
+                         ) + cfg['rSpot']
+        self._scaledExp1 = beta - cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
-        self.spots.gamma_bar = self.spots.gammaExpectation(rho, beta)
-        self.spots.log_gamma_bar = self.spots.logGammaExpectation(rho, beta)
+        self.spots.gamma_bar = self.spots.gammaExpectation_delayed(rho, beta)
+        self.spots.log_gamma_bar = self.spots.logGammaExpectation_delayed(rho, beta)
 
     # -------------------------------------------------------------------- #
     def cell_to_cellType(self):
@@ -177,6 +186,7 @@ class VarBayes:
         dtype = self.config['dtype']
         ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.ini_cell_props['area_factor'], self.genes.eta_bar,
                               self.single_cell.mean_expression).astype(dtype)
+        self._scaledExp2 = ScaledExp
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
@@ -184,6 +194,33 @@ class VarBayes:
         pCellClass = softmax(wCellClass, axis=1)
 
         self.cells.classProb = pCellClass
+
+    def cell_to_cellType_2(self):
+        out = [self.cell_to_cellType_helper(d) for d in range(self.nC)]
+        self.cells.classProb = np.array(out)
+
+    def cell_to_cellType_helper(self, i):
+        """
+        return a an array of size numCells-by-numCellTypes where element in position [i,j]
+        keeps the probability that cell i has cell type j
+        Implements equation (2) of the Qian paper
+        :param spots:
+        :param config:
+        :return:
+        """
+
+        dtype = self.config['dtype']
+        ScaledExp = np.einsum('g, gk -> gk',
+                              self.genes.eta_bar, self.single_cell.mean_expression.values)
+        ScaledExp = ScaledExp * self.cells.ini_cell_props['area_factor'][i]
+        pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
+        cgc = self.cells.geneCount[i, :]
+        contr = utils.negBinLoglik_2(cgc, self.config['rSpot'], pNegBin)
+        # contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
+        wCellClass = np.sum(contr, axis=0) + self.cellTypes.log_prior
+        pCellClass = softmax(wCellClass)
+
+        return pCellClass
 
     # -------------------------------------------------------------------- #
     def spots_to_cell(self):
@@ -216,7 +253,7 @@ class VarBayes:
             term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
 
             # logger.info('genes.spotNo should be something like spots.geneNo instead!!')
-            log_gamma_bar = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
+            log_gamma_bar = self.spots.get_log_gamma_bar()[self.spots.parent_cell_id[:, n], self.spots.gene_id]
 
             term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
 
@@ -252,7 +289,7 @@ class VarBayes:
         classProb = self.cells.classProb
         mu = self.single_cell.mean_expression
         area_factor = self.cells.ini_cell_props['area_factor']
-        gamma_bar = self.spots.gamma_bar
+        gamma_bar = self.spots.get_gamma_bar()
 
         zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
         zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)

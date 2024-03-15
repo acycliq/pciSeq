@@ -34,6 +34,24 @@ def negBinLoglik(x, r, p):
     ne.evaluate("x * log(p) + r * log(1 - p)", out=contr)
     return contr
 
+def negBinLoglik_2(x, r, p):
+    '''
+    Negative Binomial loglikehood
+    :param x:
+    :param r:
+    :param p:
+    :return:
+    '''
+
+    # sanity check
+    # assert (np.all(da_x.coords['cell_id'].data == da_p.coords['cell_id'])), 'gene counts and beta probabilities are not aligned'
+    # assert (np.all(da_x.coords['gene_name'].data == da_p.coords['gene_name'])), 'gene counts and beta probabilities are not aligned'
+
+    contr = np.zeros(p.shape)
+    x = x[:, None]
+    ne.evaluate("x * log(p) + r * log(1 - p)", out=contr)
+    return contr
+
 
 def softmax(X, theta = 1.0, axis = None):
     """
