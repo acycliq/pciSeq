@@ -21,7 +21,7 @@ def get_static_files(root):
             ]
 
 
-install_deps = ['numpy_groupies', 'pandas', 'scipy', 'streamlit', 'altair',
+install_deps = ['numpy_groupies', 'pandas', 'scipy', 'dask', 'streamlit', 'altair',
                 'scikit-image', 'scikit-learn', 'tqdm', 'flask', 'fastremap',
                 'numexpr', 'diplib', 'pyvips', 'natsort', 'redis', 'pytest']
 

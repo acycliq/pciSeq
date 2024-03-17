@@ -1,6 +1,7 @@
 import scipy
 import numpy as np
 import pandas as pd
+import dask
 import numpy_groupies as npg
 from natsort import natsort_keygen
 from .utils import read_image_objects, keep_labels_unique
@@ -187,11 +188,10 @@ class Spots(object):
 
     def __getstate__(self):
         # set here attributes to be excluded from serialisation (pickling)
-        # It makes the pickle filesize smaller but maybe this will have to
-        # change in the future.
-        # These two attributes take up a lot of space on the disk:
-        # _gamma_bar and _log_gamma_bar
         # FYI: https://realpython.com/python-pickle-module/
+        # Removing _gamma_bar and _log_gamma_bar because they are delayed
+        # But even if they werent, I would remove them anyway because they
+        # make the pickle file a lot larger!
         attributes = self.__dict__.copy()
         del attributes['_gamma_bar']
         del attributes['_log_gamma_bar']
@@ -214,22 +214,13 @@ class Spots(object):
     def counts_per_gene(self, val):
         self._counts_per_gene = val.astype(np.int32)
 
-
     @property
     def gamma_bar(self):
         return self._gamma_bar
 
-    @gamma_bar.setter
-    def gamma_bar(self, val):
-        self._gamma_bar = val
-
     @property
     def log_gamma_bar(self):
         return self._log_gamma_bar
-
-    @log_gamma_bar.setter
-    def log_gamma_bar(self, val):
-        self._log_gamma_bar = val
 
     @property
     def xy_coords(self):
@@ -367,6 +358,7 @@ class Spots(object):
         TotPredictedZ = np.bincount(geneNo, pSpotZero)
         return TotPredictedZ
 
+    @dask.delayed
     def gammaExpectation(self, rho, beta):
         """
         :param r:
@@ -377,6 +369,7 @@ class Spots(object):
         r = rho[:, :, None]
         return r / beta
 
+    @dask.delayed
     def logGammaExpectation(self, rho, beta):
         r = rho[:, :, None]
         return scipy.special.psi(r) - np.log(beta)

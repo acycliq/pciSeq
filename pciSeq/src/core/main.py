@@ -33,15 +33,21 @@ class VarBayes:
         self.iter_num = None
         self.iter_delta = []
         self.has_converged = False
+        self._scaled_exp = None
+
+    @property
+    def scaled_exp(self):
+        return self._scaled_exp
 
     def __getstate__(self):
         # set here attributes to be excluded from serialisation (pickling)
         # It makes the pickle filesize smaller but maybe this will have to
         # change in the future.
-        # Removing redis so I can pickle
+        # Removing redis so I can pickle and _scaled_exp because it is delayed
         # FYI: https://realpython.com/python-pickle-module/
         attributes = self.__dict__.copy()
         del attributes['redis_db']
+        del attributes['_scaled_exp']
         return attributes
 
     def initialise(self):
@@ -154,15 +160,15 @@ class VarBayes:
         cells = self.cells
         cfg = self.config
 
-        beta = np.einsum('c, gk, g -> cgk',
-                         cells.ini_cell_props['area_factor'],
-                         self.single_cell.mean_expression.values,
-                         self.genes.eta_bar
-                         ) + cfg['rSpot']
+        self._scaled_exp = utils.scaled_exp(cells.ini_cell_props['area_factor'],
+                                            self.single_cell.mean_expression.values,
+                                            self.genes.eta_bar)
+
+        beta = self.scaled_exp.compute() + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
-        self.spots.gamma_bar = self.spots.gammaExpectation(rho, beta)
-        self.spots.log_gamma_bar = self.spots.logGammaExpectation(rho, beta)
+        self.spots._gamma_bar = self.spots.gammaExpectation(rho, beta)
+        self.spots._log_gamma_bar = self.spots.logGammaExpectation(rho, beta)
 
     # -------------------------------------------------------------------- #
     def cell_to_cellType(self):
@@ -175,8 +181,7 @@ class VarBayes:
         :return:
         """
 
-        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.ini_cell_props['area_factor'], self.genes.eta_bar,
-                              self.single_cell.mean_expression)
+        ScaledExp = self.scaled_exp.compute()
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
@@ -215,8 +220,8 @@ class VarBayes:
             # multiply and sum over cells
             term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
 
-            # logger.info('genes.spotNo should be something like spots.geneNo instead!!')
-            log_gamma_bar = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
+            log_gamma_bar = self.spots.log_gamma_bar.compute()
+            log_gamma_bar = log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
 
             term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
 
@@ -252,7 +257,7 @@ class VarBayes:
         classProb = self.cells.classProb
         mu = self.single_cell.mean_expression
         area_factor = self.cells.ini_cell_props['area_factor']
-        gamma_bar = self.spots.gamma_bar
+        gamma_bar = self.spots.gamma_bar.compute()
 
         zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
         zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
@@ -347,7 +352,7 @@ class VarBayes:
     def mu_upd(self):
         classProb = self.cells.classProb[1:, :-1].copy()
         geneCount = self.cells.geneCount[1:, :].copy()
-        gamma_bar = self.spots.gamma_bar[1:, :, :-1].copy()
+        gamma_bar = self.spots.gamma_bar.compute()[1:, :, :-1]
         area_factor = self.cells.ini_cell_props['area_factor'][1:]
 
         numer = np.einsum('ck, cg -> gk', classProb, geneCount)

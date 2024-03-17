@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import numexpr as ne
 # import numba as nb
+import dask
 import os
 import glob
 import subprocess
@@ -330,3 +331,10 @@ def keep_labels_unique(scdata):
 
     # 3. Drop the total column and return
     return scdata.drop(['total'], axis=1)
+
+
+@dask.delayed
+def scaled_exp(cell_area_factor, sc_mean_expressions, inefficiency):
+    out = np.einsum('c, gk, g -> cgk',
+                    cell_area_factor, sc_mean_expressions, inefficiency)
+    return out

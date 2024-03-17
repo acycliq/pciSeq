@@ -1,6 +1,7 @@
 pip
 numpy_groupies
 pandas
+dask
 scipy
 scikit-image
 scikit-learn

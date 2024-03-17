@@ -6,6 +6,7 @@ dependencies:
   - python=3.8
   - numpy_groupies
   - pandas
+  - dask
   - scipy
   - scikit-image
   - scikit-learn
