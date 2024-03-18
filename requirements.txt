@@ -12,7 +12,7 @@ natsort
 streamlit
 altair
 jupyterlab
-diplib
+diplib==3.4.1
 pyvips
 redis
 fastremap
