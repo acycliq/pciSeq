@@ -16,6 +16,7 @@ dependencies:
   - natsort
   - streamlit
   - altair
+  - tomlkit
   - pip:
       - jupyterlab
       - diplib

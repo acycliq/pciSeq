@@ -16,3 +16,4 @@ diplib==3.4.1
 pyvips
 redis
 fastremap
+tomlkit
