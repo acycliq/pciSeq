@@ -25,9 +25,9 @@ def make_credentials():
     """
     creates a credentials.toml file in the .streamlit folder under the user's home dir and
     in the [general] section it creates an email key with value an empty string.
-    If an email key/value pair exists already, the file remains intact
+    If an email key/value pair exists already, the file remains intact.
     The only purpose of this is to skip the annoying streamlit welcome message so that
-    the diagnostics will be launched without any user interaction. (otherwise the welcome msf
+    the diagnostics will be launched without any user interaction. (otherwise the welcome msg
     might pause the program flow)
     """
     credentials = os.path.join(Path.home(), '.streamlit', 'credentials.toml')
