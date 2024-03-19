@@ -30,8 +30,10 @@ def negBinLoglik(x, r, p):
     # assert (np.all(da_x.coords['cell_id'].data == da_p.coords['cell_id'])), 'gene counts and beta probabilities are not aligned'
     # assert (np.all(da_x.coords['gene_name'].data == da_p.coords['gene_name'])), 'gene counts and beta probabilities are not aligned'
 
-    contr = np.zeros(p.shape)
+    nC, nG = x.shape
     x = x[:, :, None]
+    nK = p.shape[-1]
+    contr = np.zeros([nC, nG, nK])
     ne.evaluate("x * log(p) + r * log(1 - p)", out=contr)
     return contr
 
@@ -335,6 +337,11 @@ def keep_labels_unique(scdata):
 
 @dask.delayed
 def scaled_exp(cell_area_factor, sc_mean_expressions, inefficiency):
-    out = np.einsum('c, gk, g -> cgk',
-                    cell_area_factor, sc_mean_expressions, inefficiency)
+    if np.all(cell_area_factor == 1):
+        subscripts = 'gk, g -> gk'
+        operands = [sc_mean_expressions, inefficiency]
+    else:
+        subscripts = 'c, gk, g -> cgk'
+        operands = [cell_area_factor, sc_mean_expressions, inefficiency]
+    out = np.einsum(subscripts, *operands)
     return out
