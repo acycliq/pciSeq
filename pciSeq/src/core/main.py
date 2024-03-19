@@ -187,6 +187,7 @@ class VarBayes:
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
         wCellClass = np.sum(contr, axis=1) + self.cellTypes.log_prior
         pCellClass = softmax(wCellClass, axis=1)
+        del contr
 
         self.cells.classProb = pCellClass
 
