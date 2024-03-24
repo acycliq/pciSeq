@@ -5,8 +5,6 @@ from urllib.parse import urlparse
 from urllib.request import urlopen
 import numpy as np
 import pandas as pd
-import numexpr as ne
-# import numba as nb
 import dask
 import os
 import glob
@@ -18,69 +16,17 @@ utils_logger = logging.getLogger(__name__)
 
 
 def negBinLoglik(x, r, p):
-    '''
+    """
     Negative Binomial loglikehood
     :param x:
     :param r:
     :param p:
     :return:
-    '''
+    """
 
-    # sanity check
-    # assert (np.all(da_x.coords['cell_id'].data == da_p.coords['cell_id'])), 'gene counts and beta probabilities are not aligned'
-    # assert (np.all(da_x.coords['gene_name'].data == da_p.coords['gene_name'])), 'gene counts and beta probabilities are not aligned'
-
-    nC, nG = x.shape
     x = x[:, :, None]
-    nK = p.shape[-1]
-    contr = np.zeros([nC, nG, nK])
-    ne.evaluate("x * log(p) + r * log(1 - p)", out=contr)
+    contr = x * np.log(p) + r * np.log(1 - p)
     return contr
-
-
-def softmax(X, theta=1.0, axis=None):
-    """
-    From https://nolanbconaway.github.io/blog/2017/softmax-numpy
-    Compute the softmax of each element along an axis of X.
-
-    Parameters
-    ----------
-    X: ND-Array. Probably should be floats.
-    theta (optional): float parameter, used as a multiplier
-        prior to exponentiation. Default = 1.0
-    axis (optional): axis to compute values along. Default is the
-        first non-singleton axis.
-
-    Returns an array the same size as X. The result will sum to 1
-    along the specified axis.
-    """
-
-    # make X at least 2d
-    y = np.atleast_2d(X)
-
-    # find axis
-    if axis is None:
-        axis = next(j[0] for j in enumerate(y.shape) if j[1] > 1)
-
-    # multiply y against the theta parameter,
-    y = y * float(theta)
-
-    # subtract the max for numerical stability
-    y = y - np.expand_dims(np.max(y, axis=axis), axis)
-
-    # exponentiate y
-    y = np.exp(y)
-
-    # take the sum along the specified axis
-    ax_sum = np.expand_dims(np.sum(y, axis=axis), axis)
-
-    # finally: divide elementwise
-    p = y / ax_sum
-
-    # flatten if X was 1D
-    if len(X.shape) == 1: p = p.flatten()
-
-    return p
 
 
 def hasConverged(spots, p0, tol):
