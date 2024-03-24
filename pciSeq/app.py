@@ -90,9 +90,9 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     # 2. get the hyperparameters
     cfg = init(opts)
 
-    # 3. validate inputs:
+    # 3. validate inputs
     # NOTE 1: Spots might get mutated here. Genes not found in the single cell data will be removed.
-    # NOTE 2: cfg might also get mutated. Fields 'is3D' and 'remove_planes' might get overriden
+    # NOTE 2: cfg might also get mutated. Fields 'is3D' and 'remove_planes' might get overridden
     spots, coo, cfg = validate(spots.copy(), coo, scRNAseq, cfg)
 
     # 4. launch the diagnostics
@@ -140,8 +140,17 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
     geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
     app_logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
 
-    cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-    app_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+    # Do not change the if-then branching flow. InsideCellBonus can take the value of zero
+    # and the logic below will ensure that in that case, the segmentation borders will be
+    # drawn instead of the gaussian contours.
+    if cfg['InsideCellBonus'] is False:
+        ellipsoidBoundaries = cellData[['Cell_Num', 'gaussian_contour']]
+        ellipsoidBoundaries = ellipsoidBoundaries.rename(columns={"Cell_Num": "cell_id", "gaussian_contour": "coords"})
+        ellipsoidBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
+        app_logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+    else:
+        cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
+        app_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
     serialise(varBayes, os.path.join(out_dir, 'debug'))
 
@@ -177,15 +186,12 @@ def init(opts):
     """
     cfg = config.DEFAULT
     cfg['is_redis_running'] = check_redis_server()
-    if isinstance(cfg['exclude_planes'], list) and len(cfg['exclude_planes']) == 0:
-        # if you have passed in an empty list, consider it as a None
-        cfg['exclude_planes'] = None
     if opts is not None:
         default_items = set(cfg.keys())
         user_items = set(opts.keys())
         assert user_items.issubset(default_items), ('Options passed-in should be a dict with keys: %s ' % default_items)
         for item in opts.items():
-            if isinstance(item[1], (int, float, list)) or isinstance(item[1](1), np.floating):
+            if isinstance(item[1], (int, float, list, str)) or isinstance(item[1](1), np.floating):
                 val = item[1]
             # elif isinstance(item[1], list):
             #     val = item[1]
@@ -197,19 +203,30 @@ def init(opts):
 
 
 def validate(spots, coo, scData, cfg):
-    # check the label
+    # check the label image
     coo = _validate_coo(coo)
 
-    # The label image will determine whether dataset is 3d or 2d
-    cfg['is3D'] = False if len(coo) == 1 else True
+    # Check now the config dict. It needs to be done after we have checked the coo
+    # because the shape of the label image determines whether the data is 3D or 2D.
+    cfg = _validate_cfg(cfg, coo)
 
     # check the spots and see if all genes are in your single cell library
     spots = _validate_spots(spots, coo, scData, cfg)
 
-    # if you are in 2D there is no meaning having an actual value for 'remove_planes'.The image has only
-    # one plane, probably a DAPI.
-    if not cfg['is3D']:
-        cfg['remove_planes'] = None
+    # check single cell data
+    if scData is not None:
+        assert isinstance(scData, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
+
+    # remove genes that cannot been found in the single cell data
+    spots = clean_spots(spots, scData)
+
+    # do some datatype casting
+    spots = spots.astype({
+        'Gene': str,
+        'x': np.float32,
+        'y': np.float32,
+        'z_plane': np.float32})
+
     return spots, coo, cfg
 
 
@@ -225,7 +242,6 @@ def _validate_coo(coo):
         assert shapes.count(shapes[0]) == len(shapes), 'Not all elements in coo have the same shape'
     else:
         raise ValueError('The segmentation masks should be passed-in as a coo_matrix')
-
     return coo
 
 
@@ -249,19 +265,42 @@ def _validate_spots(spots, coo, sc, cfg):
     if isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y'}:
         spots = spots.assign(z_plane=0)
 
-    # check the single cell data
-    if sc is not None:
-        assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
+    return spots
 
-        if not set(spots.Gene).issubset(sc.index):
-            # remove genes that cannot been found in the single cell data
-            spots = purge_spots(spots, sc)
 
-    spots = spots.astype({
-        'Gene': str,
-        'x': np.float32,
-        'y': np.float32,
-        'z_plane': np.float32})
+def _validate_cfg(cfg, coo):
+    # The label image will determine whether dataset is 3d or 2d
+    cfg['is3D'] = False if len(coo) == 1 else True
+
+    # override the InsideCellBonus setting and set it to false if the dataset is 3D
+    # maybe drop a logger warning msg here too!
+    if cfg['is3D']:
+        cfg['InsideCellBonus'] = False
+
+    # if InsideCellBonus is True, set it to a numerical value
+    if cfg['InsideCellBonus'] is True:
+        """
+        This is not good enough! The default value for InsideCellBonus is now kept in two places, config.py and 
+        here. What happens if I change the config.py and I set InsideCellBonus = 3 for example? 
+        The line below will stll set it 2 which is not the default anymore! 
+        """
+        d = 2
+        cfg['InsideCellBonus'] = d
+        app_logger.warning('InsideCellBonus was passed-in as True. Overriding with the default value of %d' % d)
+
+    if cfg['cell_type_prior'].lower() not in ['uniform'.lower(), 'weighted'.lower()]:
+        raise ValueError("'cel_type_prior' should be either 'uniform' or 'weighted' ")
+
+    # make sure the string is lowercase from now on
+    cfg['cell_type_prior'] = cfg['cell_type_prior'].lower()
+
+    return cfg
+
+
+def clean_spots(spots, sc):
+    # remove genes that cannot been found in the single cell data
+    if (sc is not None) and (not set(spots.Gene).issubset(sc.index)):
+        spots = purge_spots(spots, sc)
     return spots
 
 
@@ -276,7 +315,7 @@ def purge_spots(spots, sc):
 
 def parse_args(*args, **kwargs):
     '''
-    Do soma basic checking of the args
+    Do some basic checking of the args
     '''
 
     spots = None
@@ -387,6 +426,8 @@ def check_redis_server():
         redis_db()
         return True
     except (redis.exceptions.ConnectionError, ConnectionRefusedError, OSError):
-        app_logger.info(
-            "Redis ping failed!. Diagnostics will not be called unless redis is installed and the service is running")
+        app_logger.info("Redis ping failed!. Diagnostics will not be called unless redis is installed and the service is running")
         return False
+
+
+

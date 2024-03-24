@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from pciSeq.src.core.utils import euler_angles, gaussian_ellipsoid_props
+from pciSeq.src.core.utils import gaussian_ellipsoid_props, gaussian_contour
 import logging
 
 summary_logger = logging.getLogger(__name__)
@@ -32,14 +32,23 @@ def cells_summary(cells, genes, single_cell, is3D):
     class_name_list = [list(class_names[i][d]) for (i, d) in enumerate(isProb_nonZero)]
     prob_list = [list(class_prob[i][d].round(3)) for (i, d) in enumerate(isProb_nonZero)]
 
+    contour = []
+    for i in range(cells.nC):
+        # ea = cells.ellipsoid_attributes[i]
+        mu = cells.centroid.iloc[i].tolist()
+        cov = cells.cov[i]
+        ellipsis = gaussian_contour(mu[:2], cov[:2, :2], 3).astype(np.int64)
+        contour.append(ellipsis.tolist())
+
     df = pd.DataFrame({'Cell_Num': cells.centroid.index.tolist(),
-                           'X': cells.centroid['x'].round(3).tolist(),
-                           'Y': cells.centroid['y'].round(3).tolist(),
-                           'Genenames': name_list,
-                           'CellGeneCount': count_list,
-                           'ClassName': class_name_list,
-                           'Prob': prob_list
-                           })
+                       'X': cells.centroid['x'].round(3).tolist(),
+                       'Y': cells.centroid['y'].round(3).tolist(),
+                       'Genenames': name_list,
+                       'CellGeneCount': count_list,
+                       'ClassName': class_name_list,
+                       'Prob': prob_list,
+                       'gaussian_contour': contour
+                       })
     if is3D:
         df['sphere_scale'], df['sphere_rotation'] = sphere_props(cells)
         df['Z'] = cells.centroid['z'].tolist()

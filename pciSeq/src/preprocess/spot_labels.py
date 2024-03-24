@@ -106,92 +106,9 @@ def reorder_labels(label_image):
     return out, label_map
 
 
-def label_image_remove_planes(coo, cfg):
-    arr = np.arange(len(coo))
-    coo = [coo[d] for d in arr if d not in cfg['exclude_planes']]
-    return coo
-
-
-def spots_remove_planes(spots, cfg):
-    int_z = np.floor(spots.z_plane)
-    mask = [True if d not in cfg['exclude_planes'] else False for d in int_z]
-    spots = spots[mask]
-
-    # find the first plane we should be keeping. Assumes that exclude_list is
-    # in increasing order. Made sure that is true in the validation step
-    diff = np.diff(cfg['exclude_planes']) - 1
-    if np.all(diff == 0):
-        # we remove planes from the bottom of the z-stack only,
-        # hence the first plane that we keep is the first one
-        # that is not in the exclude list
-        min_plane = max(cfg['exclude_planes']) + 1
-    else:
-        # otherwise we remove plane from the bottom and the top of
-        # the z-stack, possibly (but unlikely) from the middle too.
-        # Start scanning the z-stack from the bottom, find where the
-        # discontinuity happens and get the first plane we keep
-        iLeft = list(diff > 0).index(True)
-        min_plane = cfg['exclude_planes'][iLeft] + 1
-
-    spots.loc[:, 'z_plane'] = spots.z_plane - min_plane
-    return spots, min_plane
-
-
-def cells_remove_planes(coo_list, cfg):
-    """
-    removes cells that exist on just one single frame of the
-    z-stack
-    """
-    labels_per_frame = [np.unique(d.data) for d in coo_list]
-    label_counts = np.bincount([d for labels in labels_per_frame for d in labels])
-    single_page_labels = [d[0] for d in enumerate(label_counts) if d[1] == 1]
-    removed_cells = []
-    _frames = []
-    for i, coo in enumerate(coo_list):
-        s = set(coo.data).intersection(set(single_page_labels))
-        for d in s:
-            coo.data[coo.data == d] = 0
-            coo.eliminate_zeros()
-            removed_cells.append(d)
-            # _frames.append(i + cfg['from_plane_num'])
-            _frames.append(i)
-            # logger.info('Removed cell:%d from frame: %d' % (d, i))
-    len_c = len(set(removed_cells))
-    len_f = len(set(_frames))
-
-    if len(removed_cells) > 0:
-        spot_labels_logger.warning('Found %d cells that exist on just one single plane. Those cells have been removed '
-                                'from %i planes.' % (len_c, len_f))
-
-    removed_df = pd.DataFrame({
-        'removed_cell_label': removed_cells,
-        'frame_num': _frames,
-        'comment': 'labels are the original labels as they appear in the segmentation masks that were passed-in to '
-                   'pciSeq'
-    })
-    return coo_list, removed_df
-
-
-def remove_oob(spots, img_shape):
-    """
-    removes out of bounds spots (if any...)
-    """
-    mask_x = (spots.x >= 0) & (spots.x <= img_shape[2])
-    mask_y = (spots.y >= 0) & (spots.y <= img_shape[1])
-    mask_z = (spots.z_plane >= 0) & (spots.z_plane <= img_shape[0])
-    return spots[mask_x & mask_y & mask_z]
-
-
-def remove_planes(spots, coo, cfg):
-    coo = label_image_remove_planes(coo, cfg)
-    spots, min_plane = spots_remove_planes(spots, cfg)
-    coo, removed = cells_remove_planes(coo, cfg)
-    return spots, coo, min_plane, removed
-
-
 def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
-    Reads the spots and the label image that are passed in and calculates which cell (if any) contains any
+    Reads the spots and the label image that are passed in and calculates which cell (if any) encircles any
     given spot within its boundaries. It also retrieves the coordinates of the cell boundaries, the cell
     centroids and the cell area
     """
@@ -267,4 +184,87 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.Data
     _spots = spots[['x', 'y', 'z', 'label', 'Gene']].rename_axis('spot_id').rename(columns={'Gene': 'gene_name'})
 
     return _cells, _cell_boundaries, _spots
+
+
+def remove_oob(spots, img_shape):
+    """
+    removes out of bounds spots (if any...)
+    """
+    mask_x = (spots.x >= 0) & (spots.x <= img_shape[2])
+    mask_y = (spots.y >= 0) & (spots.y <= img_shape[1])
+    mask_z = (spots.z_plane >= 0) & (spots.z_plane <= img_shape[0])
+    return spots[mask_x & mask_y & mask_z]
+
+
+def remove_planes(spots, coo, cfg):
+    coo = label_image_remove_planes(coo, cfg)
+    spots, min_plane = spots_remove_planes(spots, cfg)
+    coo, removed = cells_remove_planes(coo, cfg)
+    return spots, coo, min_plane, removed
+
+
+def label_image_remove_planes(coo, cfg):
+    arr = np.arange(len(coo))
+    coo = [coo[d] for d in arr if d not in cfg['exclude_planes']]
+    return coo
+
+
+def spots_remove_planes(spots, cfg):
+    int_z = np.floor(spots.z_plane)
+    mask = [True if d not in cfg['exclude_planes'] else False for d in int_z]
+    spots = spots[mask]
+
+    # find the first plane we should be keeping. Assumes that exclude_list is
+    # in increasing order. Made sure that is true in the validation step
+    diff = np.diff(cfg['exclude_planes']) - 1
+    if np.all(diff == 0):
+        # we remove planes from the bottom of the z-stack only,
+        # hence the first plane that we keep is the first one
+        # that is not in the exclude list
+        min_plane = max(cfg['exclude_planes']) + 1
+    else:
+        # otherwise we remove plane from the bottom and the top of
+        # the z-stack, possibly (but unlikely) from the middle too.
+        # Start scanning the z-stack from the bottom, find where the
+        # discontinuity happens and get the first plane we keep
+        iLeft = list(diff > 0).index(True)
+        min_plane = cfg['exclude_planes'][iLeft] + 1
+
+    spots.loc[:, 'z_plane'] = spots.z_plane - min_plane
+    return spots, min_plane
+
+
+def cells_remove_planes(coo_list, cfg):
+    """
+    removes cells that exist on just one single frame of the
+    z-stack
+    """
+    labels_per_frame = [np.unique(d.data) for d in coo_list]
+    label_counts = np.bincount([d for labels in labels_per_frame for d in labels])
+    single_page_labels = [d[0] for d in enumerate(label_counts) if d[1] == 1]
+    removed_cells = []
+    _frames = []
+    for i, coo in enumerate(coo_list):
+        s = set(coo.data).intersection(set(single_page_labels))
+        for d in s:
+            coo.data[coo.data == d] = 0
+            coo.eliminate_zeros()
+            removed_cells.append(d)
+            # _frames.append(i + cfg['from_plane_num'])
+            _frames.append(i)
+            # logger.info('Removed cell:%d from frame: %d' % (d, i))
+    len_c = len(set(removed_cells))
+    len_f = len(set(_frames))
+
+    if len(removed_cells) > 0:
+        spot_labels_logger.warning('Found %d cells that exist on just one single plane. Those cells have been removed '
+                                'from %i planes.' % (len_c, len_f))
+
+    removed_df = pd.DataFrame({
+        'removed_cell_label': removed_cells,
+        'frame_num': _frames,
+        'comment': 'labels are the original labels as they appear in the segmentation masks that were passed-in to '
+                   'pciSeq'
+    })
+    return coo_list, removed_df
 

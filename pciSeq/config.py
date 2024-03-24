@@ -39,8 +39,7 @@ DEFAULT = {
     # the misreads to. Could be seen as the background. Hence, by default the algorithm tries examines
     # whether any of the 3 nearest cells is a possible parent cell to a given cell or whether the spot is
     # a misread
-    # 'nNeighbors': 6, # 6 for 3D
-    'nNeighbors': 3,   # 3 for 2D
+    'nNeighbors': 3,
 
     # A gamma distributed variate from Gamma(rSpot, 1) is applied to the mean expression, hence the counts
     # are distributed according to a Negative Binomial distribution.
@@ -61,21 +60,35 @@ DEFAULT = {
     # Initialise this to False, the correct value is set internally by the code itself
     'is_redis_running': False,
 
-    # **RELEVANT ONLY** if single cell data are missing
-    'mean_gene_counts_per_class': 60,
+    # cell radius. If None then pciSeq will calc that as the mean radius across all cells.
+    # Otherwise it will use the value provided below
+    'cell_radius': None,
 
-    # **RELEVANT ONLY** if 3D
-    'mean_gene_counts_per_cell': 30,
+    # cell type prior: The prior distribution on the classes. It expresses the view on
+    # how likely each class is to occur a-priori. It can be either 'uniform' or 'weighted'
+    # 'uniform' means that the Zero class gets 50% and the remaining 50% is equally split
+    # on the cell classes.
+    # 'weighted' means that the cell type which is more likely to occur will be given more
+    # weight. These weights are calculated dynamically within the algorithm based on
+    # a Dirichlet distribution assumption.
+    'cell_type_prior': 'uniform',
 
-
-    ## added for 3d
+    # *******************************************************************************
+    # Hyperparameters below added for 3D
+    # *******************************************************************************
     'voxel_size': [1, 1, 1],  # x, y, z
-    # 'voxel_size': [0.2765, 0.2765, 0.9],
 
     'exclude_planes': None,
 
     # this will be set automatically by the code
-    'is3D': None
+    'is3D': None,
+
+    # *******************************************************************************
+    # Hyperparameters below come into action **ONLY** if single cell data are missing
+    # *******************************************************************************
+    'mean_gene_counts_per_class': 60,
+    'mean_gene_counts_per_cell': 30,
+
 
 
 }

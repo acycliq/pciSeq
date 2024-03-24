@@ -97,6 +97,29 @@ def make_classConfig_nsc_js(labels, dst):
     viewer_utils_logger.info('cell class color scheme saved at %s' % config)
 
 
+def make_classConfig_js(labels, dst):
+    # remove Zero. It is appended later on
+    if 'Zero' in labels:
+        labels.remove('Zero')
+
+    colours = ["#f3c300", "#875692", "#f38400", "#a1caf1", "#be0032",
+               "#c2b280", "#848482", "#008856", "#e68fac", "#0067a5",
+               "#f99379", "#604e97", "#f6a600", "#b3446c", "#dcd300",
+               "#882d17", "#8db600", "#654522", "#e25822", "#2b3d26"]
+    n = len(colours)
+    config_dict = [{'className': labels[i],
+                   'IdentifiedType': labels[i],
+                   'color': colours[i % n]}
+                  for i, v in enumerate(labels)]
+    config_dict.append({'className': 'Zero', 'IdentifiedType': 'Zero', 'color': '#000000'})
+    config_dict.append({'className': 'Other', 'IdentifiedType': 'Other', 'color': '#C0C0C0'})
+    config_str = " function classColorsCodes() { return %s }" % json.dumps(config_dict)
+    config = os.path.join(dst, 'viewer', 'js', 'classConfig.js')
+    with open(config, 'w') as data:
+        data.write(str(config_str))
+    viewer_utils_logger.info(' classConfig saved at %s' % config)
+
+
 def make_classConfig_js(pciSeq_dir, dst):
     json_file = os.path.join(pciSeq_dir, 'static', 'color_scheme', 'classColors.json')
     with open(json_file, 'r') as f:
@@ -330,7 +353,6 @@ def cell_gene_counts(spots_df, dst):
     for n in np.unique((df.neighbour)):
         temp = df[df.neighbour == n]
         temp.to_json(os.path.join(data_folder,  '%d.json' % n), orient='records')
-
 
 def _get_file(OUT_DIR, filepath, n, header_line):
     [filename, ext] = os.path.basename(filepath).split('.')
