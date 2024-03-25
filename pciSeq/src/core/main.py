@@ -71,7 +71,6 @@ class VarBayes:
             # 1. For each cell, calc the expected gene counts
             self.geneCount_upd()
 
-            print('gamma_upd')
             # 2. calc expected gamma
             self.gamma_upd()
 
@@ -80,7 +79,6 @@ class VarBayes:
                 self.gaussian_upd()
 
             # 4. assign cells to cell types
-            print('cell_to_cellType')
             self.cell_to_cellType()
 
             # 5. assign spots to cells
