@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import numexpr as ne
 # import numba as nb
+import dask
 import os
 import glob
 import subprocess
@@ -29,13 +30,16 @@ def negBinLoglik(x, r, p):
     # assert (np.all(da_x.coords['cell_id'].data == da_p.coords['cell_id'])), 'gene counts and beta probabilities are not aligned'
     # assert (np.all(da_x.coords['gene_name'].data == da_p.coords['gene_name'])), 'gene counts and beta probabilities are not aligned'
 
-    contr = np.zeros(p.shape)
+    nC, nG = x.shape
     x = x[:, :, None]
-    ne.evaluate("x * log(p) + r * log(1 - p)", out=contr)
+    nK = p.shape[-1]
+    # contr = np.zeros([nC, nG, nK])
+    contr = x * np.log(p) + r * np.log(1 - p)
+    # ne.evaluate("x * log(p) + r * log(1 - p)", out=contr)
     return contr
 
 
-def softmax(X, theta = 1.0, axis = None):
+def softmax(X, theta=1.0, axis=None):
     """
     From https://nolanbconaway.github.io/blog/2017/softmax-numpy
     Compute the softmax of each element along an axis of X.
@@ -63,13 +67,13 @@ def softmax(X, theta = 1.0, axis = None):
     y = y * float(theta)
 
     # subtract the max for numerical stability
-    y = y - np.expand_dims(np.max(y, axis = axis), axis)
+    y = y - np.expand_dims(np.max(y, axis=axis), axis)
 
     # exponentiate y
     y = np.exp(y)
 
     # take the sum along the specified axis
-    ax_sum = np.expand_dims(np.sum(y, axis = axis), axis)
+    ax_sum = np.expand_dims(np.sum(y, axis=axis), axis)
 
     # finally: divide elementwise
     p = y / ax_sum
@@ -111,8 +115,8 @@ def splitter_mb(filepath, mb_size):
     file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)
     for line in handle:
         size = os.stat(file_out).st_size
-        if size > mb_size*1024*1024:
-            utils_logger.info('saved %s with file size %4.3f MB' % (file_out, size/(1024*1024)))
+        if size > mb_size * 1024 * 1024:
+            utils_logger.info('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
             n += 1
             handle_out.close()
             file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)
@@ -145,14 +149,14 @@ def splitter_n(filepath, n):
     if not os.path.exists(OUT_DIR):
         os.makedirs(OUT_DIR)
     else:
-        files = glob.glob(OUT_DIR + '/*.'+ext)
+        files = glob.glob(OUT_DIR + '/*.' + ext)
         for f in files:
             os.remove(f)
 
     for i, d in enumerate(df_list):
         fname = os.path.join(OUT_DIR, filename + '_%d.%s' % (i, ext))
         if ext == 'json':
-            d.to_json(fname,  orient='records')
+            d.to_json(fname, orient='records')
         elif ext == 'tsv':
             d.to_csv(fname, sep='\t', index=False)
 
@@ -229,3 +233,246 @@ def get_pciSeq_install_dir():
     h = BytesHeaderParser().parsebytes(p.stdout)
     assert h['Location'] is not None, 'Could not locate pciSeq installation folder, maybe the package is not installed.'
     return os.path.join(h['Location'], 'pciSeq')
+
+
+def gaussian_contour(mu, cov, sdwidth=3):
+    """
+    Draws an ellipsoid for a given covariance matrix cov
+    and mean vector mu
+
+    Example
+    cov_1 = [[1, 0.5], [0.5, 1]]
+    means_1 = [1, 1]
+
+    cov_2 = [[1, -0.7], [-0.7, 1]]
+    means_2 = [2, 1.5]
+
+    cov_3 = [[1, 0], [0, 1]]
+    means_3 = [0, 0]
+
+    ellipsis_1 = gaussian_contour(means_1, cov_1)
+    ellipsis_2 = gaussian_contour(means_2, cov_2)
+    ellipsis_3 = gaussian_contour(means_3, cov_3)
+    ellipsis_3b = gaussian_contour(means_3, cov_3, sdwidth=2)
+    ellipsis_3c = gaussian_contour(means_3, cov_3, sdwidth=3)
+
+    plt.plot(ellipsis_1[0], ellipsis_1[1], c='b')
+    plt.plot(ellipsis_2[0], ellipsis_2[1], c='r')
+    plt.plot(ellipsis_3[0], ellipsis_3[1], c='g')
+    plt.plot(ellipsis_3b[0], ellipsis_3b[1], c='g')
+    plt.plot(ellipsis_3c[0], ellipsis_3c[1], c='g')
+    """
+
+    # cov_00 = sigma_x * sigma_x
+    # cov_10 = rho * sigma_x * sigma_y
+    # cov_11 = sigma_y * sigma_y
+    # cov = np.array([[cov_00, cov_10], [cov_10, cov_11]])
+    mu = np.array(mu)
+
+    npts = 40
+    tt = np.linspace(0, 2 * np.pi, npts)
+    ap = np.zeros((2, npts))
+    x = np.cos(tt)
+    y = np.sin(tt)
+    ap[0, :] = x
+    ap[1, :] = y
+
+    eigvals, eigvecs = np.linalg.eig(cov)
+    eigvals = sdwidth * np.sqrt(eigvals)
+    eigvals = eigvals * np.eye(2)
+
+    vd = eigvecs.dot(eigvals)
+    out = vd.dot(ap) + mu.reshape(2, -1)
+
+    return np.array(list(zip(*out)), dtype=np.float32)
+
+
+def read_image_objects(img_obj, cfg):
+    meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
+    relCellRadius = np.sqrt(img_obj.area / np.pi) / meanCellRadius
+
+    # append 1 for the misreads
+    relCellRadius = np.append(1, relCellRadius)
+
+    InsideCellBonus = cfg['InsideCellBonus']
+    if not InsideCellBonus:
+        # This is more for clarity. The operation below will work fine even if InsideCellBonus is False
+        InsideCellBonus = 0
+
+    # if InsideCellBonus == 0 then CellAreaFactor will be equal to 1.0
+    numer = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(InsideCellBonus)) + np.exp(InsideCellBonus)
+    denom = np.exp(-0.5) * (1 - np.exp(InsideCellBonus)) + np.exp(InsideCellBonus)
+    CellAreaFactor = numer / denom
+
+    out = {}
+    out['area_factor'] = CellAreaFactor.astype(np.float32)
+    out['rel_radius'] = relCellRadius.astype(np.float32)
+    out['area'] = np.append(np.nan, img_obj.area.astype(np.uint32))
+    out['x0'] = np.append(-sys.maxsize, img_obj.x0.values).astype(np.float32)
+    out['y0'] = np.append(-sys.maxsize, img_obj.y0.values).astype(np.float32)
+    out['z0'] = np.append(-sys.maxsize, img_obj.z0.values).astype(np.float32)
+    out['cell_label'] = np.append(0, img_obj.label.values).astype(np.uint32)
+    if 'old_label' in img_obj.columns:
+        out['cell_label_old'] = np.append(0, img_obj.old_label.values).astype(np.uint32)
+    # First cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
+    # and will be used to get all the misreads. It was given the label=0 and some very small
+    # negative coords
+
+    return out, meanCellRadius.astype(np.float32)
+
+
+def keep_labels_unique(scdata):
+    """
+    In the single cell data you might find cases where two or more rows have the same gene label
+    In these cases keep the row with the highest total gene count
+    """
+
+    # 1. get the row total and assign it to a new column
+    scdata = scdata.assign(total=scdata.sum(axis=1))
+
+    # 2. rank by gene label and total gene count and keep the one with the highest total
+    scdata = scdata.sort_values(['gene_name', 'total'], ascending=[True, False]).groupby('gene_name').head(1)
+
+    # 3. Drop the total column and return
+    return scdata.drop(['total'], axis=1)
+
+
+@dask.delayed
+def scaled_exp(cell_area_factor, sc_mean_expressions, inefficiency):
+    if np.all(cell_area_factor == 1):
+        subscripts = 'gk, g -> gk'
+        operands = [sc_mean_expressions, inefficiency]
+    else:
+        subscripts = 'c, gk, g -> cgk'
+        operands = [cell_area_factor, sc_mean_expressions, inefficiency]
+    out = np.einsum(subscripts, *operands)
+    return out
+
+
+def adjust_for_anisotropy(spots, voxel_size):
+    gene_col = spots.Gene.values[:, None]
+    z_plane = np.float32(spots.z_plane.values[:, None])
+
+    data = spots[['x', 'y', 'z_plane']]
+    spots_adj = anisotropy_calc(data, voxel_size)
+
+    spots_adj = np.hstack([gene_col, spots_adj, z_plane])
+    spots_adj = pd.DataFrame(spots_adj, columns=['Gene', 'x', 'y', 'z', 'z_plane'])
+    spots_adj = spots_adj.astype({'x': 'float32',
+                                  'y': 'float32',
+                                  'z': 'float32',
+                                  'z_plane': 'float32',
+                                  'Gene': str})
+    return spots_adj  # Nspots x 3
+
+
+def anisotropy_calc(data, voxel_size):
+    x, y, z = voxel_size
+    Sx = x / x
+    Sy = y / x
+    Sz = z / x
+    scaling_matrix = np.array([
+        [Sx, 0, 0],
+        [0, Sy, 0],
+        [0, 0, Sz]
+    ], dtype=np.float32)
+    out = scaling_matrix.dot(data.T)  # 3 x Nspots
+    return out.T  # Nspots x 3
+
+
+def truncate_data(spots, label_image, z_min, z_max):
+    if z_min is not None and z_max is not None:
+        utils_logger.info(' Truncating masks and spots. Keeping those between frame %d and %d only' % (z_min, z_max))
+        spots = truncate_spots(spots, z_min, z_max)
+    return spots, label_image
+
+
+def truncate_spots(spots, zmin, zmax):
+    spots_min = spots[(spots.z_stack <= zmax) & (spots.z_stack >= zmin)]
+    spots_min = spots_min.assign(z_stack=spots_min.z_stack - zmin)
+    # out = spots_min.z - zmin
+    return spots_min.reset_index(drop=True)
+
+
+def get_img_shape(coo):
+    n = len(coo)
+    img_shape = set([d.shape for d in coo])
+    assert len(img_shape) == 1, 'pages do not have the same shape'
+    img_shape = img_shape.pop()
+    w = img_shape[1]
+    h = img_shape[0]
+    return [n, h, w]
+
+
+def gaussian_ellipsoid_props(cov, sdwidth=3):
+    """
+    get the scaling, rotation of the ellipsoid
+    """
+    tol = 1.0e-10
+    cov = np.where(cov < tol, 0, cov)
+    eigvals, eigvecs = np.linalg.eig(cov)
+    scaling = sdwidth * np.sqrt(eigvals)
+    # rotation = roll_pitch_yaw(eigvecs)
+    rotation = euler_angles(eigvecs.T)
+    scaling = scaling.tolist()
+    return scaling, rotation
+
+
+def euler_angles(r):
+    theta_x = np.arctan2(r[2, 1], r[2, 2])
+    theta_y = np.arcsin(r[2,0])
+    theta_z = np.arctan2(r[1, 0], r[0, 0])
+
+    return [theta_x, theta_y, theta_z]
+
+
+def gaussian_contour(mu, cov, sdwidth=3):
+    """
+    Draws an ellipsoid for a given covariance matrix cov
+    and mean vector mu
+
+    Example
+    cov_1 = [[1, 0.5], [0.5, 1]]
+    means_1 = [1, 1]
+
+    cov_2 = [[1, -0.7], [-0.7, 1]]
+    means_2 = [2, 1.5]
+
+    cov_3 = [[1, 0], [0, 1]]
+    means_3 = [0, 0]
+
+    ellipsis_1 = gaussian_contour(means_1, cov_1)
+    ellipsis_2 = gaussian_contour(means_2, cov_2)
+    ellipsis_3 = gaussian_contour(means_3, cov_3)
+    ellipsis_3b = gaussian_contour(means_3, cov_3, sdwidth=2)
+    ellipsis_3c = gaussian_contour(means_3, cov_3, sdwidth=3)
+
+    plt.plot(ellipsis_1[0], ellipsis_1[1], c='b')
+    plt.plot(ellipsis_2[0], ellipsis_2[1], c='r')
+    plt.plot(ellipsis_3[0], ellipsis_3[1], c='g')
+    plt.plot(ellipsis_3b[0], ellipsis_3b[1], c='g')
+    plt.plot(ellipsis_3c[0], ellipsis_3c[1], c='g')
+    """
+
+    # cov_00 = sigma_x * sigma_x
+    # cov_10 = rho * sigma_x * sigma_y
+    # cov_11 = sigma_y * sigma_y
+    # cov = np.array([[cov_00, cov_10], [cov_10, cov_11]])
+    mu = np.array(mu)
+
+    npts = 40
+    tt = np.linspace(0, 2 * np.pi, npts)
+    ap = np.zeros((2, npts))
+    x = np.cos(tt)
+    y = np.sin(tt)
+    ap[0, :] = x
+    ap[1, :] = y
+
+    eigvals, eigvecs = np.linalg.eig(cov)
+    eigvals = sdwidth * np.sqrt(eigvals)
+    eigvals = eigvals * np.eye(2)
+
+    vd = eigvecs.dot(eigvals)
+    out = vd.dot(ap) + mu.reshape(2, -1)
+
+    return np.array(list(zip(*out)), dtype=np.float32)

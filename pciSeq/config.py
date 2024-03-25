@@ -60,20 +60,36 @@ DEFAULT = {
     # Initialise this to False, the correct value is set internally by the code itself
     'is_redis_running': False,
 
-    # Use either np.float16 or np.float32 to reduce memory usage. In most cases RAM consumption shouldnt
-    # need more than 32Gb RAM. If you have a dataset from a full coronal mouse slice with a high number of
-    # segmented cells (around 150,000) a gene panel of more than 250 genes and 100 or more different
-    # cell types (aka clusters, aka classes) in the single cell data then you might need at least 64GB on
-    # your machine. Changing the datatype to a float16 or float32 will help keeping RAM usage to a lower
-    # level
-    'dtype': np.float64,
+    # cell radius. If None then pciSeq will calc that as the mean radius across all cells.
+    # Otherwise it will use the value provided below
+    'cell_radius': None,
 
+    # cell type prior: The prior distribution on the classes. It expresses the view on
+    # how likely each class is to occur a-priori. It can be either 'uniform' or 'weighted'
+    # 'uniform' means that the Zero class gets 50% and the remaining 50% is equally split
+    # on the cell classes.
+    # 'weighted' means that the cell type which is more likely to occur will be given more
+    # weight. These weights are calculated dynamically within the algorithm based on
+    # a Dirichlet distribution assumption.
+    'cell_type_prior': 'uniform',
+
+    # *******************************************************************************
+    # Hyperparameters below added for 3D
+    # *******************************************************************************
+    'voxel_size': [1, 1, 1],  # x, y, z
+
+    'exclude_planes': None,
+
+    # this will be set automatically by the code
+    'is3D': None,
 
     # *******************************************************************************
     # Hyperparameters below come into action **ONLY** if single cell data are missing
     # *******************************************************************************
     'mean_gene_counts_per_class': 60,
-    'mean_gene_counts_per_cell': 15,
+    'mean_gene_counts_per_cell': 30,
+
+
 
 }
 

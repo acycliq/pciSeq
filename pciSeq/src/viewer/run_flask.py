@@ -45,9 +45,14 @@ def flask_app_start(dir):
     port = 5000 + random.randint(0, 999)
     flask_app = Flask(__name__,
                       static_url_path='',  # remove the static folder path
-                      static_folder=dir,
-                      # set here the path of the folder to be served. The js files referenced in your html file are with respect to this folder. Adjust the paths in your html file (look for the <script src="some/path/file.js"></script> tag, so that the js libraries will be parsed
-                      template_folder=dir)  # set here the path to the folder where your html page lives. Absolute and relative paths both work fine
+                      static_folder=dir,  # set here the path of the folder to be served.
+                                          # The js files referenced in your html file are with respect
+                                          # to this folder. Adjust the paths in your html file (look
+                                          # for the <script src="some/path/file.js"></script> tag, so that
+                                          # the js libraries will be parsed
+                      template_folder=dir)  # set here the path to the folder where your html page lives.
+                                            # Absolute and relative paths both work fine
+
     flask_app.config['EXPLAIN_TEMPLATE_LOADING'] = True
 
     @flask_app.route("/")
@@ -56,5 +61,3 @@ def flask_app_start(dir):
 
     Timer(1, get_browser, [port]).start()
     flask_app.run(port=port, debug=False)
-
-

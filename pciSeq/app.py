@@ -6,14 +6,17 @@ import pandas as pd
 from typing import Tuple
 from pciSeq import config
 from pciSeq.src.core.main import VarBayes
-from pciSeq.src.core.utils import get_out_dir
-from scipy.sparse import coo_matrix, load_npz
+from pciSeq.src.core.utils import get_out_dir, adjust_for_anisotropy
+from scipy.sparse import coo_matrix
 from pciSeq.src.diagnostics.utils import redis_db
-from pciSeq.src.preprocess.utils import get_img_shape
+from pciSeq.src.core.utils import get_img_shape
 from pciSeq.src.viewer.run_flask import flask_app_start
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
-from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js, make_classConfig_js
+from pciSeq.src.viewer.utils import (copy_viewer_code, make_config_js,
+                                     make_classConfig_js, make_glyphConfig_js,
+                                     make_classConfig_nsc_js, build_pointcloud,
+                                     cellData_rgb, cell_gene_counts)
 import logging
 
 app_logger = logging.getLogger(__name__)
@@ -88,8 +91,9 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     cfg = init(opts)
 
     # 3. validate inputs
-    spots = validate(spots.copy(), coo, scRNAseq)   # Spots might get mutated here. Genes not found
-                                                    # in the single cell data will be removed.
+    # NOTE 1: Spots might get mutated here. Genes not found in the single cell data will be removed.
+    # NOTE 2: cfg might also get mutated. Fields 'is3D' and 'remove_planes' might get overridden
+    spots, coo, cfg = validate(spots.copy(), coo, scRNAseq, cfg)
 
     # 4. launch the diagnostics
     if cfg['launch_diagnostics'] and cfg['is_redis_running']:
@@ -98,7 +102,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     # 5. prepare the data
     app_logger.info('Preprocessing data')
-    _cells, cellBoundaries, _spots = stage_data(spots, coo)
+    _cells, cellBoundaries, _spots = stage_data(spots, coo, cfg)
 
     # 6. cell typing
     cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
@@ -109,7 +113,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     # 8. do the viewer if needed
     if cfg['launch_viewer']:
-        dst = pre_launch(cellData, coo, scRNAseq, cfg)
+        dst = pre_launch(cellData, geneData, coo, scRNAseq, cfg)
         flask_app_start(dst)
 
     app_logger.info('Done')
@@ -136,8 +140,17 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
     geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
     app_logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
 
-    cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-    app_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+    # Do not change the if-then branching flow. InsideCellBonus can take the value of zero
+    # and the logic below will ensure that in that case, the segmentation borders will be
+    # drawn instead of the gaussian contours.
+    if cfg['InsideCellBonus'] is False:
+        ellipsoidBoundaries = cellData[['Cell_Num', 'gaussian_contour']]
+        ellipsoidBoundaries = ellipsoidBoundaries.rename(columns={"Cell_Num": "cell_id", "gaussian_contour": "coords"})
+        ellipsoidBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
+        app_logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+    else:
+        cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
+        app_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
     serialise(varBayes, os.path.join(out_dir, 'debug'))
 
@@ -178,7 +191,7 @@ def init(opts):
         user_items = set(opts.keys())
         assert user_items.issubset(default_items), ('Options passed-in should be a dict with keys: %s ' % default_items)
         for item in opts.items():
-            if isinstance(item[1], (int, float, list)) or isinstance(item[1](1), np.floating):
+            if isinstance(item[1], (int, float, list, str)) or isinstance(item[1](1), np.floating):
                 val = item[1]
             # elif isinstance(item[1], list):
             #     val = item[1]
@@ -189,26 +202,112 @@ def init(opts):
     return cfg
 
 
-def validate(spots, coo, sc):
-    assert isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y'}, \
-        "Spots should be passed-in to the fit() method as a dataframe with columns ['Gene', 'x', 'y']"
+def validate(spots, coo, scData, cfg):
+    # check the label image
+    coo = _validate_coo(coo)
 
-    assert isinstance(coo, coo_matrix), 'The segmentation masks should be passed-in as a coo_matrix'
+    # Check now the config dict. It needs to be done after we have checked the coo
+    # because the shape of the label image determines whether the data is 3D or 2D.
+    cfg = _validate_cfg(cfg, coo)
 
-    if sc is not None:
-        assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
+    # check the spots and see if all genes are in your single cell library
+    spots = _validate_spots(spots, coo, scData, cfg)
 
-        if not set(spots.Gene).issubset(sc.index):
-            # remove genes that cannot been found in the single cell data
-            spots = purge_spots(spots, sc)
+    # check single cell data
+    if scData is not None:
+        assert isinstance(scData, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
 
+    # remove genes that cannot been found in the single cell data
+    spots = clean_spots(spots, scData)
+
+    # do some datatype casting
+    spots = spots.astype({
+        'Gene': str,
+        'x': np.float32,
+        'y': np.float32,
+        'z_plane': np.float32})
+
+    return spots, coo, cfg
+
+
+def _validate_coo(coo):
+    if isinstance(coo, coo_matrix):
+        coo = [coo]
+    if isinstance(coo, list):
+        assert np.all([isinstance(d, coo_matrix) for d in coo]), (
+            'The segmentation masks should be passed-in as a coo_matrix')
+
+        # check all planes have the same shape
+        shapes = [d.shape for d in coo]
+        assert shapes.count(shapes[0]) == len(shapes), 'Not all elements in coo have the same shape'
+    else:
+        raise ValueError('The segmentation masks should be passed-in as a coo_matrix')
+    return coo
+
+
+def _validate_spots(spots, coo, sc, cfg):
+    assert (isinstance(spots, pd.DataFrame)), 'Spots should be provided as a dataframe'
+
+    # check the spots
+    if not cfg['is3D']:
+        assert {'Gene', 'x', 'y'}.issubset(spots.columns), ("Spots should be passed-in to the fit() "
+                                                            "method as a dataframe with columns ['Gene', 'x', 'y']")
+    else:
+        assert set(spots.columns) == {'Gene', 'x', 'y', 'z_plane'}, ("Spots should be passed-in to the fit() method "
+                                                                     "as a dataframe with columns 'Gene', 'x',  'y', "
+                                                                     "'z_plane'")
+
+    if len(coo) > 1 and set(spots.columns) == {'Gene', 'x', 'y'}:
+        raise ValueError("Label image is 3D, the spots are 2D")
+
+    # if you have feed a 2d spot, append a flat z dimension so that everything in the code from now on will
+    # be treated as 3d
+    if isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y'}:
+        spots = spots.assign(z_plane=0)
+
+    return spots
+
+
+def _validate_cfg(cfg, coo):
+    # The label image will determine whether dataset is 3d or 2d
+    cfg['is3D'] = False if len(coo) == 1 else True
+
+    # override the InsideCellBonus setting and set it to false if the dataset is 3D
+    # maybe drop a logger warning msg here too!
+    if cfg['is3D']:
+        cfg['InsideCellBonus'] = False
+
+    # if InsideCellBonus is True, set it to a numerical value
+    if cfg['InsideCellBonus'] is True:
+        """
+        This is not good enough! The default value for InsideCellBonus is now kept in two places, config.py and 
+        here. What happens if I change the config.py and I set InsideCellBonus = 3 for example? 
+        The line below will stll set it 2 which is not the default anymore! 
+        """
+        d = 2
+        cfg['InsideCellBonus'] = d
+        app_logger.warning('InsideCellBonus was passed-in as True. Overriding with the default value of %d' % d)
+
+    if cfg['cell_type_prior'].lower() not in ['uniform'.lower(), 'weighted'.lower()]:
+        raise ValueError("'cel_type_prior' should be either 'uniform' or 'weighted' ")
+
+    # make sure the string is lowercase from now on
+    cfg['cell_type_prior'] = cfg['cell_type_prior'].lower()
+
+    return cfg
+
+
+def clean_spots(spots, sc):
+    # remove genes that cannot been found in the single cell data
+    if (sc is not None) and (not set(spots.Gene).issubset(sc.index)):
+        spots = purge_spots(spots, sc)
     return spots
 
 
 def purge_spots(spots, sc):
     drop_spots = list(set(spots.Gene) - set(sc.index))
     app_logger.warning('Found %d genes that are not included in the single cell data' % len(drop_spots))
-    idx = ([i for i, v in enumerate(spots.Gene) if v not in drop_spots]) # can you speed this up?? What happens if the spot df has millions of rows?
+    idx = ~ np.in1d(spots.Gene, drop_spots)
     spots = spots.iloc[idx]
     app_logger.warning('Removed from spots: %s' % drop_spots)
     return spots
@@ -216,7 +315,7 @@ def purge_spots(spots, sc):
 
 def parse_args(*args, **kwargs):
     '''
-    Do soma basic checking of the args
+    Do some basic checking of the args
     '''
 
     spots = None
@@ -256,7 +355,7 @@ def parse_args(*args, **kwargs):
     return spots, coo, scRNAseq, opts
 
 
-def pre_launch(cellData, coo, scRNAseq, cfg):
+def pre_launch(cellData, geneData, coo, scRNAseq, cfg):
     '''
     Does some housekeeping, pre-flight control checking before the
     viewer is triggered
@@ -264,17 +363,54 @@ def pre_launch(cellData, coo, scRNAseq, cfg):
     Returns the destination folder that keeps the viewer code and
     will be served to launch the website
     '''
-    [h, w] = get_img_shape(coo)
+    [n, h, w] = get_img_shape(coo)
     dst = get_out_dir(cfg['output_path'])
-    copy_viewer_code(cfg, dst)
-    make_config_js(dst, w, h)
+    pciSeq_dir = copy_viewer_code(cfg, dst)
+    make_config(dst, pciSeq_dir, (cellData, scRNAseq, h, w))
+    if cfg['is3D']:
+        # ***************************************
+        # OK FOR NOW BUT THIS IS A TEMP FIX ONLY
+        # THESE LINES MUST BE REMOVED
+        cellData.X = cellData.X - w / 2
+        cellData.Y = cellData.Y - h / 2
+        cellData.Z = cellData.Z - n / 2
+
+        geneData.x = geneData.x - w / 2
+        geneData.y = geneData.y - h / 2
+        geneData.z = geneData.z - n / 2
+        # ***************************************
+
+        build_pointcloud(geneData, pciSeq_dir, dst)
+        cellData_rgb(cellData, pciSeq_dir, dst)
+        cell_gene_counts(geneData, dst)
+    return dst
+
+
+def make_config(target_dir, source_dir, data):
+    '''
+    makes the three javascript configuration files that drive the viewer.
+    They are getting saved into the dst folder. By default this is the tmp directory
+    '''
+
+    cellData = data[0]
+    scRNAseq = data[1]
+    img_shape = data[2:]
+    # 1. make the main configuration file
+    make_config_js(target_dir, img_shape)
+
+    # 2. make the file for the class colors
     if scRNAseq is None:
         label_list = [d[:] for d in cellData.ClassName.values]
         labels = [item for sublist in label_list for item in sublist]
         labels = sorted(set(labels))
 
-        make_classConfig_js(labels, dst)
-    return dst
+        make_classConfig_nsc_js(labels, target_dir)
+    else:
+        make_classConfig_js(source_dir, target_dir)
+
+    # 3. make the file for the glyph colors
+    gene_panel = scRNAseq.index.values
+    make_glyphConfig_js(gene_panel, source_dir, target_dir)
 
 
 def confirm_prompt(question):

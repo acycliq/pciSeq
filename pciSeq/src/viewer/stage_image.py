@@ -58,11 +58,11 @@ def map_image_size(z):
     return 256 * 2 ** z
 
 
-def tile_maker(img_path, z_depth=10, out_dir=r"./tiles"):
+def tile_maker(img_path, zoom_levels=8, out_dir=r"./tiles"):
     """
     Makes a pyramid of tiles.
     img_path:(str) The path to the image
-    z_depth: (int) Specifies how many zoom levels will be produced. Default value is 10.
+    zoom_levels: (int) Specifies how many zoom levels will be produced. Default value is 8.
     out_dir: (str) The path to the folder where the output (the pyramid of map tiles) will be saved to. If the folder
                    does not exist, it will be created automatically. If it exists, it will be deleted before being populated
                    with the new tiles. Dy default the tiles will be saved inside the current
@@ -70,7 +70,7 @@ def tile_maker(img_path, z_depth=10, out_dir=r"./tiles"):
     """
     # img_path = os.path.join(dir_path, 'demo_data', 'background_boundaries.tif')
 
-    dim = map_image_size(z_depth)
+    dim = map_image_size(zoom_levels)
     # remove the dir if it exists
     if os.path.exists(out_dir):
         shutil.rmtree(out_dir)

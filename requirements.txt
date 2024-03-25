@@ -15,3 +15,6 @@ diplib
 pyvips
 redis
 fastremap
+pytest
+matplotlib
+laspy

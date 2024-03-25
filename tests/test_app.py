@@ -116,13 +116,13 @@ def test_varBayes(filename, expected, request):
                 'launch_diagnostics': True,
                 'max_iter': 30,
                 })
-    validate(spots, coo, scData)
+    validate(spots, coo, scData, cfg)
 
     if cfg['launch_diagnostics'] and cfg['is_redis_running']:
         launch_dashboard()
 
     # prepare the data
-    _cells, cellBoundaries, _spots = stage_data(spots, coo)
+    _cells, cellBoundaries, _spots = stage_data(spots, coo, cfg)
 
     # cell typing
     varBayes = VarBayes(_cells, _spots, scData, cfg)

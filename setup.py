@@ -17,13 +17,17 @@ def get_static_files(root):
             if (d.endswith('.html')
                 or d.endswith('.js')
                 or d.endswith('.css')
-                or d.endswith('.msi'))
+                or d.endswith('.msi')
+                or d.endswith('.so')
+                or d.endswith('.json')
+                or d.endswith('PotreeConverter'))
             ]
 
 
 install_deps = ['numpy_groupies', 'pandas', 'scipy', 'streamlit', 'altair',
                 'scikit-image', 'scikit-learn', 'tqdm', 'flask', 'fastremap',
-                'numexpr', 'diplib', 'pyvips', 'natsort', 'redis', 'pytest']
+                'numexpr', 'diplib', 'pyvips', 'natsort', 'redis', 'pytest',
+                'matplotlib', 'laspy', 'jupyterlab']
 
 version = None
 with open(os.path.join('pciSeq', '_version.py'), 'r') as fid:

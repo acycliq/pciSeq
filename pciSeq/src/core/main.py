@@ -21,7 +21,7 @@ class VarBayes:
         self.spots = Spots(_spots_df, config)
         self.genes = Genes(self.spots)
         self.single_cell = SingleCell(scRNAseq, self.genes.gene_panel, self.config)
-        self.cellTypes = CellType(self.single_cell)
+        self.cellTypes = CellType(self.single_cell, config)
         self.cells.class_names = self.single_cell.classes
         self.nC = self.cells.nC  # number of cells
         self.nG = self.genes.nG  # number of genes
@@ -33,24 +33,29 @@ class VarBayes:
         self.iter_num = None
         self.iter_delta = []
         self.has_converged = False
+        self._scaled_exp = None
+
+    @property
+    def scaled_exp(self):
+        return self._scaled_exp
 
     def __getstate__(self):
         # set here attributes to be excluded from serialisation (pickling)
         # It makes the pickle filesize smaller but maybe this will have to
         # change in the future.
-        # Removing redis so I can pickle
+        # Removing redis so I can pickle and _scaled_exp because it is delayed
         # FYI: https://realpython.com/python-pickle-module/
         attributes = self.__dict__.copy()
         del attributes['redis_db']
+        del attributes['_scaled_exp']
         return attributes
 
     def initialise(self):
         self.cellTypes.ini_prior()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
         self.genes.init_eta(1, 1 / self.config['Inefficiency'])
-        self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
+        self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
-        self.spots.gamma_bar = np.ones([self.nC, self.nG, self.nK]).astype(self.config['dtype'])
 
     # -------------------------------------------------------------------- #
     def run(self):
@@ -66,25 +71,30 @@ class VarBayes:
             # 1. For each cell, calc the expected gene counts
             self.geneCount_upd()
 
+            print('gamma_upd')
             # 2. calc expected gamma
             self.gamma_upd()
 
-            # 3. assign cells to cell types
+            # 3 update correlation matrix and variance of the gaussian distribution
+            if self.single_cell.isMissing or (self.config['InsideCellBonus'] is False) or (self.config['is3D']):
+                self.gaussian_upd()
+
+            # 4. assign cells to cell types
+            print('cell_to_cellType')
             self.cell_to_cellType()
 
-            # 4. assign spots to cells
+            # 5. assign spots to cells
             self.spots_to_cell()
 
-            # 5. update gene efficiency
+            # 6. update gene efficiency
             self.eta_upd()
 
-            # 6. Update single cell data
-            if self.single_cell.isMissing:
-                # 6.1 update correlation matrix and variance of the gaussian distribution
-                self.gaussian_upd()
-                # 6.2 update the dirichlet distribution
+            # 7. update the dirichlet distribution
+            if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):
                 self.dalpha_upd()
-                # 6.3 update single cell data
+
+            # 8. Update single cell data
+            if self.single_cell.isMissing:
                 self.mu_upd()
 
             self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
@@ -101,7 +111,7 @@ class VarBayes:
 
             if self.has_converged:
                 # self.counts_within_radius(20)
-                cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
+                cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config['is3D'])
                 break
 
             if i == max_iter - 1:
@@ -136,7 +146,7 @@ class VarBayes:
         #     "The sum of the background spots and the cell gene counts should be equal to the total number of spots"
 
         # make output. This part needs to be rewritten
-        out = np.zeros([self.nC, self.nG])
+        out = np.zeros([self.nC, self.nG], dtype=np.float32)
         out[1:, :] = N_cg[1:, :]
 
         # cell at position zero is the background
@@ -151,14 +161,16 @@ class VarBayes:
         """
         cells = self.cells
         cfg = self.config
-        dtype = self.config['dtype']
-        beta = np.einsum('c, gk, g -> cgk', cells.ini_cell_props['area_factor'], self.single_cell.mean_expression,
-                         self.genes.eta_bar).astype(dtype) + cfg['rSpot']
-        # beta = np.einsum('c, gk -> cgk', cells.cell_props['area_factor'], self.single_cell.mean_expression).astype(dtype) + cfg['rSpot']
+
+        self._scaled_exp = utils.scaled_exp(cells.ini_cell_props['area_factor'],
+                                            self.single_cell.mean_expression.values,
+                                            self.genes.eta_bar)
+
+        beta = self.scaled_exp.compute() + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
-        self.spots.gamma_bar = self.spots.gammaExpectation(rho, beta)
-        self.spots.log_gamma_bar = self.spots.logGammaExpectation(rho, beta)
+        self.spots._log_gamma_bar = self.spots.logGammaExpectation(rho, beta)
+        self.spots._gamma_bar = self.spots.gammaExpectation(rho, beta)
 
     # -------------------------------------------------------------------- #
     def cell_to_cellType(self):
@@ -171,14 +183,14 @@ class VarBayes:
         :return:
         """
 
-        dtype = self.config['dtype']
-        ScaledExp = np.einsum('c, g, gk -> cgk', self.cells.ini_cell_props['area_factor'], self.genes.eta_bar,
-                              self.single_cell.mean_expression).astype(dtype)
+        ScaledExp = self.scaled_exp.compute()
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
-        wCellClass = np.sum(contr, axis=1) + self.cellTypes.log_prior
-        pCellClass = utils.softmax(wCellClass, axis=1)
+        contr = np.sum(contr, axis=1)
+        wCellClass = contr + self.cellTypes.log_prior
+        pCellClass = softmax(wCellClass, axis=1)
+        del contr
 
         self.cells.classProb = pCellClass
 
@@ -191,10 +203,15 @@ class VarBayes:
         nN = self.nN
         nS = self.spots.data.gene_name.shape[0]
 
-        aSpotCell = np.zeros([nS, nN])
+        wSpotCell = np.zeros([nS, nN], dtype=np.float32)
         gn = self.spots.data.gene_name.values
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
         logeta_bar = self.genes.logeta_bar[self.spots.gene_id]
+
+        # loglik = self.spots.loglik(self.cells, self.config)
+
+        # pre-populate last column
+        wSpotCell[:, -1] = np.log(self.config['MisreadDensity'])
 
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
         for n in range(nN - 1):
@@ -207,12 +224,24 @@ class VarBayes:
             # multiply and sum over cells
             term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
 
-            # logger.info('genes.spotNo should be something like spots.geneNo instead!!')
-            log_gamma_bar = self.spots.log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
+            log_gamma_bar = self.spots.log_gamma_bar.compute()
+            log_gamma_bar = log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
 
             term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
-            aSpotCell[:, n] = term_1 + term_2 + logeta_bar
-        wSpotCell = aSpotCell + self.spots.loglik(self.cells, self.config)
+
+            # wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik[:, n]
+            mvn_loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
+            wSpotCell[:, n] = term_1 + term_2 + logeta_bar + mvn_loglik
+            del term_1
+
+        # apply inside cell bonus
+        # NOTE. This is not applied 100% correctly. For example the fourth spot in the demo data. Id2, (x, y) = (0, 4484)
+        # The spots is within the boundaries of cell with label 5 but this is not its closest cell. The closest cell is
+        # cell label = 4. Cell label=5 is the second closest cell and label=4 the first closest. Therefore, the bonus should be
+        # applied when we handle the column for the seconds closest near-by cell. The implementation below implies that if
+        # a spot is inside the cell boundaries then that cell is the closest one.
+        mask = np.greater(self.spots.data.label.values, 0, where=~np.isnan(self.spots.data.label.values))
+        wSpotCell[mask, 0] = wSpotCell[mask, 0] + self.config['InsideCellBonus']
 
         # update the prob a spot belongs to a neighboring cell
         self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
@@ -233,7 +262,7 @@ class VarBayes:
         classProb = self.cells.classProb
         mu = self.single_cell.mean_expression
         area_factor = self.cells.ini_cell_props['area_factor']
-        gamma_bar = self.spots.gamma_bar
+        gamma_bar = self.spots.gamma_bar.compute()
 
         zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
         zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
@@ -266,41 +295,47 @@ class VarBayes:
         # get the total gene counts per cell
         N_c = self.cells.total_counts
 
-        xy_spots = spots.xy_coords
+        xyz_spots = spots.xyz_coords
         prob = spots.parent_cell_prob
         n = self.cells.config['nNeighbors'] + 1
 
         # multiply the x coord of the spots by the cell prob
-        a = np.tile(xy_spots[:, 0], (n, 1)).T * prob
+        a = np.tile(xyz_spots[:, 0], (n, 1)).T * prob
 
         # multiply the y coord of the spots by the cell prob
-        b = np.tile(xy_spots[:, 1], (n, 1)).T * prob
+        b = np.tile(xyz_spots[:, 1], (n, 1)).T * prob
+
+        # multiply the z coord of the spots by the cell prob
+        c = np.tile(xyz_spots[:, 2], (n, 1)).T * prob
 
         # aggregated x and y coordinate
         idx = spots.parent_cell_id
         x_agg = npg.aggregate(idx.ravel(), a.ravel(), size=len(N_c))
         y_agg = npg.aggregate(idx.ravel(), b.ravel(), size=len(N_c))
+        z_agg = npg.aggregate(idx.ravel(), c.ravel(), size=len(N_c))
 
         # get the estimated cell centers
         x_bar = np.nan * np.ones(N_c.shape)
         y_bar = np.nan * np.ones(N_c.shape)
+        z_bar = np.nan * np.ones(N_c.shape)
 
         x_bar[N_c > 0] = x_agg[N_c > 0] / N_c[N_c > 0]
         y_bar[N_c > 0] = y_agg[N_c > 0] / N_c[N_c > 0]
+        z_bar[N_c > 0] = z_agg[N_c > 0] / N_c[N_c > 0]
 
         # cells with N_c = 0 will end up with x_bar = y_bar = np.nan
-        xy_bar_fitted = np.array(list(zip(x_bar.T, y_bar.T)))
+        xyz_bar_fitted = np.array(list(zip(x_bar.T, y_bar.T, z_bar.T)))
 
         # if you have a value for the estimated centroid use that, otherwise
         # use the initial (starting values) centroids
         ini_cent = self.cells.ini_centroids()
-        xy_bar = np.array(tuple(zip(*[ini_cent['x'], ini_cent['y']])))
+        xyz_bar = np.array(tuple(zip(*[ini_cent['x'], ini_cent['y'], ini_cent['z']])))
 
         # # sanity check. NaNs or Infs should appear together
         # assert np.all(np.isfinite(x_bar) == np.isfinite(y_bar))
         # use the fitted centroids where possible otherwise use the initial ones
-        xy_bar[np.isfinite(x_bar)] = xy_bar_fitted[np.isfinite(x_bar)]
-        self.cells.centroid = pd.DataFrame(xy_bar, columns=['x', 'y'])
+        xyz_bar[np.isfinite(x_bar)] = xyz_bar_fitted[np.isfinite(x_bar)]
+        self.cells.centroid = pd.DataFrame(xyz_bar, columns=['x', 'y', 'z'], dtype=np.float32)
         # print(np.array(list(zip(x_bar.T, y_bar.T))))
 
     # -------------------------------------------------------------------- #
@@ -322,13 +357,13 @@ class VarBayes:
         # shrinkage
         delta = 0.5
         cov = delta * cov_0 + (1 - delta) * cov
-        self.cells.cov = cov
+        self.cells.cov = cov.astype(np.float32)
 
     # -------------------------------------------------------------------- #
     def mu_upd(self):
         classProb = self.cells.classProb[1:, :-1].copy()
         geneCount = self.cells.geneCount[1:, :].copy()
-        gamma_bar = self.spots.gamma_bar[1:, :, :-1].copy()
+        gamma_bar = self.spots.gamma_bar.compute()[1:, :, :-1]
         area_factor = self.cells.ini_cell_props['area_factor'][1:]
 
         numer = np.einsum('ck, cg -> gk', classProb, geneCount)
