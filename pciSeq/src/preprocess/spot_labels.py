@@ -6,14 +6,15 @@ Cell centroids and cell areas are also calculated.
 
 import numpy as np
 import pandas as pd
+import skimage.measure as skmeas
 from typing import Tuple
-from multiprocessing import Pool
 from multiprocessing.dummy import Pool as ThreadPool
 from scipy.sparse import coo_matrix, csr_matrix
-from pciSeq.src.preprocess.cell_borders import extract_borders_dip
-from pciSeq.src.preprocess.regionprops import regionprops
-from pciSeq.src.preprocess.utils import get_img_shape
-from pciSeq.src.cell_call.log_config import logger
+from pciSeq.src.preprocess.cell_borders import extract_borders_dip, extract_borders
+from pciSeq.src.core.utils import get_img_shape, adjust_for_anisotropy
+import logging
+
+spot_labels_logger = logging.getLogger(__name__)
 
 
 def inside_cell(label_image, spots) -> np.array:
@@ -26,7 +27,7 @@ def inside_cell(label_image, spots) -> np.array:
     else:
         raise Exception('label_image should be of type "csr_matrix" ')
     m = label_image[spots.y, spots.x]
-    out = np.asarray(m)
+    out = np.asarray(m, dtype=np.uint32)
     return out[0]
 
 
@@ -41,6 +42,19 @@ def remap_labels(coo):
     d = dict(zip(_keys, _vals))
     new_data = np.array([d[x] for x in coo.data]).astype(np.uint64)
     out = coo_matrix((new_data, (coo.row, coo.col)), shape=coo.shape)
+    return out
+
+
+def get_unique_labels(masks):
+    """
+    same as:
+        [np.unique(d.data) for d in label_image]
+    but faster
+    """
+    pool = ThreadPool()  # ThreadPool??!! You sure? maybe process pool
+    out = pool.map(lambda mask: np.unique(mask.data), masks)
+    pool.close()
+    pool.join()
     return out
 
 
@@ -62,7 +76,7 @@ def reorder_labels(label_image):
     try:
         assert isinstance(label_image, np.ndarray)
         assert len(label_image.shape) in {2, 3}
-        label_image = [coo_matrix(d) for d in label_image]
+        label_image = [coo_matrix(d, dtype=np.uint32) for d in label_image]
     except AssertionError:
         assert np.all([isinstance(d, coo_matrix) for d in label_image]) and isinstance(label_image, list)
     else:
@@ -71,7 +85,7 @@ def reorder_labels(label_image):
     # labels = np.concatenate([np.unique(d.data) for d in label_image])
     labels = np.concatenate(get_unique_labels(label_image))
     if labels.max() != len(set(labels)):
-        logger.info(' Labels in segmentation array are not a sequence of integers without gaps between them. Relabelling...')
+        spot_labels_logger.info('Labels in segmentation array are not a sequence of integers without gaps between them. Relabelling...')
         labels = np.append(0, labels)  # append 0 (the background label). Makes sure the background is at position 0
         _, idx = np.unique(labels, return_inverse=True)
         label_dict = dict(zip(labels, idx.astype(np.uint32))) # maps the cellpose ids to the new ids
@@ -85,44 +99,142 @@ def reorder_labels(label_image):
             c = coo_matrix((data, (row, col)), shape=shape)
             out.append(c)
 
-        label_map = pd.DataFrame(label_dict.items(), columns=['old_label', 'new_label'])
+        label_map = pd.DataFrame(label_dict.items(), columns=['old_label', 'new_label'], dtype=np.uint32)
     else:
         out = label_image
         label_map = None
     return out, label_map
 
 
-def get_unique_labels(masks):
+def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
-    same as:
-        [np.unique(d.data) for d in label_image]
-    but faster
+    Reads the spots and the label image that are passed in and calculates which cell (if any) encircles any
+    given spot within its boundaries. It also retrieves the coordinates of the cell boundaries, the cell
+    centroids and the cell area
     """
-    pool = ThreadPool()
-    out = pool.map(lambda mask: np.unique(mask.data), masks)
-    pool.close()
-    pool.join()
-    return out
+
+    # drop planes in the exclude planes list
+    if cfg['is3D'] and cfg['exclude_planes'] is not None:
+        spots, coo, min_plane, removed = remove_planes(spots, coo, cfg)
+        if removed.shape[0] > 0:
+            # add the min_plane back so that the planes refer to the original 3d image before
+            # the removal of the planes described in the exclude_planes list
+            removed.frame_num = removed.frame_num + min_plane
+
+    coo, label_map = reorder_labels(coo)
+    [n, h, w] = get_img_shape(coo)
+    spots = remove_oob(spots.copy(), [n, h, w])
+    spots = adjust_for_anisotropy(spots, cfg['voxel_size'])
+
+    spot_labels_logger.info('Number of spots passed-in: %d' % spots.shape[0])
+    spot_labels_logger.info('Number of segmented cells: %d' % max([d.data.max() for d in coo if len(d.data) > 0]))
+    if n == 1:
+        spot_labels_logger.info('Segmentation array implies that image has width: %dpx and height: %dpx' % (w, h))
+    else:
+        spot_labels_logger.info('Segmentation array implies that image has %d planes, width: %dpx and height: %dpx' % (n, w, h))
+
+    # 1. Find which cell the spots lie within
+    spots = spots.assign(label=np.zeros(spots.shape[0], dtype=np.uint32))
+    for z in np.unique(spots.z_plane):
+        spots_z = spots[spots.z_plane == z]
+        inc = inside_cell(coo[int(z)].tocsr().astype(np.uint32), spots_z)
+        spots.loc[spots.z_plane == z, 'label'] = inc
+
+    # 2. Get cell centroids and area
+    masks = np.stack([d.toarray().astype(np.uint32) for d in coo])
+    vs = cfg['voxel_size']
+    scaling = [vs[0] / vs[0], vs[1] / vs[0], vs[2] / vs[0]]
+    scaling = scaling[::-1]  # bring to zyx order, same as the image
+    properties = ['label', 'area', 'centroid', 'equivalent_diameter_area', 'bbox']
+    props = skmeas.regionprops_table(label_image=masks,
+                                     spacing=scaling,
+                                     properties=properties)
+
+    props_df = pd.DataFrame(props)
+    props_df['mean_area_per_slice'] = props_df['area'].values/ (props_df['bbox-3'].values - props_df['bbox-0'].values)
+    props_df = props_df.rename(columns={
+        "mean_area_per_slice": 'area',
+        'area': 'volume',
+        'centroid-0': 'z_cell',
+        'centroid-1': 'y_cell',
+        'centroid-2': 'x_cell'})
+    props_df = props_df[['label', 'area', 'z_cell', 'y_cell', 'x_cell']]
+
+    # set the datatypes of the columns
+    props_df = props_df.astype({"label": np.uint32,
+                                "area": np.uint32,
+                                'z_cell': np.float32,
+                                'y_cell': np.float32,
+                                'x_cell': np.float32})
+
+    # if there is a label map, attach it to the cell props.
+    if label_map is not None:
+        props_df = pd.merge(props_df, label_map, left_on='label', right_on='new_label', how='left')
+        props_df = props_df.drop(['new_label'], axis=1)
+
+    # 3. Get the cell boundaries
+    # cell_boundaries = extract_borders_dip(coo.toarray().astype(np.uint32))
+    mid_plane = int(np.floor(len(coo) / 2))
+    _cell_boundaries = extract_borders(coo[mid_plane].toarray().astype(np.uint32))
+    _cell_boundaries = _cell_boundaries.rename(columns={'label': 'cell_id'})
+    assert props_df.shape[0] == len(set(np.concatenate(get_unique_labels(coo))))
+    assert set(spots.label[spots.label > 0]) <= set(props_df.label)
+
+    _cells = props_df.rename(columns={'x_cell': 'x0', 'y_cell': 'y0', 'z_cell': 'z0'})
+    _spots = spots[['x', 'y', 'z', 'label', 'Gene']].rename_axis('spot_id').rename(columns={'Gene': 'gene_name'})
+
+    return _cells, _cell_boundaries, _spots
 
 
-def reorder_labels_old(coo):
+def remove_oob(spots, img_shape):
     """
-    rearranges the labels so that they are a sequence of integers
+    removes out of bounds spots (if any...)
     """
-    label_image = np.stack([d.toarray().astype(np.uint16) for d in coo])
-    _, idx = np.unique(label_image.flatten(), return_inverse=True)
-    # u_idx = list(dict.fromkeys(idx))
-    # u_labels = list(dict.fromkeys(label_image.flatten()))
-    label_image = idx.reshape(label_image.shape)
-
-    # my_df = pd.DataFrame({'cellpose': label_image.flatten(), 'pciSeq': idx}).drop_duplicates()
-    ## Need to check what is happening when you change to no.uint16. For example coo[-1].data.sum() is not the same
-    ## when you change to np.uint16
-    return [coo_matrix(d.astype(np.uint64)) for d in label_image]
+    mask_x = (spots.x >= 0) & (spots.x <= img_shape[2])
+    mask_y = (spots.y >= 0) & (spots.y <= img_shape[1])
+    mask_z = (spots.z_plane >= 0) & (spots.z_plane <= img_shape[0])
+    return spots[mask_x & mask_y & mask_z]
 
 
+def remove_planes(spots, coo, cfg):
+    coo = label_image_remove_planes(coo, cfg)
+    spots, min_plane = spots_remove_planes(spots, cfg)
+    coo, removed = cells_remove_planes(coo, cfg)
+    return spots, coo, min_plane, removed
 
-def remove_cells(coo_list, cfg):
+
+def label_image_remove_planes(coo, cfg):
+    arr = np.arange(len(coo))
+    coo = [coo[d] for d in arr if d not in cfg['exclude_planes']]
+    return coo
+
+
+def spots_remove_planes(spots, cfg):
+    int_z = np.floor(spots.z_plane)
+    mask = [True if d not in cfg['exclude_planes'] else False for d in int_z]
+    spots = spots[mask]
+
+    # find the first plane we should be keeping. Assumes that exclude_list is
+    # in increasing order. Made sure that is true in the validation step
+    diff = np.diff(cfg['exclude_planes']) - 1
+    if np.all(diff == 0):
+        # we remove planes from the bottom of the z-stack only,
+        # hence the first plane that we keep is the first one
+        # that is not in the exclude list
+        min_plane = max(cfg['exclude_planes']) + 1
+    else:
+        # otherwise we remove plane from the bottom and the top of
+        # the z-stack, possibly (but unlikely) from the middle too.
+        # Start scanning the z-stack from the bottom, find where the
+        # discontinuity happens and get the first plane we keep
+        iLeft = list(diff > 0).index(True)
+        min_plane = cfg['exclude_planes'][iLeft] + 1
+
+    spots.loc[:, 'z_plane'] = spots.z_plane - min_plane
+    return spots, min_plane
+
+
+def cells_remove_planes(coo_list, cfg):
     """
     removes cells that exist on just one single frame of the
     z-stack
@@ -136,136 +248,23 @@ def remove_cells(coo_list, cfg):
         s = set(coo.data).intersection(set(single_page_labels))
         for d in s:
             coo.data[coo.data == d] = 0
+            coo.eliminate_zeros()
             removed_cells.append(d)
-            _frames.append(i + cfg['from_plane_num'])
+            # _frames.append(i + cfg['from_plane_num'])
+            _frames.append(i)
             # logger.info('Removed cell:%d from frame: %d' % (d, i))
     len_c = len(set(removed_cells))
     len_f = len(set(_frames))
-    logger.info(' Found %d cells that exist on just one single frame. Those cells have been removed from %i frames.' % (len_c, len_f))
+
+    if len(removed_cells) > 0:
+        spot_labels_logger.warning('Found %d cells that exist on just one single plane. Those cells have been removed '
+                                'from %i planes.' % (len_c, len_f))
+
     removed_df = pd.DataFrame({
         'removed_cell_label': removed_cells,
         'frame_num': _frames,
-        'comment': 'labels are the original labels as they appear in the segmentation masks that were passed-in to pciSeq'
+        'comment': 'labels are the original labels as they appear in the segmentation masks that were passed-in to '
+                   'pciSeq'
     })
     return coo_list, removed_df
-
-
-def truncate_data(spots, label_image, z_min, z_max):
-    if z_min is not None and z_max is not None:
-        logger.info(' Truncating masks and spots. Keeping those between frame %d and %d only' % (z_min, z_max))
-        spots = truncate_spots(spots, z_min, z_max)
-        label_image = truncate_zstack(label_image, z_min, z_max)
-    return spots, label_image
-
-
-def truncate_zstack(masks, z_min, z_max):
-    return masks[z_min: z_max+1]
-
-
-def truncate_spots(spots, zmin, zmax):
-    spots_min = spots[(spots.z_stack <= zmax) & (spots.z_stack >= zmin)]
-    spots_min = spots_min.assign(z_stack=spots_min.z_stack - zmin)
-    # out = spots_min.z - zmin
-    return spots_min.reset_index(drop=True)
-
-
-def remove_oob(spots, img_shape):
-    """
-    removes out of bounds spots (if any...)
-    """
-    mask_x = (spots.x >= 0) & (spots.x <= img_shape[1])
-    mask_y = (spots.y >= 0) & (spots.y <= img_shape[0])
-    return spots[mask_x & mask_y]
-
-
-def attach_z(spots, cfg):
-    return spots.assign(z=spots.z_stack * cfg['anisotropy'])
-
-
-def weighted_average(df,data_col,weight_col,by_col):
-    df['_data_times_weight'] = df[data_col]*df[weight_col]
-    df['_weight_where_notnull'] = df[weight_col]*pd.notnull(df[data_col])
-    g = df.groupby(by_col)
-    result = g['_data_times_weight'].sum() / g['_weight_where_notnull'].sum()
-    del df['_data_times_weight'], df['_weight_where_notnull']
-    return result
-
-
-def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """
-    Reads the spots and the label image that are passed in and calculates which cell (if any) encircles any
-    given spot within its boundaries. It also retrieves the coordinates of the cell boundaries, the cell
-    centroids and the cell area
-    """
-    removed_cells = pd.DataFrame()
-    if cfg['is_3D']:
-        z_min = cfg['from_plane_num']
-        z_max = cfg['to_plane_num']
-        spots, coo = truncate_data(spots, coo, z_min, z_max)
-        coo, removed_cells = remove_cells(coo, cfg)
-
-    coo, label_map = reorder_labels(coo)
-    # coo = reorder_labels_old(coo)
-    [h, w] = get_img_shape(coo)
-    spots = remove_oob(spots.copy(), [h, w])
-    spots = attach_z(spots, cfg)
-
-    logger.info(' Number of spots passed-in: %d' % spots.shape[0])
-    logger.info(' Number of segmented cells: %d' % max([d.data.max() for d in coo if len(d.data) > 0]))
-    logger.info(' Segmentation array implies that image has width: %dpx and height: %dpx' % (w, h))
-    # mask_x = (spots.x >= 0) & (spots.x <= img_shape[1])
-    # mask_y = (spots.y >= 0) & (spots.y <= img_shape[0])
-    # spots = spots[mask_x & mask_y]
-
-    # 1. Find which cell the spots lie within
-    spots = spots.assign(label=np.zeros(spots.shape[0]))
-    for z in np.unique(spots.z_stack):
-        spots_z = spots[spots.z_stack == z]
-        inc = inside_cell(coo[int(z)].tocsr(), spots_z)
-        spots.loc[spots.z_stack == z, 'label'] = inc
-
-    # 2. Get cell centroids and area
-    properties = ("label", "area", "centroid")
-    props = regionprops(coo, properties=properties).compute()
-
-    centroid_0 = weighted_average(props, 'dim-0', 'area', 'label')
-    y_cell = weighted_average(props, 'centroid-0', 'area', 'label')
-    x_cell = weighted_average(props, 'centroid-1', 'area', 'label')
-    _mean_area_per_slice = weighted_average(props, 'area', 'area', 'label')
-    mean_area_per_slice = props.groupby('label').mean()['area'] ## REMOVE THIS WHEN DONE
-
-    assert np.all(centroid_0.index == y_cell.index)
-    assert np.all(centroid_0.index == x_cell.index)
-    assert np.all(centroid_0.index == mean_area_per_slice.index)
-    assert centroid_0.index.max() == centroid_0.shape[0]
-    props_df = pd.DataFrame({
-        'label': centroid_0.index,
-        'centroid-0':  centroid_0.values,
-        'y_cell': y_cell.values,
-        'x_cell': x_cell.values,
-        'z_cell': centroid_0.values * cfg['anisotropy'],
-        'area': mean_area_per_slice.values, # mean area per slice
-    })
-
-    # if there is a label map, attach it to the cell props.
-    if label_map is not None:
-        props_df = pd.merge(props_df, label_map, left_on='label', right_on='new_label', how='left')
-        props_df = props_df.drop(['new_label'], axis=1)
-
-    # 3. Get the cell boundaries, Only needed for the 2D case
-    if not cfg['is_3D'] or cfg['relax_segmentation']:
-        _cell_boundaries = extract_borders_dip(coo[0].toarray().astype(np.uint32), 0, 0, [0])
-        # If you relax the segmentation constraint then do the ellipsoid borders as well
-        if cfg['relax_segmentation']:
-           pass
-        _cell_boundaries = _cell_boundaries.rename(columns={'label': 'cell_id'})
-    else:
-        _cell_boundaries = None
-
-    _cells = props_df.rename(columns={'x_cell': 'x0', 'y_cell': 'y0', 'z_cell': 'z0'})
-    _spots = spots[['x', 'y', 'z', 'label', 'Gene']]\
-        .rename_axis('spot_id')\
-        .rename(columns={'Gene': 'gene_name'})
-
-    return _cells, _cell_boundaries, _spots, removed_cells
 

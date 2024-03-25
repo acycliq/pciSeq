@@ -1,9 +1,11 @@
 import pandas as pd
 import streamlit as st
-from pciSeq.src.cell_call.log_config import logger
 from pciSeq.src.diagnostics.utils import redis_db
 import altair as alt
 import pickle
+import logging
+
+diagnostics_logger = logging.getLogger(__name__)
 
 
 def barchart(df, nominal_col, val_col):
@@ -40,7 +42,7 @@ def main():
     )
 
     # dashboard title
-    title = st.title("Convergence monitor. (Waiting for cell typed data....)")
+    title = st.title("Convergence screen. (Waiting for data....)")
 
     # creating a single-element container
     placeholder = st.empty()
@@ -49,7 +51,7 @@ def main():
     p = redis.redis_client.pubsub()
     subscribe_to = ['gene_efficiency', 'cell_type_posterior']
     p.psubscribe(*subscribe_to)
-    logger.info("subscribed to channels: '%s'" % '\', \''.join(subscribe_to))
+    diagnostics_logger.info("subscribed to channels: '%s'" % '\', \''.join(subscribe_to))
     for message in p.listen():
         gene_efficiency, cell_type_posterior = parse_msg(message)
         with placeholder.container():
@@ -57,16 +59,27 @@ def main():
             fig_col1, fig_col2 = st.columns(2)
             with fig_col1:
                 if isinstance(gene_efficiency, pd.DataFrame):
-                    title.title("Convergence monitor")
-                    st.markdown("### Gene efficiency after iteration %d" % gene_efficiency.iteration.max())
+                    title.title("Convergence screen")
+                    st.markdown("#### Gene efficiency after iteration %d" % gene_efficiency.iteration.max())
                     bar_chart_1 = barchart(gene_efficiency, nominal_col='gene', val_col='gene_efficiency')
                     fig1 = st.altair_chart(bar_chart_1, use_container_width=True)
 
             with fig_col2:
                 if isinstance(cell_type_posterior, pd.DataFrame):
-                    title.title("Convergence monitor")
-                    st.markdown("### Posterior cell class weight after iteration %d" % cell_type_posterior.iteration.max())
-                    bar_chart_2 = barchart(cell_type_posterior, nominal_col='class_name', val_col='prob')
+                    title.title("Convergence screen")
+                    st.markdown("#### Cell counts per cell class after iteration %d" % cell_type_posterior.iteration.max())
+                    bar_chart_2 = barchart(cell_type_posterior, nominal_col='class_name', val_col='counts')
+                    bar_chart_2 = bar_chart_2.properties(
+                        title=alt.TitleParams(
+                            ['#cells: %d' % cell_type_posterior.counts.sum()],
+                            baseline='bottom',
+                            orient='bottom',
+                            anchor='end',
+                            fontWeight='normal',
+                            fontSize=12,
+                        ),
+                        height=1200
+                    )
                     fig2 = st.altair_chart(bar_chart_2, use_container_width=True)
 
 

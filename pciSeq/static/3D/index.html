@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
 <head>
+
     <!-- Global site tag (gtag.js) - Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=UA-128060564-7"></script>
     <script>
@@ -17,137 +18,237 @@
         }
     </script>
 
-    <title>B2A3 (draft)</title>
+    <style>
+        body{font-family:metric;}
+			.background{fill:#fff1e0;}
+			.anno-capture{fill-opacity:0;}
 
-    <!--This is important to get a correct canvas size on mobile-->
-    <meta name='viewport' content='width=device-width, user-scalable=no'/>
+        .annotation-note-bg {
+            fill-opacity: 0.8;
+        }
 
-    <!-- TinyColor -->
-    <script src="viewer/js/lib/js/tinycolor.js"></script>
+        .annotation-note-label,
+        .annotation-note-title {
+          fill: black;
+          font-size: 0.8em;
+        }
+
+        #dataTableControl {
+            position: absolute;
+            z-index:1000;
+            bottom: 10px;
+            left: 10px;
+        }
+
+        #donutChartControl {
+            position: absolute;
+            z-index:1000;
+            bottom: 10px;
+            right: 10px;
+        }
+
+        #cellCoordsControl {
+            position: absolute;
+            z-index:1000;
+            top: 10px;
+            right: 10px;
+        }
+
+        #svg_div{
+            position: absolute;
+            z-index:1000;
+        }
+
+        #spot_tooltip {
+            display: none;
+            background: #d4d1d1;
+            position: absolute;
+            font-family: 'Helvetica Neue', monospace;
+            padding: 0px;
+            min-width:150px;
+            max-width:250px;
+            border-style: solid;
+            border-color: #555555;
+            border-width: 0.5px;
+            z-index: 10000;
+            opacity: 0.8;
+        }
+
+        td.tooltip_gene {
+            font-size: large;
+        }
+
+        td {
+            font-size: large;
+            vertical-align: text-bottom;
+        }
+
+        td.label {
+            text-align: left;
+            font-size: large;
+            font-weight: normal;
+        }
+
+        td.tooltip_spot_coord_x {
+             font-size: large;
+        }
+
+        td.tooltip_spot_coord_y {
+             font-size: large;
+        }
+
+        td.tooltip_spot_coord_z {
+             font-size: large;
+        }
+
+        #GenePanelButton {
+            top: 9px;
+            left: 10px;
+            cursor: pointer;
+        }
+
+        .map-content {
+            position: absolute;
+            z-index: 1000;
+            padding: 4px 7px 5px;
+            border-top: 1px solid #777;
+            border-left: 1px solid #777;
+            border-right: 2px solid #444;
+            border-bottom: 2px solid #444;
+            line-height: 1.6;
+            font-size: 1em;
+            /*font-family: Apercu-Light;*/
+            background: white;
+            -moz-border-radius: 5px;
+            -webkit-border-radius: 5px;
+            border-radius: 5px;
+        }
+
+        #jstree_demo {
+            top: 10px;
+            right: 10px;
+            /*background-color: #C0C0C0;*/
+            /*padding: 6px 10px 6px 6px;*/
+            /*color: #333;*/
+            /*background: #fff;*/
+            /*position: absolute;*/
+            /*z-index: 1000;*/
+        }
+
+    </style>
+
+    <meta charset="utf-8">
+	<meta name="description" content="">
+	<meta name="author" content="">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+	<title>Viewer</title>
+
+	<link rel="stylesheet" type="text/css" href="viewer/build/potree/potree.css">
+	<link rel="stylesheet" type="text/css" href="viewer/libs/jquery-ui/jquery-ui.min.css">
+	<link rel="stylesheet" type="text/css" href="viewer/libs/openlayers3/ol.css">
+	<link rel="stylesheet" type="text/css" href="viewer/libs/spectrum/spectrum.css">
+	<link rel="stylesheet" type="text/css" href="viewer/libs/jstree/themes/mixed/style.css">
 
     <!--jquery -->
     <script src="https://code.jquery.com/jquery-3.3.1.js"></script>
 
-    <!-- bootstrap -->
-    <link rel="stylesheet" href="viewer/js/lib/css/bootstrap.min.css">
-    <script src="viewer/js/lib/js/bootstrap.min.js"></script>
-
-    <!--d3 -->
-    <script src='https://d3js.org/d3.v4.min.js'></script>
-
-    <!-- leaflet v 1.0.3 -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.3/dist/leaflet.css"/>
-    <script src="https://unpkg.com/leaflet@1.0.3/dist/leaflet-src.js"></script>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/16.7.0/Tween.js"></script>
-
-    <!-- datatables -->
+    <!-- stylesheets -->
+    <link rel="stylesheet" href="viewer/css/bootstrap.min.css">
+    <link rel="stylesheet" href="viewer/css/progress.css">
+    <link rel='stylesheet' href='viewer/css/index.css'>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.19/css/jquery.dataTables.min.css">
-    <script src="https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"></script>
-
-<!--    rbush3d-->
-    <script src="https://unpkg.com/rbush-3d@0.0.4/dist/rbush3d.min.js"></script>
-
-    <script src="https://twgljs.org/dist/4.x/twgl-full.min.js"></script>
-
-<!--    <script src='https://threejs.org/build/three.min.js'></script>-->
-    <script src="https://unpkg.com/three@0.139.0/build/three.min.js"></script>
-    <script src="https://threejs.org/examples/js/renderers/CSS2DRenderer.js"></script>
-    <script src="https://threejs.org/examples/js/loaders/RGBELoader.js"></script>
-    <script src='https://threejs.org/examples/js/controls/OrbitControls.js'></script>
-<!--    <script src="three.js/examples/js/libs/dat.gui.min.js"></script>-->
-<!--    <script src="three.js/examples/js/libs/stats.min.js"></script>-->
-    <script type="text/javascript" src="https://cdn.rawgit.com/dataarts/dat.gui/master/build/dat.gui.min.js"></script>
-    <script type="text/javascript" src="https://cdn.rawgit.com/mrdoob/stats.js/master/build/stats.min.js"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/babel-polyfill/6.16.0/polyfill.min.js"></script>
-
-    <!-- jstree -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
-
-    <link rel="stylesheet" href="viewer/js/lib/css/index.css">
-    <script src="viewer/js/index.js"></script>
-
-    <link rel="stylesheet" href="viewer/js/lib/css/progress.css">
-    <script src="viewer/js/lib/js/progress.js"></script>
-    <script src="viewer/js/globals.js"></script>
-    <script src="viewer/js/utils.js"></script>
-    <script src="viewer/js/donut.js"></script>
-    <script src="viewer/js/dt.js"></script>
-    <script src="viewer/js/glyphPaths.js"></script>
-    <script src="viewer/js/glyphConfig.js"></script>
-    <script src="viewer/js/classColors.js"></script>
-    <script src="viewer/js/particles.js"></script>
-    <script src="viewer/js/dataLoader.js"></script>
-    <script src="viewer/js/config.js"></script>
-    <script src="viewer/js/scene.js"></script>
-    <script src="viewer/js/content.js"></script>
-    <script src="viewer/js/sphere_data.js"></script>
-    <script src="viewer/js/sphere_sim_data.js"></script>
-    <script src="viewer/js/cell_maker.js"></script>
-    <script src="viewer/js/cell_maker_2.js"></script>
-    <script src="viewer/js/app.js"></script>
-    <script src="viewer/js/dapiLoader.js"></script>
-    <script src="viewer/js/lights.js"></script>
-    <script src="viewer/js/shaders/glyphs/vertex.js"></script>
-    <script src="viewer/js/shaders/glyphs/fragment.js"></script>
-    <script src="viewer/js/animation_loop.js"></script>
-    <script src="viewer/js/post_scene.js"></script>
-
-    <style>
-        button, input, optgroup, select, textarea {color: #1b1b1b;}
-
-        #my-gui-container {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            z-index: 1;
-        }
-
-        #my_control {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-        }
-
-        #my_control_2 {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-        }
-
-        #my_control_3 {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-        }
-
-        #jstree_id {
-            position: absolute;
-            top: 70px;
-            left: 10px;
-            color: lightgray;
-            z-index: 100000;
-        }
-
-
-    </style>
-
+    <link rel="stylesheet" href="vakata-jstree/dist/themes/default/style.css">
 
 </head>
 <body>
+	<script src="viewer/libs/jquery/jquery-3.1.1.min.js"></script>
+	<script src="viewer/libs/spectrum/spectrum.js"></script>
+	<script src="viewer/libs/jquery-ui/jquery-ui.min.js"></script>
+	<script src="viewer/libs/other/BinaryHeap.js"></script>
+	<script src="viewer/libs/tween/tween.min.js"></script>
+	<script src="viewer/libs/proj4/proj4.js"></script>
+	<script src="viewer/libs/openlayers3/ol.js"></script>
+	<script src="viewer/libs/i18next/i18next.js"></script>
+	<script src="viewer/libs/jstree/jstree.js"></script>
+	<script src="viewer/build/potree/potree.js"></script>
+	<script src="viewer/libs/plasio/js/laslaz.js"></script>
+    <script src="https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
+
+    <!-- bootstrap -->
+    <script src="viewer/libs/bootstrap.min.js"></script>
+
+    <!--user scripts -->
+    <script src="viewer/libs/d3/d3.v4.js"></script>
+    <script src="https://rawgit.com/susielu/d3-annotation/master/d3-annotation.min.js"></script>
+    <script src='viewer/libs/dt.js'></script>
+    <script src='viewer/libs/donut.js'></script>
+    <script src='viewer/libs/progress.js'></script>
+    <script src='viewer/libs/glyphConfig.js'></script>
+    <script src='viewer/libs/classConfig.js'></script>
+<!--    <script src='data/streaming-tsv-parser.js'></script>-->
 
 
-<div class="container-fluid aligned-middle stack-top" id="preloader">
-    <div class="row">
+    <div class="potree_container" style="position: absolute; width: 100%; height: 100%; left: 0px; top: 0px; ">
+        <div id="potree_render_area"></div>
+        <div id="potree_sidebar_container"> </div>
+
+
+        <div class='tab-pane active fade in' id='cellCoordsControl'>
+            <div class='container-fluid'>
+                <div class='col-sm-12'>
+                    <div class='row myTitle', id='cellCoordsControlText' style='margin-bottom:5px'>
+                        <h4>Highlighted Cell</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane active fade in" id="dataTableControl">
+            <div class="container-fluid col-sm-12" style="background-color: darkgrey;">
+                <table id='dtTable' class='display compact custom' data-page-length='5' width=100%></table>
+            </div>
+        </div>
+
+        <div class='tab-pane active fade in' id='donutChartControl'>
+            <div class='container-fluid'>
+                <div class='row' style='background-color: rgba(255, 255, 255, 0.0)'>
+                    <div class='chart-wrapper'>
+                        <div class='chart-stage'>
+                            <div class='col-sm-12'>
+                                <div class='chart-stage' style='background-color: rgba(255, 255, 255, 0.0)'>
+                                    <div class='summary' id='piechart'>
+                                        <svg width='300' height='180'></svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="container-fluid" id="preloader">
+        <div id="stats-container" class="stack-top">
+            <div class="loading">
+                <div id="container"></div>
+                <div id="loading" class="loading"><span>loading...</span></div>
+                <div id="loading_perc" class="loading"><span>loading...</span></div>
+                <div id="loading_mb" class="loading"><span>loading...</span></div>
+                <div id="done" class="loading"><span></span></div>
+            </div>
+        </div>
+
         <div class="col-sm-12">
-            <div class="col-sm-6">
-                        <div class="row">
+            <div class="midplaced">
+                <div class="row">
                     <div id="specificChart" class="donut-size">
                         <div class="pie-wrapper">
-                                <span class="label">
-                                    <span class="num">0</span><span class="smaller">%</span>
-                                </span>
+                            <span class="label">
+                                <span class="num">0</span><span class="smaller">%</span>
+                            </span>
                             <div class="pie">
                                 <div class="left-side half-circle"></div>
                                 <div class="right-side half-circle"></div>
@@ -156,149 +257,170 @@
                         </div>
                     </div>
                 </div>
-                <div class="row">
-                    <div class="text-center">
-                        <p>Num of cells: <span id="datapoints" class="meter">0</span></p>
-                        <p>Size: <span id="mb" class="meter">0MB</span></p>
-                    </div>
-                </div>
-            </div>
+<!--                        <div class="row">-->
+<!--                            <div class="text-center">-->
+<!--                                <p>Num of cells: <span id="datapoints" class="meter">0</span></p>-->
+<!--                                <p>Size: <span id="mb" class="meter">0MB</span></p>-->
+<!--                            </div>-->
+<!--                        </div>-->
 
-            <div class="col-sm-6">
-                        <div class="row">
-                    <div id="specificChart_2" class="donut-size">
-                        <div class="pie-wrapper">
-                                <span class="label">
-                                    <span class="num">0</span><span class="smaller">%</span>
-                                </span>
-                            <div class="pie">
-                                <div class="left-side half-circle"></div>
-                                <div class="right-side half-circle"></div>
-                            </div>
-                            <div class="shadow"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="text-center">
-                        <p>Num of spots: <span id="datapoints2" class="meter">0</span></p>
-                        <p>Size: <span id="mb2" class="meter">0MB</span></p>
-                    </div>
+                <div class="col-sm-12" id="wait_chart">
+                    Building the chart. Please wait...
                 </div>
             </div>
         </div>
-    </div>
-    <div class="row">
-        <div class="col-sm-12" id="wait_chart">
-            Building the chart. Please wait...
-        </div>
+
+
+
         <script>$('#wait_chart').hide()</script>
+        <script>$('#stats-container').hide()</script>
     </div>
-</div>
 
-<div id="legend_2" class="map-content">
-<form>
-    <div class="form-check">
-        <input type="checkbox" class="form-check-input" id="exampleCheck1" onchange="toggle_background_spots()">
-        <label class="form-check-label" for="exampleCheck1">Hide background spots</label>
-    </div>
-</form>
-</div>
+<!--    <svg id='example1' style="position: absolute; width: 100%; height: 100%; left: 0px; top: 0px; "></svg>-->
 
-<div id="jstree_id"></div>
-
-<div id="legend" class="map-content">
-    <a id="legend-link" target="_blank">Gene Panel &raquo;</a>
-    <script>$('#legend').hide();</script>
-</div>
-
-<div class='tab-pane active fade in' id='my_control'>
-    <div class='container-fluid'>
-<!--        <div class='col-sm-12'>-->
-<!--            <div class='row'>-->
-<!--                "div class='myTitle' id='dtTitle' style='margin-bottom:5px'> <h4>Highlighted Cell</h4>-->
-<!--                <img src='https://cdn2.iconfinder.com/data/icons/snipicons/500/pin-128.png' class='ribbon'/>-->
-<!--            </div>-->
-<!--        </div>-->
-        <div class='row' style='background-color: rgba(255, 255, 255, 0.0)'>
-            <div class='chart-wrapper'>
-                <div class='chart-stage'>
-                    <div class='col-sm-12'>
-                        <div class='chart-stage' style='background-color: rgba(255, 255, 255, 0.0)'>
-                            <div class='summary' id='pie'>
-                                <svg width='300' height='180'></svg>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <div id="spot_tooltip">
+            <table style="border:none;outline:none;" >
+                <tr>
+                    <td class="label">Gene:</td>
+                    <td class="tooltip_gene"></td>
+                </tr>
+                <tr>
+                    <td class="label">x:</td>
+                    <td class="tooltip_spot_coord_x"></td>
+                </tr>
+                <tr>
+                    <td class="label">y:</td>
+                    <td class="tooltip_spot_coord_y"></td>
+                </tr>
+                <tr>
+                    <td class="label">z:</td>
+                    <td class="tooltip_spot_coord_z"></td>
+                </tr>
+<!--                <tr>-->
+<!--                    <td class="label">Note:</td>-->
+<!--                    <td class="tooltip_note"></td>-->
+<!--                </tr>-->
+            </table>
         </div>
-    </div>
-</div>
 
-<!--<div class='tab-pane active fade in' id='my_control_2'>-->
-<!--    <div class='container-fluid'>-->
-<!--        <div class='row' style='background-color: rgba(255, 255, 255, 0.0)'>-->
-<!--            <div class='chart-wrapper'>-->
-<!--                <div class='chart-stage'>-->
-<!--                    <div class='col-sm-12'>-->
-<!--                            <table id='dtTable' class='display compact custom' data-page-length='10' width=100%></table>-->
-<!--                    </div>-->
-<!--                </div>-->
-<!--            </div>-->
-<!--        </div>-->
-<!--    </div>-->
-<!--</div>-->
+    <script>
+        function removePreloader() {
+            $('#preloader').delay(350).fadeOut(250); // will fade out the white DIV that covers the website.
+            $('body').delay(350).css({'overflow': 'visible'});
+        }
+    </script>
 
-<div class="tab-pane active fade in" id="my_control_2">
-    <div class="container-fluid col-sm-12" style="background-color: darkgrey;">
-            <table id='dtTable' class='display compact custom' data-page-length='5' width=100%></table>
-    </div>
-</div>
+    <script>
+        function remove_lines(){
+            var scene = viewer.scene.scene
+            scene.children.filter(d => d.type === "Line").forEach(el => scene.remove(el))
+        }
 
-<div class='tab-pane active fade in' id='my_control_3'>
-    <div class='container-fluid'>
-        <div class='col-sm-12'>
-            <div class='row myTitle', id='dtTitle' style='margin-bottom:5px'>
-                <h4>Highlighted Cell</h4>
-            </div>
-        </div>
-    </div>
-</div>
+        function clearScreen(){
+            remove_lines()
+            hideControls()
+        }
+
+        function hideControls(){
+            $('#dataTableControl').hide();
+            $('#donutChartControl').hide();
+            $('#cellCoordsControl').hide();
+        }
+
+        function showControls(){
+            $('#dataTableControl').show();
+            $('#donutChartControl').show();
+            $('#cellCoordsControl').show();
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from "./viewer/libs/three.js/build/three.module.js";
+        import config from "./viewer/libs/config.module.js"
+        import data_loader from './viewer/libs/dataLoader.module.js'
+        import { instanceShow, hideAll, showAll } from "./viewer/libs/my_utils.js"
+        import {groupBy} from "./viewer/libs/initScene.module.js"
+
+        window.viewer = new Potree.Viewer(document.getElementById("potree_render_area"));
+        window.scene = viewer.scene;
+        window.cells = {};
+        window.cellData = [];
+        window.instanceShow = instanceShow
+        window.hideAll = hideAll
+        window.showAll = showAll
+        window.groupBy = groupBy
+
+		viewer.setEDLEnabled(false); //disable this so that transparency in the meshes works fine
+		viewer.setFOV(60);
+		viewer.setPointBudget(2_000_000);
+		viewer.loadSettingsFromURL();
+
+		// viewer.setDescription("merfish data: Brad Lowell lab (75million spots)");
+		viewer.renderer
+
+        viewer.setFilterFloatArray([]);
+
+		var legend_added = false
+
+
+        let url = './data/pointclouds/metadata.json';
+        Potree.loadPointCloud(url, 'merfish', onloaded)
+
+		function onloaded(e) {
+            let scene = viewer.scene;
+            let pointcloud = e.pointcloud;
+            let material = pointcloud.material;
+
+            material.size = 0.02;
+            material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
+            material.shape = Potree.PointShape.CIRCLE
+            material.activeAttributeName = "rgba";
+
+
+            scene.addPointCloud(pointcloud);
+            scene.view.position.set(0.0, 330, 17000);
+            scene.view.lookAt(0, 0, 0);
+
+            run()
+
+        }
+
+        function run(){
+            console.log('app starts');
+            var configSettings = config();
+            configSettings.cellData["name"] = "cellData";
+            // configSettings.geneData["name"] = "geneData";
+            // configSettings.cellBoundaries["name"] = "cellBoundaries";
+
+            make_package([configSettings.cellData])
+        }
 
 
 
-<canvas class="webgl"></canvas>
-<div id="my-gui-container"></div>
-<script>
-    localStorage.clear();
-    console.log('Local storage cleared');
+        function make_package(result) {
+            var workPackage = result.reduce((a, b) => a.concat(b), []);
+            workPackage.forEach(d => d.root_name = strip_url(d.name));
+            workPackage.forEach(d => d.bytes_streamed = 0); //will keep how many bytes have been streamed
+            workPackage.forEach(d => d.data = []);          //will keep the actual data from the flatfiles
+            workPackage.forEach(d => d.data_length = 0);    //will keep the number of points that have been fetched
+            // workPackage = d3.map(workPackage, d => d.name.split('.')[0]);
+            // workPackage = workPackage.map(d => [d.name, d.download_url, d.size]);
+            data_loader(workPackage);
 
-    window.onload = run();
+            console.log(result)
+        }
 
-    function removePreloader() {
-        $('#preloader').delay(350).fadeOut(250); // will fade out the white DIV that covers the website.
-        $('body').delay(350).css({'overflow': 'visible'});
-    }
+        function strip_url(d) {
+            // if the url has / get the last substring
+            var fName = d.substring(d.lastIndexOf('/')+1);
 
-    // this will be watching if something has been saved to local storage. If yes then it
-    // triggers some action. It acts as an intermediate layer to pass communication between the datatables grid and
-    // the viewer. On another browser tab, user selection on the checkboxes results in data get saved on local storage.
-    // This is picked up here, the javacript code reads the selected values and triggers the appropriate action
-    var storageMonitor = function () {
-        return function () {
-            var state = JSON.parse(localStorage['updated_state']);
-            var enter = state.enter, // data to add
-                exit = state.exit;   // data to remove
+            // then strip the extension and return the value
+            return fName.split('.')[0]
+        }
 
-            exit.forEach(d => hideParticles(d));
-            enter.forEach(d => showParticles(d));
 
-        };
-    }();
-    $(window).on("storage", storageMonitor);
-</script>
 
+    </script>
 
 </body>
 </html>

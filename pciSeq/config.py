@@ -3,7 +3,7 @@ hyperparameters for the pciSeq method
 """
 import numpy as np
 
-_BASE = {
+DEFAULT = {
 
     # list of genes to be excluded during cell-typing, e.g ['Aldoc', 'Id2'] to exclude all spots from Aldoc and Id2
     'exclude_genes': [],
@@ -25,10 +25,21 @@ _BASE = {
     # outside the cell boundaries
     'InsideCellBonus': 2,
 
+    # To account for spots far from the some a uniform distribution is introduced to describe those misreads.
+    # By default this uniform distribution has a density of 1e-5 misreads per pixel.
+    'MisreadDensity': 0.00001,
+
     # Gene detection might come with irregularities due to technical errors. A small value is introduced
     # here to account for these errors. It is an additive factor, applied to the single cell expression
     # counts when the mean counts per class and per gene are calculated.
     'SpotReg': 0.1,
+
+    # By default only the 3 nearest cells will be considered as possible parent cells for any given spot.
+    # There is also one extra 'super-neighbor', which is always a neighbor to the spots so we can assign
+    # the misreads to. Could be seen as the background. Hence, by default the algorithm tries examines
+    # whether any of the 3 nearest cells is a possible parent cell to a given cell or whether the spot is
+    # a misread
+    'nNeighbors': 3,
 
     # A gamma distributed variate from Gamma(rSpot, 1) is applied to the mean expression, hence the counts
     # are distributed according to a Negative Binomial distribution.
@@ -38,66 +49,47 @@ _BASE = {
     # Boolean, if True the output will be saved as tsv files in a folder named 'pciSeq' in your system's temp dir.
     'save_data': False,
 
-    # output directory 'default' will save to temp location
+    # Set here where the results will be saved. If default then they will be saved at your system's temp folder
     'output_path': ['default'],
 
-    # Use either np.float16 or np.float32 to reduce memory usage. In most cases RAM consumption shouldnt
-    # need more than 32Gb RAM. If you have a dataset from a full coronal mouse slice with a high number of
-    # segmented cells (around 150,000) a gene panel of more than 250 genes and 100 or more different
-    # cell types (aka clusters, aka classes) in the single cell data then you might need at least 64GB on
-    # your machine. Changing the datatype to a float16 or float32 will help keeping RAM usage to a lower
-    # level
-    'dtype': np.float64,
-
-    'launch_viewer': True,
+    # if true the viewer will be launched once convergence has been achieved
+    'launch_viewer': False,
 
     'launch_diagnostics': True,
 
-    'is_3D': False,
+    # Initialise this to False, the correct value is set internally by the code itself
+    'is_redis_running': False,
+
+    # cell radius. If None then pciSeq will calc that as the mean radius across all cells.
+    # Otherwise it will use the value provided below
+    'cell_radius': None,
+
+    # cell type prior: The prior distribution on the classes. It expresses the view on
+    # how likely each class is to occur a-priori. It can be either 'uniform' or 'weighted'
+    # 'uniform' means that the Zero class gets 50% and the remaining 50% is equally split
+    # on the cell classes.
+    # 'weighted' means that the cell type which is more likely to occur will be given more
+    # weight. These weights are calculated dynamically within the algorithm based on
+    # a Dirichlet distribution assumption.
+    'cell_type_prior': 'uniform',
+
+    # *******************************************************************************
+    # Hyperparameters below added for 3D
+    # *******************************************************************************
+    'voxel_size': [1, 1, 1],  # x, y, z
+
+    'exclude_planes': None,
+
+    # this will be set automatically by the code
+    'is3D': None,
+
+    # *******************************************************************************
+    # Hyperparameters below come into action **ONLY** if single cell data are missing
+    # *******************************************************************************
+    'mean_gene_counts_per_class': 60,
+    'mean_gene_counts_per_cell': 30,
 
 
-    'relax_segmentation': False,
-
-    # the prior on mean expression follows a Gamma(m * M , m), where M is the starting point (the initial
-    # array) of single cell data
-    'm': 1,
-
-    # used by the Dirichlet distribution. If a class size is smaller than 'min_class_size' then it will be
-    # assigned a weight of almost zero
-    'min_class_size': 5,
-}
-
-
-_CONFIG_2D = {
-    # By default only the 3 nearest cells will be considered as possible parent cells for any given spot.
-    # There is also one extra 'super-neighbor', which is always a neighbor to the spots so we can assign
-    # the misreads to. Could be seen as the background. Hence, by default the algorithm tries examines
-    # whether any of the 3 nearest cells is a possible parent cell to a given cell or whether the spot is
-    # a misread
-    'nNeighbors': 3,
-
-    # To account for spots far from the some a uniform distribution is introduced to describe those misreads.
-    # By default this uniform distribution has a density of 1e-5 misreads per pixel.
-    'MisreadDensity': 0.00001,  # use this for 2d
-
-}
-CONFIG_2D = {**_BASE, **_CONFIG_2D}
-
-
-_CONFIG_3D = {
-    'is_3D': True,
-
-    'nNeighbors': 6,
-
-    'MisreadDensity': 1e-06,  # use that for 3d
-
-    # pixels per micron
-    'anisotropy': 6.0121,
-
-    # if these are not None then the data (spots, and zstack) will be truncated between 'from_plane_num'
-    # and 'to_plane_num'
-    'from_plane_num': None,
-    'to_plane_num': None,
 
 }
-CONFIG_3D = {**_BASE, **_CONFIG_3D}
+
