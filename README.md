@@ -2,4 +2,4 @@
 
 
 
-pip install git+https://github.com/acycliq/pciSeq.git@dev_3d
+`pip install git+https://github.com/acycliq/pciSeq.git@dev_3d`
