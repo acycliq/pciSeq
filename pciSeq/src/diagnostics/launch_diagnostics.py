@@ -14,7 +14,7 @@ def launch_dashboard():
     code_1, code_2 = utils.validate_redis()
     if code_1 == 0 and code_2 == 0:
         make_credentials()
-        p = subprocess.Popen(["streamlit", "run", filename, " --server.headless true"])
+        p = subprocess.Popen(["streamlit", "run", filename, " --server.headless=true"])
         # TODO: you need to kill the process on exit
         # launch_diagnostics_logger.info('Starting process with pid: %d to run the diagnostics' % p.pid)
     else:
@@ -31,6 +31,7 @@ def make_credentials():
     might pause the program flow)
     """
     credentials = os.path.join(Path.home(), '.streamlit', 'credentials.toml')
+    Path(credentials).parent.mkdir(parents=True, exist_ok=True)
     mode = 'rt' if os.path.exists(credentials) else 'w+'
     with open(credentials, mode) as fp:
         doc = tomlkit.load(fp)
