@@ -185,6 +185,7 @@ def init(opts):
     are used without any change.
     """
     cfg = config.DEFAULT
+    log_file(cfg)
     cfg['is_redis_running'] = check_redis_server()
     if opts is not None:
         default_items = set(cfg.keys())
@@ -200,6 +201,23 @@ def init(opts):
             cfg[item[0]] = val
             app_logger.info('%s is set to %s' % (item[0], cfg[item[0]]))
     return cfg
+
+
+def log_file(cfg):
+    """
+    Setup the file handler.
+    Ideally that should happen when the logger is first configured, hence avoid having
+    the console handler and the file handler set up in two different places. However
+    the file handler needs access to the config dict and that was not possible until
+    this point into the program.
+    """
+    logfile = os.path.join(get_out_dir(cfg['output_path']), 'pciSeq.log')
+    fh = logging.FileHandler(logfile, mode='w')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+
+    logging.getLogger().addHandler(fh)
+    app_logger.info('Writing to %s' % logfile)
 
 
 def validate(spots, coo, scData, cfg):
