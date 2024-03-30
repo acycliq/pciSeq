@@ -31,6 +31,7 @@ def make_credentials():
     might pause the program flow)
     """
     credentials = os.path.join(Path.home(), '.streamlit', 'credentials.toml')
+    Path(credentials).parent.mkdir(parents=True, exist_ok=True)
     mode = 'rt' if os.path.exists(credentials) else 'w+'
     with open(credentials, mode) as fp:
         doc = tomlkit.load(fp)
