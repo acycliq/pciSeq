@@ -1,25 +1,8 @@
-name: pciSeq
+name: myenv
 channels:
   - conda-forge
 dependencies:
   - pip
   - python=3.8
-  - numpy_groupies
-  - pandas
-  - dask
-  - scipy
-  - scikit-image
-  - scikit-learn
-  - tqdm
-  - numexpr
-  - flask
-  - natsort
-  - streamlit
-  - altair
-  - tomlkit
   - pip:
-      - jupyterlab
-      - diplib
-      - pyvips
-      - redis
-      - fastremap
+      - -r requirements.txt
