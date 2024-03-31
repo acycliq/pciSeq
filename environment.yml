@@ -1,4 +1,4 @@
-name: myenv
+name: pciSeq
 channels:
   - conda-forge
 dependencies:
