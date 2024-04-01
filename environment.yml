@@ -4,20 +4,5 @@ channels:
 dependencies:
   - pip
   - python=3.8
-  - opencv
-  - numpy_groupies
-  - pandas
-  - scipy
-  - scikit-image
-  - scikit-learn
-  - tqdm
-  - numexpr
-  - flask
-  - natsort
-  - streamlit
-  - altair
   - pip:
-      - jupyterlab
-      - diplib
-      - pyvips
-      - redis
+      - -r requirements.txt

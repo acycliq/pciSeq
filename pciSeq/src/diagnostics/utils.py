@@ -3,10 +3,12 @@ import redis
 import pickle
 from sys import platform
 from pciSeq.src.core.utils import get_pciSeq_install_dir
-from pciSeq.src.core.log_config import attach_to_log, logger
 import pciSeq.src.diagnostics.config as config
 import getpass
 import subprocess as sp
+import logging
+
+du_logger = logging.getLogger(__name__)
 
 
 class redis_db():
@@ -31,10 +33,17 @@ class redis_db():
         df = df.assign(**kwargs)
         self.redis_client.set(key, pickle.dumps(df))
 
-    def publish(self, df_in, channel, **kwargs):
+    def _publish(self, df_in, channel, **kwargs):
         df = df_in.copy()
         df = df.assign(**kwargs)
         self.redis_client.publish(channel, pickle.dumps(df))
+
+    def publish(self, df_in, key, **kwargs):
+        """
+        convenience function, first it writes to redis db and then publishes
+        """
+        self.to_redis(df_in, key, **kwargs)
+        self._publish(df_in, key, **kwargs)
 
     def from_redis(self, key):
         """Retrieve Numpy array from Redis key 'key'"""
@@ -62,13 +71,13 @@ class redis_db():
         try:
             out, err, exit_code = subprocess_cmd([exe, 'config', 'set', 'notify-keyspace-events', 'KEA'])
             if exit_code != 0:
-                logger.info(out.decode('UTF-8').rstrip())
-                logger.info(err.decode('UTF-8').rstrip())
+                du_logger.info(out.decode('UTF-8').rstrip())
+                du_logger.info(err.decode('UTF-8').rstrip())
                 raise Exception('notify-keyspace-events failed with exit code: %d' % exit_code)
-            logger.info(" enabling keyspace events... %s" % out.decode('UTF-8').rstrip())
+            du_logger.info("enabling keyspace events... %s" % out.decode('UTF-8').rstrip())
             self.keyspace_events_enabled = True
         except OSError as ex:
-            logger.info("Cannot enable keyspace events. Failed with error: %s" % ex)
+            du_logger.info("Cannot enable keyspace events. Failed with error: %s" % ex)
             raise
 
 
@@ -79,8 +88,8 @@ def is_redis_running(os):
     exe = "memurai-cli.exe" if check_platform() == "windows" else "redis-cli"
     out, err, exit_code = subprocess_cmd([exe, 'ping'])
     if exit_code != 0:
-        logger.info(err.decode('UTF-8'))
-        logger.info(" Starting redis server ...")
+        du_logger.info(err.decode('UTF-8'))
+        du_logger.info(" Starting redis server ...")
         out, err, exit_code = start_server(os)
     return out, err, exit_code
 
@@ -98,7 +107,7 @@ def start_server(os):
         ## need to add osx here!
         raise Exception('Cannot automatically start redis server under %s. Not implemented. Try manually.' % os)
     if not out.decode('UTF-8') == '':
-        logger.info(out.decode('UTF-8').rstrip())
+        du_logger.info(out.decode('UTF-8').rstrip())
     return out, err, exit_code
 
 
@@ -114,7 +123,7 @@ def stop_server(os):
     else:
         raise Exception('not implemented')
     if not out.decode('UTF-8') == '':
-        logger.info(out.decode('UTF-8').rstrip())
+        du_logger.info(out.decode('UTF-8').rstrip())
     return out, err, exit_code
 
 
@@ -126,7 +135,7 @@ def is_redis_installed(os):
     exe = "memurai.exe" if check_platform() == "windows" else "redis-server"
     out, err, exit_code = subprocess_cmd([exe, '--version'])
     if not err.decode('UTF-8') == '':
-        logger.info(err.decode('UTF-8').rstrip())
+        du_logger.info(err.decode('UTF-8').rstrip())
         if confirm_prompt("Server is not installed, do you want to install it?"):
             out, err, exit_code = install_redis_server(os)
     return out, err, exit_code
@@ -138,7 +147,7 @@ def install_redis_server(os):
     exit_code = None
     if os == "windows":
         msi = locate_msi()
-        logger.info("Calling %s" % msi)
+        du_logger.info("Calling %s" % msi)
         out, err, exit_code = subprocess_cmd([msi])
     elif os in ['linux']:
         sudo_password = getpass.getpass(prompt='sudo password: ')
@@ -202,14 +211,4 @@ def validate_redis():
     _, _,  code_2 = is_redis_running(os)
     return code_1, code_2
 
-
-if __name__ == "__main__":
-    attach_to_log()
-    logger.info("hwllo")
-    # os = "windows"
-    os = "linux"
-    is_redis_installed(os)
-    is_redis_running(os)
-    stop_server(os)
-    print('done!')
 

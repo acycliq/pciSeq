@@ -61,6 +61,11 @@ function donut(){
     var colorRamp = classColorsCodes()
     var colorMap = d3.map(colorRamp, function(d) { return d.className; });
 
+    function getColor(class_name){
+        return colorMap.get(class_name)? colorMap.get(class_name).color: colorMap.get('Generic').color
+    }
+
+
     var div = d3.select("body").append("div")
         .attr("class", "toolTip")
         .style('opacity', 0);
@@ -72,6 +77,7 @@ function donut(){
     donutData.outerArc = outerArc;
     donutData.key = key;
     donutData.colorMap = colorMap;
+    donutData.getColor = getColor;
     donutData.div = div;
     donutData.svg = svg;
 
@@ -327,7 +333,7 @@ function donutchart(dataset) {
         })
     .merge(slice)
         //.style("fill", 'url(#myPattern)')
-        .style("fill", function(d) { return donutData.colorMap.get(d.data.label).color; })
+        .style("fill", function(d) { return donutData.getColor(d.data.label); })
 		.transition().duration(1000)
 		.attrTween("d", function(d) {
 			this._current = this._current || d;

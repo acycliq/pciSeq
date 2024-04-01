@@ -1,16 +1,18 @@
 function _removeOverlay(name) {
+    // removes the glyphs from the map when leaflet is in control
     if (geneOverlays) {
         var el = geneOverlays.filter(d => d.geneName === name);
-        if (el) {
+        if (el.length > 0) {
             geneLayers.removeLayer(el[0].geneLayer)
         }
     }
 }
 
 function _addOverlay(name) {
+    // adds the glyphs to the map when leaflet is in control
     if (geneOverlays) {
         var el = geneOverlays.filter(d => d.geneName === name);
-        if (el) {
+        if (el.length > 0) {
             geneLayers.addLayer(el[0].geneLayer)
         }
     }
@@ -58,7 +60,6 @@ function renderGlyphs(evt, config) {
 
     function renderChart(geneData) {
         myDots = make_dots(geneData);
-        geneData = null; //delete geneData, not needed anymore
         geneOverlays = []; // gene to layer map
         console.log('New dot layer added!')
 
@@ -66,7 +67,7 @@ function renderGlyphs(evt, config) {
         dapiConfig.removeLayer(geneLayers);
         geneLayers = new L.LayerGroup().addTo(map);
         //create marker layer and display it on the map
-        var genes = glyphSettings().map(d => d.gene).sort();
+        var genes = [... new Set(geneData.map(d => d.Gene))].sort()
         for (var i = 0; i < genes.length; i += 1) {
             var geneName = genes[i];
             var geneLayer = L.geoJson(myDots, {

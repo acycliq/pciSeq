@@ -1,23 +1,22 @@
 import os
-import pandas as pd
-import numpy as np
-import tempfile
-import pickle
 import redis
+import pickle
+import numpy as np
+import pandas as pd
 from typing import Tuple
-from scipy.sparse import coo_matrix, save_npz, load_npz
+from pciSeq import config
 from pciSeq.src.core.main import VarBayes
 from pciSeq.src.core.utils import get_out_dir
-from pciSeq.src.preprocess.spot_labels import stage_data
-from pciSeq.src.preprocess.utils import get_img_shape
+from scipy.sparse import coo_matrix, load_npz
 from pciSeq.src.diagnostics.utils import redis_db
-from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
+from pciSeq.src.preprocess.utils import get_img_shape
 from pciSeq.src.viewer.run_flask import flask_app_start
+from pciSeq.src.preprocess.spot_labels import stage_data
+from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js, make_classConfig_js
-from pciSeq import config
-from pciSeq.src.core.log_config import attach_to_log, logger
+import logging
 
-ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
+app_logger = logging.getLogger(__name__)
 
 
 def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -73,7 +72,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         Index:
             RangeIndex
         Columns:
-            Name: Gene, dtype: string, The gene name
+            Name: Gene, dtype: string, The gene name.
             Name: Gene_id, dtype: int64, The gene id, the position of the gene if all genes are sorted.
             Name: x, dtype: int64, X-axis coordinate of the spot
             Name: y, dtype: int64, Y-axis coordinate of the spot
@@ -89,16 +88,17 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     cfg = init(opts)
 
     # 3. validate inputs
-    spots = validate(spots, coo, scRNAseq)  # Spots might be mutated here by removing entries not found
-                                            # in the single cell data
+    # NOTE 1: Spots might get mutated here. Genes not found in the single cell data will be removed.
+    # NOTE 2: cfg might also get mutated. Fields 'is3D' and 'remove_planes' might get overridden
+    cfg, spots = validate(spots.copy(), coo, scRNAseq, cfg)
 
     # 4. launch the diagnostics
     if cfg['launch_diagnostics'] and cfg['is_redis_running']:
-        logger.info('Launching the diagnostics dashboard')
+        app_logger.info('Launching the diagnostics dashboard')
         launch_dashboard()
 
     # 5. prepare the data
-    logger.info(' Preprocessing data')
+    app_logger.info('Preprocessing data')
     _cells, cellBoundaries, _spots = stage_data(spots, coo)
 
     # 6. cell typing
@@ -113,14 +113,14 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         dst = pre_launch(cellData, coo, scRNAseq, cfg)
         flask_app_start(dst)
 
-    logger.info(' Done')
+    app_logger.info('Done')
     return cellData, geneData
 
 
 def cell_type(_cells, _spots, scRNAseq, ini):
     varBayes = VarBayes(_cells, _spots, scRNAseq, ini)
 
-    logger.info(' Start cell typing')
+    app_logger.info('Start cell typing')
     cellData, geneData = varBayes.run()
     return cellData, geneData, varBayes
 
@@ -132,13 +132,22 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
         os.makedirs(out_dir)
 
     cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
-    logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
+    app_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
 
     geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
-    logger.info(' Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
+    app_logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
 
-    cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-    logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+    # Do not change the if-then branching flow. InsideCellBonus can take the value of zero
+    # and the logic below will ensure that in that case, the segmentation borders will be
+    # drawn instead of the gaussian contours.
+    if cfg['InsideCellBonus'] is False:
+        ellipsoidBoundaries = cellData[['Cell_Num', 'gaussian_contour']]
+        ellipsoidBoundaries = ellipsoidBoundaries.rename(columns={"Cell_Num": "cell_id", "gaussian_contour": "coords"})
+        ellipsoidBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
+        app_logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+    else:
+        cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
+        app_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
     serialise(varBayes, os.path.join(out_dir, 'debug'))
 
@@ -149,7 +158,7 @@ def serialise(varBayes, debug_dir):
     pickle_dst = os.path.join(debug_dir, 'pciSeq.pickle')
     with open(pickle_dst, 'wb') as outf:
         pickle.dump(varBayes, outf)
-        logger.info(' Saved at %s' % pickle_dst)
+        app_logger.info('Saved at %s' % pickle_dst)
 
 
 def export_db_tables(out_dir, con):
@@ -162,7 +171,7 @@ def export_db_table(table_name, out_dir, con):
     df = con.from_redis(table_name)
     fname = os.path.join(out_dir, table_name + '.csv')
     df.to_csv(fname, index=False)
-    logger.info(' Saved at %s' % fname)
+    app_logger.info('Saved at %s' % fname)
 
 
 def init(opts):
@@ -173,24 +182,42 @@ def init(opts):
     are used without any change.
     """
     cfg = config.DEFAULT
+    log_file(cfg)
     cfg['is_redis_running'] = check_redis_server()
     if opts is not None:
         default_items = set(cfg.keys())
         user_items = set(opts.keys())
         assert user_items.issubset(default_items), ('Options passed-in should be a dict with keys: %s ' % default_items)
         for item in opts.items():
-            if isinstance(item[1], (int, float, list)) or isinstance(item[1](1), np.floating):
+            if isinstance(item[1], (int, float, list, str)) or isinstance(item[1](1), np.floating):
                 val = item[1]
             # elif isinstance(item[1], list):
             #     val = item[1]
             else:
                 raise TypeError("Only integers, floats and lists are allowed")
             cfg[item[0]] = val
-            logger.info(' %s is set to %s' % (item[0], cfg[item[0]]))
+            app_logger.info('%s is set to %s' % (item[0], cfg[item[0]]))
     return cfg
 
 
-def validate(spots, coo, sc):
+def log_file(cfg):
+    """
+    Setup the logger file handler.
+    Ideally that should happen when the logger is first configured, hence avoid having
+    the console handler and the file handler set up in two different places. However
+    the file handler needs access to the config dict and that was not possible until
+    this point into the program.
+    """
+    logfile = os.path.join(get_out_dir(cfg['output_path']), 'pciSeq.log')
+    fh = logging.FileHandler(logfile, mode='w')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+
+    logging.getLogger().addHandler(fh)
+    app_logger.info('Writing to %s' % logfile)
+
+
+def validate(spots, coo, sc, cfg):
     assert isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y'}, \
         "Spots should be passed-in to the fit() method as a dataframe with columns ['Gene', 'x', 'y']"
 
@@ -203,15 +230,37 @@ def validate(spots, coo, sc):
             # remove genes that cannot been found in the single cell data
             spots = purge_spots(spots, sc)
 
-    return spots
+    if cfg['InsideCellBonus'] is True:
+        """
+        This is not good enough! The default value for InsideCellBonus is now kept in two places, config.py and 
+        here. What happens if I change the config.py and I set InsideCellBonus = 3 for example? 
+        The line below will stll set it 2 which is not the default anymore! 
+        """
+        d = 2
+        cfg['InsideCellBonus'] = d
+        app_logger.warning('InsideCellBonus was passed-in as True. Overriding with the default value of %d' % d)
+
+    if cfg['cell_type_prior'].lower() not in ['uniform'.lower(), 'weighted'.lower()]:
+        raise ValueError("'cel_type_prior' should be either 'uniform' or 'weighted' ")
+
+    # make sure the string is lowercase from now on
+    cfg['cell_type_prior'] = cfg['cell_type_prior'].lower()
+
+    # do some datatype casting
+    spots = spots.astype({
+        'Gene': str,
+        'x': np.float32,
+        'y': np.float32})
+
+    return cfg, spots
 
 
 def purge_spots(spots, sc):
     drop_spots = list(set(spots.Gene) - set(sc.index))
-    logger.warning('Found %d genes that are not included in the single cell data' % len(drop_spots))
-    idx = ([i for i, v in enumerate(spots.Gene) if v not in drop_spots]) # can you speed this up?? What happens if the spot df has millions of rows?
+    app_logger.warning('Found %d genes that are not included in the single cell data' % len(drop_spots))
+    idx = ~ np.in1d(spots.Gene, drop_spots)
     spots = spots.iloc[idx]
-    logger.warning('Removed from spots: %s' % drop_spots)
+    app_logger.warning('Removed from spots: %s' % drop_spots)
     return spots
 
 
@@ -228,7 +277,7 @@ def parse_args(*args, **kwargs):
     if not {'spots', 'coo'}.issubset(set(kwargs)):
         try:
             assert len(args) == 2, 'Need to provide the spots and the coo matrix as the first ' \
-                                   'and second args to the fit() method '
+                                   'and second args to the fit() method.'
             kwargs['spots'] = args[0]
             kwargs['coo'] = args[1]
         except Exception as err:
@@ -286,35 +335,13 @@ def confirm_prompt(question):
 
 
 def check_redis_server():
-    logger.info("check_redis_server")
+    app_logger.info("check_redis_server")
     try:
         redis_db()
         return True
     except (redis.exceptions.ConnectionError, ConnectionRefusedError, OSError):
-        logger.info("Redis ping failed!. Diagnostics will not be called unless redis is installed and the service is running")
+        app_logger.info("Redis ping failed!. Diagnostics will not be called unless redis is installed and the service is running")
         return False
-        # logger.info("Redis ping failed!. Trying to install redis server")
-        # if confirm_prompt("Do you want to install redis server?"):
-        #     logger.info("...installing...")
 
-
-if __name__ == "__main__":
-    # set up the logger
-    attach_to_log()
-
-    # read some demo data
-    _iss_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'))
-
-    _coo = load_npz(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'))
-
-    _scRNAseq = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),
-                            header=None, index_col=0, compression='gzip', dtype=object)
-    _scRNAseq = _scRNAseq.rename(columns=_scRNAseq.iloc[0], copy=False).iloc[1:]
-    _scRNAseq = _scRNAseq.astype(float).astype(np.uint32)
-
-    # main task
-    # _opts = {'max_iter': 10}
-    _opts = {'save_data': True,'launch_viewer': True, 'launch_diagnostics': True}
-    fit(spots=_iss_spots, coo=_coo, scRNAseq=_scRNAseq, opts=_opts)
 
 

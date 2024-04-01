@@ -1,73 +1,79 @@
 import numpy as np
 import pandas as pd
-from pciSeq.src.core.log_config import logger
+from pciSeq.src.core.utils import gaussian_contour
+import logging
+
+summary_logger = logging.getLogger(__name__)
 
 
-def _iss_summary(cells, genes, single_cell):
+def cells_summary(cells, genes, single_cell):
     '''
     returns a dataframe summarising the main features of each cell, ie gene counts and cell types
     :param spots:
     :return:
     '''
-    # x = cells.cell_props['x']
-    # y = cells.cell_props['y']
-    cell_id = cells.ini_cell_props['cell_label']
+    iCounts = np.argsort(-1 * cells.geneCount, axis=1)
+    gene_names = genes.gene_panel[iCounts]
+    gene_count = np.take_along_axis(cells.geneCount, iCounts, axis=1)
 
-    gene_count = cells.geneCount
-    class_prob = cells.classProb
-    gene_names = genes.gene_panel
-    class_names = single_cell.classes
+    iProb = np.argsort(-1 * cells.classProb, axis=1)
+    class_names = single_cell.classes[iProb]
+    class_prob = np.take_along_axis(cells.classProb, iProb, axis=1)
 
     tol = 0.001
 
-    logger.info(' Start collecting data ...')
-    N = len(cell_id)
-    isCount_nonZero = [gene_count[n, :] > tol for n in range(N)]
-    name_list = [gene_names[isCount_nonZero[n]].tolist() for n in range(N)]
-    count_list = [gene_count[n, isCount_nonZero[n]].tolist() for n in range(N)]
+    summary_logger.info('Start collecting data ...')
 
-    isProb_nonZero = [class_prob[n, :] > tol for n in range(N)]
-    class_name_list = [class_names[isProb_nonZero[n]].tolist() for n in range(N)]
-    prob_list = [class_prob[n, isProb_nonZero[n]].tolist() for n in range(N)]
+    isCount_nonZero = [d > tol for d in gene_count]
+    name_list = [list(gene_names[i][d]) for (i, d) in enumerate(isCount_nonZero)]
+    count_list = [list(gene_count[i][d].round(3)) for (i, d) in enumerate(isCount_nonZero)]
+
+    isProb_nonZero = [d > tol for d in class_prob]
+    class_name_list = [list(class_names[i][d]) for (i, d) in enumerate(isProb_nonZero)]
+    prob_list = [list(class_prob[i][d].round(3)) for (i, d) in enumerate(isProb_nonZero)]
+
+    contour = []
+    for i in range(cells.nC):
+        # ea = cells.ellipsoid_attributes[i]
+        mu = cells.centroid.iloc[i].tolist()
+        cov = cells.cov[i]
+        ellipsis = gaussian_contour(mu[:2], cov[:2, :2], 3).astype(np.int64)
+        contour.append(ellipsis.tolist())
 
     iss_df = pd.DataFrame({'Cell_Num': cells.centroid.index.tolist(),
-                           'X': cells.centroid['x'].tolist(),
-                           'Y': cells.centroid['y'].tolist(),
+                           'X': cells.centroid['x'].round(3).tolist(),
+                           'Y': cells.centroid['y'].round(3).tolist(),
                            'Genenames': name_list,
                            'CellGeneCount': count_list,
                            'ClassName': class_name_list,
-                           'Prob': prob_list
-                            },
-                           columns=['Cell_Num', 'X', 'Y', 'Genenames', 'CellGeneCount', 'ClassName', 'Prob']
-                           )
+                           'Prob': prob_list,
+                           'gaussian_contour': contour
+                           })
     iss_df.set_index(['Cell_Num'])
 
     # Ignore the first row. It is the pseudocell to keep the misreads (ie the background)
     iss_df = iss_df[1:]
-    logger.info(' Data collected!')
-
+    summary_logger.info('Data collected!')
     return iss_df
 
 
-def _summary(spots):
+def spots_summary(spots):
     # check for duplicates (ie spots with the same coordinates with or without the same gene name).
     # is_duplicate = spots.data.duplicated(subset=['x', 'y'])
 
-    num_rows = spots.data.shape[0]
-
-    cell_prob = spots.parent_cell_prob
-    neighbors = spots.parent_cell_id
-    p = [cell_prob[i, :].tolist() for i in range(num_rows)]
-    nbrs = [neighbors[i, :].tolist() for i in range(num_rows)]
-    max_nbrs = [neighbors[i, idx].tolist() for i in range(num_rows) for idx in [np.argmax(cell_prob[i, :])]]
+    idx = np.argsort(-1 * spots.parent_cell_prob, axis=1)
+    p = np.take_along_axis(spots.parent_cell_prob, idx, axis=1).round(3)
+    nbrs = np.take_along_axis(spots.parent_cell_id, idx, axis=1)
+    max_nbrs = nbrs[:, 0]
 
     out = pd.DataFrame({'Gene': spots.data.gene_name.tolist(),
                         'Gene_id': spots.gene_id.tolist(),
                         'x': spots.data.x.tolist(),
                         'y': spots.data.y.tolist(),
-                        'neighbour': max_nbrs,
-                        'neighbour_array': nbrs,
-                        'neighbour_prob': p})
+                        'neighbour': max_nbrs.tolist(),
+                        'neighbour_array': nbrs.tolist(),
+                        'neighbour_prob': p.tolist()
+                        })
 
     return out
 
@@ -79,6 +85,6 @@ def collect_data(cells, spots, genes, single_cell):
     :param spots:
     :return:
     '''
-    iss_df = _iss_summary(cells, genes, single_cell)
-    gene_df = _summary(spots)
-    return iss_df, gene_df
+    cell_df = cells_summary(cells, genes, single_cell)
+    gene_df = spots_summary(spots)
+    return cell_df, gene_df

@@ -1,19 +1,21 @@
-import sys
+import scipy
 import numpy as np
 import pandas as pd
-import scipy
-import numexpr as ne
+import dask
 import numpy_groupies as npg
 from natsort import natsort_keygen
+from .utils import read_image_objects, keep_labels_unique
 from sklearn.neighbors import NearestNeighbors
-from pciSeq.src.core.log_config import logger
+import logging
+
+datatypes_logger = logging.getLogger(__name__)
 
 
 class Cells(object):
     # Get rid of the properties where not necessary!!
     def __init__(self, _cells_df, config):
         self.config = config
-        self.ini_cell_props, self.mcr = self.read_image_objects(_cells_df, config)
+        self.ini_cell_props, self._mcr = read_image_objects(_cells_df, config)
         self.nC = len(self.ini_cell_props['cell_label'])
         self.classProb = None
         self.class_names = None
@@ -63,6 +65,22 @@ class Cells(object):
         df.index.name = 'cell_label'
         self._centroid = df.copy()
 
+    @property
+    def cov(self):
+        return self._cov
+
+    @cov.setter
+    def cov(self, val):
+        self._cov = val
+
+    @property
+    def mcr(self):
+        if self.config['cell_radius'] is not None:
+            r = self.config['cell_radius']
+        else:
+            r = self._mcr
+        return r
+
     # -------- METHODS -------- #
     def ini_centroids(self):
         d = {
@@ -73,12 +91,12 @@ class Cells(object):
         return df.copy()
 
     def ini_cov(self):
-        mcr = self.dapi_mean_cell_radius()
-        cov = mcr * mcr * np.eye(2, 2)
+        mcr = self.mcr
+        cov = mcr * mcr * np.eye(2, 2, dtype=np.float32)
         return np.tile(cov, (self.nC, 1, 1))
 
-    def dapi_mean_cell_radius(self):
-        return np.nanmean(np.sqrt(self.ini_cell_props['area'] / np.pi)) * 0.5
+    # def dapi_mean_cell_radius(self):
+    #     return np.nanmean(np.sqrt(self.ini_cell_props['area'] / np.pi)) * 0.5
 
     def nn(self):
         n = self.config['nNeighbors'] + 1
@@ -118,35 +136,8 @@ class Cells(object):
         out[:, 0, 1] = agg_01
         out[:, 1, 0] = agg_01
 
-        return out
+        return out.astype(np.float32)
 
-    def read_image_objects(self, img_obj, cfg):
-        meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
-        relCellRadius = np.sqrt(img_obj.area / np.pi) / meanCellRadius
-
-        # append 1 for the misreads
-        relCellRadius = np.append(1, relCellRadius)
-
-        nom = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
-        denom = np.exp(-0.5) * (1 - np.exp(cfg['InsideCellBonus'])) + np.exp(cfg['InsideCellBonus'])
-        CellAreaFactor = nom / denom
-
-        out = {}
-        out['area_factor'] = CellAreaFactor
-        # out['area_factor'] = np.ones(CellAreaFactor.shape)
-        # logger.info('Overriden CellAreaFactor = 1')
-        out['rel_radius'] = relCellRadius
-        out['area'] = np.append(np.nan, img_obj.area)
-        out['x0'] = np.append(-sys.maxsize, img_obj.x0.values)
-        out['y0'] = np.append(-sys.maxsize, img_obj.y0.values)
-        out['cell_label'] = np.append(0, img_obj.label.values)
-        if 'old_label' in img_obj.columns:
-            out['cell_label_old'] = np.append(0, img_obj.old_label.values)
-        # First cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
-        # and will be used to get all the misreads. It was given the label=0 and some very small
-        # negative coords
-
-        return out, meanCellRadius
 
 # ----------------------------------------Class: Genes--------------------------------------------------- #
 class Genes(object):
@@ -165,11 +156,13 @@ class Genes(object):
         return self._logeta_bar
 
     def init_eta(self, a, b):
-        self._eta_bar = np.ones(self.nG) * (a / b)
-        self._logeta_bar = np.ones(self.nG) * self._digamma(a, b)
+        self._eta_bar = np.ones(self.nG, dtype=np.float32) * (a / b)
+        self._logeta_bar = np.ones(self.nG, dtype=np.float32) * self._digamma(a, b)
 
     def calc_eta(self, a, b):
-        self._eta_bar = a/b
+        a = a.astype(np.float32)
+        b = b.astype(np.float32)
+        self._eta_bar = a / b
         self._logeta_bar = self._digamma(a, b)
 
     def _digamma(self, a, b):
@@ -181,21 +174,24 @@ class Spots(object):
     def __init__(self, spots_df, config):
         self._parent_cell_prob = None
         self._parent_cell_id = None
+        self.Dist = None
         self.config = config
         self.data = self.read(spots_df)
         self.nS = self.data.shape[0]
         self.unique_gene_names = None
         self._gamma_bar = None
         self._log_gamma_bar = None
-        [_, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True, return_counts=True)
+        self._gene_id = None
+        self._counts_per_gene = None
+        [_, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True,
+                                                            return_counts=True)
 
     def __getstate__(self):
         # set here attributes to be excluded from serialisation (pickling)
-        # It makes the pickle filesize smaller but maybe this will have to
-        # change in the future.
-        # These two attributes take up a lot of space on the disk:
-        # _gamma_bar and _log_gamma_bar
         # FYI: https://realpython.com/python-pickle-module/
+        # Removing _gamma_bar and _log_gamma_bar because they are delayed
+        # But even if they werent, I would remove them anyway because they
+        # make the pickle file a lot larger!
         attributes = self.__dict__.copy()
         del attributes['_gamma_bar']
         del attributes['_log_gamma_bar']
@@ -203,25 +199,33 @@ class Spots(object):
 
     # -------- PROPERTIES -------- #
     @property
-    def gamma_bar(self):
-        return self._gamma_bar.astype(self.config['dtype'])
+    def gene_id(self):
+        return self._gene_id
 
-    @gamma_bar.setter
-    def gamma_bar(self, val):
-        self._gamma_bar = val.astype(self.config['dtype'])
+    @gene_id.setter
+    def gene_id(self, val):
+        self._gene_id = val.astype(np.int32)
+
+    @property
+    def counts_per_gene(self):
+        return self._counts_per_gene
+
+    @counts_per_gene.setter
+    def counts_per_gene(self, val):
+        self._counts_per_gene = val.astype(np.int32)
+
+    @property
+    def gamma_bar(self):
+        return self._gamma_bar
 
     @property
     def log_gamma_bar(self):
         return self._log_gamma_bar
 
-    @log_gamma_bar.setter
-    def log_gamma_bar(self, val):
-        self._log_gamma_bar = val
-
     @property
     def xy_coords(self):
         lst = list(zip(*[self.data.x, self.data.y]))
-        return np.array(lst)
+        return np.array(lst, dtype=np.float32)
 
     @property
     def parent_cell_prob(self):
@@ -238,7 +242,6 @@ class Spots(object):
     @parent_cell_id.setter
     def parent_cell_id(self, val):
         self._parent_cell_id = val
-
 
     # -------- METHODS -------- #
     def read(self, spots_df):
@@ -257,12 +260,14 @@ class Spots(object):
         spotYX = self.data[['y', 'x']].values
 
         # for each spot find the closest cell (in fact the top nN-closest cells...)
+        # maybe return Dist instead of setting the attribute here
         nbrs = cells.nn()
-        self.Dist, neighbors = nbrs.kneighbors(spotYX)
+        Dist, neighbors = nbrs.kneighbors(spotYX)
+        self.Dist = Dist.astype(np.float32)
 
         # last column is for misreads.
         neighbors[:, -1] = 0
-        return neighbors
+        return neighbors.astype(np.int32)
 
     def ini_cellProb(self, neighbors, cfg):
         nS = self.data.shape[0]
@@ -275,27 +280,66 @@ class Spots(object):
         # sanity_check = neighbors[mask, 0] + 1 == SpotInCell[mask]
         # assert ~any(sanity_check), "a spot is in a cell not closest neighbor!"
 
-        pSpotNeighb = np.zeros([nS, nN])
+        pSpotNeighb = np.zeros([nS, nN], dtype=np.float32)
         pSpotNeighb[neighbors == SpotInCell.values[:, None]] = 1
         pSpotNeighb[SpotInCell == 0, -1] = 1
 
         ## Add a couple of checks here
         return pSpotNeighb
 
-    def loglik(self, cells, cfg):
-        # area = cells.ini_cell_props['area'][1:]
-        # mcr = np.mean(np.sqrt(area / np.pi)) * 0.5  # This is the meanCellRadius
-        mcr = cells.mcr
-        dim = 2  # dimensions of the normal distribution: Bivariate
-        # Assume a bivariate normal and calc the likelihood
-        D = -self.Dist ** 2 / (2 * mcr ** 2) - dim/2 * np.log(2 * np.pi * mcr ** 2)
+    # def loglik(self, cells, cfg):
+    #     # area = cells.ini_cell_props['area'][1:]
+    #     # mcr = np.mean(np.sqrt(area / np.pi)) * 0.5  # This is the meanCellRadius
+    #     mcr = cells.mcr
+    #     dim = 2  # dimensions of the normal distribution: Bivariate
+    #     # Assume a bivariate normal and calc the likelihood
+    #     D = -self.Dist ** 2 / (2 * mcr ** 2) - dim/2 * np.log(2 * np.pi * mcr ** 2)
+    #
+    #     # last column (nN-closest) keeps the misreads,
+    #     D[:, -1] = np.log(cfg['MisreadDensity'])
+    #
+    #     mask = np.greater(self.data.label.values, 0, where=~np.isnan(self.data.label.values))
+    #     D[mask, 0] = D[mask, 0] + cfg['InsideCellBonus']
+    #     return D
 
-        # last column (nN-closest) keeps the misreads,
-        D[:, -1] = np.log(cfg['MisreadDensity'])
+    def mvn_loglik(self, data, cell_label, cells):
+        centroids = cells.centroid.values[cell_label]
+        covs = cells.cov[cell_label]
+        # param = list(zip(*[data, centroids, covs]))
+        # out = [self.loglik_contr(p) for i, p in enumerate(param)]
+        # out_2 = [multivariate_normal.logpdf(p[0], p[1], p[2]) for i, p in enumerate(param)]
+        out = self.multiple_logpdfs(data, centroids, covs)
+        return out
 
-        mask = np.greater(self.data.label.values, 0, where=~np.isnan(self.data.label.values))
-        D[mask, 0] = D[mask, 0] + cfg['InsideCellBonus']
-        return D
+    def multiple_logpdfs(self, x, means, covs):
+        """
+        vectorised mvn log likelihood evaluated at multiple pairs of (centroid_1, cov_1), ..., (centroid_N, cov_N)
+        Taken from http://gregorygundersen.com/blog/2020/12/12/group-multivariate-normal-pdf/
+        """
+        # Thankfully, NumPy broadcasts `eigh`.
+        vals, vecs = np.linalg.eigh(covs)
+
+        # Compute the log determinants across the second axis.
+        logdets = np.sum(np.log(vals), axis=1)
+
+        # Invert the eigenvalues.
+        valsinvs = 1. / vals
+
+        # Add a dimension to `valsinvs` so that NumPy broadcasts appropriately.
+        Us = vecs * np.sqrt(valsinvs)[:, None]
+        devs = x - means
+
+        # Use `einsum` for matrix-vector multiplications across the first dimension.
+        devUs = np.einsum('ni,nij->nj', devs, Us)
+
+        # Compute the Mahalanobis distance by squaring each term and summing.
+        mahas = np.sum(np.square(devUs), axis=1)
+
+        # Compute and broadcast scalar normalizers.
+        dim = len(vals[0])
+        log2pi = np.log(2 * np.pi)
+
+        return -0.5 * (dim * log2pi + mahas + logdets)
 
     def zero_class_counts(self, geneNo, pCellZero):
         """
@@ -314,44 +358,29 @@ class Spots(object):
         TotPredictedZ = np.bincount(geneNo, pSpotZero)
         return TotPredictedZ
 
+    @dask.delayed
     def gammaExpectation(self, rho, beta):
-        '''
+        """
         :param r:
         :param b:
         :return: Expectetation of a rv X following a Gamma(r,b) distribution with pdf
         f(x;\alpha ,\beta )= \frac{\beta^r}{\Gamma(r)} x^{r-1}e^{-\beta x}
-        '''
-
-        # sanity check
-        # assert (np.all(rho.coords['cell_id'].data == beta.coords['cell_id'])), 'rho and beta are not aligned'
-        # assert (np.all(rho.coords['gene_name'].data == beta.coords['gene_name'])), 'rho and beta are not aligned'
-
-        dtype = self.config['dtype']
+        """
         r = rho[:, :, None]
-        if dtype == np.float64:
-            gamma = np.empty(beta.shape)
-            ne.evaluate('r/beta', out=gamma)
-            return gamma
-        else:
-            return (r/beta).astype(dtype)
+        return r / beta
 
+    @dask.delayed
     def logGammaExpectation(self, rho, beta):
-        dtype = self.config['dtype']
-        r = rho[:, :, None].astype(dtype)
-        if dtype == np.float64:
-            logb = np.empty(beta.shape)
-            ne.evaluate("log(beta)", out=logb)
-            return scipy.special.psi(r) - logb
-        else:
-            return scipy.special.psi(r) - np.log(beta).astype(dtype)
+        r = rho[:, :, None]
+        return scipy.special.psi(r) - np.log(beta)
 
 
 # ----------------------------------------Class: SingleCell--------------------------------------------------- #
 class SingleCell(object):
     def __init__(self, scdata: pd.DataFrame, genes: np.array, config):
         self.isMissing = None  # Will be set to False is single cell data are assumed known and given as an input
-                               # otherwise, if they are unknown, this will be set to True and the algorithm will
-                               # try to estimate them
+        # otherwise, if they are unknown, this will be set to True and the algorithm will
+        # try to estimate them
         # self.raw_data = self._raw_data(scdata, genes)
         self.config = config
         self._mean_expression, self._log_mean_expression = self._setup(scdata, genes, self.config)
@@ -364,9 +393,9 @@ class SingleCell(object):
         called herein
         """
         if scdata is None:
-            logger.info('Single Cell data are missing. Cannot determine meam expression per cell class.')
-            logger.info('We will try to estimate the array instead')
-            logger.info('Starting point is a diagonal array of size numGenes-by-numGenes')
+            datatypes_logger.info('Single Cell data are missing. Cannot determine meam expression per cell class.')
+            datatypes_logger.info('We will try to estimate the array instead')
+            datatypes_logger.info('Starting point is a diagonal array of size numGenes-by-numGenes')
             # expr = self._naive(scdata, genes)
             expr = self._diag(genes)
             self.isMissing = True
@@ -376,11 +405,10 @@ class SingleCell(object):
 
         self.raw_data = expr
         me, lme = self._helper(expr.copy())
-        dtype = self.config['dtype']
 
         assert me.columns[-1] == 'Zero', "Last column should be the Zero class"
         assert lme.columns[-1] == 'Zero', "Last column should be the Zero class"
-        return me.astype(dtype), lme.astype(dtype)
+        return me.astype(np.float32), lme.astype(np.float32)
 
     # -------- PROPERTIES -------- #
     @property
@@ -417,8 +445,6 @@ class SingleCell(object):
 
     def _helper(self, expr):
         # order by column name
-        # expr = expr.copy().sort_index(axis=0).sort_index(axis=1, key=lambda x: x.str.lower())
-        # expr = expr.copy().sort_index(axis=0).sort_index(axis=1, key=natsort_keygen())
         expr = expr.copy().sort_index(axis=0).sort_index(axis=1, key=natsort_keygen(key=lambda y: y.str.lower()))
 
         # append at the end the Zero class
@@ -457,44 +483,30 @@ class SingleCell(object):
         lme = lme.assign(Zero=zero_col_2)
         return me, lme
 
-    def _keep_labels_unique(self, scdata):
-        """
-        In the single cell data you might find cases where two or more rows have the same gene label
-        In these cases keep the row with the highest total gene count
-        """
-
-        # 1. get the row total and assign it to a new column
-        scdata = scdata.assign(total=scdata.sum(axis=1))
-
-        # 2. rank by gene label and total gene count and keep the one with the highest total
-        scdata = scdata.sort_values(['gene_name', 'total'], ascending=[True, False]).groupby('gene_name').head(1)
-
-        # 3. Drop the total column and return
-        return scdata.drop(['total'], axis=1)
-
     def _raw_data(self, scdata, genes):
         """
         Reads the raw single data, filters out any genes outside the gene panel and then it
         groups by the cell type
         """
         assert np.all(scdata >= 0), "Single cell dataframe has negative values"
-        logger.info(' Single cell data passed-in have %d genes and %d cells' % (scdata.shape[0], scdata.shape[1]))
+        datatypes_logger.info(
+            'Single cell data passed-in have %d genes and %d cells' % (scdata.shape[0], scdata.shape[1]))
 
-        logger.info(' Single cell data: Keeping counts for the gene panel of %d only' % len(genes))
+        datatypes_logger.info('Single cell data: Keeping counts for the gene panel of %d only' % len(genes))
         df = scdata.loc[genes]
 
         # set the axes labels
         df = self._set_axes(df)
 
         # remove any rows with the same gene label
-        df = self._keep_labels_unique(df)
+        df = keep_labels_unique(df)
 
         df = self._remove_zero_cols(df.copy())
         dfT = df.T
 
-        logger.info(' Single cell data: Grouping gene counts by cell type. Aggregating function is the mean.')
+        datatypes_logger.info('Single cell data: Grouping gene counts by cell type. Aggregating function is the mean.')
         out = dfT.groupby(dfT.index.values).agg('mean').T
-        logger.info(' Grouped single cell data have %d genes and %d cell types' % (out.shape[0], out.shape[1]))
+        datatypes_logger.info('Grouped single cell data have %d genes and %d cell types' % (out.shape[0], out.shape[1]))
         return out
 
     def _diag(self, genes):
@@ -502,19 +514,22 @@ class SingleCell(object):
         # logger.info('*************** DIAGONAL SINGLE CELL DATA ***************')
         # logger.info('******************************************************')
         nG = len(genes)
-        mgc = self.config['mean_gene_counts_per_class']  # the avg gene count per cell. Better expose that so it can be set by the user.
+        mgc = self.config[
+            'mean_gene_counts_per_class']  # the avg gene count per cell. Better expose that so it can be set by the user.
         arr = mgc * np.eye(nG)
-        labels = ['class_%d' % (i+1) for i, _ in enumerate(genes)]
+        labels = ['class_%d' % (i + 1) for i, _ in enumerate(genes)]
         df = pd.DataFrame(arr).set_index(genes)
         df.columns = labels
         return df
 
+
 # ---------------------------------------- Class: CellType --------------------------------------------------- #
 class CellType(object):
-    def __init__(self, single_cell):
+    def __init__(self, single_cell, config):
         assert single_cell.classes[-1] == 'Zero', "Last label should be the Zero class"
         self._names = single_cell.classes
         self._alpha = None
+        self.config = config
         self.single_cell_data_missing = single_cell.isMissing
 
     @property
@@ -548,7 +563,7 @@ class CellType(object):
 
     @property
     def log_prior(self):
-        if self.single_cell_data_missing:
+        if self.single_cell_data_missing or self.config['cell_type_prior'] == 'weighted':
             return self.logpi_bar
         else:
             return np.log(self.prior)
@@ -563,9 +578,5 @@ class CellType(object):
         self.alpha = self.ini_alpha()
 
     def ini_alpha(self):
-        return np.append(np.ones(self.nK - 1), sum(np.ones(self.nK - 1)))
-
-
-
-
-
+        ones = np.ones(self.nK - 1)
+        return np.append(ones, sum(ones)).astype(np.float32)
