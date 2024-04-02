@@ -1,21 +1,19 @@
 import os
 import redis
-import pickle
 import fastremap
-import numbers
 import numpy as np
 import pandas as pd
 from typing import Tuple
 from pciSeq import config
+from scipy.sparse import coo_matrix
 from pciSeq.src.core.main import VarBayes
-from pciSeq.src.core.utils import get_out_dir
-from scipy.sparse import coo_matrix, load_npz
 from pciSeq.src.diagnostics.utils import redis_db
 from pciSeq.src.preprocess.utils import get_img_shape
 from pciSeq.src.viewer.run_flask import flask_app_start
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js, make_classConfig_js
+from pciSeq.src.core.utils import get_out_dir, recover_original_labels, serialise, purge_spots
 import logging
 
 app_logger = logging.getLogger(__name__)
@@ -162,44 +160,6 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
     serialise(varBayes, os.path.join(out_dir, 'debug'))
 
 
-def recover_original_labels(cellData, geneData, remapping):
-    labels_dict = dict(zip(remapping.values(), remapping.keys()))
-    cellData = cellData.assign(Cell_Num=cellData.Cell_Num.map(lambda x: labels_dict[x]))
-
-    # geneData = geneData.assign(neighbour=geneData.neighbour.map(lambda x: swaped_dict[x]))
-    geneData = geneData.assign(neighbour=geneData.neighbour.map(lambda x: fetch_label(x, labels_dict)))
-    geneData = geneData.assign(neighbour_array=geneData.neighbour_array.map(lambda x: fetch_label(x, labels_dict)))
-    return cellData, geneData
-
-
-def fetch_label(x, d):
-    x = [x] if isinstance(x, numbers.Number) else x
-    out =  [d[v] for v in x]
-    return out[0] if len(out) == 1 else out
-
-
-def serialise(varBayes, debug_dir):
-    if not os.path.exists(debug_dir):
-        os.makedirs(debug_dir)
-    pickle_dst = os.path.join(debug_dir, 'pciSeq.pickle')
-    with open(pickle_dst, 'wb') as outf:
-        pickle.dump(varBayes, outf)
-        app_logger.info('Saved at %s' % pickle_dst)
-
-
-def export_db_tables(out_dir, con):
-    tables = con.get_db_tables()
-    for table in tables:
-        export_db_table(table, out_dir, con)
-
-
-def export_db_table(table_name, out_dir, con):
-    df = con.from_redis(table_name)
-    fname = os.path.join(out_dir, table_name + '.csv')
-    df.to_csv(fname, index=False)
-    app_logger.info('Saved at %s' % fname)
-
-
 def init(opts):
     """
     Reads the opts dict and if not None, it will override the default parameter value by
@@ -288,15 +248,6 @@ def validate(spots, coo, sc, cfg):
         'y': np.float32})
 
     return cfg, spots, coo, remapping
-
-
-def purge_spots(spots, sc):
-    drop_spots = list(set(spots.Gene) - set(sc.index))
-    app_logger.warning('Found %d genes that are not included in the single cell data' % len(drop_spots))
-    idx = ~ np.in1d(spots.Gene, drop_spots)
-    spots = spots.iloc[idx]
-    app_logger.warning('Removed from spots: %s' % drop_spots)
-    return spots
 
 
 def parse_args(*args, **kwargs):
