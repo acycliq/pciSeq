@@ -1,6 +1,8 @@
 import os
 import redis
 import pickle
+import fastremap
+import numbers
 import numpy as np
 import pandas as pd
 from typing import Tuple
@@ -90,7 +92,8 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     # 3. validate inputs
     # NOTE 1: Spots might get mutated here. Genes not found in the single cell data will be removed.
     # NOTE 2: cfg might also get mutated. Fields 'is3D' and 'remove_planes' might get overridden
-    cfg, spots = validate(spots.copy(), coo, scRNAseq, cfg)
+    # NOTE 3: coo will also be mutated. If the label image has skipping labels, then it will be relabelled
+    cfg, spots, coo, remapping = validate(spots.copy(), coo, scRNAseq, cfg)
 
     # 4. launch the diagnostics
     if cfg['launch_diagnostics'] and cfg['is_redis_running']:
@@ -104,11 +107,18 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     # 6. cell typing
     cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
 
-    # 7. save to the filesystem
+    # 7 if labels have been remapped, switch to the original ones
+    # swaped_dict = dict(zip(remapping.values(), remapping.keys()))
+    # cellData = cellData.assign(Cell_Num = cellData.Cell_Num.map(lambda x: swaped_dict[x]))
+    if remapping is not None:
+        cellData, geneData = recover_original_labels(cellData, geneData, remapping)
+
+
+    # 8. save to the filesystem
     if (cfg['save_data'] and varBayes.has_converged) or cfg['launch_viewer']:
         write_data(cellData, geneData, cellBoundaries, varBayes, cfg)
 
-    # 8. do the viewer if needed
+    # 9. do the viewer if needed
     if cfg['launch_viewer']:
         dst = pre_launch(cellData, coo, scRNAseq, cfg)
         flask_app_start(dst)
@@ -150,6 +160,22 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
         app_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
     serialise(varBayes, os.path.join(out_dir, 'debug'))
+
+
+def recover_original_labels(cellData, geneData, remapping):
+    labels_dict = dict(zip(remapping.values(), remapping.keys()))
+    cellData = cellData.assign(Cell_Num=cellData.Cell_Num.map(lambda x: labels_dict[x]))
+
+    # geneData = geneData.assign(neighbour=geneData.neighbour.map(lambda x: swaped_dict[x]))
+    geneData = geneData.assign(neighbour=geneData.neighbour.map(lambda x: fetch_label(x, labels_dict)))
+    geneData = geneData.assign(neighbour_array=geneData.neighbour_array.map(lambda x: fetch_label(x, labels_dict)))
+    return cellData, geneData
+
+
+def fetch_label(x, d):
+    x = [x] if isinstance(x, numbers.Number) else x
+    out =  [d[v] for v in x]
+    return out[0] if len(out) == 1 else out
 
 
 def serialise(varBayes, debug_dir):
@@ -218,10 +244,19 @@ def log_file(cfg):
 
 
 def validate(spots, coo, sc, cfg):
+    remapping = None
+
     assert isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y'}, \
         "Spots should be passed-in to the fit() method as a dataframe with columns ['Gene', 'x', 'y']"
 
     assert isinstance(coo, coo_matrix), 'The segmentation masks should be passed-in as a coo_matrix'
+
+    # check for skipped labels
+    if coo.data.max() != len(set(coo.data)):
+        app_logger.warning('Skipped labels detected in the label image.')
+        temp_labels, remapping = fastremap.renumber(coo.toarray(), in_place=True)
+        coo = coo_matrix(temp_labels)
+
 
     if sc is not None:
         assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
@@ -252,7 +287,7 @@ def validate(spots, coo, sc, cfg):
         'x': np.float32,
         'y': np.float32})
 
-    return cfg, spots
+    return cfg, spots, coo, remapping
 
 
 def purge_spots(spots, sc):
