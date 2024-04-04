@@ -233,7 +233,8 @@ def validate(spots, coo, scData, cfg):
 
     # check single cell data
     if scData is not None:
-        assert isinstance(scData, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
+        assert isinstance(scData,
+                          pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
 
     # remove genes that cannot been found in the single cell data
     spots = clean_spots(spots, scData)
@@ -312,6 +313,10 @@ def _validate_cfg(cfg, coo):
     # make sure the string is lowercase from now on
     cfg['cell_type_prior'] = cfg['cell_type_prior'].lower()
 
+    if not isinstance(cfg['launch_viewer'], bool):
+        assert cfg['launch_viewer'].lower() == '2d', "'launch_viewer' should be True, False or '2d' "
+        cfg['launch_viewer'] = cfg['launch_viewer'].lower()
+
     return cfg
 
 
@@ -381,6 +386,7 @@ def pre_launch(cellData, geneData, coo, scRNAseq, cfg):
     Returns the destination folder that keeps the viewer code and
     will be served to launch the website
     '''
+    cfg['is3D'] = False if cfg['launch_viewer'] == '2d' else cfg['launch_viewer']
     [n, h, w] = get_img_shape(coo)
     dst = get_out_dir(cfg['output_path'])
     pciSeq_dir = copy_viewer_code(cfg, dst)
@@ -444,8 +450,6 @@ def check_redis_server():
         redis_db()
         return True
     except (redis.exceptions.ConnectionError, ConnectionRefusedError, OSError):
-        app_logger.info("Redis ping failed!. Diagnostics will not be called unless redis is installed and the service is running")
+        app_logger.info(
+            "Redis ping failed!. Diagnostics will not be called unless redis is installed and the service is running")
         return False
-
-
-
