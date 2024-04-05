@@ -9,7 +9,7 @@ from pciSeq.src.core.main import VarBayes
 from pciSeq.src.core.utils import get_out_dir, adjust_for_anisotropy
 from scipy.sparse import coo_matrix
 from pciSeq.src.diagnostics.utils import redis_db
-from pciSeq.src.core.utils import get_img_shape
+from pciSeq.src.core.utils import get_img_shape, serialise, purge_spots, recover_original_labels
 from pciSeq.src.viewer.run_flask import flask_app_start
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
@@ -102,16 +102,22 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     # 5. prepare the data
     app_logger.info('Preprocessing data')
-    _cells, cellBoundaries, _spots = stage_data(spots, coo, cfg)
+    _cells, cellBoundaries, _spots, remapping = stage_data(spots, coo, cfg)
 
     # 6. cell typing
     cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
+
+    # 7 if labels have been remapped, switch to the original ones
+    # swaped_dict = dict(zip(remapping.values(), remapping.keys()))
+    # cellData = cellData.assign(Cell_Num = cellData.Cell_Num.map(lambda x: swaped_dict[x]))
+    if remapping is not None:
+        cellData, geneData = recover_original_labels(cellData, geneData, remapping)
 
     # 7. save to the filesystem
     if (cfg['save_data'] and varBayes.has_converged) or cfg['launch_viewer']:
         write_data(cellData, geneData, cellBoundaries, varBayes, cfg)
 
-    # 8. do the viewer if needed
+    # 8. save to the filesystem
     if cfg['launch_viewer']:
         dst = pre_launch(cellData, geneData, coo, scRNAseq, cfg)
         flask_app_start(dst)
@@ -153,28 +159,6 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
         app_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
     serialise(varBayes, os.path.join(out_dir, 'debug'))
-
-
-def serialise(varBayes, debug_dir):
-    if not os.path.exists(debug_dir):
-        os.makedirs(debug_dir)
-    pickle_dst = os.path.join(debug_dir, 'pciSeq.pickle')
-    with open(pickle_dst, 'wb') as outf:
-        pickle.dump(varBayes, outf)
-        app_logger.info('Saved at %s' % pickle_dst)
-
-
-def export_db_tables(out_dir, con):
-    tables = con.get_db_tables()
-    for table in tables:
-        export_db_table(table, out_dir, con)
-
-
-def export_db_table(table_name, out_dir, con):
-    df = con.from_redis(table_name)
-    fname = os.path.join(out_dir, table_name + '.csv')
-    df.to_csv(fname, index=False)
-    app_logger.info('Saved at %s' % fname)
 
 
 def init(opts):
@@ -221,6 +205,7 @@ def log_file(cfg):
 
 
 def validate(spots, coo, scData, cfg):
+
     # check the label image
     coo = _validate_coo(coo)
 
@@ -324,15 +309,6 @@ def clean_spots(spots, sc):
     # remove genes that cannot been found in the single cell data
     if (sc is not None) and (not set(spots.Gene).issubset(sc.index)):
         spots = purge_spots(spots, sc)
-    return spots
-
-
-def purge_spots(spots, sc):
-    drop_spots = list(set(spots.Gene) - set(sc.index))
-    app_logger.warning('Found %d genes that are not included in the single cell data' % len(drop_spots))
-    idx = ~ np.in1d(spots.Gene, drop_spots)
-    spots = spots.iloc[idx]
-    app_logger.warning('Removed from spots: %s' % drop_spots)
     return spots
 
 

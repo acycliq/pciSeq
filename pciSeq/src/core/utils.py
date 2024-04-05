@@ -5,12 +5,12 @@ from urllib.parse import urlparse
 from urllib.request import urlopen
 import numpy as np
 import pandas as pd
-import numexpr as ne
-# import numba as nb
+import pickle
 import dask
 import os
 import glob
 import subprocess
+import numbers
 from email.parser import BytesHeaderParser
 import logging
 
@@ -476,3 +476,49 @@ def gaussian_contour(mu, cov, sdwidth=3):
     out = vd.dot(ap) + mu.reshape(2, -1)
 
     return np.array(list(zip(*out)), dtype=np.float32)
+
+
+def recover_original_labels(cellData, geneData, remapping):
+    labels_dict = dict(zip(remapping.values(), remapping.keys()))
+    cellData = cellData.assign(Cell_Num=cellData.Cell_Num.map(lambda x: labels_dict[x]))
+
+    # geneData = geneData.assign(neighbour=geneData.neighbour.map(lambda x: swaped_dict[x]))
+    geneData = geneData.assign(neighbour=geneData.neighbour.map(lambda x: fetch_label(x, labels_dict)))
+    geneData = geneData.assign(neighbour_array=geneData.neighbour_array.map(lambda x: fetch_label(x, labels_dict)))
+    return cellData, geneData
+
+
+def fetch_label(x, d):
+    x = [x] if isinstance(x, numbers.Number) else x
+    out =  [d[v] for v in x]
+    return out[0] if len(out) == 1 else out
+
+
+def serialise(varBayes, debug_dir):
+    if not os.path.exists(debug_dir):
+        os.makedirs(debug_dir)
+    pickle_dst = os.path.join(debug_dir, 'pciSeq.pickle')
+    with open(pickle_dst, 'wb') as outf:
+        pickle.dump(varBayes, outf)
+        utils_logger.info('Saved at %s' % pickle_dst)
+
+
+def purge_spots(spots, sc):
+    drop_spots = list(set(spots.Gene) - set(sc.index))
+    utils_logger.warning('Found %d genes that are not included in the single cell data' % len(drop_spots))
+    idx = ~ np.in1d(spots.Gene, drop_spots)
+    spots = spots.iloc[idx]
+    utils_logger.warning('Removed from spots: %s' % drop_spots)
+    return spots
+
+def export_db_tables(out_dir, con):
+    tables = con.get_db_tables()
+    for table in tables:
+        export_db_table(table, out_dir, con)
+
+
+def export_db_table(table_name, out_dir, con):
+    df = con.from_redis(table_name)
+    fname = os.path.join(out_dir, table_name + '.csv')
+    df.to_csv(fname, index=False)
+    utils_logger.info('Saved at %s' % fname)

@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import skimage.measure as skmeas
 from typing import Tuple
+import fastremap
 from multiprocessing.dummy import Pool as ThreadPool
 from scipy.sparse import coo_matrix, csr_matrix
 from pciSeq.src.preprocess.cell_borders import extract_borders_dip, extract_borders
@@ -106,12 +107,14 @@ def reorder_labels(label_image):
     return out, label_map
 
 
-def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def stage_data(spots: pd.DataFrame, coo: list, cfg: dict) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
     """
     Reads the spots and the label image that are passed in and calculates which cell (if any) encircles any
     given spot within its boundaries. It also retrieves the coordinates of the cell boundaries, the cell
     centroids and the cell area
     """
+
+    remapping = None
 
     # drop planes in the exclude planes list
     if cfg['is3D'] and cfg['exclude_planes'] is not None:
@@ -121,7 +124,15 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.Data
             # the removal of the planes described in the exclude_planes list
             removed.frame_num = removed.frame_num + min_plane
 
-    coo, label_map = reorder_labels(coo)
+    # coo, label_map = reorder_labels(coo)
+    # check for skipped labels
+    arr_3d = np.stack([d.toarray() for d in coo])
+    if arr_3d.max() != sum(np.unique(arr_3d) > 0):
+        spot_labels_logger.warning('Skipped labels detected in the label image.')
+        arr_3d, remapping = fastremap.renumber(arr_3d, in_place=True)
+        coo = [coo_matrix(d) for d in arr_3d]
+        del arr_3d
+
     [n, h, w] = get_img_shape(coo)
     spots = remove_oob(spots.copy(), [n, h, w])
     spots = adjust_for_anisotropy(spots, cfg['voxel_size'])
@@ -168,9 +179,9 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.Data
                                 'x_cell': np.float32})
 
     # if there is a label map, attach it to the cell props.
-    if label_map is not None:
-        props_df = pd.merge(props_df, label_map, left_on='label', right_on='new_label', how='left')
-        props_df = props_df.drop(['new_label'], axis=1)
+    # if label_map is not None:
+    #     props_df = pd.merge(props_df, label_map, left_on='label', right_on='new_label', how='left')
+    #     props_df = props_df.drop(['new_label'], axis=1)
 
     # 3. Get the cell boundaries
     # cell_boundaries = extract_borders_dip(coo.toarray().astype(np.uint32))
@@ -183,7 +194,7 @@ def stage_data(spots: pd.DataFrame, coo: coo_matrix, cfg: dict) -> Tuple[pd.Data
     _cells = props_df.rename(columns={'x_cell': 'x0', 'y_cell': 'y0', 'z_cell': 'z0'})
     _spots = spots[['x', 'y', 'z', 'label', 'Gene']].rename_axis('spot_id').rename(columns={'Gene': 'gene_name'})
 
-    return _cells, _cell_boundaries, _spots
+    return _cells, _cell_boundaries, _spots, remapping
 
 
 def remove_oob(spots, img_shape):
