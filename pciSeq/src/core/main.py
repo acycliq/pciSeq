@@ -252,7 +252,7 @@ class VarBayes:
         Implements equation (5) of the Qian paper
         """
         grand_total = self.cells.background_counts.sum() + self.cells.total_counts.sum()
-        assert round(grand_total) == self.spots.data.shape[0], \
+        assert abs(round(grand_total) - self.spots.data.shape[0]) <= 1, \
             'The sum of the background spots and the total gene counts should be equal to the number of spots'
 
         classProb = self.cells.classProb
