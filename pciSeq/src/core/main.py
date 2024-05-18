@@ -200,7 +200,7 @@ class VarBayes:
         nN = self.nN
         nS = self.spots.data.gene_name.shape[0]
 
-        wSpotCell = np.zeros([nS, nN], dtype=np.float32)
+        wSpotCell = np.zeros([nS, nN], dtype=np.float64)
         gn = self.spots.data.gene_name.values
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
         logeta_bar = self.genes.logeta_bar[self.spots.gene_id]
@@ -252,7 +252,7 @@ class VarBayes:
         Implements equation (5) of the Qian paper
         """
         grand_total = self.cells.background_counts.sum() + self.cells.total_counts.sum()
-        assert abs(round(grand_total) - self.spots.data.shape[0]) <= 1, \
+        assert round(grand_total) == self.spots.data.shape[0], \
             'The sum of the background spots and the total gene counts should be equal to the number of spots'
 
         classProb = self.cells.classProb
