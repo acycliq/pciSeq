@@ -250,7 +250,7 @@ class Spots(object):
 
     @parent_cell_prob.setter
     def parent_cell_prob(self, val):
-        self._parent_cell_prob = val.astype(np.float32)
+        self._parent_cell_prob = val
 
     @property
     def parent_cell_id(self):
@@ -308,6 +308,19 @@ class Spots(object):
         pSpotNeighb = np.zeros([nS, nN], dtype=np.float32)
         pSpotNeighb[neighbors == SpotInCell.values[:, None]] = 1
         pSpotNeighb[SpotInCell == 0, -1] = 1
+
+        # you might have case where the sum across all columns is Zero.
+        # That can happen if for example the spot is inside the cell boundaries
+        # of a cell, that cell however is not one of nN-th closest cells.
+        # For example a cell spans the full 3d stack, hence the centroid would be
+        # around the mid-plane somewhere. You have however a spot on one of the
+        # first few planes and lets say in it is inside this big cell that spans the full z-stack.
+        # Assume also that we have some cells which span only some of the first few planes of
+        # the stack. Their centroids could be closer to the spot than the centroid of the cell the
+        # spot lies within.
+        # In these case assign the spot to the background
+        mask = pSpotNeighb.sum(axis=1)
+        pSpotNeighb[mask == 0, -1] = 1
 
         ## Add a couple of checks here
         return pSpotNeighb
