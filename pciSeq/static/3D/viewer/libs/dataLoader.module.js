@@ -117,7 +117,7 @@ function data_loader(workPackage) {
     function postLoad(data){
         // loops over the data and attaches the class with the highest prob
         data.forEach(function(d,i) {
-            if (d.class_prob.length>0){
+            if (d.class_prob && d.class_prob.length>0){
                 var imax = d.class_prob.indexOf(Math.max(...d.class_prob));
                 var top_class = d.ClassName[imax]
                 if (top_class !== "undefined") {
