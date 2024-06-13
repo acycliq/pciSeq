@@ -137,7 +137,8 @@ def make_glyphConfig_js(gene_panel, pciSeq_dir, dst):
     json_file = os.path.join(pciSeq_dir, 'static', 'color_scheme', 'geneColors.json')
     with open(json_file, 'r') as f:
         data = json.load(f)
-        _make_glyphConfig_js(gene_panel, data, dst)
+        out = _make_glyphConfig_js(gene_panel, data, dst)
+    return out
 
 
 def _make_glyphConfig_js(gene_panel, data, dst):
@@ -168,6 +169,7 @@ def _make_glyphConfig_js(gene_panel, data, dst):
     with open(config, 'w') as data:
         data.write(str(config_str))
     viewer_utils_logger.info('glyph color scheme saved at %s' % config)
+    return data
 
 
 def copy_viewer_code(dst, dim):
@@ -180,8 +182,14 @@ def copy_viewer_code(dst, dim):
     return pciSeq_dir
 
 
-def build_pointcloud(spots_df, pciSeq_dir, dst):
-    gs = gene_settings(pciSeq_dir)
+def build_pointcloud(spots_df, pciSeq_dir, dst, gs=None):
+    """
+    USE FUNCTION OVERLOADING!!!
+    """
+    if gs is None:
+        gs = gene_settings(pciSeq_dir)
+    else:
+        gs = _gene_settings(gs)
     spots_df = spots_df.merge(gs, how='left', left_on='Gene', right_on="gene")
 
     # fill the nans with the generic values
@@ -205,6 +213,11 @@ def gene_settings(pciSeq_dir):
     with open(json_file, 'r') as f:
         data = json.load(f)
 
+    out = _gene_settings(data)
+    return out
+
+
+def _gene_settings(data):
     config_dict = [d for d in data if '//' not in d.keys()]
     df = pd.DataFrame(config_dict)
 
@@ -218,10 +231,7 @@ def gene_settings(pciSeq_dir):
     df['classification'] = classification
 
     # attach now the rgb colors
-    out = rgb_helper(df)
-
-    return out
-
+    return rgb_helper(df)
 
 def build_las(data, las_path):
     raw = data.values
