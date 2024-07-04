@@ -184,14 +184,14 @@ def copy_viewer_code(dst, dim):
 
 def build_pointcloud(spots_df, pciSeq_dir, dst, gs=None):
     """
-    USE FUNCTION OVERLOADING!!!
+    USE FUNCTION OVERLOADING!!! (multidispatch maybe or typing)
     """
     if gs is None:
         gs = gene_settings(pciSeq_dir)
     else:
         gs = _gene_settings(gs)
     spots_df = spots_df.merge(gs, how='left', left_on='Gene', right_on="gene")
-
+    spots_df = spots_df.dropna()
     # fill the nans with the generic values
     generic = gs[gs.gene == 'generic']
     fields = ['color', 'glyphName', 'classification', 'r', 'g', 'b']
