@@ -31,7 +31,7 @@ def filter_spots(spots, bbox):
     return df, origin
 
 
-def chunk_image(image):
+def slice_image(image):
     indices = list(np.ndindex(*image.numblocks))
     slices = da.core.slices_from_chunks(image.chunks)
     img = [image[s] for s in slices]
@@ -39,14 +39,14 @@ def chunk_image(image):
     return out, slices
 
 
-def chunk_spots(spots, slices):
+def slice_spots(spots, slices):
     bbox = [[[el.start, el.stop] for el in d] for d in slices]
     return [filter_spots(spots, b) for b in bbox]
 
 
-def chunk_data(image, spots):
-    img_chunks, slices = chunk_image(image)
-    spot_chunks = chunk_spots(spots, slices)
+def slice_data(image, spots):
+    img_chunks, slices = slice_image(image)
+    spot_chunks = slice_spots(spots, slices)
     return img_chunks, spot_chunks
 
 
@@ -66,6 +66,7 @@ def fit_old(spots, coo, scRNAseq, opts) -> Tuple[pd.DataFrame, pd.DataFrame]:
     # geneData = da.from_delayed(out_2)
     return cellData
 
+
 def fit(spots, image, scRNAseq, opts):
     spots = dd.from_pandas(spots, npartitions=1)
     depth = 10
@@ -77,7 +78,7 @@ def fit(spots, image, scRNAseq, opts):
     boundary = "reflect"
     image = da.overlap.overlap(image, depth=depth, boundary=boundary)
 
-    out_1,  out_2 = chunk_data(image, spots)
+    out_1,  out_2 = slice_data(image, spots)
     celltyped_blocks = np.empty(image.numblocks, dtype=object)
 
     for img_block, spot_block in zip(out_1, out_2):
