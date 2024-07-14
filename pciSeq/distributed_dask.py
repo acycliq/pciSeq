@@ -3,13 +3,10 @@ import numpy  as np
 import dask
 import dask.array as da
 import dask.dataframe as dd
-import functools
-import logging
-import operator
-import dask.dataframe as ddf
 from typing import Tuple
 from scipy.sparse import load_npz, coo_matrix
 from pciSeq import fit as fit_chunk
+
 
 import os
 
@@ -81,6 +78,7 @@ def fit(spots, image, scRNAseq, opts):
     out_1,  out_2 = slice_data(image, spots)
     celltyped_blocks = np.empty(image.numblocks, dtype=object)
 
+    lazy_results = []
     for img_block, spot_block in zip(out_1, out_2):
         block_id = img_block[1]
         spots_origin = spot_block[1]
@@ -91,15 +89,17 @@ def fit(spots, image, scRNAseq, opts):
             scRNAseq=scRNAseq,
             opts=opts
         )
+        lazy_results.append(res)
 
 
-    return res
+    return lazy_results
 
 
 
 
 
 if __name__ == "__main__":
+    from dask.distributed import Client, progress
     from pciSeq.src.core.logger import attach_to_log
 
     ROOT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -127,8 +127,10 @@ if __name__ == "__main__":
              }
 
     label_image = _coo.toarray()
+
+    # client = Client(threads_per_worker=4, n_workers=1)
     res = fit(_iss_spots, label_image, _scRNAseq, _opts)
-    out = res.compute()
+    out = dask.compute(*res)
 
     # label_image = da.overlap.overlap(da.asarray(label_image), 10, "reflect")
     # img, spt = chunk_data(label_image, _iss_spots)
