@@ -6,6 +6,7 @@ import dask.dataframe as dd
 from typing import Tuple
 from scipy.sparse import load_npz, coo_matrix
 from pciSeq import fit as fit_chunk
+import time
 
 
 import os
@@ -129,8 +130,15 @@ if __name__ == "__main__":
     label_image = _coo.toarray()
 
     # client = Client(threads_per_worker=4, n_workers=1)
+    tic = time.time()
     res = fit(_iss_spots, label_image, _scRNAseq, _opts)
-    out = dask.compute(*res)
+    # client = Client(processes=False, n_workers=1, threads_per_worker=1)
+    # print(client)
+    with dask.config.set(scheduler='threads'):
+        out = dask.compute(*res)
+    toc = time.time()
+    print(f"Computation time: {toc - tic:.2f} seconds\n")
+
 
     # label_image = da.overlap.overlap(da.asarray(label_image), 10, "reflect")
     # img, spt = chunk_data(label_image, _iss_spots)
