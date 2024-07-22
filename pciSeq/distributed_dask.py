@@ -79,21 +79,24 @@ def fit(spots, image, scRNAseq, opts):
     out_1,  out_2 = slice_data(image, spots)
     celltyped_blocks = np.empty(image.numblocks, dtype=object)
 
-    lazy_results = []
+    lazy_data = []
     for img_block, spot_block in zip(out_1, out_2):
         block_id = img_block[1]
         spots_origin = spot_block[1]
+        so = da.asarray(spots_origin)
         print(block_id)
-        res = dask.delayed(fit_chunk, nout=1)(
+        cd, gd = dask.delayed(fit_chunk, nout=2)(
             spots=spot_block[0],
             coo=coo_matrix(img_block[0]),
             scRNAseq=scRNAseq,
             opts=opts
         )
-        lazy_results.append(res)
+        # stick the spots origin next to the gene data inside a tuple.
+        # Then get the cell data too
+        lazy_data.append((cd, (gd, so)))
 
+    return lazy_data
 
-    return lazy_results
 
 
 
@@ -131,11 +134,11 @@ if __name__ == "__main__":
 
     # client = Client(threads_per_worker=4, n_workers=1)
     tic = time.time()
-    res = fit(_iss_spots, label_image, _scRNAseq, _opts)
+    lazy_results = fit(_iss_spots, label_image, _scRNAseq, _opts)
     # client = Client(processes=False, n_workers=1, threads_per_worker=1)
     # print(client)
     with dask.config.set(scheduler='threads'):
-        out = dask.compute(*res)
+        res = dask.compute(*lazy_results)
     toc = time.time()
     print(f"Computation time: {toc - tic:.2f} seconds\n")
 
