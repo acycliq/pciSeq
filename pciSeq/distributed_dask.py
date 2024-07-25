@@ -140,6 +140,9 @@ if __name__ == "__main__":
     with dask.config.set(scheduler='threads'):
         res = dask.compute(*lazy_results)
     toc = time.time()
+    for i, v in enumerate(res):
+        df = v[1][0]
+        df.to_csv('df_%d.csv' % i)
     print(f"Computation time: {toc - tic:.2f} seconds\n")
 
 
