@@ -419,7 +419,7 @@ def view_pointcloud(df: pd.DataFrame, glyph_colours):
     df = df.assign(Gene_id=Gene_id)
     df = df.assign(x=df.x - df.x.mean())
     df = df.assign(y=df.y - df.y.mean())
-    df = df.assign(z=df.z_plane - df.z_plane.mean())
+    df = df.assign(z=df.z - df.z.mean())
     dst = get_out_dir()
     pciSeq_dir = copy_viewer_code(dst, dim='3D')
 
@@ -444,8 +444,8 @@ def view_pointcloud(df: pd.DataFrame, glyph_colours):
         data = json.load(f)
         if 'generic' not in [d['gene'] for d in data]:
             data.append({"gene": "generic", "color": "#0000FF", "glyphName": "circle"})
-    # _make_glyphConfig_js(gene_panel, data, dst)
-    build_pointcloud(df, pciSeq_dir, dst, data)
+    _make_glyphConfig_js(gene_panel, data, dst)
+    build_pointcloud(df, pciSeq_dir, dst)
     flask_app_start(dst)
 
 
