@@ -391,19 +391,8 @@
             configSettings.cellData["name"] = "cellData";
             // configSettings.geneData["name"] = "geneData";
             // configSettings.cellBoundaries["name"] = "cellBoundaries";
-            try {
-                console.log('calling make_package()')
-                make_package([configSettings.cellData])
-            }
-            // catch(err){
-            //     removePreloader()
-            // }
-            finally {
-                console.log('calling removePreloader()')
-                removePreloader()
-                clearScreen()
-            }
 
+            make_package([configSettings.cellData])
         }
 
 

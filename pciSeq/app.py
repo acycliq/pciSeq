@@ -1,6 +1,6 @@
 import os
 import redis
-import json
+import pickle
 import numpy as np
 import pandas as pd
 from typing import Tuple
@@ -14,7 +14,7 @@ from pciSeq.src.viewer.run_flask import flask_app_start
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 from pciSeq.src.viewer.utils import (copy_viewer_code, make_config_js,
-                                     make_classConfig_js, make_glyphConfig_js, _make_glyphConfig_js,
+                                     make_classConfig_js, make_glyphConfig_js,
                                      make_classConfig_nsc_js, build_pointcloud,
                                      cellData_rgb, cell_gene_counts)
 import logging
@@ -365,8 +365,7 @@ def pre_launch(cellData, geneData, coo, scRNAseq, cfg):
     cfg['is3D'] = False if cfg['launch_viewer'] == '2d' else cfg['launch_viewer']
     [n, h, w] = get_img_shape(coo)
     dst = get_out_dir(cfg['output_path'])
-    dim = '3D' if cfg['is3D'] else '2D'
-    pciSeq_dir = copy_viewer_code(dst, dim)
+    pciSeq_dir = copy_viewer_code(cfg, dst)
     make_config(dst, pciSeq_dir, (cellData, scRNAseq, h, w))
     if cfg['is3D']:
         # ***************************************
@@ -412,41 +411,6 @@ def make_config(target_dir, source_dir, data):
     # 3. make the file for the glyph colors
     gene_panel = scRNAseq.index.values
     make_glyphConfig_js(gene_panel, source_dir, target_dir)
-
-
-def view_pointcloud(df: pd.DataFrame, glyph_colours):
-    gene_panel, Gene_id = np.unique(df.Gene, return_inverse=True)
-    df = df.assign(Gene_id=Gene_id)
-    df = df.assign(x=df.x - df.x.mean())
-    df = df.assign(y=df.y - df.y.mean())
-    df = df.assign(z=df.z - df.z.mean())
-    dst = get_out_dir()
-    pciSeq_dir = copy_viewer_code(dst, dim='3D')
-
-    # Make the config.module.js.
-    # Do a dedicated function for this. The 2d looks to be fine. For the
-    # 3d viewer you need to make it as a new standalone function
-    # This one here is a very basic one. It will work for viewing the spot pointcloud.
-    # But within a complete solution where you also have cells you need to do
-    # this in a similar manner to the 2d case
-    config_str = " var config = function () { \n" \
-                 "     return { \n" \
-                 "        cellData: { } \n" \
-                 "     }  \n" \
-                 " }; \n" \
-                 " export default config;"
-    config = os.path.join(dst, 'viewer', 'libs', 'config.module.js')
-    with open(config, 'w') as data:
-        data.write(str(config_str))
-        app_logger.info('config.module.js was saved at %s' % config)
-
-    with open(glyph_colours, 'r') as f:
-        data = json.load(f)
-        if 'generic' not in [d['gene'] for d in data]:
-            data.append({"gene": "generic", "color": "#0000FF", "glyphName": "circle"})
-    _make_glyphConfig_js(gene_panel, data, dst)
-    build_pointcloud(df, pciSeq_dir, dst)
-    flask_app_start(dst)
 
 
 def confirm_prompt(question):

@@ -137,10 +137,6 @@ def make_glyphConfig_js(gene_panel, pciSeq_dir, dst):
     json_file = os.path.join(pciSeq_dir, 'static', 'color_scheme', 'geneColors.json')
     with open(json_file, 'r') as f:
         data = json.load(f)
-        _make_glyphConfig_js(gene_panel, data, dst)
-
-
-def _make_glyphConfig_js(gene_panel, data, dst):
 
     config_dict = [d for d in data if '//' not in d.keys()]
 
@@ -170,8 +166,9 @@ def _make_glyphConfig_js(gene_panel, data, dst):
     viewer_utils_logger.info('glyph color scheme saved at %s' % config)
 
 
-def copy_viewer_code(dst, dim):
+def copy_viewer_code(cfg, dst):
     pciSeq_dir = get_pciSeq_install_dir()
+    dim = '3D' if cfg['is3D'] else '2D'
     src = os.path.join(pciSeq_dir, 'static', dim)
 
     shutil.copytree(src, dst, dirs_exist_ok=True)
