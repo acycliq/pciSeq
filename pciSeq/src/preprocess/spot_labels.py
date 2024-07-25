@@ -192,7 +192,7 @@ def stage_data(spots: pd.DataFrame, coo: list, cfg: dict) -> Tuple[pd.DataFrame,
     assert set(spots.label[spots.label > 0]) <= set(props_df.label)
 
     _cells = props_df.rename(columns={'x_cell': 'x0', 'y_cell': 'y0', 'z_cell': 'z0'})
-    _spots = spots[['x', 'y', 'z', 'label', 'Gene']].rename_axis('spot_id').rename(columns={'Gene': 'gene_name'})
+    _spots = spots[['x', 'y', 'z', 'label', 'Gene', 'uid']].rename_axis('spot_id').rename(columns={'Gene': 'gene_name'})
 
     return _cells, _cell_boundaries, _spots, remapping
 

@@ -227,6 +227,7 @@ def validate(spots, coo, scData, cfg):
     # do some datatype casting
     spots = spots.astype({
         'Gene': str,
+        'uid': np.uint32,
         'x': np.float32,
         'y': np.float32,
         'z_plane': np.float32})
@@ -268,6 +269,9 @@ def _validate_spots(spots, coo, sc, cfg):
     # be treated as 3d
     if isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y'}:
         spots = spots.assign(z_plane=0)
+
+    # finally stick a spot_id column
+    spots = spots.assign(uid=spots.index.values)
 
     return spots
 

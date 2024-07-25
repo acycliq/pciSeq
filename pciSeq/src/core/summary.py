@@ -74,6 +74,7 @@ def spots_summary(spots, is3D):
 
     out = pd.DataFrame({'Gene': spots.data.gene_name.tolist(),
                         'Gene_id': spots.gene_id.tolist(),
+                        'uid': spots.data.uid.tolist(),
                         'x': spots.data.x.tolist(),
                         'y': spots.data.y.tolist(),
                         'neighbour': max_nbrs.tolist(),

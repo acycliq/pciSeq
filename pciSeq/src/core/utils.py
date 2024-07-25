@@ -351,18 +351,20 @@ def scaled_exp(cell_area_factor, sc_mean_expressions, inefficiency):
 
 def adjust_for_anisotropy(spots, voxel_size):
     gene_col = spots.Gene.values[:, None]
+    uid_col = spots.uid.values[:, None]
     z_plane = np.float32(spots.z_plane.values[:, None])
 
     data = spots[['x', 'y', 'z_plane']]
     spots_adj = anisotropy_calc(data, voxel_size)
 
-    spots_adj = np.hstack([gene_col, spots_adj, z_plane])
-    spots_adj = pd.DataFrame(spots_adj, columns=['Gene', 'x', 'y', 'z', 'z_plane'])
+    spots_adj = np.hstack([gene_col, spots_adj, z_plane, uid_col])
+    spots_adj = pd.DataFrame(spots_adj, columns=['Gene', 'x', 'y', 'z', 'z_plane', 'uid'])
     spots_adj = spots_adj.astype({'x': 'float32',
                                   'y': 'float32',
                                   'z': 'float32',
                                   'z_plane': 'float32',
-                                  'Gene': str})
+                                  'Gene': str,
+                                  'uid': np.uint32})
     return spots_adj  # Nspots x 3
 
 
