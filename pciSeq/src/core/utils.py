@@ -282,7 +282,7 @@ def keep_labels_unique(scdata):
     return scdata.drop(['total'], axis=1)
 
 
-@dask.delayed
+# @dask.delayed
 def scaled_exp(cell_area_factor, sc_mean_expressions, inefficiency):
     if np.all(cell_area_factor == 1):
         subscripts = 'gk, g -> gk'

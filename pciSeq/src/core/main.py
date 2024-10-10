@@ -7,6 +7,7 @@ from scipy.special import softmax
 import pciSeq.src.core.utils as utils
 from pciSeq.src.core.summary import collect_data
 from pciSeq.src.diagnostics.utils import redis_db
+from dask.delayed import delayed
 from pciSeq.src.core.datatypes import Cells, Spots, Genes, SingleCell, CellType
 import logging
 
@@ -34,6 +35,7 @@ class VarBayes:
         self.iter_delta = []
         self.has_converged = False
         self._scaled_exp = None
+        self.needs_recalc = True
 
     @property
     def scaled_exp(self):
@@ -47,7 +49,7 @@ class VarBayes:
         # FYI: https://realpython.com/python-pickle-module/
         attributes = self.__dict__.copy()
         del attributes['redis_db']
-        del attributes['_scaled_exp']
+        # del attributes['_scaled_exp']
         return attributes
 
     def initialise(self):
@@ -89,7 +91,9 @@ class VarBayes:
             self.spots_to_cell()
 
             # 6. update gene efficiency
-            self.eta_upd()
+            # if 'overrides' not in self.config:
+            if self.needs_recalc:
+                self.eta_upd()
 
             # 7. update the dirichlet distribution
             if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):
@@ -101,6 +105,7 @@ class VarBayes:
 
             self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
             main_logger.info('Iteration %d, mean prob change %f' % (i, delta))
+            print('Iteration %d, mean prob change %f' % (i, delta))
 
             # keep track of the deltas
             self.iter_delta.append(delta)
@@ -125,7 +130,18 @@ class VarBayes:
                     {'gene_name': 'Cxcl14', 'x': 109, 'y': 5461.123},
                     {'gene_name': 'Plp1', 'x': 135, 'y': 5425},
                 ]
-                self.calculate_spot_contributions(51, point_dict)
+
+                point_dict = [
+                    {'gene_name': 'Gad1', 'x': 4472, 'y': 427},
+                    {'gene_name': 'Gad1', 'x': 4471, 'y': 430},
+                    # {'gene_name': 'Gad1', 'x': 4465, 'y': 430},
+                    # {'gene_name': 'Gad1', 'x': 4464, 'y': 431},
+                    # {'gene_name': 'Gad1', 'x': 4460, 'y': 430},
+                    # {'gene_name': 'Gad1', 'x': 4461, 'y': 436},
+                    # {'gene_name': 'Gad1', 'x': 4466, 'y': 439},
+                    # {'gene_name': 'Kit', 'x': 4464, 'y': 439},
+                ]
+                # self.calculate_spot_contributions(2259, point_dict)
                 cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
                 break
 
@@ -177,15 +193,15 @@ class VarBayes:
         cells = self.cells
         cfg = self.config
 
-        self._scaled_exp = utils.scaled_exp(cells.ini_cell_props['area_factor'],
+        self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
                                             self.single_cell.mean_expression.values,
-                                            self.genes.eta_bar)
+                                            self.genes.eta_bar))
 
         beta = self.scaled_exp.compute() + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
-        self.spots._gamma_bar = self.spots.gammaExpectation(rho, beta)
-        self.spots._log_gamma_bar = self.spots.logGammaExpectation(rho, beta)
+        self.spots._gamma_bar = delayed(self.spots.gammaExpectation(rho, beta))
+        self.spots._log_gamma_bar = delayed(self.spots.logGammaExpectation(rho, beta))
 
     # -------------------------------------------------------------------- #
     def cell_to_cellType(self):
@@ -482,11 +498,12 @@ class VarBayes:
         self.redis_db.publish(df, "cell_type_posterior", iteration=self.iter_num, has_converged=self.has_converged,
                               unix_time=time.time())
 
-    def calculate_spot_contributions(self, cell_num, datapoints=None):
+    def calculate_spot_contributions(self, cell_num, datapoints):
         self.config['launch_diagnostics'] = False
-        self.config['launch_viewer'] = True
+        self.config['launch_viewer'] = False
         self.config['save_data'] = False
         self.config['is_redis_running'] = False
+        self.needs_recalc = False
 
         mask = np.any(self.spots.cells_nearby(self.cells) == cell_num, axis=1)
         df = self.spots.data[mask]
@@ -501,8 +518,7 @@ class VarBayes:
         self.nS = self.spots.data.shape[0]
         self.spots.nS = self.spots.data.shape[0]
 
-        if datapoints is not None:
-            datapoints = utils.get_closest(df, datapoints)
+        datapoints = utils.get_closest(df, datapoints)
 
         # set the overrides
         self.set_overrides(datapoints)

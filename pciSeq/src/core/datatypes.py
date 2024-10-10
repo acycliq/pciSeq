@@ -193,8 +193,8 @@ class Spots(object):
         # But even if they werent, I would remove them anyway because they
         # make the pickle file a lot larger!
         attributes = self.__dict__.copy()
-        del attributes['_gamma_bar']
-        del attributes['_log_gamma_bar']
+        # del attributes['_gamma_bar']
+        # del attributes['_log_gamma_bar']
         return attributes
 
     # -------- PROPERTIES -------- #
@@ -241,7 +241,8 @@ class Spots(object):
             nrows = len(spot_id)
             tmp = np.zeros([nrows, ncols])
             tmp[:, -1] = np.ones(nrows)
-            self._parent_cell_prob[spot_id] = tmp
+            ispot_id = [i for i, v in enumerate(self.data.index.values) if v in spot_id]
+            self._parent_cell_prob[ispot_id] = tmp
             print('parent_cell_prob: override')
             print(spot_id)
 
@@ -253,16 +254,16 @@ class Spots(object):
 
     @parent_cell_id.setter
     def parent_cell_id(self, val):
-        if 'overrides' in self.config:
-            df = pd.DataFrame(self.config['overrides'])
-            spot_id = df.spot_id.to_list()
-            ncols = self.config['nNeighbors'] + 1
-            nrows = df.shape[0]
-
-            # assign the spots to the background
-            val[spot_id, :] = np.zeros([nrows, ncols])
-            print('mapped to the background')
-            print(spot_id)
+        # if 'overrides' in self.config:
+        #     df = pd.DataFrame(self.config['overrides'])
+        #     spot_id = df.spot_id.to_list()
+        #     ncols = self.config['nNeighbors'] + 1
+        #     nrows = df.shape[0]
+        #
+        #     # assign the spots to the background
+        #     val[spot_id, :] = np.zeros([nrows, ncols])
+        #     print('mapped to the background')
+        #     print(spot_id)
         self._parent_cell_id = val
 
     # -------- METHODS -------- #
@@ -380,7 +381,7 @@ class Spots(object):
         TotPredictedZ = np.bincount(geneNo, pSpotZero)
         return TotPredictedZ
 
-    @dask.delayed
+    # @dask.delayed
     def gammaExpectation(self, rho, beta):
         """
         :param r:
@@ -391,7 +392,7 @@ class Spots(object):
         r = rho[:, :, None]
         return r / beta
 
-    @dask.delayed
+    # @dask.delayed
     def logGammaExpectation(self, rho, beta):
         r = rho[:, :, None]
         return scipy.special.psi(r) - np.log(beta)
