@@ -59,12 +59,16 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def run(self):
+        self.initialise()
+        cell_df, gene_df = self.main_loop()
+        return cell_df, gene_df
+
+    def main_loop(self):
         p0 = None
         cell_df = None
         gene_df = None
         max_iter = self.config['max_iter']
 
-        self.initialise()
         for i in range(max_iter):
             self.iter_num = i
 
@@ -109,6 +113,19 @@ class VarBayes:
 
             if self.has_converged:
                 # self.counts_within_radius(20)
+                # point_dict = {
+                #     'gene_name': ['Pcp4', 'Plp1', 'Reln', 'Cxcl14', 'Plp1'],
+                #     'x': [107, 158, 122, 110, 135],
+                #     'y': [5443, 5420, 5420, 5457, 5425]
+                # }
+                point_dict = [
+                    {'gene_name': 'Pcp4', 'x': 107, 'y': 5443},
+                    {'gene_name': 'Plp1', 'x': 158, 'y': 5420},
+                    {'gene_name': 'Reln', 'x': 122, 'y': 5420},
+                    {'gene_name': 'Cxcl14', 'x': 109, 'y': 5461.123},
+                    {'gene_name': 'Plp1', 'x': 135, 'y': 5425},
+                ]
+                self.calculate_spot_contributions(51, point_dict)
                 cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
                 break
 
@@ -464,3 +481,38 @@ class VarBayes:
         })
         self.redis_db.publish(df, "cell_type_posterior", iteration=self.iter_num, has_converged=self.has_converged,
                               unix_time=time.time())
+
+    def calculate_spot_contributions(self, cell_num, datapoints=None):
+        self.config['launch_diagnostics'] = False
+        self.config['launch_viewer'] = True
+        self.config['save_data'] = False
+        self.config['is_redis_running'] = False
+
+        mask = np.any(self.spots.cells_nearby(self.cells) == cell_num, axis=1)
+        df = self.spots.data[mask]
+
+        self.spots.Dist = self.spots.Dist[mask]
+        self.spots.data = self.spots.data[mask]
+        self.spots.gene_id = self.spots.gene_id[mask]
+        self.spots.parent_cell_id = self.spots.parent_cell_id[mask]
+        self.spots.parent_cell_prob = self.spots.parent_cell_prob[mask]
+        # self.spots.xy_coords = self.spots.xy_coords[mask]
+        _, _, counts_per_gene_masked = np.unique(self.spots.data.gene_name.values, return_inverse=True, return_counts=True)
+        self.nS = self.spots.data.shape[0]
+        self.spots.nS = self.spots.data.shape[0]
+
+        if datapoints is not None:
+            datapoints = utils.get_closest(df, datapoints)
+
+        # set the overrides
+        self.set_overrides(datapoints)
+        self.spots.parent_cell_prob = self.spots.parent_cell_prob
+
+        # redo the estimation
+        cell_df, gene_df = self.main_loop()
+
+        return cell_df, gene_df
+
+    def set_overrides(self, data):
+        self.config['overrides'] = data.to_dict(orient='records')
+        main_logger.info('overrides saved!')

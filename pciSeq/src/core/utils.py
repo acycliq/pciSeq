@@ -10,6 +10,7 @@ import os
 import glob
 import subprocess
 from email.parser import BytesHeaderParser
+from scipy.spatial import cKDTree
 import logging
 
 utils_logger = logging.getLogger(__name__)
@@ -291,3 +292,39 @@ def scaled_exp(cell_area_factor, sc_mean_expressions, inefficiency):
         operands = [cell_area_factor, sc_mean_expressions, inefficiency]
     out = np.einsum(subscripts, *operands)
     return out
+
+
+# def get_closest(spots, query_vals):
+#     assert {'x', 'y', 'gene_name'}.issubset(spots.columns)
+#     assert spots.index.name == 'spot_id'
+#
+#     spots_coords = spots[['x', 'y']].values
+#     nbrs = NearestNeighbors(n_neighbors=1, algorithm='ball_tree').fit(spots_coords)
+#     dist, closest = nbrs.kneighbors(query_vals)
+#     closest = closest[:, 0]
+#     return spots.iloc[closest]
+
+def get_closest(spots, query_vals):
+
+    # Filter spots based on gene_name
+    query_vals = pd.DataFrame(query_vals)
+    gene_names = query_vals['gene_name']
+    filtered_spots = spots[spots['gene_name'].isin(gene_names)]
+
+    # Create KDTree from filtered spots
+    tree = cKDTree(filtered_spots[['x', 'y']])
+
+    # Find nearest neighbors
+    distances, indices = tree.query(np.column_stack((query_vals['x'], query_vals['y'])))
+
+    # Create result DataFrame
+    result = filtered_spots.iloc[indices].reset_index()
+    result = result[result['gene_name'] == query_vals['gene_name']]
+
+    # Sort by spot_id (index of the original spots DataFrame)
+    result = result.sort_values('spot_id')
+
+    # Select and rename columns
+    result = result[['gene_name', 'spot_id', 'x', 'y']]
+
+    return result

@@ -234,6 +234,18 @@ class Spots(object):
     @parent_cell_prob.setter
     def parent_cell_prob(self, val):
         self._parent_cell_prob = val
+        if 'overrides' in self.config:
+            ncols = self.config['nNeighbors'] + 1
+            df = pd.DataFrame(self.config['overrides'])
+            spot_id = df.spot_id.to_list()
+            nrows = len(spot_id)
+            tmp = np.zeros([nrows, ncols])
+            tmp[:, -1] = np.ones(nrows)
+            self._parent_cell_prob[spot_id] = tmp
+            print('parent_cell_prob: override')
+            print(spot_id)
+
+
 
     @property
     def parent_cell_id(self):
@@ -241,6 +253,16 @@ class Spots(object):
 
     @parent_cell_id.setter
     def parent_cell_id(self, val):
+        if 'overrides' in self.config:
+            df = pd.DataFrame(self.config['overrides'])
+            spot_id = df.spot_id.to_list()
+            ncols = self.config['nNeighbors'] + 1
+            nrows = df.shape[0]
+
+            # assign the spots to the background
+            val[spot_id, :] = np.zeros([nrows, ncols])
+            print('mapped to the background')
+            print(spot_id)
         self._parent_cell_id = val
 
     # -------- METHODS -------- #
