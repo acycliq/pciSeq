@@ -193,8 +193,8 @@ class Spots(object):
         # But even if they werent, I would remove them anyway because they
         # make the pickle file a lot larger!
         attributes = self.__dict__.copy()
-        # del attributes['_gamma_bar']
-        # del attributes['_log_gamma_bar']
+        del attributes['_gamma_bar']
+        del attributes['_log_gamma_bar']
         return attributes
 
     # -------- PROPERTIES -------- #

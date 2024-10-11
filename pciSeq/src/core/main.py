@@ -49,7 +49,7 @@ class VarBayes:
         # FYI: https://realpython.com/python-pickle-module/
         attributes = self.__dict__.copy()
         del attributes['redis_db']
-        # del attributes['_scaled_exp']
+        del attributes['_scaled_exp']
         return attributes
 
     def initialise(self):
