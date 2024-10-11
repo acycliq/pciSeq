@@ -103,6 +103,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     # 5. prepare the data
     app_logger.info('Preprocessing data')
     _cells, cellBoundaries, _spots, remapping = stage_data(spots, coo, cfg)
+    cfg['remapping'] = remapping
 
     # 6. cell typing
     cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
@@ -226,7 +227,7 @@ def validate(spots, coo, scData, cfg):
 
     # do some datatype casting
     spots = spots.astype({
-        'Gene': str,
+        'gene_name': str,
         'x': np.float32,
         'y': np.float32,
         'z_plane': np.float32})
@@ -254,19 +255,19 @@ def _validate_spots(spots, coo, sc, cfg):
 
     # check the spots
     if not cfg['is3D']:
-        assert {'Gene', 'x', 'y'}.issubset(spots.columns), ("Spots should be passed-in to the fit() "
-                                                            "method as a dataframe with columns ['Gene', 'x', 'y']")
+        assert {'gene_name', 'x', 'y'}.issubset(spots.columns), ("Spots should be passed-in to the fit() "
+                                                            "method as a dataframe with columns ['gene_name', 'x', 'y']")
     else:
-        assert set(spots.columns) == {'Gene', 'x', 'y', 'z_plane'}, ("Spots should be passed-in to the fit() method "
-                                                                     "as a dataframe with columns 'Gene', 'x',  'y', "
+        assert set(spots.columns) == {'gene_name', 'x', 'y', 'z_plane'}, ("Spots should be passed-in to the fit() method "
+                                                                     "as a dataframe with columns 'gene_name', 'x',  'y', "
                                                                      "'z_plane'")
 
-    if len(coo) > 1 and set(spots.columns) == {'Gene', 'x', 'y'}:
+    if len(coo) > 1 and set(spots.columns) == {'gene_name', 'x', 'y'}:
         raise ValueError("Label image is 3D, the spots are 2D")
 
     # if you have feed a 2d spot, append a flat z dimension so that everything in the code from now on will
     # be treated as 3d
-    if isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y'}:
+    if isinstance(spots, pd.DataFrame) and set(spots.columns) == {'gene_name', 'x', 'y'}:
         spots = spots.assign(z_plane=0)
 
     return spots
@@ -307,7 +308,7 @@ def _validate_cfg(cfg, coo):
 
 def clean_spots(spots, sc):
     # remove genes that cannot been found in the single cell data
-    if (sc is not None) and (not set(spots.Gene).issubset(sc.index)):
+    if (sc is not None) and (not set(spots.gene_name).issubset(sc.index)):
         spots = purge_spots(spots, sc)
     return spots
 

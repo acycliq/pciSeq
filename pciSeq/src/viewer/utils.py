@@ -179,7 +179,7 @@ def copy_viewer_code(cfg, dst):
 
 def build_pointcloud(spots_df, pciSeq_dir, dst):
     gs = gene_settings(pciSeq_dir)
-    spots_df = spots_df.merge(gs, how='left', left_on='Gene', right_on="gene")
+    spots_df = spots_df.merge(gs, how='left', left_on='gene_name', right_on="gene")
     spots_df = spots_df.dropna()
     # fill the nans with the generic values
     generic = gs[gs.gene == 'generic']
@@ -187,7 +187,7 @@ def build_pointcloud(spots_df, pciSeq_dir, dst):
     for f in fields:
         spots_df[f] = spots_df[f].fillna(generic[f].values[0])
 
-    spots = spots_df.rename(columns={'Gene_id': 'pointSourceID'})
+    spots = spots_df.rename(columns={'gene_id': 'pointSourceID'})
 
     data_folder = os.path.join(dst, 'data')
     Path(data_folder).mkdir(parents=True, exist_ok=True)
@@ -343,10 +343,10 @@ def cellData_rgb(cellData, pciSeq_dir, dst):
 
 
 def cell_gene_counts(spots_df, dst):
-    df = spots_df[['Gene', 'x', 'y', 'z', 'neighbour']]
+    df = spots_df[['gene_name', 'x', 'y', 'z', 'neighbour']]
 
     df = df[df.neighbour > 0]
-    df = df.rename({'Gene': 'gene'}, axis=1)
+    df = df.rename({'gene_name': 'gene'}, axis=1)
 
     data_folder = os.path.join(dst, 'data', 'cell_gene_counts')
     Path(data_folder).mkdir(parents=True, exist_ok=True)

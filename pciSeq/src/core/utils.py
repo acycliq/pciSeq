@@ -12,6 +12,7 @@ import glob
 import subprocess
 import numbers
 from email.parser import BytesHeaderParser
+from scipy.spatial import cKDTree
 import logging
 
 utils_logger = logging.getLogger(__name__)
@@ -337,7 +338,7 @@ def keep_labels_unique(scdata):
     return scdata.drop(['total'], axis=1)
 
 
-@dask.delayed
+# @dask.delayed
 def scaled_exp(cell_area_factor, sc_mean_expressions, inefficiency):
     if np.all(cell_area_factor == 1):
         subscripts = 'gk, g -> gk'
@@ -350,19 +351,19 @@ def scaled_exp(cell_area_factor, sc_mean_expressions, inefficiency):
 
 
 def adjust_for_anisotropy(spots, voxel_size):
-    gene_col = spots.Gene.values[:, None]
+    gene_col = spots.gene_name.values[:, None]
     z_plane = np.float32(spots.z_plane.values[:, None])
 
     data = spots[['x', 'y', 'z_plane']]
     spots_adj = anisotropy_calc(data, voxel_size)
 
     spots_adj = np.hstack([gene_col, spots_adj, z_plane])
-    spots_adj = pd.DataFrame(spots_adj, columns=['Gene', 'x', 'y', 'z', 'z_plane'])
+    spots_adj = pd.DataFrame(spots_adj, columns=['gene_name', 'x', 'y', 'z', 'z_plane'])
     spots_adj = spots_adj.astype({'x': 'float32',
                                   'y': 'float32',
                                   'z': 'float32',
                                   'z_plane': 'float32',
-                                  'Gene': str})
+                                  'gene_name': str})
     return spots_adj  # Nspots x 3
 
 
@@ -420,7 +421,7 @@ def gaussian_ellipsoid_props(cov, sdwidth=3):
 
 def euler_angles(r):
     theta_x = np.arctan2(r[2, 1], r[2, 2])
-    theta_y = np.arcsin(r[2,0])
+    theta_y = np.arcsin(r[2, 0])
     theta_z = np.arctan2(r[1, 0], r[0, 0])
 
     return [theta_x, theta_y, theta_z]
@@ -490,7 +491,7 @@ def recover_original_labels(cellData, geneData, remapping):
 
 def fetch_label(x, d):
     x = [x] if isinstance(x, numbers.Number) else x
-    out =  [d[v] for v in x]
+    out = [d[v] for v in x]
     return out[0] if len(out) == 1 else out
 
 
@@ -504,12 +505,13 @@ def serialise(varBayes, debug_dir):
 
 
 def purge_spots(spots, sc):
-    drop_spots = list(set(spots.Gene) - set(sc.index))
+    drop_spots = list(set(spots.gene_name) - set(sc.index))
     utils_logger.warning('Found %d genes that are not included in the single cell data' % len(drop_spots))
-    idx = ~ np.in1d(spots.Gene, drop_spots)
+    idx = ~ np.in1d(spots.gene_name, drop_spots)
     spots = spots.iloc[idx]
     utils_logger.warning('Removed from spots: %s' % drop_spots)
     return spots
+
 
 def export_db_tables(out_dir, con):
     tables = con.get_db_tables()
@@ -522,3 +524,33 @@ def export_db_table(table_name, out_dir, con):
     fname = os.path.join(out_dir, table_name + '.csv')
     df.to_csv(fname, index=False)
     utils_logger.info('Saved at %s' % fname)
+
+
+def get_closest(spots, query_vals, voxel_size=None):
+    if voxel_size is None:
+        voxel_size = [1, 1, 1]
+
+    # Filter spots based on gene_name
+    query_vals = pd.DataFrame(query_vals)
+    query_vals = adjust_for_anisotropy(query_vals, voxel_size)
+
+    gene_names = query_vals['gene_name']
+    filtered_spots = spots[spots['gene_name'].isin(gene_names)]
+
+    # Create KDTree from filtered spots
+    tree = cKDTree(filtered_spots[['x', 'y', 'z']])
+
+    # Find nearest neighbors
+    distances, indices = tree.query(np.column_stack((query_vals['x'], query_vals['y'], query_vals['z'])))
+
+    # Create result DataFrame
+    result = filtered_spots.iloc[indices].reset_index()
+    result = result[result['gene_name'] == query_vals['gene_name']]
+
+    # Sort by spot_id (index of the original spots DataFrame)
+    result = result.sort_values('spot_id')
+
+    # Select and rename columns
+    result = result[['gene_name', 'spot_id', 'x', 'y', 'z']]
+
+    return result

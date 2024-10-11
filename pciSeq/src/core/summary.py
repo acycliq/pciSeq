@@ -72,8 +72,8 @@ def spots_summary(spots, is3D):
     nbrs = np.take_along_axis(spots.parent_cell_id, idx, axis=1)
     max_nbrs = nbrs[:, 0]
 
-    out = pd.DataFrame({'Gene': spots.data.gene_name.tolist(),
-                        'Gene_id': spots.gene_id.tolist(),
+    out = pd.DataFrame({'gene_name': spots.data.gene_name.tolist(),
+                        'gene_id': spots.gene_id.tolist(),
                         'x': spots.data.x.tolist(),
                         'y': spots.data.y.tolist(),
                         'neighbour': max_nbrs.tolist(),

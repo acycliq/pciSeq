@@ -4,6 +4,7 @@ import pandas as pd
 import numpy_groupies as npg
 import scipy.spatial as spatial
 from scipy.special import softmax
+from dask.delayed import delayed
 import pciSeq.src.core.utils as utils
 from pciSeq.src.core.summary import collect_data
 from pciSeq.src.diagnostics.utils import redis_db
@@ -34,6 +35,7 @@ class VarBayes:
         self.iter_delta = []
         self.has_converged = False
         self._scaled_exp = None
+        self.needs_recalc = True
 
     @property
     def scaled_exp(self):
@@ -59,6 +61,11 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def run(self):
+        self.initialise()
+        cell_df, gene_df = self.main_loop()
+        return cell_df, gene_df
+
+    def main_loop(self):
         p0 = None
         cell_df = None
         gene_df = None
@@ -85,7 +92,8 @@ class VarBayes:
             self.spots_to_cell()
 
             # 6. update gene efficiency
-            self.eta_upd()
+            if self.needs_recalc:
+                self.eta_upd()
 
             # 7. update the dirichlet distribution
             if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):
@@ -160,15 +168,15 @@ class VarBayes:
         cells = self.cells
         cfg = self.config
 
-        self._scaled_exp = utils.scaled_exp(cells.ini_cell_props['area_factor'],
+        self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
                                             self.single_cell.mean_expression.values,
-                                            self.genes.eta_bar)
+                                            self.genes.eta_bar))
 
         beta = self.scaled_exp.compute() + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
-        self.spots._log_gamma_bar = self.spots.logGammaExpectation(rho, beta)
-        self.spots._gamma_bar = self.spots.gammaExpectation(rho, beta)
+        self.spots._log_gamma_bar = delayed(self.spots.logGammaExpectation(rho, beta))
+        self.spots._gamma_bar = delayed(self.spots.gammaExpectation(rho, beta))
 
     # -------------------------------------------------------------------- #
     def cell_to_cellType(self):
@@ -472,3 +480,60 @@ class VarBayes:
         })
         self.redis_db.publish(df, "cell_type_posterior", iteration=self.iter_num, has_converged=self.has_converged,
                               unix_time=time.time())
+
+    def calculate_spot_contributions(self, cell_num, datapoints):
+        self.config['launch_diagnostics'] = False
+        self.config['launch_viewer'] = False
+        self.config['save_data'] = False
+        self.config['is_redis_running'] = False
+        self.needs_recalc = False
+
+        # some cells might have dropped during preprocessing (because they exist on just one single plane
+        # for example. In such cases has been relabelled so that there are not skipping labels.
+        # Map the original cell_num to the new value
+        if self.config['remapping'] is not None:
+            cell_num = self.config['remapping'][cell_num]
+
+        df_before = self.get_celltypes_for_cell(cell_num)
+
+        mask = np.any(self.spots.cells_nearby(self.cells)[0] == cell_num, axis=1)
+        df = self.spots.data[mask]
+
+        self.spots.Dist = self.spots.Dist[mask]
+        self.spots.data = self.spots.data[mask]
+        self.spots.gene_id = self.spots.gene_id[mask]
+        self.spots.parent_cell_id = self.spots.parent_cell_id[mask]
+        self.spots.parent_cell_prob = self.spots.parent_cell_prob[mask]
+        # self.spots.xy_coords = self.spots.xy_coords[mask]
+        _, _, counts_per_gene_masked = np.unique(self.spots.data.gene_name.values, return_inverse=True,
+                                                 return_counts=True)
+        self.nS = self.spots.data.shape[0]
+        self.spots.nS = self.spots.data.shape[0]
+
+        datapoints = utils.get_closest(df, datapoints, self.config['voxel_size'])
+
+        # set the overrides
+        self.set_overrides(datapoints)
+        self.spots.parent_cell_prob = self.spots.parent_cell_prob
+
+        # redo the estimation
+        _ = self.main_loop()
+
+        df_after = self.get_celltypes_for_cell(cell_num)
+
+        return df_before, df_after
+
+    def set_overrides(self, data):
+        self.config['overrides'] = data.to_dict(orient='records')
+        main_logger.info('overrides saved!')
+
+    def get_celltypes_for_cell(self, cell_num):
+        cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config['is3D'])
+        df = cell_df[cell_df.Cell_Num == cell_num]
+        class_name = df.ClassName.tolist()[0]
+        prob = df.Prob.tolist()[0]
+        df = pd.DataFrame({
+            'class_name': class_name,
+            'prob': prob
+        })
+        return df

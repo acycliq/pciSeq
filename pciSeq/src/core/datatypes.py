@@ -246,6 +246,17 @@ class Spots(object):
 
     @property
     def parent_cell_prob(self):
+        if 'overrides' in self.config:
+            ncols = self.config['nNeighbors'] + 1
+            df = pd.DataFrame(self.config['overrides'])
+            spot_id = df.spot_id.to_list()
+            nrows = len(spot_id)
+            tmp = np.zeros([nrows, ncols])
+            tmp[:, -1] = np.ones(nrows)
+            ispot_id = [i for i, v in enumerate(self.data.index.values) if v in spot_id]
+            self._parent_cell_prob[ispot_id] = tmp
+            # print('parent_cell_prob: override')
+            # print(spot_id)
         return self._parent_cell_prob
 
     @parent_cell_prob.setter
@@ -403,7 +414,7 @@ class Spots(object):
         TotPredictedZ = np.bincount(geneNo, pSpotZero)
         return TotPredictedZ
 
-    @dask.delayed
+    # @dask.delayed
     def gammaExpectation(self, rho, beta):
         """
         :param r:
@@ -414,7 +425,7 @@ class Spots(object):
         r = rho[:, :, None]
         return r / beta
 
-    @dask.delayed
+    # @dask.delayed
     def logGammaExpectation(self, rho, beta):
         r = rho[:, :, None]
         return scipy.special.psi(r) - np.log(beta)

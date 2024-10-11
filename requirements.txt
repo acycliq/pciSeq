@@ -1,23 +1,4 @@
-pip
-numpy_groupies
-pandas
-dask
-scipy
-scikit-image
-scikit-learn
-tqdm
-numexpr
-flask
-natsort
-streamlit
-altair
-jupyterlab
-diplib
-pyvips
-redis
-fastremap
 pytest
-matplotlib
-laspy
-tomlkit
+jupyterlab
+-e .
 
