@@ -29,8 +29,8 @@ class VarBayes:
         self.nK = self.cellTypes.nK  # number of classes
         self.nS = self.spots.nS  # number of spots
         self.nN = self.config['nNeighbors'] + 1  # number of closest nearby cells, candidates for being parent
-                                                # cell of any given spot. The last cell will be used for the
-                                                # misread spots. (ie cell at position nN is the background)
+        # cell of any given spot. The last cell will be used for the
+        # misread spots. (ie cell at position nN is the background)
         self.iter_num = None
         self.iter_delta = []
         self.has_converged = False
@@ -194,8 +194,8 @@ class VarBayes:
         cfg = self.config
 
         self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
-                                            self.single_cell.mean_expression.values,
-                                            self.genes.eta_bar))
+                                                    self.single_cell.mean_expression.values,
+                                                    self.genes.eta_bar))
 
         beta = self.scaled_exp.compute() + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
@@ -505,6 +505,8 @@ class VarBayes:
         self.config['is_redis_running'] = False
         self.needs_recalc = False
 
+        df_before = self.get_celltypes_for_cell(cell_num)
+
         mask = np.any(self.spots.cells_nearby(self.cells) == cell_num, axis=1)
         df = self.spots.data[mask]
 
@@ -514,7 +516,8 @@ class VarBayes:
         self.spots.parent_cell_id = self.spots.parent_cell_id[mask]
         self.spots.parent_cell_prob = self.spots.parent_cell_prob[mask]
         # self.spots.xy_coords = self.spots.xy_coords[mask]
-        _, _, counts_per_gene_masked = np.unique(self.spots.data.gene_name.values, return_inverse=True, return_counts=True)
+        _, _, counts_per_gene_masked = np.unique(self.spots.data.gene_name.values, return_inverse=True,
+                                                 return_counts=True)
         self.nS = self.spots.data.shape[0]
         self.spots.nS = self.spots.data.shape[0]
 
@@ -525,10 +528,23 @@ class VarBayes:
         self.spots.parent_cell_prob = self.spots.parent_cell_prob
 
         # redo the estimation
-        cell_df, gene_df = self.main_loop()
+        _ = self.main_loop()
 
-        return cell_df, gene_df
+        df_after = self.get_celltypes_for_cell(cell_num)
+
+        return df_before, df_after
 
     def set_overrides(self, data):
         self.config['overrides'] = data.to_dict(orient='records')
         main_logger.info('overrides saved!')
+
+    def get_celltypes_for_cell(self, cell_num):
+        cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
+        df = cell_df[cell_df.Cell_Num == cell_num]
+        class_name = df.ClassName.tolist()[0]
+        prob = df.Prob.tolist()[0]
+        df = pd.DataFrame({
+            'class_name': class_name,
+            'prob': prob
+        })
+        return df
