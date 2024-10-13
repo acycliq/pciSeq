@@ -104,8 +104,7 @@ class VarBayes:
                 self.mu_upd()
 
             self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
-            main_logger.info('Iteration %d, mean prob change %f' % (i, delta))
-            print('Iteration %d, mean prob change %f' % (i, delta))
+            main_logger.info('Iteration %d, mean  prob change %f' % (i, delta))
 
             # keep track of the deltas
             self.iter_delta.append(delta)
@@ -522,15 +521,17 @@ class VarBayes:
         self.spots.nS = self.spots.data.shape[0]
 
         datapoints = utils.get_closest(df, datapoints)
+        if datapoints is None:
+            df_after = df_before.copy()
+        else:
+            # set the overrides
+            self.set_overrides(datapoints)
+            self.spots.parent_cell_prob = self.spots.parent_cell_prob
 
-        # set the overrides
-        self.set_overrides(datapoints)
-        self.spots.parent_cell_prob = self.spots.parent_cell_prob
+            # redo the estimation
+            _ = self.main_loop()
 
-        # redo the estimation
-        _ = self.main_loop()
-
-        df_after = self.get_celltypes_for_cell(cell_num)
+            df_after = self.get_celltypes_for_cell(cell_num)
 
         return df_before, df_after
 

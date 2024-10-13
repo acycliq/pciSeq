@@ -305,26 +305,44 @@ def scaled_exp(cell_area_factor, sc_mean_expressions, inefficiency):
 #     return spots.iloc[closest]
 
 def get_closest(spots, query_vals):
+    # Check if the input is a DataFrame
+    if isinstance(query_vals, pd.DataFrame):
+        pass
+
+    # If input is a list, check if it's a list of dictionaries
+    elif isinstance(query_vals, list) and all(isinstance(item, dict) for item in query_vals):
+        query_vals = pd.DataFrame(query_vals)  # Input is already a list of dicts, return as is
+
+    gene_names = query_vals['gene_name']
+    mask = np.isin(gene_names, spots['gene_name'].values)
+    if not np.all(mask):
+        missing_genes = np.array(gene_names)[~mask]  # Get the missing genes
+        # Format and print the message
+        print(f"Genes {', '.join(missing_genes)} are not in the neighborhood. Skipping.")
 
     # Filter spots based on gene_name
     query_vals = pd.DataFrame(query_vals)
-    gene_names = query_vals['gene_name']
-    filtered_spots = spots[spots['gene_name'].isin(gene_names)]
+    mask = spots['gene_name'].isin(gene_names)
+    filtered_spots = spots[mask]
+    if filtered_spots.empty:
+        result = None
+    else:
+        filtered_spots = spots[mask]
 
-    # Create KDTree from filtered spots
-    tree = cKDTree(filtered_spots[['x', 'y']])
+        # Create KDTree from filtered spots
+        tree = cKDTree(filtered_spots[['x', 'y']])
 
-    # Find nearest neighbors
-    distances, indices = tree.query(np.column_stack((query_vals['x'], query_vals['y'])))
+        # Find nearest neighbors
+        distances, indices = tree.query(np.column_stack((query_vals['x'], query_vals['y'])))
 
-    # Create result DataFrame
-    result = filtered_spots.iloc[indices].reset_index()
-    result = result[result['gene_name'] == query_vals['gene_name']]
+        # Create result DataFrame
+        result = filtered_spots.iloc[indices].reset_index()
+        result = result[result['gene_name'] == query_vals['gene_name']]
 
-    # Sort by spot_id (index of the original spots DataFrame)
-    result = result.sort_values('spot_id')
+        # Sort by spot_id (index of the original spots DataFrame)
+        result = result.sort_values('spot_id')
 
-    # Select and rename columns
-    result = result[['gene_name', 'spot_id', 'x', 'y']]
+        # Select and rename columns
+        result = result[['gene_name', 'spot_id', 'x', 'y']]
 
     return result
