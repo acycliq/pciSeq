@@ -117,6 +117,12 @@ class VarBayes:
 
             if self.has_converged:
                 # self.counts_within_radius(20)
+                query_points = [
+                    {'gene_name': 'Nrn1', 'x': 973.116028, 'y': 2942.226074, 'z': 198},
+                ]
+                cellpose_label = 5445
+                # df_before, df_after = self.calculate_spot_contributions(cellpose_label, query_points)
+
                 cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config['is3D'])
                 break
 
@@ -481,7 +487,53 @@ class VarBayes:
         self.redis_db.publish(df, "cell_type_posterior", iteration=self.iter_num, has_converged=self.has_converged,
                               unix_time=time.time())
 
-    def calculate_spot_contributions(self, cell_num, datapoints):
+    def calculate_spot_contributions(self, cell_num, datapoints, offset=None, coords_format=None):
+        """
+        Processes and logs the contribution of a spot for a given cell.
+
+        Arguments:
+        - cell_num (int): The cell number being processed.
+        - gene_dict (dict): Dictionary containing gene name and spatial coordinates.
+          Expected keys are:
+            - 'gene_name' (str): Name of the gene.
+            - 'x' (int): X coordinate.
+            - 'y' (int): Y coordinate.
+            - 'z_plane' (int, optional): Z plane coordinate (used if coords_format is None).
+            - 'z' (int, optional): Z coordinate (used if coords_format is 'pciSeq').
+        - offset (int, optional): Offset applied to z-plane if 'z_plane' is used (default 0).
+        - coords_format (str, optional): Specify the format for coordinates (e.g., 'pciSeq').
+
+        Raises:
+        - ValueError: If inconsistent arguments are provided (e.g., both offset and coords_format).
+
+        Returns:
+        Two dataframes summarizing the processed contribution information.
+        """
+
+        # Check if both 'z_plane' and 'z' are provided, or if inconsistent combinations of arguments are used
+        datapoints_df = pd.DataFrame(datapoints)
+        column_names = datapoints_df.columns.tolist()
+        if 'z_plane' in column_names and coords_format is not None:
+            raise ValueError("If 'z_plane' is provided, 'coords_format' must be None.")
+
+        if 'z' in column_names and offset is not None:
+            raise ValueError("If 'z' is provided, 'offset' must be None.")
+
+        # Handle default behavior for 'z_plane' and 'z'
+        if 'z_plane' in column_names:
+            if offset is None:
+                offset = 0  # Default offset is 0 if 'z_plane' is used
+            datapoints_df['z'] = datapoints_df['z_plane'] - offset
+            voxel_size = self.config['voxel_size']
+        elif 'z' in column_names:
+            if coords_format is None:
+                coords_format = 'pciSeq'  # Default to 'pciSeq' if 'z' is used
+            elif coords_format != 'pciSeq':
+                raise ValueError("When using 'z' as a key, 'coords_format' must be 'pciSeq'.")
+            voxel_size = [1, 1, 1]
+        else:
+            raise ValueError("Either 'z_plane' or 'z' must be provided in gene_dict.")
+
         self.config['launch_diagnostics'] = False
         self.config['launch_viewer'] = False
         self.config['save_data'] = False
@@ -510,16 +562,18 @@ class VarBayes:
         self.nS = self.spots.data.shape[0]
         self.spots.nS = self.spots.data.shape[0]
 
-        datapoints = utils.get_closest(df, datapoints, self.config['voxel_size'])
+        datapoints_df = utils.get_closest(df, datapoints_df, voxel_size)
+        if datapoints_df is None:
+            df_after = df_before.copy()
+        else:
+            # set the overrides
+            self.set_overrides(datapoints_df)
+            self.spots.parent_cell_prob = self.spots.parent_cell_prob
 
-        # set the overrides
-        self.set_overrides(datapoints)
-        self.spots.parent_cell_prob = self.spots.parent_cell_prob
+            # redo the estimation
+            _ = self.main_loop()
 
-        # redo the estimation
-        _ = self.main_loop()
-
-        df_after = self.get_celltypes_for_cell(cell_num)
+            df_after = self.get_celltypes_for_cell(cell_num)
 
         return df_before, df_after
 
