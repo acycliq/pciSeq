@@ -49,7 +49,7 @@ class VarBayes:
         # FYI: https://realpython.com/python-pickle-module/
         attributes = self.__dict__.copy()
         del attributes['redis_db']
-        del attributes['_scaled_exp']
+        # del attributes['_scaled_exp']
         return attributes
 
     def initialise(self):
@@ -140,6 +140,8 @@ class VarBayes:
                     # {'gene_name': 'Gad1', 'x': 4466, 'y': 439},
                     # {'gene_name': 'Kit', 'x': 4464, 'y': 439},
                 ]
+
+                self.get_gene_loglik_contributions(2259, 'Cacna2d1.Ndnf.Cxcl14')
                 # self.calculate_spot_contributions(2259, point_dict)
                 cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
                 break
@@ -549,3 +551,62 @@ class VarBayes:
             'prob': prob
         })
         return df
+
+    def get_gene_loglik_contributions(self, cell_num, user_class):
+        """
+        Get gene log-likelihood contributions for a specified cell.
+
+        Args:
+        cell_num (int): The cell number to analyze.
+        user_class (str): The cell class to compare against the assigned class.
+
+        Returns:
+        dict: A dictionary containing the plot data and metadata
+        """
+        if cell_num < 0 or cell_num >= self.nC:
+            raise ValueError(f"Invalid cell number. Must be between 0 and {self.nC - 1}")
+
+        assigned_class_idx = np.argmax(self.cells.classProb[cell_num])
+        assigned_class = self.cellTypes.names[assigned_class_idx]
+
+        try:
+            user_class_idx = np.where(self.cellTypes.names == user_class)[0][0]
+        except IndexError:
+            raise ValueError(
+                f"Invalid user class: {user_class}. Available classes are: {', '.join(self.cellTypes.names)}")
+
+        ScaledExp = self.scaled_exp.compute()
+        pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
+        cgc = self.cells.geneCount
+        contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
+
+        assigned_contr = contr[cell_num, :, assigned_class_idx]
+        user_contr = contr[cell_num, :, user_class_idx]
+
+        data2 = [
+            {"x": -1, "y": -2, "name": "A"},
+            {"x": -2, "y": -3, "name": "B"},
+            {"x": -3, "y": -1, "name": "C"},
+            {"x": -4, "y": -4, "name": "D"},
+            {"x": -5, "y": -3, "name": "E"}
+        ]
+        data = pd.DataFrame({
+            "x": assigned_contr,
+            "y": user_contr,
+            "name": self.genes.gene_panel,
+        }).to_dict('records')
+
+        utils.gene_loglik_contributions_scatter(data)
+        return {
+            'assigned_class': assigned_class,
+            'user_class': user_class,
+            'assigned_contr': assigned_contr,
+            'user_contr': user_contr,
+            'gene_names': self.genes.gene_panel,
+            'cell_num': cell_num,
+            'available_classes': self.cellTypes.names.tolist()
+        }
+
+
+
+

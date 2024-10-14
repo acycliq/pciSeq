@@ -6,11 +6,13 @@ from urllib.request import urlopen
 import numpy as np
 import pandas as pd
 import dask
+import json
 import os
 import glob
 import subprocess
 from email.parser import BytesHeaderParser
 from scipy.spatial import cKDTree
+import webbrowser
 import logging
 
 utils_logger = logging.getLogger(__name__)
@@ -346,3 +348,223 @@ def get_closest(spots, query_vals):
         result = result[['gene_name', 'spot_id', 'x', 'y']]
 
     return result
+
+
+def gene_loglik_contributions_scatter(data, filename='interactive_scatter.html'):
+    # Convert data to JSON
+    data_json = json.dumps(data)
+
+    # HTML and JavaScript code
+    html_code = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Interactive Scatter Plot</title>
+        <script src="https://d3js.org/d3.v7.min.js"></script>
+        <style>
+            body {{
+                margin: 0;
+                padding: 0;
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }}
+            #top-space {{
+                height: 5vh;
+            }}
+            #plot-area {{
+                flex-grow: 1;
+                width: 100%;
+                position: relative;
+            }}
+            .tooltip {{
+                position: absolute;
+                background-color: rgba(0, 0, 0, 0.7);
+                color: white;
+                padding: 5px;
+                border-radius: 5px;
+                font-size: 12px;
+                pointer-events: none;
+            }}
+        </style>
+    </head>
+    <body>
+        <div id="top-space"></div>
+        <div id="plot-area"></div>
+        <script>
+            const data = {data_json};
+
+            const margin = {{top: 20, right: 80, bottom: 30, left: 100}};
+            const width = window.innerWidth - margin.left - margin.right;
+            const height = window.innerHeight * 0.34 - margin.top - margin.bottom;
+
+            const svg = d3.select('#plot-area')
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .append('g')
+                .attr('transform', `translate(${{margin.left}},${{margin.top}})`);
+
+            const x = d3.scaleLinear()
+                .domain([d3.min(data, d => d.x), d3.max(data, d => d.x)])
+                .range([0, width]);
+
+            const y = d3.scaleLinear()
+                .domain([d3.min(data, d => d.y), d3.max(data, d => d.y)])
+                .range([height, 0]);
+
+            const xAxis = svg.append('g')
+                .attr('class', 'x-axis')
+                .attr('transform', `translate(0,${{height}})`)
+                .call(d3.axisBottom(x));
+
+            const yAxis = svg.append('g')
+                .attr('class', 'y-axis')
+                .call(d3.axisLeft(y));
+
+            // Create tooltip
+            const tooltip = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0);
+
+            const dots = svg.selectAll('circle')
+                .data(data)
+                .enter()
+                .append('circle')
+                .attr('cx', d => x(d.x))
+                .attr('cy', d => y(d.y))
+                .attr('r', 5)
+                .style('fill', 'blue')
+                .on("mouseover", function(event, d) {{
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    tooltip.html(`Name: ${{d.name}}<br>X: ${{d.x}}<br>Y: ${{d.y}}`)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                }})
+                .on("mousemove", function(event, d) {{
+                    tooltip.style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                }})
+                .on("mouseout", function(d) {{
+                    tooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                }});
+
+            // Add diagonal line
+            const diagonalLine = svg.append('line')
+                .attr('class', 'diagonal-line')
+                .attr('x1', x.range()[0])
+                .attr('y1', y.range()[0])
+                .attr('x2', x.range()[1])
+                .attr('y2', y.range()[1])
+                .attr('stroke', 'red')
+                .attr('stroke-width', 2)
+                .attr('stroke-dasharray', '5,5');
+
+            // Add zoom and pan handling
+            let zoom = 1;
+            let translateX = 0;
+            let translateY = 0;
+            let isDragging = false;
+            let startX, startY;
+
+            function updatePlot() {{
+                const newX = x.copy().range([translateX, width * zoom + translateX]);
+                const newY = y.copy().range([height * zoom + translateY, translateY]);
+
+                // Update the axes
+                xAxis.call(d3.axisBottom(newX));
+                yAxis.call(d3.axisLeft(newY));
+
+                // Update the position of the dots
+                dots.attr('cx', d => newX(d.x))
+                    .attr('cy', d => newY(d.y));
+
+                // Update the diagonal line
+                diagonalLine
+                    .attr('x1', newX.range()[0])
+                    .attr('y1', newY.range()[0])
+                    .attr('x2', newX.range()[1])
+                    .attr('y2', newY.range()[1]);
+            }}
+
+            d3.select('#plot-area').on('wheel', function(event) {{
+                event.preventDefault();
+                const delta = event.deltaY;
+                if (delta > 0) {{
+                    zoom *= 0.9;
+                }} else {{
+                    zoom *= 1.1;
+                }}
+                zoom = Math.max(0.1, Math.min(zoom, 10));
+                updatePlot();
+            }});
+
+            d3.select('#plot-area')
+                .on('mousedown', function(event) {{
+                    isDragging = true;
+                    startX = event.clientX - translateX;
+                    startY = event.clientY - translateY;
+                }})
+                .on('mousemove', function(event) {{
+                    if (isDragging) {{
+                        translateX = event.clientX - startX;
+                        translateY = event.clientY - startY;
+                        updatePlot();
+                    }}
+                }})
+                .on('mouseup', function() {{
+                    isDragging = false;
+                }})
+                .on('mouseleave', function() {{
+                    isDragging = false;
+                }});
+
+            // Resize function
+            function resizePlot() {{
+                const newWidth = window.innerWidth - margin.left - margin.right;
+                const newHeight = window.innerHeight * 0.34 - margin.top - margin.bottom;
+
+                svg.attr('width', newWidth + margin.left + margin.right)
+                   .attr('height', newHeight + margin.top + margin.bottom);
+
+                x.range([0, newWidth]);
+                y.range([newHeight, 0]);
+
+                xAxis.attr('transform', `translate(0,${{newHeight}})`).call(d3.axisBottom(x));
+                yAxis.call(d3.axisLeft(y));
+
+                dots.attr('cx', d => x(d.x))
+                    .attr('cy', d => y(d.y));
+
+                diagonalLine
+                    .attr('x1', x.range()[0])
+                    .attr('y1', y.range()[0])
+                    .attr('x2', x.range()[1])
+                    .attr('y2', y.range()[1]);
+            }}
+
+            // Add event listener for window resize
+            window.addEventListener('resize', resizePlot);
+        </script>
+    </body>
+    </html>
+    """
+
+    # Save the HTML to a file
+    with open(filename, 'w') as f:
+        f.write(html_code)
+
+    # Open the HTML file in the default web browser
+    webbrowser.open('file://' + os.path.realpath(filename))
+
+
+
+
+
+
