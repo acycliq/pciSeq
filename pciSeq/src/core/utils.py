@@ -485,7 +485,7 @@ def gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num
                     tooltip.transition()
                         .duration(200)
                         .style("opacity", .9);
-                    tooltip.html(`Name: ${{d.name}}<br>X: ${{d.x}}<br>Y: ${{d.y}}`)
+                    tooltip.html(`Name: ${{d.name}}<br>X: ${{d.x.toFixed(3)}}<br>Y: ${{d.y.toFixed(3)}}`)
                         .style("left", (event.pageX + 10) + "px")
                         .style("top", (event.pageY - 28) + "px");
                 }})
