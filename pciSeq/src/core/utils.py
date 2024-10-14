@@ -350,7 +350,7 @@ def get_closest(spots, query_vals):
     return result
 
 
-def gene_loglik_contributions_scatter(data, filename='interactive_scatter.html'):
+def gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num, filename='interactive_scatter.html'):
     # Convert data to JSON
     data_json = json.dumps(data)
 
@@ -388,6 +388,19 @@ def gene_loglik_contributions_scatter(data, filename='interactive_scatter.html')
                 font-size: 12px;
                 pointer-events: none;
             }}
+            .axis-label {{
+                font-size: 14px;
+                font-weight: bold;
+            }}
+            .plot-title {{
+                font-size: 18px;
+                font-weight: bold;
+                text-anchor: middle;
+            }}
+            .plot-subtitle {{
+                font-size: 14px;
+                text-anchor: middle;
+            }}
         </style>
     </head>
     <body>
@@ -396,7 +409,7 @@ def gene_loglik_contributions_scatter(data, filename='interactive_scatter.html')
         <script>
             const data = {data_json};
 
-            const margin = {{top: 20, right: 80, bottom: 30, left: 100}};
+            const margin = {{top: 60, right: 80, bottom: 50, left: 100}};
             const width = window.innerWidth - margin.left - margin.right;
             const height = window.innerHeight * 0.34 - margin.top - margin.bottom;
 
@@ -408,11 +421,11 @@ def gene_loglik_contributions_scatter(data, filename='interactive_scatter.html')
                 .attr('transform', `translate(${{margin.left}},${{margin.top}})`);
 
             const x = d3.scaleLinear()
-                .domain([d3.min(data, d => d.x), d3.max(data, d => d.x)])
+                .domain(d3.extent(data, d => d.x))
                 .range([0, width]);
 
             const y = d3.scaleLinear()
-                .domain([d3.min(data, d => d.y), d3.max(data, d => d.y)])
+                .domain(d3.extent(data, d => d.y))
                 .range([height, 0]);
 
             const xAxis = svg.append('g')
@@ -423,6 +436,37 @@ def gene_loglik_contributions_scatter(data, filename='interactive_scatter.html')
             const yAxis = svg.append('g')
                 .attr('class', 'y-axis')
                 .call(d3.axisLeft(y));
+
+            // Add plot title
+            svg.append("text")
+                .attr("class", "plot-title")
+                .attr("x", width / 2)
+                .attr("y", -margin.top / 2)
+                .text("Loglikelihood contributions for cell num: {cell_num}");
+
+            // Add plot subtitle
+            svg.append("text")
+                .attr("class", "plot-subtitle")
+                .attr("x", width / 2)
+                .attr("y", -margin.top / 2 + 20)
+                .text("Assigned class: {assigned_class}");
+
+            // Add x-axis label
+            svg.append("text")
+                .attr("class", "axis-label x-axis-label")
+                .attr("x", width / 2)
+                .attr("y", height + margin.bottom - 10)
+                .style("text-anchor", "middle")
+                .text("{assigned_class}");
+
+            // Add y-axis label
+            svg.append("text")
+                .attr("class", "axis-label y-axis-label")
+                .attr("transform", "rotate(-90)")
+                .attr("x", -height / 2)
+                .attr("y", -margin.left + 20)
+                .style("text-anchor", "middle")
+                .text("{user_class}");
 
             // Create tooltip
             const tooltip = d3.select("body").append("div")
@@ -455,13 +499,13 @@ def gene_loglik_contributions_scatter(data, filename='interactive_scatter.html')
                         .style("opacity", 0);
                 }});
 
-            // Add diagonal line
+            // Add diagonal line (y=x)
             const diagonalLine = svg.append('line')
                 .attr('class', 'diagonal-line')
-                .attr('x1', x.range()[0])
-                .attr('y1', y.range()[0])
-                .attr('x2', x.range()[1])
-                .attr('y2', y.range()[1])
+                .attr('x1', x(Math.min(x.domain()[0], y.domain()[0])))
+                .attr('y1', y(Math.min(x.domain()[0], y.domain()[0])))
+                .attr('x2', x(Math.max(x.domain()[1], y.domain()[1])))
+                .attr('y2', y(Math.max(x.domain()[1], y.domain()[1])))
                 .attr('stroke', 'red')
                 .attr('stroke-width', 2)
                 .attr('stroke-dasharray', '5,5');
@@ -486,11 +530,13 @@ def gene_loglik_contributions_scatter(data, filename='interactive_scatter.html')
                     .attr('cy', d => newY(d.y));
 
                 // Update the diagonal line
+                const minDomain = Math.min(newX.domain()[0], newY.domain()[0]);
+                const maxDomain = Math.max(newX.domain()[1], newY.domain()[1]);
                 diagonalLine
-                    .attr('x1', newX.range()[0])
-                    .attr('y1', newY.range()[0])
-                    .attr('x2', newX.range()[1])
-                    .attr('y2', newY.range()[1]);
+                    .attr('x1', newX(minDomain))
+                    .attr('y1', newY(minDomain))
+                    .attr('x2', newX(maxDomain))
+                    .attr('y2', newY(maxDomain));
             }}
 
             d3.select('#plot-area').on('wheel', function(event) {{
@@ -542,11 +588,24 @@ def gene_loglik_contributions_scatter(data, filename='interactive_scatter.html')
                 dots.attr('cx', d => x(d.x))
                     .attr('cy', d => y(d.y));
 
+                const minDomain = Math.min(x.domain()[0], y.domain()[0]);
+                const maxDomain = Math.max(x.domain()[1], y.domain()[1]);
                 diagonalLine
-                    .attr('x1', x.range()[0])
-                    .attr('y1', y.range()[0])
-                    .attr('x2', x.range()[1])
-                    .attr('y2', y.range()[1]);
+                    .attr('x1', x(minDomain))
+                    .attr('y1', y(minDomain))
+                    .attr('x2', x(maxDomain))
+                    .attr('y2', y(maxDomain));
+
+                // Update axis labels, title, and subtitle
+                svg.select(".plot-title")
+                    .attr("x", newWidth / 2);
+                svg.select(".plot-subtitle")
+                    .attr("x", newWidth / 2);
+                svg.select(".x-axis-label")
+                    .attr("x", newWidth / 2)
+                    .attr("y", newHeight + margin.bottom - 10);
+                svg.select(".y-axis-label")
+                    .attr("x", -newHeight / 2);
             }}
 
             // Add event listener for window resize
@@ -562,9 +621,3 @@ def gene_loglik_contributions_scatter(data, filename='interactive_scatter.html')
 
     # Open the HTML file in the default web browser
     webbrowser.open('file://' + os.path.realpath(filename))
-
-
-
-
-
-
