@@ -469,7 +469,7 @@ def gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num
                 .attr("class", "axis-label y-axis-label")
                 .attr("transform", "rotate(-90)")
                 .attr("x", -height / 2)
-                .attr("y", -margin.left + 20)
+                .attr("y", -margin.left + 40)
                 .style("text-anchor", "middle")
                 .text("{user_class}");
 
