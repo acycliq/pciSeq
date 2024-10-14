@@ -79,7 +79,7 @@ function add_spots_patched(all_geneData, map) {
         masterMarkerContainer = new PIXI.Graphics();
 
         // group by gene name
-        var data = groupBy(all_geneData, 'Gene');
+        var data = groupBy(all_geneData, 'gene_name');
 
         // get all the gene names
         var geneNames = Object.keys(data).sort();
