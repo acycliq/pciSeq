@@ -401,6 +401,11 @@ def gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num
                 font-size: 14px;
                 text-anchor: middle;
             }}
+            
+            .interpretation-guide {{
+                font-size: 12px;
+                fill: #333;
+            }}
         </style>
     </head>
     <body>
@@ -499,6 +504,44 @@ def gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num
                         .style("opacity", 0);
                 }});
 
+
+            // Add interpretation guide
+            const guideText = [
+                "Interpretation Guide:",
+                `• Genes on diagonal: Contribute equally to both cell types`,
+                `• Genes above diagonal: Support classification as {user_class}`,
+                `• Genes below diagonal: Support classification as {assigned_class}`,
+                `• Distance from diagonal: Strength of support for one type over the other`
+            ];
+
+            const guide = svg.append("g")
+                .attr("class", "interpretation-guide")
+                .attr("transform", `translate(${{width - 10}}, ${{height - 10}})`);
+
+            guide.selectAll("text")
+                .data(guideText)
+                .enter()
+                .append("text")
+                .attr("x", 0)
+                .attr("y", (d, i) => i * 15)
+                .style("text-anchor", "start")
+                .style("font-size", "12px")
+                .text(d => d);
+
+            // Add a semi-transparent background to the guide
+            const guideBBox = guide.node().getBBox();
+            guide.insert("rect", ":first-child")
+                .attr("x", guideBBox.x - 5)
+                .attr("y", guideBBox.y - 5)
+                .attr("width", guideBBox.width + 10)
+                .attr("height", guideBBox.height + 10)
+                .attr("fill", "rgba(255, 223, 186, 0.7)");  // Light pastel orange
+                
+            
+            // Adjust the position of the guide to the bottom right
+            guide.attr("transform", `translate(${{width - guideBBox.width - 15}}, ${{height - guideBBox.height - 15}})`);
+
+                
             // Add diagonal line (y=x)
             const diagonalLine = svg.append('line')
                 .attr('class', 'diagonal-line')
