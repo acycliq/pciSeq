@@ -141,7 +141,7 @@ class VarBayes:
                     # {'gene_name': 'Kit', 'x': 4464, 'y': 439},
                 ]
 
-                self.get_gene_loglik_contributions(2259, 'Cacna2d1.Ndnf.Cxcl14')
+                # self.get_gene_loglik_contributions(2259, 'Cacna2d1.Ndnf.Cxcl14')
                 # self.calculate_spot_contributions(2259, point_dict)
                 cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
                 break
