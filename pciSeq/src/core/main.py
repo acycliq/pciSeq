@@ -663,4 +663,4 @@ class VarBayes:
         # Call the plotting function
         utils.gene_loglik_contributions_scatter(out)
 
-        return out
+        return None
