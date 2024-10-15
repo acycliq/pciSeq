@@ -414,7 +414,7 @@ def gene_loglik_contributions_scatter(data, filename='interactive_scatter.html')
     </head>
     <body>
         <div id="top-space">
-            <select id="dropdown"></select>
+            <!-- <select id="dropdown"></select> -->
             <div id="title-space"></div>
         </div>
         <div id="plot-area"></div>
