@@ -610,6 +610,8 @@ class VarBayes:
         # in the self.config['remapping'] dict, keys are the original labels (from cellpose for example)
         # and values the new ones. PciSeq works with the new labels.
         # The step below will give the new label that corresponds to the original cell_label
+
+        cell_num = cell_label
         if self.config['remapping'] is not None:
             remapping = self.config['remapping']
             cell_num = remapping[cell_label]
@@ -654,7 +656,7 @@ class VarBayes:
             'assigned_class': assigned_class,
             'user_class': user_class,
             'assigned_contr': all_class_contrs[:, assigned_class_idx].tolist(),
-            'cell_num': cell_num,
+            'cell_num': cell_label, # the label that the user has passed. It is used only to make the title
             'gene_names': self.genes.gene_panel.tolist(),
             'class_names': self.cellTypes.names.tolist(),
             'contr': user_data
@@ -663,4 +665,4 @@ class VarBayes:
         # Call the plotting function
         utils.gene_loglik_contributions_scatter(out)
 
-        return None
+        return cell_num

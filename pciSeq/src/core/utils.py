@@ -694,7 +694,7 @@ def gene_loglik_contributions_scatter(data, filename='interactive_scatter.html')
                 .attr("class", "plot-title")
                 .attr("x", width / 2)
                 .attr("y", -margin.top / 2)
-                .text("Loglikelihood contributions for cell num: {data['cell_num']}");
+                .text("Loglikelihood contributions for cell: {data['cell_num']}");
 
             // Add plot subtitle
             svg.append("text")
