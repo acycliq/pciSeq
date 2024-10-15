@@ -592,7 +592,7 @@ class VarBayes:
         })
         return df
 
-    def get_gene_loglik_contributions(self, cell_num, user_class):
+    def get_gene_loglik_contributions(self, cell_label, user_class):
         """
         Get gene log-likelihood contributions for a specified cell.
 
@@ -603,6 +603,17 @@ class VarBayes:
         Returns:
         dict: A dictionary containing the plot data and metadata
         """
+
+        # the label in the segmentation array might have gaps. Because for example we drop cells that
+        # appear in a single plane. In these cases the labels are rearranged so that they
+        # are a sequence of integers without gaps (no skipping labels). This relationship is kept
+        # in the self.config['remapping'] dict, keys are the original labels (from cellpose for example)
+        # and values the new ones. PciSeq works with the new labels.
+        # The step below will give the new label that corresponds to the original cell_label
+        if self.config['remapping'] is not None:
+            remapping = self.config['remapping']
+            cell_num = remapping[cell_label]
+
         if cell_num < 0 or cell_num >= self.nC:
             raise ValueError(f"Invalid cell number. Must be between 0 and {self.nC - 1}")
 
