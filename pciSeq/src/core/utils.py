@@ -350,10 +350,10 @@ def get_closest(spots, query_vals):
     return result
 
 
-def gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num, classes, filename='interactive_scatter.html'):
+def gene_loglik_contributions_scatter(data, filename='interactive_scatter.html'):
     # Convert data and classes to JSON
-    data_json = json.dumps(data)
-    classes_json = json.dumps(classes)
+    # data_json = json.dumps(data)
+    # classes_json = json.dumps(classes)
 
     # HTML and JavaScript code
     html_code = f"""
@@ -419,8 +419,11 @@ def gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num
         </div>
         <div id="plot-area"></div>
         <script>
-            const data = {data_json};
-            const classes = {classes_json};
+            const data = {data['contr']};
+            const classes = {data['class_names']};
+            const gene_names = {data['gene_names']}
+            let currentUserClass = "{data['user_class']}";
+            let currentAssignedClass = "{data['assigned_class']}";
 
             // Populate dropdown
             const dropdown = d3.select('#dropdown');
@@ -443,11 +446,11 @@ def gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num
                 .attr('transform', `translate(${{margin.left}},${{margin.top}})`);
 
             const x = d3.scaleLinear()
-                .domain(d3.extent(data, d => d.x))
+                .domain(d3.extent(data[currentAssignedClass]))
                 .range([0, width]);
 
             const y = d3.scaleLinear()
-                .domain(d3.extent(data, d => d.y))
+                .domain(d3.extent(data[currentUserClass]))
                 .range([height, 0]);
 
             const xAxis = svg.append('g')
@@ -464,14 +467,14 @@ def gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num
                 .attr("class", "plot-title")
                 .attr("x", width / 2)
                 .attr("y", -margin.top / 2)
-                .text("Loglikelihood contributions for cell num: {cell_num}");
+                .text("Loglikelihood contributions for cell num: {data['cell_num']}");
 
             // Add plot subtitle
             svg.append("text")
                 .attr("class", "plot-subtitle")
                 .attr("x", width / 2)
                 .attr("y", -margin.top / 2 + 20)
-                .text("Assigned class: {assigned_class}");
+                .text("Assigned class: {data['assigned_class']}");
 
             // Add x-axis label
             svg.append("text")
@@ -479,7 +482,7 @@ def gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num
                 .attr("x", width / 2)
                 .attr("y", height + margin.bottom - 10)
                 .style("text-anchor", "middle")
-                .text("{assigned_class}");
+                .text("{data['assigned_class']}");
 
             // Add y-axis label
             svg.append("text")
@@ -488,15 +491,28 @@ def gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num
                 .attr("x", -height / 2)
                 .attr("y", -margin.left + 40)
                 .style("text-anchor", "middle")
-                .text("{user_class}");
+                .text("{data['user_class']}");
 
             // Create tooltip
             const tooltip = d3.select("body").append("div")
                 .attr("class", "tooltip")
                 .style("opacity", 0);
 
+            let myData = data[currentAssignedClass].map((x, index) => ({{
+                'x': x,
+                'y': data[currentUserClass][index],
+                'name': gene_names[index]
+            }}));
+            
+            function doData(data, currentAssignedClass, currentUserClass){{
+                return data[currentAssignedClass].map((x, index) => ({{
+                    'x': x,
+                    'y': data[currentUserClass][index]
+                }}));
+            }}
+            
             const dots = svg.selectAll('circle')
-                .data(data)
+                .data(myData)
                 .enter()
                 .append('circle')
                 .attr('cx', d => x(d.x))
@@ -526,8 +542,8 @@ def gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num
             const guideText = [
                 "Interpretation Guide:",
                 `• Genes on diagonal: Contribute equally to both cell types`,
-                `• Genes above diagonal: Support classification as {user_class}`,
-                `• Genes below diagonal: Support classification as {assigned_class}`,
+                `• Genes above diagonal: Support classification as {data['user_class']}`,
+                `• Genes below diagonal: Support classification as {data['assigned_class']}`,
                 `• Distance from diagonal: Strength of support for one type over the other`
             ];
 
@@ -671,12 +687,67 @@ def gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num
             // Add event listener for window resize
             window.addEventListener('resize', resizePlot);
 
+            // Update function for changing the plot
+            function updatePlotForNewClass(newUserClass) {{
+                currentUserClass = newUserClass;
+                
+                var data_upd = doData(data, currentAssignedClass, currentUserClass)
+                
+                // Update y-axis label
+                svg.select(".y-axis-label")
+                    .text(currentUserClass);
+
+                // Update plot subtitle
+                svg.select(".plot-subtitle")
+                    .text(`Assigned class: ${{currentAssignedClass}} vs Selected class: ${{currentUserClass}}`);
+
+                // Update interpretation guide
+                guide.selectAll("text")
+                    .data([
+                        "Interpretation Guide:",
+                        `• Genes on diagonal: Contribute equally to both cell types`,
+                        `• Genes above diagonal: Support classification as ${{currentUserClass}}`,
+                        `• Genes below diagonal: Support classification as ${{currentAssignedClass}}`,
+                        `• Distance from diagonal: Strength of support for one type over the other`
+                    ])
+                    .text(d => d);
+
+                // Update y-axis scale
+                const newYExtent = d3.extent(data[currentUserClass]);
+                y.domain(newYExtent);
+                yAxis.transition().duration(1000).call(d3.axisLeft(y));
+
+                // Update dots
+                dots.transition()
+                    .duration(1000)
+                    .attr('cy', d => 1.0)
+
+                // Update diagonal line
+                const minDomain = Math.min(x.domain()[0], y.domain()[0]);
+                const maxDomain = Math.max(x.domain()[1], y.domain()[1]);
+                diagonalLine.transition()
+                    .duration(1000)
+                    .attr('y1', y(minDomain))
+                    .attr('y2', y(maxDomain));
+
+                // Update tooltip
+                dots.on("mouseover", function(event, d) {{
+                     tooltip.transition()
+                         .duration(200)
+                         .style("opacity", .9);
+                     tooltip.html(`Name: ${{d.name}}<br>X: ${{d[currentAssignedClass].toFixed(3)}}<br>Y: ${{d[currentUserClass].toFixed(3)}}`)
+                         .style("left", (event.pageX + 10) + "px")
+                         .style("top", (event.pageY - 28) + "px");
+                 }});
+            }}
+
             // Dropdown event listener
             d3.select('#dropdown').on('change', function() {{
                 const selectedValue = d3.select(this).property('value');
                 console.log('Selected value:', selectedValue);
-                // Add your logic here to handle the dropdown selection
+                updatePlotForNewClass(selectedValue);
             }});
+
         </script>
     </body>
     </html>
