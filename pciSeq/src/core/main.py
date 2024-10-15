@@ -49,7 +49,7 @@ class VarBayes:
         # FYI: https://realpython.com/python-pickle-module/
         attributes = self.__dict__.copy()
         del attributes['redis_db']
-        del attributes['_scaled_exp']
+        # del attributes['_scaled_exp']
         return attributes
 
     def initialise(self):
@@ -591,3 +591,65 @@ class VarBayes:
             'prob': prob
         })
         return df
+
+    def get_gene_loglik_contributions(self, cell_num, user_class):
+        """
+        Get gene log-likelihood contributions for a specified cell.
+
+        Args:
+        cell_num (int): The cell number to analyze.
+        user_class (str): The cell class to compare against the assigned class.
+
+        Returns:
+        dict: A dictionary containing the plot data and metadata
+        """
+        if cell_num < 0 or cell_num >= self.nC:
+            raise ValueError(f"Invalid cell number. Must be between 0 and {self.nC - 1}")
+
+        assigned_class_idx = np.argmax(self.cells.classProb[cell_num])
+        assigned_class = self.cellTypes.names[assigned_class_idx]
+
+        try:
+            user_class_idx = np.where(self.cellTypes.names == user_class)[0][0]
+        except IndexError:
+            raise ValueError(
+                f"Invalid user class: {user_class}. Available classes are: {', '.join(self.cellTypes.names)}")
+
+        ScaledExp = self.scaled_exp.compute()
+        pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
+        cgc = self.cells.geneCount
+        contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
+
+        # Calculate contributions for all classes
+        all_class_contrs = contr[cell_num, :, :]
+
+        # Create the plot data
+        plot_data = [
+            {
+                "name": gene,
+                assigned_class: all_class_contrs[i, assigned_class_idx],
+                user_class: all_class_contrs[i, user_class_idx]
+            }
+            for i, gene in enumerate(self.genes.gene_panel)
+        ]
+
+        # Prepare the user_data dictionary with contributions for all classes
+        user_data = {
+            class_name: all_class_contrs[:, class_idx].tolist()
+            for class_idx, class_name in enumerate(self.cellTypes.names)
+        }
+
+        out = {
+            'assigned_class': assigned_class,
+            'user_class': user_class,
+            'assigned_contr': all_class_contrs[:, assigned_class_idx].tolist(),
+            'cell_num': cell_num,
+            'gene_names': self.genes.gene_panel.tolist(),
+            'class_names': self.cellTypes.names.tolist(),
+            'contr': user_data
+        }
+
+        # Call the plotting function
+        utils.gene_loglik_contributions_scatter(out)
+
+        return out

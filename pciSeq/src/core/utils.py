@@ -13,6 +13,7 @@ import subprocess
 import numbers
 from email.parser import BytesHeaderParser
 from scipy.spatial import cKDTree
+import webbrowser
 import logging
 
 utils_logger = logging.getLogger(__name__)
@@ -574,3 +575,414 @@ def get_closest(spots, query_vals, voxel_size=None):
         result = result[['gene_name', 'spot_id', 'x', 'y', 'z']]
 
     return result
+
+
+def gene_loglik_contributions_scatter(data, filename='interactive_scatter.html'):
+    # Convert data and classes to JSON
+    # data_json = json.dumps(data)
+    # classes_json = json.dumps(classes)
+
+    # HTML and JavaScript code
+    html_code = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Interactive Scatter Plot</title>
+        <script src="https://d3js.org/d3.v7.min.js"></script>
+        <style>
+            body {{
+                margin: 0;
+                padding: 0;
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }}
+            #top-space {{
+               height: 40px;
+               display: flex;
+               justify-content: space-between;
+               align-items: center;
+               padding: 0 10px;
+            }}
+            #plot-area {{
+                flex-grow: 1;
+                width: 100%;
+                position: relative;
+            }}
+            .tooltip {{
+                position: absolute;
+                background-color: rgba(0, 0, 0, 0.7);
+                color: white;
+                padding: 5px;
+                border-radius: 5px;
+                font-size: 12px;
+                pointer-events: none;
+            }}
+            .axis-label {{
+                font-size: 14px;
+                font-weight: bold;
+            }}
+            .plot-title {{
+                font-size: 18px;
+                font-weight: bold;
+                text-anchor: middle;
+            }}
+            .plot-subtitle {{
+                font-size: 14px;
+                text-anchor: middle;
+            }}
+            #dropdown {{
+                font-size: 14px;
+                padding: 5px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div id="top-space">
+            <!-- <select id="dropdown"></select> -->
+            <div id="title-space"></div>
+        </div>
+        <div id="plot-area"></div>
+        <script>
+            const data = {data['contr']};
+            const classes = {data['class_names']};
+            const gene_names = {data['gene_names']}
+            let currentUserClass = "{data['user_class']}";
+            let currentAssignedClass = "{data['assigned_class']}";
+
+            // Populate dropdown
+            const dropdown = d3.select('#dropdown');
+            dropdown.selectAll('option')
+                .data(classes)
+                .enter()
+                .append('option')
+                .text(d => d)
+                .attr('value', d => d);
+
+            const margin = {{top: 60, right: 80, bottom: 50, left: 100}};
+            const width = window.innerWidth - margin.left - margin.right;
+            const height = window.innerHeight * 0.34 - margin.top - margin.bottom;
+
+            const svg = d3.select('#plot-area')
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .append('g')
+                .attr('transform', `translate(${{margin.left}},${{margin.top}})`);
+
+            const x = d3.scaleLinear()
+                .domain(d3.extent(data[currentAssignedClass]))
+                .range([0, width]);
+
+            const y = d3.scaleLinear()
+                .domain(d3.extent(data[currentUserClass]))
+                .range([height, 0]);
+
+            const xAxis = svg.append('g')
+                .attr('class', 'x-axis')
+                .attr('transform', `translate(0,${{height}})`)
+                .call(d3.axisBottom(x));
+
+            const yAxis = svg.append('g')
+                .attr('class', 'y-axis')
+                .call(d3.axisLeft(y));
+
+            // Add plot title
+            svg.append("text")
+                .attr("class", "plot-title")
+                .attr("x", width / 2)
+                .attr("y", -margin.top / 2)
+                .text("Loglikelihood contributions for cell num: {data['cell_num']}");
+
+            // Add plot subtitle
+            svg.append("text")
+                .attr("class", "plot-subtitle")
+                .attr("x", width / 2)
+                .attr("y", -margin.top / 2 + 20)
+                .text("Assigned class: {data['assigned_class']}");
+
+            // Add x-axis label
+            svg.append("text")
+                .attr("class", "axis-label x-axis-label")
+                .attr("x", width / 2)
+                .attr("y", height + margin.bottom - 10)
+                .style("text-anchor", "middle")
+                .text("{data['assigned_class']}");
+
+            // Add y-axis label
+            svg.append("text")
+                .attr("class", "axis-label y-axis-label")
+                .attr("transform", "rotate(-90)")
+                .attr("x", -height / 2)
+                .attr("y", -margin.left + 40)
+                .style("text-anchor", "middle")
+                .text("{data['user_class']}");
+
+            // Create tooltip
+            const tooltip = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0);
+
+            let myData = data[currentAssignedClass].map((x, index) => ({{
+                'x': x,
+                'y': data[currentUserClass][index],
+                'name': gene_names[index]
+            }}));
+
+            function doData(data, currentAssignedClass, currentUserClass){{
+                return data[currentAssignedClass].map((x, index) => ({{
+                    'x': x,
+                    'y': data[currentUserClass][index]
+                }}));
+            }}
+
+            const dots = svg.selectAll('circle')
+                .data(myData)
+                .enter()
+                .append('circle')
+                .attr('cx', d => x(d.x))
+                .attr('cy', d => y(d.y))
+                .attr('r', 5)
+                .style('fill', 'blue')
+                .on("mouseover", function(event, d) {{
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    tooltip.html(`Name: ${{d.name}}<br>X: ${{d.x.toFixed(3)}}<br>Y: ${{d.y.toFixed(3)}}`)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                }})
+                .on("mousemove", function(event, d) {{
+                    tooltip.style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                }})
+                .on("mouseout", function(d) {{
+                    tooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                }});
+
+
+            // Add interpretation guide
+            const guideText = [
+                "Interpretation Guide:",
+                `• Genes on diagonal: Contribute equally to both cell types`,
+                `• Genes above diagonal: Support classification as {data['user_class']}`,
+                `• Genes below diagonal: Support classification as {data['assigned_class']}`,
+                `• Distance from diagonal: Strength of support for one type over the other`
+            ];
+
+            const guide = svg.append("g")
+                .attr("class", "interpretation-guide")
+                .attr("transform", `translate(${{width - 10}}, ${{height - 10}})`);
+
+            guide.selectAll("text")
+                .data(guideText)
+                .enter()
+                .append("text")
+                .attr("x", 0)
+                .attr("y", (d, i) => i * 15)
+                .style("text-anchor", "start")
+                .style("font-size", "12px")
+                .text(d => d);
+
+            // Add a semi-transparent background to the guide
+            const guideBBox = guide.node().getBBox();
+            guide.insert("rect", ":first-child")
+                .attr("x", guideBBox.x - 5)
+                .attr("y", guideBBox.y - 5)
+                .attr("width", guideBBox.width + 10)
+                .attr("height", guideBBox.height + 10)
+                .attr("fill", "rgba(255, 223, 186, 0.7)");  // Light pastel orange
+
+
+            // Adjust the position of the guide to the bottom right
+            guide.attr("transform", `translate(${{width - guideBBox.width - 15}}, ${{height - guideBBox.height - 15}})`);
+
+
+            // Add diagonal line (y=x)
+            const diagonalLine = svg.append('line')
+                .attr('class', 'diagonal-line')
+                .attr('x1', x(Math.min(x.domain()[0], y.domain()[0])))
+                .attr('y1', y(Math.min(x.domain()[0], y.domain()[0])))
+                .attr('x2', x(Math.max(x.domain()[1], y.domain()[1])))
+                .attr('y2', y(Math.max(x.domain()[1], y.domain()[1])))
+                .attr('stroke', 'red')
+                .attr('stroke-width', 2)
+                .attr('stroke-dasharray', '5,5');
+
+            // Add zoom and pan handling
+            let zoom = 1;
+            let translateX = 0;
+            let translateY = 0;
+            let isDragging = false;
+            let startX, startY;
+
+            function updatePlot() {{
+                const newX = x.copy().range([translateX, width * zoom + translateX]);
+                const newY = y.copy().range([height * zoom + translateY, translateY]);
+
+                // Update the axes
+                xAxis.call(d3.axisBottom(newX));
+                yAxis.call(d3.axisLeft(newY));
+
+                // Update the position of the dots
+                dots.attr('cx', d => newX(d.x))
+                    .attr('cy', d => newY(d.y));
+
+                // Update the diagonal line
+                const minDomain = Math.min(newX.domain()[0], newY.domain()[0]);
+                const maxDomain = Math.max(newX.domain()[1], newY.domain()[1]);
+                diagonalLine
+                    .attr('x1', newX(minDomain))
+                    .attr('y1', newY(minDomain))
+                    .attr('x2', newX(maxDomain))
+                    .attr('y2', newY(maxDomain));
+            }}
+
+            d3.select('#plot-area').on('wheel', function(event) {{
+                event.preventDefault();
+                const delta = event.deltaY;
+                if (delta > 0) {{
+                    zoom *= 0.9;
+                }} else {{
+                    zoom *= 1.1;
+                }}
+                zoom = Math.max(0.1, Math.min(zoom, 10));
+                updatePlot();
+            }});
+
+            d3.select('#plot-area')
+                .on('mousedown', function(event) {{
+                    isDragging = true;
+                    startX = event.clientX - translateX;
+                    startY = event.clientY - translateY;
+                }})
+                .on('mousemove', function(event) {{
+                    if (isDragging) {{
+                        translateX = event.clientX - startX;
+                        translateY = event.clientY - startY;
+                        updatePlot();
+                    }}
+                }})
+                .on('mouseup', function() {{
+                    isDragging = false;
+                }})
+                .on('mouseleave', function() {{
+                    isDragging = false;
+                }});
+
+            // Resize function
+            function resizePlot() {{
+                const newWidth = window.innerWidth - margin.left - margin.right;
+                const newHeight = window.innerHeight * 0.34 - margin.top - margin.bottom;
+
+                svg.attr('width', newWidth + margin.left + margin.right)
+                   .attr('height', newHeight + margin.top + margin.bottom);
+
+                x.range([0, newWidth]);
+                y.range([newHeight, 0]);
+
+                xAxis.attr('transform', `translate(0,${{newHeight}})`).call(d3.axisBottom(x));
+                yAxis.call(d3.axisLeft(y));
+
+                dots.attr('cx', d => x(d.x))
+                    .attr('cy', d => y(d.y));
+
+                const minDomain = Math.min(x.domain()[0], y.domain()[0]);
+                const maxDomain = Math.max(x.domain()[1], y.domain()[1]);
+                diagonalLine
+                    .attr('x1', x(minDomain))
+                    .attr('y1', y(minDomain))
+                    .attr('x2', x(maxDomain))
+                    .attr('y2', y(maxDomain));
+
+                // Update axis labels, title, and subtitle
+                svg.select(".plot-title")
+                    .attr("x", newWidth / 2);
+                svg.select(".plot-subtitle")
+                    .attr("x", newWidth / 2);
+                svg.select(".x-axis-label")
+                    .attr("x", newWidth / 2)
+                    .attr("y", newHeight + margin.bottom - 10);
+                svg.select(".y-axis-label")
+                    .attr("x", -newHeight / 2);
+            }}
+
+            // Add event listener for window resize
+            window.addEventListener('resize', resizePlot);
+
+            // Update function for changing the plot
+            function updatePlotForNewClass(newUserClass) {{
+                currentUserClass = newUserClass;
+
+                var data_upd = doData(data, currentAssignedClass, currentUserClass)
+
+                // Update y-axis label
+                svg.select(".y-axis-label")
+                    .text(currentUserClass);
+
+                // Update plot subtitle
+                svg.select(".plot-subtitle")
+                    .text(`Assigned class: ${{currentAssignedClass}} vs Selected class: ${{currentUserClass}}`);
+
+                // Update interpretation guide
+                guide.selectAll("text")
+                    .data([
+                        "Interpretation Guide:",
+                        `• Genes on diagonal: Contribute equally to both cell types`,
+                        `• Genes above diagonal: Support classification as ${{currentUserClass}}`,
+                        `• Genes below diagonal: Support classification as ${{currentAssignedClass}}`,
+                        `• Distance from diagonal: Strength of support for one type over the other`
+                    ])
+                    .text(d => d);
+
+                // Update y-axis scale
+                const newYExtent = d3.extent(data[currentUserClass]);
+                y.domain(newYExtent);
+                yAxis.transition().duration(1000).call(d3.axisLeft(y));
+
+                // Update dots
+                dots.transition()
+                    .duration(1000)
+                    .attr('cy', d => 1.0)
+
+                // Update diagonal line
+                const minDomain = Math.min(x.domain()[0], y.domain()[0]);
+                const maxDomain = Math.max(x.domain()[1], y.domain()[1]);
+                diagonalLine.transition()
+                    .duration(1000)
+                    .attr('y1', y(minDomain))
+                    .attr('y2', y(maxDomain));
+
+                // Update tooltip
+                dots.on("mouseover", function(event, d) {{
+                     tooltip.transition()
+                         .duration(200)
+                         .style("opacity", .9);
+                     tooltip.html(`Name: ${{d.name}}<br>X: ${{d[currentAssignedClass].toFixed(3)}}<br>Y: ${{d[currentUserClass].toFixed(3)}}`)
+                         .style("left", (event.pageX + 10) + "px")
+                         .style("top", (event.pageY - 28) + "px");
+                 }});
+            }}
+
+            // Dropdown event listener
+            d3.select('#dropdown').on('change', function() {{
+                const selectedValue = d3.select(this).property('value');
+                console.log('Selected value:', selectedValue);
+                updatePlotForNewClass(selectedValue);
+            }});
+
+        </script>
+    </body>
+    </html>
+    """
+
+    # Save the HTML to a file
+    with open(filename, 'w') as f:
+        f.write(html_code)
+
+    # Open the HTML file in the default web browser
+    webbrowser.open('file://' + os.path.realpath(filename))
