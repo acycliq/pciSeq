@@ -372,7 +372,11 @@ def gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num
                 flex-direction: column;
             }}
             #top-space {{
-                height: 5vh;
+               height: 40px;
+               display: flex;
+               justify-content: space-between;
+               align-items: center;
+               padding: 0 10px;
             }}
             #plot-area {{
                 flex-grow: 1;
@@ -401,15 +405,21 @@ def gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num
                 font-size: 14px;
                 text-anchor: middle;
             }}
-            
-            .interpretation-guide {{
-                font-size: 12px;
-                fill: #333;
+            #dropdown {{
+                font-size: 14px;
+                padding: 5px;
             }}
         </style>
     </head>
     <body>
-        <div id="top-space"></div>
+        <div id="top-space">
+            <select id="dropdown">
+                <option value="option1">Option 1</option>
+                <option value="option2">Option 2</option>
+                <option value="option3">Option 3</option>
+            </select>
+             <div id="title-space"></div>
+        </div>
         <div id="plot-area"></div>
         <script>
             const data = {data_json};
@@ -653,6 +663,13 @@ def gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num
 
             // Add event listener for window resize
             window.addEventListener('resize', resizePlot);
+
+            // Dropdown event listener
+            d3.select('#dropdown').on('change', function() {{
+                const selectedValue = d3.select(this).property('value');
+                console.log('Selected value:', selectedValue);
+                // Add your logic here to handle the dropdown selection
+            }});
         </script>
     </body>
     </html>
