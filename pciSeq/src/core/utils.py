@@ -350,9 +350,10 @@ def get_closest(spots, query_vals):
     return result
 
 
-def gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num, filename='interactive_scatter.html'):
-    # Convert data to JSON
+def gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num, classes, filename='interactive_scatter.html'):
+    # Convert data and classes to JSON
     data_json = json.dumps(data)
+    classes_json = json.dumps(classes)
 
     # HTML and JavaScript code
     html_code = f"""
@@ -413,16 +414,22 @@ def gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num
     </head>
     <body>
         <div id="top-space">
-            <select id="dropdown">
-                <option value="option1">Option 1</option>
-                <option value="option2">Option 2</option>
-                <option value="option3">Option 3</option>
-            </select>
-             <div id="title-space"></div>
+            <select id="dropdown"></select>
+            <div id="title-space"></div>
         </div>
         <div id="plot-area"></div>
         <script>
             const data = {data_json};
+            const classes = {classes_json};
+
+            // Populate dropdown
+            const dropdown = d3.select('#dropdown');
+            dropdown.selectAll('option')
+                .data(classes)
+                .enter()
+                .append('option')
+                .text(d => d)
+                .attr('value', d => d);
 
             const margin = {{top: 60, right: 80, bottom: 50, left: 100}};
             const width = window.innerWidth - margin.left - margin.right;

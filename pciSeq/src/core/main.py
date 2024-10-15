@@ -596,7 +596,7 @@ class VarBayes:
             "name": self.genes.gene_panel,
         }).to_dict('records')
 
-        utils.gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num)
+        utils.gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num, self.cellTypes.names.tolist())
         return {
             'assigned_class': assigned_class,
             'user_class': user_class,
