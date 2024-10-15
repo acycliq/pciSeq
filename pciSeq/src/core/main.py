@@ -580,32 +580,39 @@ class VarBayes:
         cgc = self.cells.geneCount
         contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
 
-        assigned_contr = contr[cell_num, :, assigned_class_idx]
-        user_contr = contr[cell_num, :, user_class_idx]
+        # Calculate contributions for all classes
+        all_class_contrs = contr[cell_num, :, :]
 
-        data2 = [
-            {"x": -1, "y": -2, "name": "A"},
-            {"x": -2, "y": -3, "name": "B"},
-            {"x": -3, "y": -1, "name": "C"},
-            {"x": -4, "y": -4, "name": "D"},
-            {"x": -5, "y": -3, "name": "E"}
+        # Create the plot data
+        plot_data = [
+            {
+                "name": gene,
+                assigned_class: all_class_contrs[i, assigned_class_idx],
+                user_class: all_class_contrs[i, user_class_idx]
+            }
+            for i, gene in enumerate(self.genes.gene_panel)
         ]
-        data = pd.DataFrame({
-            "x": assigned_contr,
-            "y": user_contr,
-            "name": self.genes.gene_panel,
-        }).to_dict('records')
 
-        utils.gene_loglik_contributions_scatter(data, assigned_class, user_class, cell_num, self.cellTypes.names.tolist())
-        return {
+        # Prepare the user_data dictionary with contributions for all classes
+        user_data = {
+            class_name: all_class_contrs[:, class_idx].tolist()
+            for class_idx, class_name in enumerate(self.cellTypes.names)
+        }
+
+        out = {
             'assigned_class': assigned_class,
             'user_class': user_class,
-            'assigned_contr': assigned_contr,
-            'user_contr': user_contr,
-            'gene_names': self.genes.gene_panel,
+            'assigned_contr': all_class_contrs[:, assigned_class_idx].tolist(),
             'cell_num': cell_num,
-            'available_classes': self.cellTypes.names.tolist()
+            'gene_names': self.genes.gene_panel.tolist(),
+            'class_names': self.cellTypes.names.tolist(),
+            'contr': user_data
         }
+
+        # Call the plotting function
+        utils.gene_loglik_contributions_scatter(out)
+
+        return out
 
 
 
