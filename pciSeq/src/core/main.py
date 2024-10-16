@@ -652,6 +652,8 @@ class VarBayes:
             for class_idx, class_name in enumerate(self.cellTypes.names)
         }
 
+        class_probs = dict(zip(self.cellTypes.names.tolist(), self.cells.classProb[cell_num].tolist()))
+
         out = {
             'assigned_class': assigned_class,
             'user_class': user_class,
@@ -659,6 +661,7 @@ class VarBayes:
             'cell_num': cell_label, # the label that the user has passed. It is used only to make the title
             'gene_names': self.genes.gene_panel.tolist(),
             'class_names': self.cellTypes.names.tolist(),
+            'class_probs': class_probs,
             'contr': user_data
         }
 
