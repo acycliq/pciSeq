@@ -423,6 +423,8 @@ def gene_loglik_contributions_scatter(data, filename='interactive_scatter.html')
             const gene_names = data.gene_names;
             let currentUserClass = data.user_class;
             const currentAssignedClass = data.assigned_class;
+            const classProbs = data.class_probs;  // Add this line to access class probabilities
+
 
             const margin = {{top: 60, right: 80, bottom: 50, left: 100}};
             const width = window.innerWidth - margin.left - margin.right;
@@ -488,20 +490,26 @@ def gene_loglik_contributions_scatter(data, filename='interactive_scatter.html')
                 .attr("class", "tooltip")
                 .style("opacity", 0);
 
+
             function updatePlot() {{
                 const plotData = gene_names.map((gene, index) => ({{
                     name: gene,
                     x: data.contr[currentAssignedClass][index],
                     y: data.contr[currentUserClass][index]
                 }}));
-
+    
                 x.domain(d3.extent(plotData, d => d.x));
                 y.domain(d3.extent(plotData, d => d.y));
-
+    
                 xAxis.transition().duration(1000).call(d3.axisBottom(x));
                 yAxis.transition().duration(1000).call(d3.axisLeft(y));
-
-                yLabel.text(currentUserClass);
+    
+                // Update y-axis label with probability
+                yLabel.text(`${{currentUserClass}} (Prob: ${{(classProbs[currentUserClass] * 100).toFixed(2)}}%)`);
+                
+                // Update x-axis label with probability
+                xLabel.text(`${{currentAssignedClass}} (Prob: ${{(classProbs[currentAssignedClass] * 100).toFixed(2)}}%)`);
+    
                 subtitle.text(`Assigned class: ${{currentAssignedClass}} vs Selected class: ${{currentUserClass}}`);
 
                 const dots = svg.selectAll('circle')
@@ -604,7 +612,7 @@ def gene_loglik_contributions_scatter(data, filename='interactive_scatter.html')
                 .data(classes.filter(c => c !== currentAssignedClass))
                 .enter()
                 .append('option')
-                .text(d => d)
+                .text(d => `${{d}} (${{(classProbs[d] * 100).toFixed(2)}}%)`)
                 .attr('value', d => d)
                 .property('selected', d => d === currentUserClass);
 
