@@ -596,12 +596,25 @@ class VarBayes:
         """
         Get gene log-likelihood contributions for a specified cell.
 
+        This method compares the log-likelihood contributions of genes for the pciSeq-assigned cell class
+        versus a user-specified cell class. It creates an interactive HTML plot that allows users
+        to explore the data and understand which genes contribute most to the classification.
+
         Args:
-        cell_num (int): The cell number to analyze.
-        user_class (str): The cell class to compare against the assigned class.
+            cell_label (int): The cell number to analyze. This is the user-provided cell label.
+            user_class (str): The user-specified cell class to compare against the assigned class.
 
         Returns:
-        dict: A dictionary containing the plot data and metadata
+            int: The internal cell number that was analyzed. This may differ from the user-provided
+                 cell label (cell_num) as it represents the internal index used by the system.
+
+        Raises:
+            ValueError: If an invalid cell number or user class is provided.
+
+        Note:
+            This method generates an HTML file and opens it in the default web browser.
+            The returned internal cell number is used for internal processing and may not
+            correspond directly to the user-visible cell label.
         """
 
         # the label in the segmentation array might have gaps. Because for example we drop cells that
