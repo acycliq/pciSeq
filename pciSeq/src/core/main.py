@@ -606,7 +606,7 @@ class VarBayes:
 
         Returns:
             int: The internal cell number that was analyzed. This may differ from the user-provided
-                 cell label (cell_num) as it represents the internal index used by the system.
+                 cell label as it represents the internal index used by the system.
 
         Raises:
             ValueError: If an invalid cell number or user class is provided.
