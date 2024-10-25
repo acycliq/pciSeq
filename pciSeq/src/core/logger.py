@@ -26,6 +26,8 @@ def setup_logger(level=None, log_file=None):
     # Create a logger specific to pciSeq
     logger = logging.getLogger('pciSeq')
 
+    # Remove any existing NullHandlers
+    logger.handlers = [h for h in logger.handlers if not isinstance(h, logging.NullHandler)]
     if not logger.handlers:
         logger.setLevel(level)
         logger.propagate = True  # Allow propagation to root logger
