@@ -1,5 +1,6 @@
 import sys
 import logging
+import colorlog
 
 
 def attach_to_log():
@@ -20,28 +21,39 @@ def setup_logger(level=None, log_file=None):
     """
 
     if level is None:
-        level=logging.INFO
+        level = logging.INFO
 
     # Create a logger specific to pciSeq
     logger = logging.getLogger('pciSeq')
 
-    # Only configure if the logger doesn't already have handlers
     if not logger.handlers:
         logger.setLevel(level)
         logger.propagate = True  # Allow propagation to root logger
 
-        # Create formatter
-        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        # Create color formatter
+        color_formatter = colorlog.ColoredFormatter(
+            "%(log_color)s%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            log_colors={
+                'DEBUG': 'cyan',
+                'INFO': 'green',
+                'WARNING': 'yellow',
+                'ERROR': 'red',
+                'CRITICAL': 'red,bg_white',
+            },
+            reset=True,
+            style='%'
+        )
 
         # Console handler
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(formatter)
+        console_handler = colorlog.StreamHandler(sys.stdout)
+        console_handler.setFormatter(color_formatter)
         logger.addHandler(console_handler)
 
-        # File handler (optional)
+        # File handler (optional, without colors)
         if log_file:
+            file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
             file_handler = logging.FileHandler(log_file, mode='w')
-            file_handler.setFormatter(formatter)
+            file_handler.setFormatter(file_formatter)
             logger.addHandler(file_handler)
             logger.info('Writing to %s' % log_file)
 
@@ -55,4 +67,5 @@ def get_logger(name):
     :param name: Name of the module requesting the logger
     :return: Logger instance
     """
-    return logging.getLogger(f'pciSeq.{name}')
+    logger = logging.getLogger(f'pciSeq.{name}')
+    return logger
