@@ -70,4 +70,6 @@ def get_logger(name):
     :return: Logger instance
     """
     logger = logging.getLogger(f'pciSeq.{name}')
+    logger.propagate = True
+    logger.handlers = []  # Remove any existing handlers
     return logger
