@@ -4,9 +4,9 @@ import tempfile
 import pandas as pd
 from scipy.sparse import load_npz
 from pciSeq.src.core.utils import load_from_url
-import logging
+from pciSeq.src.core.logger import get_logger
 
-gtd_logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 bbox = [

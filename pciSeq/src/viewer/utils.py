@@ -6,9 +6,9 @@ import json
 import os
 import glob
 import csv
-import logging
+from pciSeq.src.core.logger import get_logger
 
-viewer_utils_logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def make_config_base(dst):
@@ -65,7 +65,7 @@ def make_config_js(dst, w, h):
     config = os.path.join(dst, 'viewer', 'js', 'config.js')
     with open(config, 'w') as data:
         data.write(str(config_str))
-    viewer_utils_logger.info('viewer config saved at %s' % config)
+    logger.info('viewer config saved at %s' % config)
 
 
 def make_classConfig_js(labels, dst):
@@ -88,7 +88,7 @@ def make_classConfig_js(labels, dst):
     config = os.path.join(dst, 'viewer', 'js', 'classConfig.js')
     with open(config, 'w') as data:
         data.write(str(config_str))
-    viewer_utils_logger.info(' classConfig saved at %s' % config)
+    logger.info(' classConfig saved at %s' % config)
 
 
 def copy_viewer_code(cfg, dst):
@@ -97,7 +97,7 @@ def copy_viewer_code(cfg, dst):
     src = os.path.join(pciSeq_dir, 'static', dim)
 
     shutil.copytree(src, dst, dirs_exist_ok=True)
-    viewer_utils_logger.info('viewer code (%s) copied from %s to %s' % (dim, src, dst))
+    logger.info('viewer code (%s) copied from %s to %s' % (dim, src, dst))
     return dst
 
 
@@ -133,7 +133,7 @@ def splitter_mb(df, dir_path, mb_size):
         row = row.tolist()
         size = os.stat(file_out).st_size
         if size > mb_size * 1024 * 1024:
-            viewer_utils_logger.info('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
+            logger.info('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
             n += 1
             handle_out.close()
             file_out, handle_out = _get_file(dir_path, n, header_line)
@@ -141,7 +141,7 @@ def splitter_mb(df, dir_path, mb_size):
         write.writerow(row)
 
     # print(str(file_out) + " file size = \t" + str(size))
-    viewer_utils_logger.info('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
+    logger.info('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
     handle_out.close()
 
 

@@ -1,9 +1,9 @@
 import shutil
 import os
 import pyvips
-import logging
+from pciSeq.src.core.logger import get_logger
 
-stage_image_logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def split_image(im):
     # DEPRECATED to be removed
@@ -32,7 +32,7 @@ def split_image(im):
     image = im.gravity('north-west', tiles_across * tile_size, tiles_down * tile_size)
 
     for j in range(tiles_down):
-        stage_image_logger.info('Moving to the next row: %d/%d '% (j, tiles_down-1) )
+        logger.info('Moving to the next row: %d/%d '% (j, tiles_down-1) )
         y_top_left = j * tile_size
         for i in range(tiles_across):
             x_top_left = i * tile_size
@@ -40,12 +40,12 @@ def split_image(im):
             tile_num = j * tiles_across + i
             fov_id = 'fov_' + str(tile_num)
 
-            out_dir = os.path.join(stage_image_logger.ROOT_DIR, 'fov', fov_id, 'img')
+            out_dir = os.path.join(logger.ROOT_DIR, 'fov', fov_id, 'img')
             full_path = os.path.join(out_dir, fov_id +'.tif')
             if not os.path.exists(os.path.dirname(full_path)):
                 os.makedirs(os.path.dirname(full_path))
             tile.write_to_file(full_path)
-            stage_image_logger.info('tile: %s saved at %s' % (fov_id, full_path) )
+            logger.info('tile: %s saved at %s' % (fov_id, full_path) )
 
 
 def map_image_size(z):
@@ -86,10 +86,10 @@ def tile_maker(img_path, zoom_levels=8, out_dir=r"./tiles"):
     # im = im.colourspace('srgb')
     # im = im.addalpha()
 
-    stage_image_logger.info('Resizing image: %s' % img_path)
+    logger.info('Resizing image: %s' % img_path)
     factor = dim / max(im.width, im.height)
     im = im.resize(factor)
-    stage_image_logger.info('Done! Image is now %d by %d' % (im.width, im.height))
+    logger.info('Done! Image is now %d by %d' % (im.width, im.height))
     pixel_dims = [im.width, im.height]
 
     # sanity check
@@ -99,9 +99,9 @@ def tile_maker(img_path, zoom_levels=8, out_dir=r"./tiles"):
     # im = im.gravity('south-west', dim, dim) # <---- Uncomment this if the origin is the bottomleft corner
 
     # now you can create a fresh one and populate it with tiles
-    stage_image_logger.info('Started doing the image tiles ')
+    logger.info('Started doing the image tiles ')
     im.dzsave(out_dir, layout='google', suffix='.jpg', background=0)
-    stage_image_logger.info('Done. Pyramid of tiles saved at: %s' % out_dir)
+    logger.info('Done. Pyramid of tiles saved at: %s' % out_dir)
 
     return pixel_dims
 

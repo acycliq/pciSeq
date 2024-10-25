@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
 from pciSeq.src.core.utils import gaussian_contour
-import logging
+from pciSeq.src.core.logger import get_logger
 
-summary_logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def cells_summary(cells, genes, single_cell):
@@ -22,7 +22,7 @@ def cells_summary(cells, genes, single_cell):
 
     tol = 0.001
 
-    summary_logger.info('Start collecting data ...')
+    logger.info('Start collecting data ...')
 
     isCount_nonZero = [d > tol for d in gene_count]
     name_list = [list(gene_names[i][d]) for (i, d) in enumerate(isCount_nonZero)]
@@ -53,7 +53,7 @@ def cells_summary(cells, genes, single_cell):
 
     # Ignore the first row. It is the pseudocell to keep the misreads (ie the background)
     iss_df = iss_df[1:]
-    summary_logger.info('Data collected!')
+    logger.info('Data collected!')
     return iss_df
 
 

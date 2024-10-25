@@ -7,9 +7,9 @@ from pciSeq.app import cell_type
 from pciSeq.src.preprocess.spot_labels import stage_data
 import pciSeq.src.core.utils as utils
 from pciSeq.src.core.logger import attach_to_log, setup_logger
-import logging
+from pciSeq.src.core.logger import get_logger
 
-init_logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def confirm_prompt(question):
@@ -55,8 +55,8 @@ if check_libvips():
     from pciSeq.src.viewer.stage_image import tile_maker
 else:
     def tile_maker():
-        init_logger.warning('>>>> tile_maker() because libvips is not installed. Please see https://www.libvips.org/install.html <<<<')
-        init_logger.warning('>>>> If you are on Linux you can install it by calling: sudo apt install libvips <<<<')
+        logger.warning('>>>> tile_maker() because libvips is not installed. Please see https://www.libvips.org/install.html <<<<')
+        logger.warning('>>>> If you are on Linux you can install it by calling: sudo apt install libvips <<<<')
 
 
 
