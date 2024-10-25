@@ -24,7 +24,7 @@ def get_static_files(root):
 install_deps = ['altair', 'dask', 'diplib', 'fastremap',
                 'flask', 'natsort', 'numexpr', 'numpy_groupies',
                 'pandas', 'pyvips', 'redis', 'scikit-image',
-                'scikit-learn', 'scipy', 'streamlit', 'tomlkit', 'tqdm']
+                'scikit-learn', 'scipy', 'streamlit', 'tomlkit', 'colorlog']
 
 
 version = None
