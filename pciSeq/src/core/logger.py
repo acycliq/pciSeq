@@ -30,7 +30,7 @@ def setup_logger(level=None, log_file=None):
     logger.handlers = [h for h in logger.handlers if not isinstance(h, logging.NullHandler)]
     if logger.parent.handlers:
         logger.handlers = logger.parent.handlers
-
+        logger.propagate = False
     else:
         logger.setLevel(level)
         logger.propagate = True  # Allow propagation to root logger
