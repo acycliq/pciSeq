@@ -185,7 +185,6 @@ def init(opts):
     are used without any change.
     """
     cfg = config.DEFAULT
-    # log_file(cfg)
     logfile = os.path.join(get_out_dir(cfg['output_path']), 'pciSeq.log')
     setup_logger(log_file=logfile)
     cfg['is_redis_running'] = check_redis_server()
