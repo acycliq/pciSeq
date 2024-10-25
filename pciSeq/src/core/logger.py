@@ -28,9 +28,12 @@ def setup_logger(level=None, log_file=None):
 
     # Remove any existing NullHandlers
     logger.handlers = [h for h in logger.handlers if not isinstance(h, logging.NullHandler)]
-    if not logger.handlers:
+    if logger.parent.handlers:
+        logger.handlers = logger.parent.handlers
+
+    else:
         logger.setLevel(level)
-        logger.propagate = False  # Allow propagation to root logger
+        logger.propagate = True  # Allow propagation to root logger
 
         # Create color formatter
         color_formatter = colorlog.ColoredFormatter(
