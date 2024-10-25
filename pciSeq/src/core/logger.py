@@ -28,6 +28,7 @@ def setup_logger(level=None, log_file=None):
     # Only configure if the logger doesn't already have handlers
     if not logger.handlers:
         logger.setLevel(level)
+        logger.propagate = True  # Allow propagation to root logger
 
         # Create formatter
         formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -43,9 +44,6 @@ def setup_logger(level=None, log_file=None):
             file_handler.setFormatter(formatter)
             logger.addHandler(file_handler)
             logger.info('Writing to %s' % log_file)
-
-        # Prevent propagation to root logger
-        logger.propagate = False
 
     return logger
 

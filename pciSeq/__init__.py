@@ -8,6 +8,10 @@ from pciSeq.src.preprocess.spot_labels import stage_data
 import pciSeq.src.core.utils as utils
 from pciSeq.src.core.logger import attach_to_log, setup_logger
 from pciSeq.src.core.logger import get_logger
+import logging
+
+# Add a NullHandler to the pciSeq logger
+logging.getLogger('pciSeq').addHandler(logging.NullHandler())
 
 logger = get_logger(__name__)
 
