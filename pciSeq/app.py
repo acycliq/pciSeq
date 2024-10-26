@@ -14,12 +14,9 @@ from pciSeq.src.viewer.run_flask import flask_app_start
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js, make_classConfig_js
-from pciSeq.src.core.logger import setup_logger
-from pciSeq.src.core.logger import get_logger
 import logging
 
-# Define the logger at the module level
-logger = get_logger(__name__)
+app_logger = logging.getLogger(__name__)
 
 
 def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -97,11 +94,11 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     # 4. launch the diagnostics
     if cfg['launch_diagnostics'] and cfg['is_redis_running']:
-        logger.info('Launching the diagnostics dashboard')
+        app_logger.info('Launching the diagnostics dashboard')
         launch_dashboard()
 
     # 5. prepare the data
-    logger.info('Preprocessing data')
+    app_logger.info('Preprocessing data')
     _cells, cellBoundaries, _spots = stage_data(spots, coo)
 
     # 6. cell typing
@@ -116,14 +113,14 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         dst = pre_launch(cellData, coo, scRNAseq, cfg)
         flask_app_start(dst)
 
-    logger.info('Done')
+    app_logger.info('Done')
     return cellData, geneData
 
 
 def cell_type(_cells, _spots, scRNAseq, ini):
     varBayes = VarBayes(_cells, _spots, scRNAseq, ini)
 
-    logger.info('Start cell typing')
+    app_logger.info('Start cell typing')
     cellData, geneData = varBayes.run()
     return cellData, geneData, varBayes
 
@@ -135,10 +132,10 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
         os.makedirs(out_dir)
 
     cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
-    logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
+    app_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
 
     geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
-    logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
+    app_logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
 
     # Do not change the if-then branching flow. InsideCellBonus can take the value of zero
     # and the logic below will ensure that in that case, the segmentation borders will be
@@ -147,10 +144,10 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
         ellipsoidBoundaries = cellData[['Cell_Num', 'gaussian_contour']]
         ellipsoidBoundaries = ellipsoidBoundaries.rename(columns={"Cell_Num": "cell_id", "gaussian_contour": "coords"})
         ellipsoidBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-        logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+        app_logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
     else:
         cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-        logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+        app_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 
     serialise(varBayes, os.path.join(out_dir, 'debug'))
 
@@ -161,7 +158,7 @@ def serialise(varBayes, debug_dir):
     pickle_dst = os.path.join(debug_dir, 'pciSeq.pickle')
     with open(pickle_dst, 'wb') as outf:
         pickle.dump(varBayes, outf)
-        logger.info('Saved at %s' % pickle_dst)
+        app_logger.info('Saved at %s' % pickle_dst)
 
 
 def export_db_tables(out_dir, con):
@@ -174,7 +171,7 @@ def export_db_table(table_name, out_dir, con):
     df = con.from_redis(table_name)
     fname = os.path.join(out_dir, table_name + '.csv')
     df.to_csv(fname, index=False)
-    logger.info('Saved at %s' % fname)
+    app_logger.info('Saved at %s' % fname)
 
 
 def init(opts):
@@ -185,8 +182,7 @@ def init(opts):
     are used without any change.
     """
     cfg = config.DEFAULT
-    logfile = os.path.join(get_out_dir(cfg['output_path']), 'pciSeq.log')
-    setup_logger(log_file=logfile)
+    log_file(cfg)
     cfg['is_redis_running'] = check_redis_server()
     if opts is not None:
         default_items = set(cfg.keys())
@@ -200,26 +196,26 @@ def init(opts):
             else:
                 raise TypeError("Only integers, floats and lists are allowed")
             cfg[item[0]] = val
-            logger.info('%s is set to %s' % (item[0], cfg[item[0]]))
+            app_logger.info('%s is set to %s' % (item[0], cfg[item[0]]))
     return cfg
 
 
-# def log_file(cfg):
-#  Deprecated: To be removed
-#     """
-#     Setup the logger file handler.
-#     Ideally that should happen when the logger is first configured, hence avoid having
-#     the console handler and the file handler set up in two different places. However
-#     the file handler needs access to the config dict and that was not possible until
-#     this point into the program.
-#     """
-#     logfile = os.path.join(get_out_dir(cfg['output_path']), 'pciSeq.log')
-#     fh = logging.FileHandler(logfile, mode='w')
-#     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-#     fh.setFormatter(formatter)
-#
-#     logging.getLogger().addHandler(fh)
-#     app_logger.info('Writing to %s' % logfile)
+def log_file(cfg):
+    """
+    Setup the logger file handler if it doesn't already exist.
+    """
+    root_logger = logging.getLogger()
+    if root_logger.handlers:
+        # setup a FileHandler if it has not been setup already. Maybe I should be adding a FileHandler anyway,
+        # regardless whether there is one already or not
+        if not np.any([isinstance(d, logging.FileHandler) for d in root_logger.handlers]):
+            logfile = os.path.join(get_out_dir(cfg['output_path']), 'pciSeq.log')
+            fh = logging.FileHandler(logfile, mode='w')
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            fh.setFormatter(formatter)
+
+            root_logger.addHandler(fh)
+            app_logger.info('Writing to %s' % logfile)
 
 
 def validate(spots, coo, sc, cfg):
@@ -243,7 +239,7 @@ def validate(spots, coo, sc, cfg):
         """
         d = 2
         cfg['InsideCellBonus'] = d
-        logger.warning('InsideCellBonus was passed-in as True. Overriding with the default value of %d' % d)
+        app_logger.warning('InsideCellBonus was passed-in as True. Overriding with the default value of %d' % d)
 
     if cfg['cell_type_prior'].lower() not in ['uniform'.lower(), 'weighted'.lower()]:
         raise ValueError("'cel_type_prior' should be either 'uniform' or 'weighted' ")
@@ -262,10 +258,10 @@ def validate(spots, coo, sc, cfg):
 
 def purge_spots(spots, sc):
     drop_spots = list(set(spots.Gene) - set(sc.index))
-    logger.warning('Found %d genes that are not included in the single cell data' % len(drop_spots))
+    app_logger.warning('Found %d genes that are not included in the single cell data' % len(drop_spots))
     idx = ~ np.in1d(spots.Gene, drop_spots)
     spots = spots.iloc[idx]
-    logger.warning('Removed from spots: %s' % drop_spots)
+    app_logger.warning('Removed from spots: %s' % drop_spots)
     return spots
 
 
@@ -340,12 +336,12 @@ def confirm_prompt(question):
 
 
 def check_redis_server():
-    logger.info("check_redis_server")
+    app_logger.info("check_redis_server")
     try:
         redis_db()
         return True
     except (redis.exceptions.ConnectionError, ConnectionRefusedError, OSError):
-        logger.info("Redis ping failed!. Diagnostics will not be called unless redis is installed and the service is running")
+        app_logger.info("Redis ping failed!. Diagnostics will not be called unless redis is installed and the service is running")
         return False
 
 
