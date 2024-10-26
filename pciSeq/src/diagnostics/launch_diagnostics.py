@@ -3,9 +3,9 @@ from pathlib import Path
 import tomlkit
 import subprocess
 import pciSeq.src.diagnostics.utils as utils
-from pciSeq.src.core.logger import get_logger
+import logging
 
-logger = get_logger(__name__)
+launch_logger = logging.getLogger(__name__)
 
 def launch_dashboard():
     dirname = os.path.dirname(__file__)
@@ -17,7 +17,7 @@ def launch_dashboard():
         # TODO: you need to kill the process on exit
         # launch_diagnostics_logger.info('Starting process with pid: %d to run the diagnostics' % p.pid)
     else:
-        logger.info("Skipping diagnostics, cannot run them. Either redis not installed or not running.")
+        launch_logger.info("Skipping diagnostics, cannot run them. Either redis not installed or not running.")
 
 
 def make_credentials():

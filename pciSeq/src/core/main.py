@@ -8,9 +8,9 @@ import pciSeq.src.core.utils as utils
 from pciSeq.src.core.summary import collect_data
 from pciSeq.src.diagnostics.utils import redis_db
 from pciSeq.src.core.datatypes import Cells, Spots, Genes, SingleCell, CellType
-from pciSeq.src.core.logger import get_logger
+import logging
 
-logger = get_logger(__name__)
+main_logger = logging.getLogger(__name__)
 
 
 class VarBayes:
@@ -96,7 +96,7 @@ class VarBayes:
                 self.mu_upd()
 
             self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
-            logger.info('Iteration %d, mean prob change %f' % (i, delta))
+            main_logger.info('Iteration %d, mean prob change %f' % (i, delta))
 
             # keep track of the deltas
             self.iter_delta.append(delta)
@@ -113,7 +113,7 @@ class VarBayes:
                 break
 
             if i == max_iter - 1:
-                logger.info('Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
+                main_logger.info('Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
         return cell_df, gene_df
 
     # -------------------------------------------------------------------- #
@@ -365,7 +365,7 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def dalpha_upd(self):
-        # logger.info('Update cell type (marginal) distribution')
+        # main_logger.info('Update cell type (marginal) distribution')
         zeta = self.cells.classProb.sum(axis=0)  # this the class size
         alpha = self.cellTypes.ini_alpha()
         out = zeta + alpha

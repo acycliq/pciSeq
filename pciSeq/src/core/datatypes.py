@@ -6,9 +6,9 @@ import numpy_groupies as npg
 from natsort import natsort_keygen
 from .utils import read_image_objects, keep_labels_unique
 from sklearn.neighbors import NearestNeighbors
-from pciSeq.src.core.logger import get_logger
+import logging
 
-logger = get_logger(__name__)
+dtypes_logger = logging.getLogger(__name__)
 
 
 class Cells(object):
@@ -393,9 +393,9 @@ class SingleCell(object):
         called herein
         """
         if scdata is None:
-            logger.info('Single Cell data are missing. Cannot determine meam expression per cell class.')
-            logger.info('We will try to estimate the array instead')
-            logger.info('Starting point is a diagonal array of size numGenes-by-numGenes')
+            dtypes_logger.info('Single Cell data are missing. Cannot determine meam expression per cell class.')
+            dtypes_logger.info('We will try to estimate the array instead')
+            dtypes_logger.info('Starting point is a diagonal array of size numGenes-by-numGenes')
             # expr = self._naive(scdata, genes)
             expr = self._diag(genes)
             self.isMissing = True
@@ -489,10 +489,10 @@ class SingleCell(object):
         groups by the cell type
         """
         assert np.all(scdata >= 0), "Single cell dataframe has negative values"
-        logger.info(
+        dtypes_logger.info(
             'Single cell data passed-in have %d genes and %d cells' % (scdata.shape[0], scdata.shape[1]))
 
-        logger.info('Single cell data: Keeping counts for the gene panel of %d only' % len(genes))
+        dtypes_logger.info('Single cell data: Keeping counts for the gene panel of %d only' % len(genes))
         df = scdata.loc[genes]
 
         # set the axes labels
@@ -504,15 +504,15 @@ class SingleCell(object):
         df = self._remove_zero_cols(df.copy())
         dfT = df.T
 
-        logger.info('Single cell data: Grouping gene counts by cell type. Aggregating function is the mean.')
+        dtypes_logger.info('Single cell data: Grouping gene counts by cell type. Aggregating function is the mean.')
         out = dfT.groupby(dfT.index.values).agg('mean').T
-        logger.info('Grouped single cell data have %d genes and %d cell types' % (out.shape[0], out.shape[1]))
+        dtypes_logger.info('Grouped single cell data have %d genes and %d cell types' % (out.shape[0], out.shape[1]))
         return out
 
     def _diag(self, genes):
-        # logger.info('******************************************************')
-        # logger.info('*************** DIAGONAL SINGLE CELL DATA ***************')
-        # logger.info('******************************************************')
+        # dtypes_logger.info('******************************************************')
+        # dtypes_logger.info('*************** DIAGONAL SINGLE CELL DATA ***************')
+        # dtypes_logger.info('******************************************************')
         nG = len(genes)
         mgc = self.config[
             'mean_gene_counts_per_class']  # the avg gene count per cell. Better expose that so it can be set by the user.

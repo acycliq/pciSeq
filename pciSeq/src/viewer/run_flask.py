@@ -4,9 +4,9 @@ import webbrowser
 import platform
 import random
 from threading import Timer
-from pciSeq.src.core.logger import get_logger
+import logging
 
-logger = get_logger(__name__)
+run_flask_logger = logging.getLogger(__name__)
 
 
 def get_browser(port_num):
@@ -22,9 +22,9 @@ def get_browser(port_num):
     else:
         chrome_path = None
 
-    logger.info('Platform is %s' % my_os)
+    run_flask_logger.info('Platform is %s' % my_os)
     if chrome_path:
-        logger.info('Chrome path: %s' % chrome_path)
+        run_flask_logger.info('Chrome path: %s' % chrome_path)
 
     if chrome_path and os.path.isfile(chrome_path):
         webbrowser.register('chrome', None, webbrowser.BackgroundBrowser(chrome_path), preferred=True)
@@ -33,7 +33,7 @@ def get_browser(port_num):
         wb = webbrowser.open_new(url)
 
     if not wb:
-        logger.info('Could not open browser')
+        run_flask_logger.info('Could not open browser')
 
 
 def open_browser():
@@ -41,7 +41,7 @@ def open_browser():
 
 
 def flask_app_start(dir):
-    logger.info('Launching viewer. Serving directory %s ' % dir)
+    run_flask_logger.info('Launching viewer. Serving directory %s ' % dir)
     port = 5000 + random.randint(0, 999)
     flask_app = Flask(__name__,
                       static_url_path='',  # remove the static folder path
