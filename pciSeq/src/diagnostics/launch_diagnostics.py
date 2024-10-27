@@ -21,7 +21,7 @@ class DiagnosticsController:
         """
         dirname = os.path.dirname(__file__)
         filename = os.path.join(dirname, 'diagnostics.py')
-        if self.model.is_redis_available():
+        if utils.redis_passed():
             self.make_credentials()
             try:
                 # The Streamlit script (diagnostics.py) should handle data presentation
