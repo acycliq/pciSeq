@@ -31,6 +31,9 @@ class DiagnosticsModel:
     """
     Manages diagnostic data interactions with Redis for pciSeq.
 
+    This class provides methods to retrieve diagnostic data from Redis
+    and set up subscriptions for real-time updates.
+
     Attributes:
         redis_client (redis.Redis): Redis client instance for database operations.
     """
@@ -38,17 +41,32 @@ class DiagnosticsModel:
         self.redis_client = utils.RedisDB(flush=False).redis_client
 
     def get_gene_efficiency(self):
-        """Retrieve gene efficiency data from Redis."""
+        """
+        Retrieve gene efficiency data from Redis.
+
+        Returns:
+            dict or None: Deserialized gene efficiency data if available, None otherwise.
+        """
         data = self.redis_client.get("gene_efficiency")
         return pickle.loads(data) if data else None
 
     def get_cell_type_posterior(self):
-        """Retrieve cell type posterior data from Redis."""
+        """
+        Retrieve cell type posterior data from Redis.
+
+        Returns:
+            dict or None: Deserialized cell type posterior data if available, None otherwise.
+        """
         data = self.redis_client.get("cell_type_posterior")
         return pickle.loads(data) if data else None
 
     def subscribe_to_channels(self):
-        """Set up subscriptions to relevant Redis channels."""
+        """
+        Set up subscriptions to relevant Redis channels.
+
+        Returns:
+            redis.client.PubSub: A PubSub object subscribed to 'gene_efficiency' and 'cell_type_posterior' channels.
+        """
         p = self.redis_client.pubsub()
         subscribe_to = ['gene_efficiency', 'cell_type_posterior']
         p.psubscribe(*subscribe_to)
