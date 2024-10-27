@@ -391,6 +391,7 @@ class VarBayes:
         out[mask] = 10e-6
         self.cellTypes.alpha = out
 
+    # -------------------------------------------------------------------- #
     def counts_within_radius(self, r):
         """
         calcs the gene counts within radius r of the centroid of each cell.
@@ -445,25 +446,3 @@ class VarBayes:
         # ignore the first row, it is the background
         return df.iloc[1:, :]
 
-    # -------------------------------------------------------------------- #
-    # def redis_upd(self):
-    #     eta_bar_df = pd.DataFrame({
-    #         'gene_efficiency': self.genes.eta_bar,
-    #         'gene': self.genes.gene_panel
-    #     })
-    #     self.redis_db.publish(eta_bar_df, "gene_efficiency", iteration=self.iter_num,
-    #                           has_converged=self.has_converged, unix_time=time.time())
-    #
-    #     idx = []
-    #     size = self.cellTypes.names.shape[0]
-    #     for i, row in enumerate(self.cells.classProb[1:,
-    #                             :]):  # ignore the top row, it corresponds to the background, it is not an actual cell
-    #         idx.append(np.argmax(row))
-    #     counts = np.bincount(idx, minlength=size)
-    #     # prob = np.bincount(idx) / np.bincount(idx).sum()
-    #     df = pd.DataFrame({
-    #         'class_name': self.cellTypes.names,
-    #         'counts': counts
-    #     })
-    #     self.redis_db.publish(df, "cell_type_posterior", iteration=self.iter_num, has_converged=self.has_converged,
-    #                           unix_time=time.time())
