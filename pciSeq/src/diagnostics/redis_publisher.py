@@ -2,6 +2,21 @@ import pandas as pd
 import numpy as np
 import time
 
+# This module is part of the diagnostics package in the pciSeq project.
+# It implements the RedisPublisher class, which is responsible for
+# publishing diagnostic information to a Redis database.
+
+# In the context of the Model-View-Controller (MVC) pattern:
+# - This class acts primarily as part of the Controller.
+# - It updates the Model (Redis database) with the latest algorithm state.
+# - The View would be a separate component that reads from Redis to display data.
+#
+# Note: The actual View component is not present in this file.
+# It would typically be a separate module or application that
+# subscribes to Redis and presents the data to the user.
+# The View component is primarily implemented in the diagnostics.py
+# file within the pciSeq project.
+
 
 class RedisPublisher:
     def __init__(self, redis_db):
@@ -47,10 +62,12 @@ class RedisPublisher:
     def _publish_to_redis(self, data, key, iter_num, has_converged):
         """
         Publish data to Redis with metadata.
+        This method is the final step in updating the Model (Redis) with new data.
         """
         if self.redis_db:
             self.redis_db.publish(data, key,
                                   iteration=iter_num,
                                   has_converged=has_converged,
                                   unix_time=time.time())
+
 
