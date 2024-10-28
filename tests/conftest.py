@@ -4,10 +4,9 @@ import tempfile
 import pandas as pd
 from scipy.sparse import load_npz
 from pciSeq.src.core.utils import load_from_url
-import logging
+from utils import setup_logger
 
-main_logger = logging.getLogger(__name__)
-
+conftest_logger = setup_logger(__name__)
 
 bbox = [
     (4238, 364),  # bottomleft, [x0, y0]

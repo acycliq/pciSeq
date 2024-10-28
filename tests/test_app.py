@@ -8,9 +8,9 @@ from pciSeq.src.core.main import VarBayes
 from pciSeq.app import parse_args, validate, stage_data, init
 from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 from constants import EXPECTED_AREA_METRICS, EXPECTED_ITER_DELTAS
-import logging
+from utils import setup_logger
 
-test_app_logger = logging.getLogger(__name__)
+test_app_logger = setup_logger(__name__)
 
 
 def calculate_checksum(str_path):
@@ -65,6 +65,7 @@ class TestPciSeq:
     ])
     def test_stage_data(self, filename, expected, request):
         """Test data staging and processing"""
+        test_app_logger.info('Testing data staging and preprocessing')
         read_demo_data = request.getfixturevalue(filename)
         spots = read_demo_data[0]
         coo = read_demo_data[1]
@@ -85,6 +86,7 @@ class TestPciSeq:
     ])
     def test_varBayes(self, filename, expected, request):
         """Test VarBayes algorithm convergence"""
+        test_app_logger.info('Testing algorithm convergence')
         read_demo_data = request.getfixturevalue(filename)
         spots, coo, scData = read_demo_data
 
