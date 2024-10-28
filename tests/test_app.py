@@ -130,7 +130,8 @@ def test_varBayes(filename, expected, request):
 
     arr_1 = np.array(varBayes.iter_delta, dtype=np.float32).round(11)
     arr_2 = np.array(expected_iter_delta[: cfg['max_iter']], dtype=np.float32).round(11)
-    assert np.allclose(arr_1, arr_2, rtol=0, atol=1e-06)
-    # assert np.all(arr_1 == arr_2)
+    # print(f"max diff: {np.abs(arr_1-arr_2).max()}")
+    # assert np.allclose(arr_1, arr_2, rtol=0, atol=1e-06)
+    assert np.all(arr_1 == arr_2)
 
 
