@@ -991,264 +991,171 @@ def create_cell_analysis_dashboard(scatter_data, loglik_data, cell_num, filename
                     .text(data.scatter.ylabel);
             }}
 
-            function createLogLikPlot(data) {{
-                // Clear existing plot
-                d3.select('#loglik-plot').html('');
+        function createLogLikPlot() {{
+            const margin = {{top: 40, right: 40, bottom: 60, left: 60}};
+            const width = 600 - margin.left - margin.right;
+            const height = 400 - margin.top - margin.bottom;
             
-                const classes = data.class_names;
-                const gene_names = data.gene_names;
-                let currentUserClass = data.user_class;
-                const currentAssignedClass = data.assigned_class;
-                const classProbs = data.class_probs;  // Add this line to access class probabilities
-                
-                const margin = {{top: 60, right: 80, bottom: 50, left: 100}};
-                const width = window.innerWidth - margin.left - margin.right;
-                const height = window.innerHeight * 0.34 - margin.top - margin.bottom;
-    
-                const svg = d3.select('#loglik-plot')
-                    .append('svg')
-                    .attr('width', width + margin.left + margin.right)
-                    .attr('height', height + margin.top + margin.bottom)
-                    .append('g')
-                    .attr('transform', `translate(${{margin.left}},${{margin.top}})`);
-    
-                const x = d3.scaleLinear()
-                    .domain(d3.extent(data.contr[currentAssignedClass]))
-                    .range([0, width]);
-    
-                const y = d3.scaleLinear()
-                    .domain(d3.extent(data.contr[currentUserClass]))
-                    .range([height, 0]);
-    
-                const xAxis = svg.append('g')
-                    .attr('class', 'x-axis')
-                    .attr('transform', `translate(0,${{height}})`)
-                    .call(d3.axisBottom(x));
-    
-                const yAxis = svg.append('g')
-                    .attr('class', 'y-axis')
-                    .call(d3.axisLeft(y));
-    
-                // Add plot title
-                const title = svg.append("text")
-                    .attr("class", "plot-title")
-                    .attr("x", width / 2)
-                    .attr("y", -margin.top / 2)
-                    .text(`Loglikelihood contributions for cell num: ${{data.cell_num}}`);
-    
-                // Add plot subtitle
-                const subtitle = svg.append("text")
-                    .attr("class", "plot-subtitle")
-                    .attr("x", width / 2)
-                    .attr("y", -margin.top / 2 + 20)
-                    .text(`Assigned class: ${{currentAssignedClass}}`);
-    
-                // Add x-axis label
-                const xLabel = svg.append("text")
-                    .attr("class", "axis-label x-axis-label")
-                    .attr("x", width / 2)
-                    .attr("y", height + margin.bottom - 10)
-                    .style("text-anchor", "middle")
-                    .text(currentAssignedClass);
-    
-                // Add y-axis label
-                const yLabel = svg.append("text")
-                    .attr("class", "axis-label y-axis-label")
-                    .attr("transform", "rotate(-90)")
-                    .attr("x", -height / 2)
-                    .attr("y", -margin.left + 40)
-                    .style("text-anchor", "middle")
-                    .text(currentUserClass);
-    
-                // Create tooltip
-                const tooltip = d3.select("body").append("div")
-                    .attr("class", "tooltip")
-                    .style("opacity", 0);
-    
-    
-                function updatePlot() {{
-                    const plotData = gene_names.map((gene, index) => ({{
-                        name: gene,
-                        x: data.contr[currentAssignedClass][index],
-                        y: data.contr[currentUserClass][index]
-                    }}));
-        
-                    x.domain(d3.extent(plotData, d => d.x));
-                    y.domain(d3.extent(plotData, d => d.y));
-        
-                    xAxis.transition().duration(1000).call(d3.axisBottom(x));
-                    yAxis.transition().duration(1000).call(d3.axisLeft(y));
-        
-                    // Update y-axis label with probability
-                    yLabel.text(`${{currentUserClass}} (Prob: ${{(classProbs[currentUserClass] * 100).toFixed(2)}}%)`);
-                    
-                    // Update x-axis label with probability
-                    xLabel.text(`${{currentAssignedClass}} (Prob: ${{(classProbs[currentAssignedClass] * 100).toFixed(2)}}%)`);
-        
-                    subtitle.text(`Assigned class: ${{currentAssignedClass}} vs Selected class: ${{currentUserClass}}`);
-    
-                    const dots = svg.selectAll('circle')
-                        .data(plotData);
-    
-                    dots.enter()
-                        .append('circle')
-                        .attr('r', 5)
-                        .style('fill', 'blue')
-                        .merge(dots)
-                        .transition()
-                        .duration(1000)
-                        .attr('cx', d => x(d.x))
-                        .attr('cy', d => y(d.y));
-    
-                    dots.exit().remove();
-    
-                    svg.selectAll('circle')
-                        .on("mouseover", function(event, d) {{
-                            tooltip.transition()
-                                .duration(200)
-                                .style("opacity", .9);
-                            tooltip.html(`Name: ${{d.name}}<br>X: ${{d.x.toFixed(3)}}<br>Y: ${{d.y.toFixed(3)}}`)
-                                .style("left", (event.pageX + 10) + "px")
-                                .style("top", (event.pageY - 28) + "px");
-                        }})
-                        .on("mouseout", function() {{
-                            tooltip.transition()
-                                .duration(500)
-                                .style("opacity", 0);
-                        }});
-    
-                    // Update diagonal line
-                    const minDomain = Math.min(x.domain()[0], y.domain()[0]);
-                    const maxDomain = Math.max(x.domain()[1], y.domain()[1]);
-                    svg.select('.diagonal-line')
-                        .transition()
-                        .duration(1000)
-                        .attr('x1', x(minDomain))
-                        .attr('y1', y(minDomain))
-                        .attr('x2', x(maxDomain))
-                        .attr('y2', y(maxDomain));
-    
-                    updateInterpretationGuide();
-                }}
-    
-                // Add diagonal line (y=x)
-                svg.append('line')
-                    .attr('class', 'diagonal-line')
-                    .attr('x1', x(Math.min(x.domain()[0], y.domain()[0])))
-                    .attr('y1', y(Math.min(x.domain()[0], y.domain()[0])))
-                    .attr('x2', x(Math.max(x.domain()[1], y.domain()[1])))
-                    .attr('y2', y(Math.max(x.domain()[1], y.domain()[1])))
-                    .attr('stroke', 'red')
-                    .attr('stroke-width', 2)
-                    .attr('stroke-dasharray', '5,5');
-    
-                function updateInterpretationGuide() {{
-                    const guideText = [
-                        "Interpretation Guide:",
-                        `• Genes on diagonal: Contribute equally to both cell types`,
-                        `• Genes above diagonal: Support classification as ${{currentUserClass}}`,
-                        `• Genes below diagonal: Support classification as ${{currentAssignedClass}}`,
-                        `• Distance from diagonal: Strength of support for one type over the other`
-                    ];
-    
-                    const guide = svg.select('.interpretation-guide');
-                    if (guide.empty()) {{
-                        const newGuide = svg.append("g")
-                            .attr("class", "interpretation-guide")
-                            .attr("transform", `translate(${{width - 10}}, ${{height - 10}})`);
-    
-                        newGuide.selectAll("text")
-                            .data(guideText)
-                            .enter()
-                            .append("text")
-                            .attr("x", 0)
-                            .attr("y", (d, i) => i * 15)
-                            .style("text-anchor", "start")
-                            .style("font-size", "12px")
-                            .text(d => d);
-    
-                        const guideBBox = newGuide.node().getBBox();
-                        newGuide.insert("rect", ":first-child")
-                            .attr("x", guideBBox.x - 5)
-                            .attr("y", guideBBox.y - 5)
-                            .attr("width", guideBBox.width + 10)
-                            .attr("height", guideBBox.height + 10)
-                            .attr("fill", "rgba(255, 223, 186, 0.7)");
-    
-                        newGuide.attr("transform", `translate(${{width - guideBBox.width - 15}}, ${{height - guideBBox.height - 15}})`);
-                    }} else {{
-                        guide.selectAll("text").data(guideText).text(d => d);
-                    }}
-                }}
-    
-                // Populate class selector
-                const selector = d3.select('#class-selector_XXX');
-                selector.selectAll('option')
-                    .data(classes.filter(c => c !== currentAssignedClass))
-                    .enter()
-                    .append('option')
-                    .text(d => `${{d}} (${{(classProbs[d] * 100).toFixed(2)}}%)`)
-                    .attr('value', d => d)
-                    .property('selected', d => d === currentUserClass);
-    
-                // Update plot when selection changes
-                selector.on('change', function() {{
-                    currentUserClass = this.value;
-                    updatePlot();
-                }});
-    
-                // Initial plot
-                updatePlot();
-    
-                // Resize function
-                function resizePlot() {{
-                    const newWidth = window.innerWidth - margin.left - margin.right;
-                    const newHeight = window.innerHeight * 0.34 - margin.top - margin.bottom;
-    
-                    svg.attr('width', newWidth + margin.left + margin.right)
-                       .attr('height', newHeight + margin.top + margin.bottom);
-    
-                    x.range([0, newWidth]);
-                    y.range([newHeight, 0]);
-    
-                    xAxis.attr('transform', `translate(0,${{newHeight}})`).call(d3.axisBottom(x));
-                    yAxis.call(d3.axisLeft(y));
-    
-                    title.attr("x", newWidth / 2);
-                    subtitle.attr("x", newWidth / 2);
-                    xLabel.attr("x", newWidth / 2)
-                          .attr("y", newHeight + margin.bottom - 10);
-                    yLabel.attr("x", -newHeight / 2);
-    
-                    updatePlot();
-                }}
-    
-                // Add event listener for window resize
-                window.addEventListener('resize', resizePlot);
-                    
-                    
+            const svg = d3.select('#loglik-plot')
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .append('g')
+                .attr('transform', `translate(${{margin.left}},${{margin.top}})`);
+
+            // Create scales
+            const x = d3.scaleLinear()
+                .range([0, width]);
+            
+            const y = d3.scaleLinear()
+                .range([height, 0]);
+
+            // Add axes
+            const xAxis = svg.append('g')
+                .attr('class', 'x-axis')
+                .attr('transform', `translate(0,${{height}})`);
+
+            const yAxis = svg.append('g')
+                .attr('class', 'y-axis');
+
+            // Add diagonal line
+            const diagonalLine = svg.append('line')
+                .attr('class', 'diagonal-line');
+
+            // Add axis labels
+            const xLabel = svg.append("text")
+                .attr("x", width / 2)
+                .attr("y", height + margin.bottom - 10)
+                .style("text-anchor", "middle");
+
+            const yLabel = svg.append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("x", -height / 2)
+                .attr("y", -margin.left + 20)
+                .style("text-anchor", "middle");
+
+            // Create tooltip
+            const tooltip = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0);
+
+            function updatePlot() {{
+                // Update scales
+                x.domain(d3.extent(data.loglik.contr[data.loglik.assigned_class]));
+                y.domain(d3.extent(data.loglik.contr[currentUserClass]));
+
+                // Update axes with transition
+                xAxis.transition().duration(750).call(d3.axisBottom(x));
+                yAxis.transition().duration(750).call(d3.axisLeft(y));
+
+                // Update diagonal line
+                const minDomain = Math.min(x.domain()[0], y.domain()[0]);
+                const maxDomain = Math.max(x.domain()[1], y.domain()[1]);
+                diagonalLine.transition().duration(750)
+                    .attr('x1', x(minDomain))
+                    .attr('y1', y(minDomain))
+                    .attr('x2', x(maxDomain))
+                    .attr('y2', y(maxDomain));
+
+                // Update points
+                const points = data.loglik.gene_names.map((gene, i) => ({{
+                    name: gene,
+                    x: data.loglik.contr[data.loglik.assigned_class][i],
+                    y: data.loglik.contr[currentUserClass][i]
+                }}));
+
+                // Update existing points and add new ones
+                const circles = svg.selectAll('circle')
+                    .data(points);
+
+                // Enter new points
+                circles.enter()
+                    .append('circle')
+                    .attr('r', 5)
+                    .merge(circles)  // Merge with existing points
+                    .transition()
+                    .duration(750)
+                    .attr('cx', d => x(d.x))
+                    .attr('cy', d => y(d.y))
+                    .style('fill', d => d.y > d.x ? 'red' : 'blue');
+
+                // Remove old points
+                circles.exit().remove();
+
+                // Update tooltips (no transition needed)
+                svg.selectAll('circle')
+                    .on('mouseover', function(event, d) {{
+                        tooltip.transition()
+                            .duration(200)
+                            .style("opacity", .9);
+                        tooltip.html(
+                            `Gene: ${{d.name}}<br>` +
+                            `${{data.loglik.assigned_class}}: ${{d.x.toFixed(3)}}<br>` +
+                            `${{currentUserClass}}: ${{d.y.toFixed(3)}}`
+                        )
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                    }})
+                    .on('mouseout', function() {{
+                        tooltip.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                    }});
+
+                // Update axis labels
+                xLabel.text(`${{data.loglik.assigned_class}} (Prob: ${{(data.loglik.class_probs[data.loglik.assigned_class] * 100).toFixed(2)}}%)`);
+                yLabel.text(`${{currentUserClass}} (Prob: ${{(data.loglik.class_probs[currentUserClass] * 100).toFixed(2)}}%)`);
+
+                // Update interpretation guide
+                updateInterpretationGuide();
             }}
 
-            // Initialize both plots
-            createScatterPlot();
-            createLogLikPlot(data.loglik);
+            function updateInterpretationGuide() {{
+                const guideText = [
+                    "Interpretation Guide:",
+                    `• Genes on diagonal: Equal contribution`,
+                    `• Red points: Support ${{currentUserClass}}`,
+                    `• Blue points: Support ${{data.loglik.assigned_class}}`,
+                    `• Distance from diagonal: Strength of support`
+                ];
 
-            // Populate class selector and add update functionality
-            const selector = d3.select('#class-selector');
-            selector.selectAll('option')
-                .data(data.loglik.class_names.filter(c => c !== data.loglik.assigned_class))
-                .enter()
-                .append('option')
-                .text(d => `${{d}} (${{(data.loglik.class_probs[d] * 100).toFixed(2)}}%)`)
-                .attr('value', d => d)
-                .property('selected', d => d === currentUserClass);
-    
-            // Add change event handler
-            selector.on('change', function() {{
-                currentUserClass = this.value;
-                data.loglik.user_class = currentUserClass;
-                createLogLikPlot(data.loglik);  // Recreate the plot with new class
-            }});
+                const guide = svg.select('.interpretation-guide');
+                if (guide.empty()) {{
+                    const newGuide = svg.append("g")
+                        .attr("class", "interpretation-guide")
+                        .attr("transform", `translate(${{width - 200}}, 20)`);
+
+                    newGuide.selectAll("text")
+                        .data(guideText)
+                        .enter()
+                        .append("text")
+                        .attr("x", 0)
+                        .attr("y", (d, i) => i * 20)
+                        .style("font-size", "12px")
+                        .text(d => d);
+                }} else {{
+                    guide.selectAll("text")
+                        .data(guideText)
+                        .text(d => d);
+                }}
+            }}
+
+            // Initial plot
+            updatePlot();
+
+            // Return the update function for external use
+            return updatePlot;
+        }}
+
+        // Initialize plots
+        createScatterPlot();
+        const updateLogLikPlot = createLogLikPlot();
+
+        // Add change event handler
+        d3.select('#class-selector').on('change', function() {{
+            currentUserClass = this.value;
+            updateLogLikPlot();  // Update the plot with new class
+        }});
         </script>
     </body>
     </html>
