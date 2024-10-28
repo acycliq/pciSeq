@@ -31,7 +31,7 @@ def get_out_dir():
     return out_dir
 
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def read_demo_data(bbox=None):
     ROOT = r'https://github.com/acycliq/pciSeq/raw/master'
     path_str = "{}".format("/".join([ROOT, 'pciSeq', 'data', 'mouse', 'ca1', 'iss', 'spots.csv']))
