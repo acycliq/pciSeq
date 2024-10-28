@@ -991,7 +991,7 @@ def create_cell_analysis_dashboard(scatter_data, loglik_data, cell_num, filename
                     .text(data.scatter.ylabel);
             }}
 
-            function createLogLikPlot() {{
+            function createLogLikPlot(data) {{
             
             
                 const classes = data.class_names;
@@ -1005,7 +1005,7 @@ def create_cell_analysis_dashboard(scatter_data, loglik_data, cell_num, filename
                 const width = window.innerWidth - margin.left - margin.right;
                 const height = window.innerHeight * 0.34 - margin.top - margin.bottom;
     
-                const svg = d3.select('#plot-area')
+                const svg = d3.select('#loglik-plot')
                     .append('svg')
                     .attr('width', width + margin.left + margin.right)
                     .attr('height', height + margin.top + margin.bottom)
@@ -1231,7 +1231,7 @@ def create_cell_analysis_dashboard(scatter_data, loglik_data, cell_num, filename
 
             // Initialize both plots
             createScatterPlot();
-            createLogLikPlot();
+            createLogLikPlot(data.loglik);
 
             // Populate class selector
             const selector = d3.select('#class-selector');
