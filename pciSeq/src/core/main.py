@@ -116,7 +116,8 @@ class VarBayes:
                 self.redis_upd()
 
             if self.has_converged:
-                self.plot_spot_cell_assignments(2259)
+                # self.plot_spot_cell_assignments(2259)
+                self.analyze_cell(2259)
                 cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
                 break
 
@@ -587,11 +588,11 @@ class VarBayes:
         }
 
         # Call the plotting function
-        utils.gene_loglik_contributions_scatter(out)
+        # utils.gene_loglik_contributions_scatter(out)
 
         return out
 
-    def plot_spot_cell_assignments(self, cell_num):
+    def get_spot_cell_assignments(self, cell_num):
         """
         Visualizes the relationship between spot-to-cell distances and
         their assignment probabilities for a given cell.
@@ -633,7 +634,7 @@ class VarBayes:
 
         # Prepare plot data
         # Prepare plot data with cell-specific axis labels
-        plot_data = {
+        data = {
             'x': spots.dist.tolist(),
             'y': spots.prob.tolist(),
             'labels': spots.gene_name.tolist(),
@@ -643,7 +644,29 @@ class VarBayes:
         }
 
         # Create scatter plot
-        utils.create_distance_probability_plot(plot_data, cell_num)
+        # utils.create_distance_probability_plot(data, cell_num)
+
+        return data
+
+    def analyze_cell(self, cell_num, user_class=None):
+        """
+        Creates a comprehensive analysis dashboard for a specific cell.
+
+        Args:
+            cell_num: The cell number to analyze
+            user_class: Optional class to compare against assigned class
+        """
+        # Get scatter plot data
+        scatter_data = self.get_spot_cell_assignments(cell_num)
+
+        # Get loglik data
+        if user_class is None:
+            assigned_class_idx = np.argmax(self.cells.classProb[cell_num])
+            user_class = self.cellTypes.names[assigned_class_idx]
+        loglik_data = self.get_gene_loglik_contributions(cell_num, user_class)
+
+        # Create dashboard
+        utils.create_cell_analysis_dashboard(scatter_data, loglik_data, cell_num)
 
 
 
