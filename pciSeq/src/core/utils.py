@@ -992,15 +992,15 @@ def create_cell_analysis_dashboard(scatter_data, loglik_data, cell_num, filename
             }}
 
             function createLogLikPlot(data) {{
-            
+                // Clear existing plot
+                d3.select('#loglik-plot').html('');
             
                 const classes = data.class_names;
                 const gene_names = data.gene_names;
                 let currentUserClass = data.user_class;
                 const currentAssignedClass = data.assigned_class;
                 const classProbs = data.class_probs;  // Add this line to access class probabilities
-    
-    
+                
                 const margin = {{top: 60, right: 80, bottom: 50, left: 100}};
                 const width = window.innerWidth - margin.left - margin.right;
                 const height = window.innerHeight * 0.34 - margin.top - margin.bottom;
@@ -1233,7 +1233,7 @@ def create_cell_analysis_dashboard(scatter_data, loglik_data, cell_num, filename
             createScatterPlot();
             createLogLikPlot(data.loglik);
 
-            // Populate class selector
+            // Populate class selector and add update functionality
             const selector = d3.select('#class-selector');
             selector.selectAll('option')
                 .data(data.loglik.class_names.filter(c => c !== data.loglik.assigned_class))
@@ -1242,6 +1242,13 @@ def create_cell_analysis_dashboard(scatter_data, loglik_data, cell_num, filename
                 .text(d => `${{d}} (${{(data.loglik.class_probs[d] * 100).toFixed(2)}}%)`)
                 .attr('value', d => d)
                 .property('selected', d => d === currentUserClass);
+    
+            // Add change event handler
+            selector.on('change', function() {{
+                currentUserClass = this.value;
+                data.loglik.user_class = currentUserClass;
+                createLogLikPlot(data.loglik);  // Recreate the plot with new class
+            }});
         </script>
     </body>
     </html>
