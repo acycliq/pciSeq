@@ -661,3 +661,153 @@ def gene_loglik_contributions_scatter(data, filename='interactive_scatter.html')
 
     # Open the HTML file in the default web browser
     webbrowser.open('file://' + os.path.realpath(filename))
+
+
+def create_distance_probability_plot(data, cell_num, filename='spot_assignment_plot.html'):
+    """
+    Creates an interactive scatter plot showing the relationship between
+    spot-to-cell distances and assignment probabilities.
+
+    Args:
+        data: Dictionary containing:
+            - x: list of distances
+            - y: list of probabilities
+            - labels: list of gene names
+            - title: plot title
+            - xlabel: x-axis label
+            - ylabel: y-axis label
+        cell_num: cell number for labeling
+        filename: Output HTML file name
+    """
+
+    # Convert data to JSON
+    data_json = json.dumps(data)
+
+    html_code = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Scatter Plot - Cell {cell_num}</title>
+        <script src="https://d3js.org/d3.v7.min.js"></script>
+        <style>
+            body {{
+                margin: 0;
+                padding: 20px;
+                font-family: Arial, sans-serif;
+            }}
+            .tooltip {{
+                position: absolute;
+                background-color: rgba(0, 0, 0, 0.7);
+                color: white;
+                padding: 5px;
+                border-radius: 5px;
+                font-size: 12px;
+                pointer-events: none;
+            }}
+            .title {{
+                text-align: center;
+                font-size: 16px;
+                font-weight: bold;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="title">Cell {cell_num} - Distance vs Assignment Probability</div>
+        <div id="plot-area"></div>
+        <script>
+            const data = {data_json};
+
+            // Set up dimensions
+            const margin = {{top: 40, right: 40, bottom: 60, left: 60}};
+            const width = 600 - margin.left - margin.right;
+            const height = 400 - margin.top - margin.bottom;
+
+            // Create SVG
+            const svg = d3.select('#plot-area')
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .append('g')
+                .attr('transform', `translate(${{margin.left}},${{margin.top}})`);
+
+            // Create scales
+            const x = d3.scaleLinear()
+                .domain(d3.extent(data.x))
+                .range([0, width]);
+
+            const y = d3.scaleLinear()
+                .domain(d3.extent(data.y))
+                .range([height, 0]);
+
+            // Add axes
+            svg.append('g')
+                .attr('transform', `translate(0,${{height}})`)
+                .call(d3.axisBottom(x));
+
+            svg.append('g')
+                .call(d3.axisLeft(y));
+
+            // Create tooltip
+            const tooltip = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0);
+
+            // Add points
+            const points = data.x.map((d, i) => ({{
+                x: d,
+                y: data.y[i],
+                label: data.labels[i]
+            }}));
+
+            svg.selectAll('circle')
+                .data(points)
+                .enter()
+                .append('circle')
+                .attr('cx', d => x(d.x))
+                .attr('cy', d => y(d.y))
+                .attr('r', 5)
+                .style('fill', 'steelblue')
+                .on('mouseover', function(event, d) {{
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    tooltip.html(
+                        `Gene: ${{d.label}}<br>` +
+                        `Distance: ${{d.x.toFixed(2)}}<br>` +
+                        `Probability: ${{d.y.toFixed(3)}}`
+                    )
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+                }})
+                .on('mouseout', function() {{
+                    tooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                }});
+
+            // Add axis labels
+            svg.append("text")
+                .attr("x", width / 2)
+                .attr("y", height + margin.bottom - 10)
+                .style("text-anchor", "middle")
+                .text(data.xlabel || "Distance from cell centroid");
+
+            svg.append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("x", -height / 2)
+                .attr("y", -margin.left + 20)
+                .style("text-anchor", "middle")
+                .text(data.ylabel || "Assignment probability");
+        </script>
+    </body>
+    </html>
+    """
+
+    # Save the HTML to a file
+    with open(filename, 'w') as f:
+        f.write(html_code)
+
+    # Open the HTML file in the default web browser
+    webbrowser.open('file://' + os.path.realpath(filename))

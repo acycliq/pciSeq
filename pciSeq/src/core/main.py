@@ -116,33 +116,7 @@ class VarBayes:
                 self.redis_upd()
 
             if self.has_converged:
-                # self.counts_within_radius(20)
-                # point_dict = {
-                #     'gene_name': ['Pcp4', 'Plp1', 'Reln', 'Cxcl14', 'Plp1'],
-                #     'x': [107, 158, 122, 110, 135],
-                #     'y': [5443, 5420, 5420, 5457, 5425]
-                # }
-                point_dict = [
-                    {'gene_name': 'Pcp4', 'x': 107, 'y': 5443},
-                    {'gene_name': 'Plp1', 'x': 158, 'y': 5420},
-                    {'gene_name': 'Reln', 'x': 122, 'y': 5420},
-                    {'gene_name': 'Cxcl14', 'x': 109, 'y': 5461.123},
-                    {'gene_name': 'Plp1', 'x': 135, 'y': 5425},
-                ]
-
-                point_dict = [
-                    {'gene_name': 'Gad1', 'x': 4472, 'y': 427},
-                    {'gene_name': 'Gad1', 'x': 4471, 'y': 430},
-                    # {'gene_name': 'Gad1', 'x': 4465, 'y': 430},
-                    # {'gene_name': 'Gad1', 'x': 4464, 'y': 431},
-                    # {'gene_name': 'Gad1', 'x': 4460, 'y': 430},
-                    # {'gene_name': 'Gad1', 'x': 4461, 'y': 436},
-                    # {'gene_name': 'Gad1', 'x': 4466, 'y': 439},
-                    # {'gene_name': 'Kit', 'x': 4464, 'y': 439},
-                ]
-
-                # self.get_gene_loglik_contributions(2259, 'Cacna2d1.Ndnf.Cxcl14')
-                # self.calculate_spot_contributions(2259, point_dict)
+                self.plot_spot_cell_assignments(2259)
                 cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
                 break
 
@@ -616,6 +590,60 @@ class VarBayes:
         utils.gene_loglik_contributions_scatter(out)
 
         return out
+
+    def plot_spot_cell_assignments(self, cell_num):
+        """
+        Visualizes the relationship between spot-to-cell distances and
+        their assignment probabilities for a given cell.
+
+        Args:
+            cell_num: The cell number to analyze
+        """
+        # Get cell centroid
+        centroid_yx = self.cells.yx_coords[cell_num]
+
+        # Find spots near target cell
+        is_spot_near_target_cell = self.spots.parent_cell_id == cell_num
+        mask = np.any(is_spot_near_target_cell, axis=1)
+
+        # Get probabilities for spots assigned to this cell
+        prob = self.spots.parent_cell_prob[is_spot_near_target_cell]
+
+        # Select relevant spots
+        spots = self.spots.data[mask]
+
+        # Find most likely parent cell for each spot
+        max_idx = np.argmax(self.spots.parent_cell_prob[mask], axis=1)
+        assigned_cell = np.choose(max_idx, self.spots.parent_cell_id[mask].T)
+
+        # Calculate distances and create DataFrame
+        spots = spots.assign(
+            cell_x=centroid_yx[1],
+            cell_y=centroid_yx[0],
+            prob=prob,
+            assigned_cell=assigned_cell,
+            dist=np.sqrt((spots.x - centroid_yx[1]) ** 2 + (spots.y - centroid_yx[0]) ** 2),
+        )
+
+        # Select and order columns
+        spots = spots[
+            ['x', 'y', 'gene_name', 'cell_x', 'cell_y',
+             'prob', 'assigned_cell', 'dist']
+        ].reset_index()
+
+        # Prepare plot data
+        # Prepare plot data with cell-specific axis labels
+        plot_data = {
+            'x': spots.dist.tolist(),
+            'y': spots.prob.tolist(),
+            'labels': spots.gene_name.tolist(),
+            'title': f'Cell {cell_num} - Distance vs Assignment Probability',
+            'xlabel': f'Distance from cell {cell_num} centroid',
+            'ylabel': f'Assignment probability to cell {cell_num}'
+        }
+
+        # Create scatter plot
+        utils.create_distance_probability_plot(plot_data, cell_num)
 
 
 
