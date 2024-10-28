@@ -1150,9 +1150,18 @@ def create_cell_analysis_dashboard(scatter_data, loglik_data, cell_num, filename
         // Initialize plots
         createScatterPlot();
         const updateLogLikPlot = createLogLikPlot();
+        
+        const classSelector = d3.select('#class-selector');
+            Object.keys(data.loglik.contr).forEach(className => {{
+                classSelector.append('option')
+                    .attr('value', className)
+                    .text(className)
+                    .property('selected', className === currentUserClass);
+        }});
+
 
         // Add change event handler
-        d3.select('#class-selector').on('change', function() {{
+        classSelector.on('change', function() {{
             currentUserClass = this.value;
             updateLogLikPlot();  // Update the plot with new class
         }});
