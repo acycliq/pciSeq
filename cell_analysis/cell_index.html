@@ -15,11 +15,18 @@
 
     <script type="module">
         import { ScatterPlot } from './scatterPlot.js';
+        import { DistanceProbabilityPlot } from './distanceProbabilityPlot.js';
+        // import { dummyDistanceData } from './data_plot2.json';
         // Load data from JSON file
-        d3.json("./cell_data.json").then(data => {
+        Promise.all([
+            d3.json("./cell_data.json"),
+            d3.json("./data_plot2.json")
+        ]).then(([data, data2]) => {
             // Create the plots
             const mainPlot = new ScatterPlot('plot-area', data);
-            const bottomPlot = new ScatterPlot('bottom-plot', data);
+
+            // Create the bottom plot with dummy data
+            const bottomPlot = new DistanceProbabilityPlot('bottom-plot', data2);
 
             // Add resize handler
             window.addEventListener('resize', () => {
