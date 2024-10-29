@@ -219,7 +219,7 @@ export class ScatterPlot {
                     .transition()
                     .duration(PLOT_CONFIG.animation.tooltip.fadeIn)
                     .attr('r', 1.6 * PLOT_CONFIG.point.radius)
-                    .attr('fill', '#4a90e2');
+                    .attr('fill', PLOT_CONFIG.point.color);
             })
             .on('mouseleave', function(event, d) {  // Note: need event parameter in D3v6+
                 d3.select(this)
@@ -229,18 +229,43 @@ export class ScatterPlot {
                     .attr('fill', PLOT_CONFIG.point.color);
             })
             .on('mouseover', (event, d) => {
-                this.tooltip.transition()
+                const tooltip = this.tooltip;
+
+                // Get viewport width
+                const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+
+                // Get tooltip width after setting content
+                tooltip.transition()
                     .duration(200)
                     .style("opacity", .9);
-                this.tooltip.html(
+
+                // More compact HTML with bold labels
+                tooltip.html(
                     `<strong>${d.name}</strong><br>` +
                     `X: ${d.x.toFixed(3)}<br>` +
                     `Y: ${d.y.toFixed(3)}`
-                )
-                    .style("left", (event.pageX + 10) + "px")
-                    .style("top", (event.pageY - 28) + "px");
+                );
+
+                // Get tooltip dimensions
+                const tooltipWidth = tooltip.node().getBoundingClientRect().width;
+
+                // Calculate position
+                let left = event.pageX;
+
+                // Adjust if too close to right edge
+                if (event.pageX + tooltipWidth/2 > vw) {
+                    left = vw - tooltipWidth - 10; // 10px padding from edge
+                }
+                // Adjust if too close to left edge
+                else if (event.pageX - tooltipWidth/2 < 0) {
+                    left = tooltipWidth/2 + 10; // 10px padding from edge
+                }
+
+                tooltip
+                    .style("left", `${left}px`)
+                    .style("top", `${event.pageY - 28}px`);
             })
-            .on('mouseout', () => {
+            .on("mouseout", () => {
                 this.tooltip.transition()
                     .duration(500)
                     .style("opacity", 0);
