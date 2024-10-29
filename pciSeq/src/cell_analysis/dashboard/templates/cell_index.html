@@ -3,7 +3,7 @@
 <head>
     <title>Cell Analysis Plot</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="../static/css/styles.css">
 </head>
 <body>
     <div class="select-container">
@@ -14,14 +14,14 @@
     <div id="bottom-plot"></div>
 
     <script type="module">
-        import { ScatterPlot } from './scatterPlot.js';
-        import { DistanceProbabilityPlot } from './distanceProbabilityPlot.js';
+        import { ScatterPlot } from '../static/js/scatterPlot.js';
+        import { DistanceProbabilityPlot } from '../static/js/distanceProbabilityPlot.js';
 
         // import { dummyDistanceData } from './data_plot2.json';
         // Load data from JSON file
         Promise.all([
-            d3.json("./cell_data.json"),
-            d3.json("./data_plot2.json")
+            d3.json("../../cell_data.json"),
+            d3.json("../../data_plot2.json")
         ]).then(([data, data2]) => {
             // Verify cell numbers match
             if (data.cell_num !== data2.cell_num) {
