@@ -7,9 +7,12 @@ export const PLOT_CONFIG = {
     },
     point: {
         radius: 5,
-        // color: 'blue',
-        color: '#69b3a2',
-        hoverColor: '#4a90e2'
+        // color: '#0ea5e9',
+        // color: '#69b3a2',
+        color: '#4a90e2',
+        hoverColor: '#4a90e2',
+        // color: '#64748b',
+
     },
     diagonalLine: {
         color: 'red',

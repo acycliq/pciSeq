@@ -89,10 +89,25 @@ export class DistanceProbabilityPlot {
         dots.enter()
             .append('circle')
             .attr('r', PLOT_CONFIG.point.radius)
-            .style('fill', PLOT_CONFIG.point.color)
+            .attr('fill', PLOT_CONFIG.point.color)
             .merge(dots)
             .attr('cx', d => this.x(d.x))
             .attr('cy', d => this.y(d.y))
+            .on('mouseenter', function(event, d) {  // Note: need event parameter in D3v6+
+                console.log('Mouse enter')
+                d3.select(this)
+                    .transition()
+                    .duration(PLOT_CONFIG.animation.tooltip.fadeIn)
+                    .attr('r', 1.6 * PLOT_CONFIG.point.radius)
+                    .attr('fill', '#4a90e2');
+            })
+            .on('mouseleave', function(event, d) {  // Note: need event parameter in D3v6+
+                d3.select(this)
+                    .transition()
+                    .duration(PLOT_CONFIG.animation.tooltip.fadeOut)
+                    .attr('r', PLOT_CONFIG.point.radius)
+                    .attr('fill', PLOT_CONFIG.point.color);
+            })
             .on('mouseover', (event, d) => {
                 this.tooltip.transition()
                     .duration(200)

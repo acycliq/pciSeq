@@ -197,7 +197,7 @@ export class ScatterPlot {
         const dotsEnter = dots.enter()
             .append('circle')
             .attr('r', PLOT_CONFIG.point.radius)
-            .style('fill', PLOT_CONFIG.point.color);
+            .attr('fill', PLOT_CONFIG.point.color);
 
         // Handle update selection
         dots.merge(dotsEnter)
@@ -210,8 +210,24 @@ export class ScatterPlot {
         dots.exit().remove();
 
         // Add tooltip interactions
-        // const tooltipHandlers = handleTooltip(this.tooltip, PLOT_CONFIG);
+
+        // Add hover events (on the original selection, not the transition)
         this.svg.selectAll('circle')
+            .on('mouseenter', function(event, d) {  // Note: need event parameter in D3v6+
+                console.log('Mouse enter')
+                d3.select(this)
+                    .transition()
+                    .duration(PLOT_CONFIG.animation.tooltip.fadeIn)
+                    .attr('r', 1.6 * PLOT_CONFIG.point.radius)
+                    .attr('fill', '#4a90e2');
+            })
+            .on('mouseleave', function(event, d) {  // Note: need event parameter in D3v6+
+                d3.select(this)
+                    .transition()
+                    .duration(PLOT_CONFIG.animation.tooltip.fadeOut)
+                    .attr('r', PLOT_CONFIG.point.radius)
+                    .attr('fill', PLOT_CONFIG.point.color);
+            })
             .on('mouseover', (event, d) => {
                 this.tooltip.transition()
                     .duration(200)
