@@ -1,3 +1,5 @@
+import {calculateDimensions, PLOT_CONFIG} from "./plotConfig.js";
+
 export class DistanceProbabilityPlot {
     constructor(containerId, data, tooltip) {
         this.containerId = containerId;
@@ -10,15 +12,18 @@ export class DistanceProbabilityPlot {
     initializePlot() {
         // Get container width and height
         const container = d3.select(`#${this.containerId}`);
-        const width = window.innerWidth - this.margin.left - this.margin.right;
-        const height = window.innerHeight * 0.34 - this.margin.top - this.margin.bottom;
+
+        const { width, height } = calculateDimensions();
+        this.width = width;
+        this.height = height;
 
         // Create SVG
         this.svg = container.append('svg')
             .attr('width', width + this.margin.left + this.margin.right)
-            .attr('height', height + this.margin.top + this.margin.bottom)
+            .attr('width', this.width + PLOT_CONFIG.margin.left + PLOT_CONFIG.margin.right)
+            .attr('height', this.height + PLOT_CONFIG.margin.top + PLOT_CONFIG.margin.bottom)
             .append('g')
-            .attr('transform', `translate(${this.margin.left},${this.margin.top})`);
+            .attr('transform', `translate(${PLOT_CONFIG.margin.left},${PLOT_CONFIG.margin.top})`);
 
         // Set up scales
         this.x = d3.scaleLinear()
