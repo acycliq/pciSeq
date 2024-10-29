@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cell Analysis Plot</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="plot-area"></div>
+    <select id="class-selector"></select>
+    <div id="bottom-plot"></div>
+
+    <script type="module">
+        import { ScatterPlot } from './scatterPlot.js';
+        // Load data from JSON file
+        d3.json("./cell_data.json").then(data => {
+            // Create the plots
+            const mainPlot = new ScatterPlot('plot-area', data);
+            const bottomPlot = new ScatterPlot('bottom-plot', data);
+
+            // Add resize handler
+            window.addEventListener('resize', () => {
+                mainPlot.resize();
+                bottomPlot.resize();
+            });
+
+            // Setup class selector
+            const selector = document.getElementById('class-selector');
+
+            // Add options to selector
+            data.class_names
+                .filter(c => c !== data.assigned_class)
+                .forEach(className => {
+                    const option = document.createElement('option');
+                    option.value = className;
+                    option.textContent = `${className} (${(data.class_probs[className] * 100).toFixed(2)}%)`;
+                    option.selected = className === data.user_class;
+                    selector.appendChild(option);
+                });
+
+            // Add change event listener
+            selector.addEventListener('change', (event) => {
+                mainPlot.currentUserClass = event.target.value;
+                mainPlot.updatePlot();
+            });
+        }).catch(error => {
+            console.error("Error loading the data:", error);
+            document.getElementById('plot-area').innerHTML =
+                `<div class="error">Error loading data: ${error.message}</div>`;
+        });
+    </script>
+</body>
+</html>
