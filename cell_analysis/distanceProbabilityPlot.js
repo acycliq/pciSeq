@@ -36,19 +36,28 @@ export class DistanceProbabilityPlot {
         this.svg.append('g')
             .call(d3.axisLeft(this.y));
 
+        // Add title
+        this.svg.append("text")
+            .attr("class", "plot-title")
+            .attr("x", width / 2)
+            .attr("y", -this.margin.top / 2)
+            .style("text-anchor", "middle")
+            .style("font-size", "16px")
+            .text(`Distance vs Assignment Probability: Cell ${this.data.cell_num}`);
+
         // Add labels
         this.svg.append("text")
             .attr("x", width / 2)
             .attr("y", height + this.margin.bottom - 10)
             .style("text-anchor", "middle")
-            .text(this.data.xlabel || "Distance");
+            .text(`Distance from cell ${this.data.cell_num} centroid`);
 
         this.svg.append("text")
             .attr("transform", "rotate(-90)")
             .attr("x", -height / 2)
             .attr("y", -this.margin.left + 40)
             .style("text-anchor", "middle")
-            .text(this.data.ylabel || "Probability");
+            .text(`Assignment probability to cell ${this.data.cell_num}`);
 
         // Create tooltip
         this.tooltip = d3.select("body").append("div")

@@ -16,12 +16,21 @@
     <script type="module">
         import { ScatterPlot } from './scatterPlot.js';
         import { DistanceProbabilityPlot } from './distanceProbabilityPlot.js';
+
         // import { dummyDistanceData } from './data_plot2.json';
         // Load data from JSON file
         Promise.all([
             d3.json("./cell_data.json"),
             d3.json("./data_plot2.json")
         ]).then(([data, data2]) => {
+            // Verify cell numbers match
+            if (data.cell_num !== data2.cell_num) {
+                throw new Error(`Cell number mismatch: ${data.cell_num} vs ${data2.cell_num}`);
+            }
+
+            // Store cell number centrally
+            const cellNum = data.cell_num;
+
             // Create the plots
             const mainPlot = new ScatterPlot('plot-area', data);
 

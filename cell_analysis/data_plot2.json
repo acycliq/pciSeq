@@ -299,6 +299,7 @@
     "Sst",
     "Sst"
   ],
+  "cell_num": 2259,
   "title": "Cell 2259 - Distance vs Assignment Probability",
   "xlabel": "Distance from cell 2259 centroid",
   "ylabel": "Assignment probability to cell 2259"
