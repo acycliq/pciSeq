@@ -41,6 +41,10 @@
                     selector.appendChild(option);
                 });
 
+            // Initialize plot with the selected value
+            mainPlot.currentUserClass = selector.value;
+            mainPlot.updatePlot();
+
             // Add change event listener
             selector.addEventListener('change', (event) => {
                 mainPlot.currentUserClass = event.target.value;
