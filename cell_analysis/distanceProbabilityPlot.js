@@ -1,7 +1,8 @@
 export class DistanceProbabilityPlot {
-    constructor(containerId, data) {
+    constructor(containerId, data, tooltip) {
         this.containerId = containerId;
         this.data = data;
+        this.tooltip = tooltip;  // Store the shared tooltip
         this.margin = {top: 60, right: 80, bottom: 50, left: 100};
         this.initializePlot();
     }
@@ -59,10 +60,10 @@ export class DistanceProbabilityPlot {
             .style("text-anchor", "middle")
             .text(`Assignment probability to cell ${this.data.cell_num}`);
 
-        // Create tooltip
-        this.tooltip = d3.select("body").append("div")
-            .attr("class", "tooltip")
-            .style("opacity", 0);
+        // // Create tooltip
+        // this.tooltip = d3.select("body").append("div")
+        //     .attr("class", "tooltip")
+        //     .style("opacity", 0);
 
         this.updatePlot();
     }
@@ -91,7 +92,11 @@ export class DistanceProbabilityPlot {
                 this.tooltip.transition()
                     .duration(200)
                     .style("opacity", .9);
-                this.tooltip.html(`Gene: ${d.label}<br/>Distance: ${d.x.toFixed(2)}<br/>Probability: ${d.y.toFixed(2)}`)
+                this.tooltip.html(
+                    `<strong>${d.label}</strong><br/>` +
+                    `Distance: ${d.x.toFixed(2)}<br/>` +
+                    `Probability: ${d.y.toFixed(2)}`
+                )
                     .style("left", (event.pageX + 10) + "px")
                     .style("top", (event.pageY - 28) + "px");
             })

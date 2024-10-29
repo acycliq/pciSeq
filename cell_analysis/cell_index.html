@@ -31,11 +31,16 @@
             // Store cell number centrally
             const cellNum = data.cell_num;
 
+            // Create shared tooltip
+            const tooltip = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0);
+
             // Create the plots
-            const mainPlot = new ScatterPlot('plot-area', data);
+            const mainPlot = new ScatterPlot('plot-area', data, tooltip);
 
             // Create the bottom plot with dummy data
-            const bottomPlot = new DistanceProbabilityPlot('bottom-plot', data2);
+            const bottomPlot = new DistanceProbabilityPlot('bottom-plot', data2, tooltip);
 
             // Add resize handler
             window.addEventListener('resize', () => {

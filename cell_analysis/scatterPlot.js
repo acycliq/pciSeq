@@ -1,17 +1,18 @@
 // Save this as: static/js/components/ScatterPlot.js
 
 import { PLOT_CONFIG, calculateDimensions } from './plotConfig.js';
-import { createTooltip, createScales, handleTooltip, createAxis } from './plotUtils.js';
+import { createScales, createAxis } from './plotUtils.js';
 import { preparePlotData } from './dataUtils.js';
 import { InterpretationGuide } from './interpretationGuide.js';
 
 export class ScatterPlot {
-    constructor(containerId, data) {
+    constructor(containerId, data, tooltip) {
         // Initialize the plot with data and container ID
         this.containerId = containerId;
         this.data = data;
         this.currentUserClass = data.user_class;
         this.currentAssignedClass = data.assigned_class;
+        this.tooltip = tooltip
         
         this.setup();
         this.updatePlot();
@@ -31,7 +32,7 @@ export class ScatterPlot {
             this.data.contr[this.currentUserClass]
         );
         
-        this.tooltip = createTooltip();
+        // this.tooltip = createTooltip();
         this.guide = new InterpretationGuide(this.svg, width, height);
         
         this.setupAxes();
@@ -180,10 +181,25 @@ export class ScatterPlot {
         dots.exit().remove();
 
         // Add tooltip interactions
-        const tooltipHandlers = handleTooltip(this.tooltip, PLOT_CONFIG);
+        // const tooltipHandlers = handleTooltip(this.tooltip, PLOT_CONFIG);
         this.svg.selectAll('circle')
-            .on("mouseover", tooltipHandlers.mouseOver)
-            .on("mouseout", tooltipHandlers.mouseOut);
+            .on('mouseover', (event, d) => {
+                this.tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                this.tooltip.html(
+                    `<strong>${d.name}</strong><br>` +
+                    `X: ${d.x.toFixed(3)}<br>` +
+                    `Y: ${d.y.toFixed(3)}`
+                )
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+            })
+            .on('mouseout', () => {
+                this.tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            });
     }
 
     updateLabels() {
