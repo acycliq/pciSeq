@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import numpy_groupies as npg
 import scipy.spatial as spatial
+import json
 from scipy.special import softmax
 import pciSeq.src.core.utils as utils
 from pciSeq.src.core.summary import collect_data
@@ -638,10 +639,14 @@ class VarBayes:
             'x': spots.dist.tolist(),
             'y': spots.prob.tolist(),
             'labels': spots.gene_name.tolist(),
+            'cell_num': cell_num,
             'title': f'Cell {cell_num} - Distance vs Assignment Probability',
             'xlabel': f'Distance from cell {cell_num} centroid',
             'ylabel': f'Assignment probability to cell {cell_num}'
         }
+
+        with open('data_plot2.json', 'w') as fp:
+            json.dump(data, fp)
 
         # Create scatter plot
         # utils.create_distance_probability_plot(data, cell_num)
@@ -664,6 +669,8 @@ class VarBayes:
             assigned_class_idx = np.argmax(self.cells.classProb[cell_num])
             user_class = self.cellTypes.names[assigned_class_idx]
         loglik_data = self.get_gene_loglik_contributions(cell_num, user_class)
+        with open('data_crap.json', 'w') as fp:
+            json.dump(loglik_data, fp)
 
         # Create dashboard
         utils.create_cell_analysis_dashboard(scatter_data, loglik_data, cell_num)

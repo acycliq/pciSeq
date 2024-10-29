@@ -1,7 +1,6 @@
 // Save this as: static/js/main.js
 
 import { ScatterPlot } from './scatterPlot.js';
-import { prepareSelectorOptions } from './dataUtils.js';
 
 export function initializePlots(data) {
     // Create main plot instance
@@ -50,4 +49,15 @@ function setupClassSelector(data, plot) {
         plot.currentUserClass = event.target.value;
         plot.updatePlot();
     });
+}
+
+function prepareSelectorOptions(classes, classProbs, currentAssignedClass) {
+    // Filters out the assigned class and formats the dropdown options
+    return classes
+        .filter(c => c !== currentAssignedClass)
+        .map(c => ({
+            value: c,
+            label: `${c} (${(classProbs[c] * 100).toFixed(2)}%)`,
+            probability: classProbs[c]
+        }));
 }

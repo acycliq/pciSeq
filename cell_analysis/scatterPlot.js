@@ -1,8 +1,6 @@
 // Save this as: static/js/components/ScatterPlot.js
 
 import { PLOT_CONFIG, calculateDimensions } from './plotConfig.js';
-import { createScales, createAxis } from './plotUtils.js';
-import { preparePlotData } from './dataUtils.js';
 import { InterpretationGuide } from './interpretationGuide.js';
 
 export class ScatterPlot {
@@ -18,6 +16,37 @@ export class ScatterPlot {
         this.updatePlot();
     }
 
+    createScales(width, height, xData, yData) {
+        return {
+            x: d3.scaleLinear()
+                .domain(d3.extent(xData))
+                .range([0, width])
+                .nice(),
+            y: d3.scaleLinear()
+                .domain(d3.extent(yData))
+                .range([height, 0])
+                .nice()
+        };
+    }
+
+    createAxis(scale, orientation) {
+        const axis = orientation === 'bottom' ? d3.axisBottom : d3.axisLeft;
+        return axis(scale)
+            .ticks(5)
+            .tickSize(-5)
+            .tickPadding(5);
+    }
+
+    preparePlotData(geneNames, contrData, assignedClass, userClass) {
+        // Maps gene names to their corresponding x,y coordinates
+        return geneNames.map((gene, index) => ({
+            name: gene,
+            x: contrData[assignedClass][index],
+            y: contrData[userClass][index]
+        }));
+    }
+
+
     setup() {
         // Set up the basic plot structure
         const { width, height } = calculateDimensions();
@@ -25,7 +54,7 @@ export class ScatterPlot {
         this.height = height;
         
         this.svg = this.createSvg();
-        this.scales = createScales(
+        this.scales = this.createScales(
             width, 
             height, 
             this.data.contr[this.currentAssignedClass],
@@ -55,12 +84,12 @@ export class ScatterPlot {
         this.xAxis = this.svg.append('g')
             .attr('class', 'x-axis')
             .attr('transform', `translate(0,${this.height})`)
-            .call(createAxis(this.scales.x, 'bottom'));
+            .call(this.createAxis(this.scales.x, 'bottom'));
 
         // Create and append y-axis
         this.yAxis = this.svg.append('g')
             .attr('class', 'y-axis')
-            .call(createAxis(this.scales.y, 'left'));
+            .call(this.createAxis(this.scales.y, 'left'));
     }
 
     setupLabels() {
@@ -126,7 +155,7 @@ export class ScatterPlot {
 
     updatePlot() {
         // Prepare data for plotting
-        const plotData = preparePlotData(
+        const plotData = this.preparePlotData(
             this.data.gene_names,
             this.data.contr,
             this.currentAssignedClass,
@@ -140,11 +169,11 @@ export class ScatterPlot {
         // Update axes with animation
         this.xAxis.transition()
             .duration(PLOT_CONFIG.animation.duration)
-            .call(createAxis(this.scales.x, 'bottom'));
+            .call(this.createAxis(this.scales.x, 'bottom'));
 
         this.yAxis.transition()
             .duration(PLOT_CONFIG.animation.duration)
-            .call(createAxis(this.scales.y, 'left'));
+            .call(this.createAxis(this.scales.y, 'left'));
 
         // Update labels
         this.updateLabels();
