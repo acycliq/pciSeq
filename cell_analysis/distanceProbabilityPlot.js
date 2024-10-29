@@ -88,8 +88,8 @@ export class DistanceProbabilityPlot {
         // Enter new points
         dots.enter()
             .append('circle')
-            .attr('r', 4)
-            .style('fill', '#69b3a2')
+            .attr('r', PLOT_CONFIG.point.radius)
+            .style('fill', PLOT_CONFIG.point.color)
             .merge(dots)
             .attr('cx', d => this.x(d.x))
             .attr('cy', d => this.y(d.y))

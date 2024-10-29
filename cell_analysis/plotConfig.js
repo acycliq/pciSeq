@@ -7,7 +7,8 @@ export const PLOT_CONFIG = {
     },
     point: {
         radius: 5,
-        color: 'blue',
+        // color: 'blue',
+        color: '#69b3a2',
         hoverColor: '#4a90e2'
     },
     diagonalLine: {
