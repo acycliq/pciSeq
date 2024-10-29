@@ -1,0 +1,80 @@
+/* Save this as: static/css/styles.css */
+
+.error {
+    color: #721c24;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    padding: 1rem;
+    margin: 1rem;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+}
+
+#plot-area, #bottom-plot {
+    position: relative;
+    margin: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+}
+
+#class-selector {
+    display: block;
+    margin: 10px;
+    padding: 5px;
+    font-size: 14px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    min-width: 200px;
+}
+
+.tooltip {
+    position: absolute;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    pointer-events: none;
+    font-size: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.diagonal-line {
+    pointer-events: none;
+}
+
+.interpretation-guide text {
+    font-family: sans-serif;
+    font-size: 12px;
+    fill: #333;
+}
+
+
+/*.plot-title, .plot-subtitle {*/
+/*    font-size: 16px;*/
+/*    font-weight: bold;*/
+/*    font-family: sans-serif;*/
+/*}*/
+
+.plot-title {
+    font-family: sans-serif;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.plot-subtitle {
+    font-size: 14px;
+}
+
+
+.axis-label {
+    font-family: sans-serif;
+    fill: #666;
+}
+
