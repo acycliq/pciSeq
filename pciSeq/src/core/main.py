@@ -532,7 +532,7 @@ class VarBayes:
         })
         return df
 
-    def get_gene_loglik_contributions(self, cell_num, user_class=None):
+    def gene_loglik_contributions(self, cell_num, user_class=None):
         """
         Get gene log-likelihood contributions for a specified cell.
 
@@ -591,7 +591,7 @@ class VarBayes:
 
         return out
 
-    def get_spot_cell_assignments(self, cell_num):
+    def spot_dist_and_prob(self, cell_num):
         """
         Visualizes the relationship between spot-to-cell distances and
         their assignment probabilities for a given cell.
@@ -657,13 +657,13 @@ class VarBayes:
             user_class: Optional class to compare against assigned class
         """
         # Get scatter plot data
-        scatter_data = self.get_spot_cell_assignments(cell_num)
+        scatter_data = self.spot_dist_and_prob(cell_num)
 
         # Get loglik data
         if user_class is None:
             assigned_class_idx = np.argmax(self.cells.classProb[cell_num])
             user_class = self.cellTypes.names[assigned_class_idx]
-        loglik_data = self.get_gene_loglik_contributions(cell_num, user_class)
+        loglik_data = self.gene_loglik_contributions(cell_num, user_class)
 
         # Create dashboard
         utils.create_cell_analysis_dashboard(scatter_data, loglik_data, cell_num)
@@ -689,24 +689,20 @@ class VarBayes:
         user_class = self.cellTypes.names[assigned_class_idx]
 
         # Generate gene contribution data
-        gene_data = self.get_spot_cell_assignments(cell_num)
+        spot_dist = self.spot_dist_and_prob(cell_num)
 
         # Generate distance probability data
         # distance_data = self.get_spot_cell_assignments(cell_num)
 
-        loglik_data = self.get_gene_loglik_contributions(cell_num, user_class)
-        with open(os.path.join(output_dir, 'gene_loglik_data.json'), 'w') as fp:
+        loglik_data = self.gene_loglik_contributions(cell_num, user_class)
+        with open(os.path.join(output_dir, 'gene_loglik_contr.json'), 'w') as fp:
             json.dump(loglik_data, fp)
-            main_logger.info(f'saved at {os.path.join(output_dir, "gene_loglik_data.json")}')
+            main_logger.info(f'saved at {os.path.join(output_dir, "gene_loglik_contr.json")}')
 
         # Save the data files
-        with open(os.path.join(output_dir, "cell_spots.json"), "w") as f:
-            json.dump(gene_data, f)
-            main_logger.info(f'saved at {os.path.join(output_dir, "cell_spots.json")}')
-
-        # with open(os.path.join(output_dir, "data_plot2.json"), "w") as f:
-        #     json.dump(distance_data, f)
-        #     main_logger.info(f'saved at {os.path.join(output_dir, "data_plot2.json")}')
+        with open(os.path.join(output_dir, "spot_dist.json"), "w") as f:
+            json.dump(spot_dist, f)
+            main_logger.info(f'saved at {os.path.join(output_dir, "spot_dist.json")}')
 
         pciSeq_dir = utils.get_pciSeq_install_dir()
         src = os.path.join(pciSeq_dir, 'static', 'cell_analysis')

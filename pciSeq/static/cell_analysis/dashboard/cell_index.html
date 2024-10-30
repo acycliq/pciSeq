@@ -20,8 +20,8 @@
         // import { dummyDistanceData } from './data_plot2.json';
         // Load data from JSON file
         Promise.all([
-            d3.json("../gene_loglik_data.json?v=" + Date.now()),  // Add timestamp as query parameter
-            d3.json("../cell_spots.json?v=" + Date.now())  // Add timestamp as query parameter
+            d3.json("../gene_loglik_contr.json?v=" + Date.now()),  // Add timestamp as query parameter
+            d3.json("../spot_dist.json?v=" + Date.now())  // Add timestamp as query parameter
         ]).then(([data, data2]) => {
             // Verify cell numbers match
             if (data.cell_num !== data2.cell_num) {
