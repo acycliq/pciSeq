@@ -120,9 +120,7 @@ class VarBayes:
                 self.redis_upd()
 
             if self.has_converged:
-                # self.plot_spot_cell_assignments(2259)
-                # self.analyze_cell(2259)
-                self.launch_cell_analysis(2259)
+                self.cell_analysis(2259)
                 cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
                 break
 
@@ -642,33 +640,9 @@ class VarBayes:
             'xlabel': f'Distance from cell {cell_num} centroid',
             'ylabel': f'Assignment probability to cell {cell_num}'
         }
-
-        # Create scatter plot
-        # utils.create_distance_probability_plot(data, cell_num)
-
         return data
 
-    def analyze_cell(self, cell_num, user_class=None):
-        """
-        Creates a comprehensive analysis dashboard for a specific cell.
-
-        Args:
-            cell_num: The cell number to analyze
-            user_class: Optional class to compare against assigned class
-        """
-        # Get scatter plot data
-        scatter_data = self.spot_dist_and_prob(cell_num)
-
-        # Get loglik data
-        if user_class is None:
-            assigned_class_idx = np.argmax(self.cells.classProb[cell_num])
-            user_class = self.cellTypes.names[assigned_class_idx]
-        loglik_data = self.gene_loglik_contributions(cell_num, user_class)
-
-        # Create dashboard
-        utils.create_cell_analysis_dashboard(scatter_data, loglik_data, cell_num)
-
-    def launch_cell_analysis(self, cell_num, output_dir=None):
+    def cell_analysis(self, cell_num, output_dir=None):
         """
         Generates data and launches the cell analysis dashboard for a specific cell.
 
