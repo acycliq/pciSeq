@@ -532,15 +532,31 @@ class VarBayes:
 
     def gene_loglik_contributions(self, cell_num, user_class=None):
         """
-        Get gene log-likelihood contributions for a specified cell.
+        Calculate and return gene log-likelihood contributions for a specified cell.
+
+        This function analyzes how each gene contributes to the cell type classification
+        by calculating log-likelihood values for each gene under different cell type hypotheses.
 
         Args:
-        cell_num (int): The cell number to analyze.
-        user_class (str): The cell class to compare against the assigned class.
+            cell_num (int): The cell number to analyze. Must be between 0 and nC-1.
+            user_class (str, optional): The cell class to compare against the assigned class.
+                If None, uses the assigned class.
 
         Returns:
-        dict: A dictionary containing the plot data and metadata
-        """
+            dict: A dictionary containing:
+                - assigned_class (str): The automatically assigned cell class
+                - user_class (str): The user-specified class for comparison
+                - assigned_contr (list): Log-likelihood contributions for assigned class
+                - cell_num (int): The analyzed cell number
+                - gene_names (list): List of gene names
+                - class_names (list): List of available cell type classes
+                - class_probs (dict): Probability distribution over cell types
+                - contr (dict): Log-likelihood contributions for all classes
+
+        Raises:
+            ValueError: If cell_num is invalid or user_class is not recognized
+            """
+
         if cell_num < 0 or cell_num >= self.nC:
             raise ValueError(f"Invalid cell number. Must be between 0 and {self.nC - 1}")
 
@@ -591,12 +607,31 @@ class VarBayes:
 
     def spot_dist_and_prob(self, cell_num):
         """
-        Visualizes the relationship between spot-to-cell distances and
-        their assignment probabilities for a given cell.
+        Calculate the relationship between spot-to-cell distances and their assignment
+        probabilities for a given cell.
+
+        This function analyzes spatial relationships between spots and a target cell by:
+        1. Finding spots near the target cell
+        2. Calculating distances from spots to cell centroid
+        3. Computing assignment probabilities
 
         Args:
-            cell_num: The cell number to analyze
+            cell_num (int): The cell number to analyze
+
+        Returns:
+            dict: A dictionary containing plot data:
+                - x (list): Distances from spots to cell centroid
+                - y (list): Assignment probabilities
+                - labels (list): Gene names for each spot
+                - cell_num (int): The analyzed cell number
+                - title (str): Plot title
+                - xlabel (str): X-axis label
+                - ylabel (str): Y-axis label
+
+        Note:
+            The returned data is structured for visualization in the cell analysis dashboard.
         """
+
         # Get cell centroid
         centroid_yx = self.cells.yx_coords[cell_num]
 
@@ -664,9 +699,6 @@ class VarBayes:
 
         # Generate gene contribution data
         spot_dist = self.spot_dist_and_prob(cell_num)
-
-        # Generate distance probability data
-        # distance_data = self.get_spot_cell_assignments(cell_num)
 
         loglik_data = self.gene_loglik_contributions(cell_num, user_class)
         with open(os.path.join(output_dir, 'gene_loglik_contr.json'), 'w') as fp:
