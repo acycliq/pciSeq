@@ -4,11 +4,14 @@ import pandas as pd
 import numpy_groupies as npg
 import scipy.spatial as spatial
 import json
+import os
+import time
 from scipy.special import softmax
 import pciSeq.src.core.utils as utils
 from pciSeq.src.core.summary import collect_data
 from pciSeq.src.diagnostics.utils import redis_db
 from dask.delayed import delayed
+import shutil
 from pciSeq.src.core.datatypes import Cells, Spots, Genes, SingleCell, CellType
 import logging
 
@@ -118,7 +121,8 @@ class VarBayes:
 
             if self.has_converged:
                 # self.plot_spot_cell_assignments(2259)
-                self.analyze_cell(2259)
+                # self.analyze_cell(2259)
+                self.launch_cell_analysis(2259)
                 cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
                 break
 
@@ -528,7 +532,7 @@ class VarBayes:
         })
         return df
 
-    def get_gene_loglik_contributions(self, cell_num, user_class):
+    def get_gene_loglik_contributions(self, cell_num, user_class=None):
         """
         Get gene log-likelihood contributions for a specified cell.
 
@@ -545,12 +549,16 @@ class VarBayes:
         assigned_class_idx = np.argmax(self.cells.classProb[cell_num])
         assigned_class = self.cellTypes.names[assigned_class_idx]
 
+        if user_class is None:
+            user_class = assigned_class
+
         try:
             user_class_idx = np.where(self.cellTypes.names == user_class)[0][0]
         except IndexError:
             raise ValueError(
                 f"Invalid user class: {user_class}. Available classes are: {', '.join(self.cellTypes.names)}")
 
+        # it will be nice to avoid duplicating the code. This has already been calculated.
         ScaledExp = self.scaled_exp.compute()
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
@@ -558,16 +566,6 @@ class VarBayes:
 
         # Calculate contributions for all classes
         all_class_contrs = contr[cell_num, :, :]
-
-        # Create the plot data
-        plot_data = [
-            {
-                "name": gene,
-                assigned_class: all_class_contrs[i, assigned_class_idx],
-                user_class: all_class_contrs[i, user_class_idx]
-            }
-            for i, gene in enumerate(self.genes.gene_panel)
-        ]
 
         # Prepare the user_data dictionary with contributions for all classes
         user_data = {
@@ -645,9 +643,6 @@ class VarBayes:
             'ylabel': f'Assignment probability to cell {cell_num}'
         }
 
-        with open('data_plot2.json', 'w') as fp:
-            json.dump(data, fp)
-
         # Create scatter plot
         # utils.create_distance_probability_plot(data, cell_num)
 
@@ -669,11 +664,85 @@ class VarBayes:
             assigned_class_idx = np.argmax(self.cells.classProb[cell_num])
             user_class = self.cellTypes.names[assigned_class_idx]
         loglik_data = self.get_gene_loglik_contributions(cell_num, user_class)
-        with open('data_crap.json', 'w') as fp:
-            json.dump(loglik_data, fp)
 
         # Create dashboard
         utils.create_cell_analysis_dashboard(scatter_data, loglik_data, cell_num)
+
+    def launch_cell_analysis(self, cell_num, output_dir=None):
+        """
+        Generates data and launches the cell analysis dashboard for a specific cell.
+
+        Args:
+            cell_num: The cell number to analyze
+            output_dir: Optional directory to save JSON files. Defaults to cell_analysis/
+        """
+        # Get default output directory if none specified
+        if output_dir is None:
+            output_dir = utils.get_out_dir(self.config['output_path'])
+            output_dir = os.path.join(output_dir, 'debug', 'cell_analysis')
+
+        # Ensure output directory exists
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Get the data2
+        assigned_class_idx = np.argmax(self.cells.classProb[cell_num])
+        user_class = self.cellTypes.names[assigned_class_idx]
+
+        # Generate gene contribution data
+        gene_data = self.get_spot_cell_assignments(cell_num)
+
+        # Generate distance probability data
+        # distance_data = self.get_spot_cell_assignments(cell_num)
+
+        loglik_data = self.get_gene_loglik_contributions(cell_num, user_class)
+        with open(os.path.join(output_dir, 'gene_loglik_data.json'), 'w') as fp:
+            json.dump(loglik_data, fp)
+            main_logger.info(f'saved at {os.path.join(output_dir, "gene_loglik_data.json")}')
+
+        # Save the data files
+        with open(os.path.join(output_dir, "cell_spots.json"), "w") as f:
+            json.dump(gene_data, f)
+            main_logger.info(f'saved at {os.path.join(output_dir, "cell_spots.json")}')
+
+        # with open(os.path.join(output_dir, "data_plot2.json"), "w") as f:
+        #     json.dump(distance_data, f)
+        #     main_logger.info(f'saved at {os.path.join(output_dir, "data_plot2.json")}')
+
+        pciSeq_dir = utils.get_pciSeq_install_dir()
+        src = os.path.join(pciSeq_dir, 'static', 'cell_analysis')
+
+        shutil.copytree(src, output_dir, dirs_exist_ok=True)
+        # viewer_utils_logger.info('viewer code (%s) copied from %s to %s' % (dim, src, dst))
+
+        # Launch the dashboard
+        import webbrowser
+        import http.server
+        import socketserver
+        import threading
+
+        # Start HTTP server
+        os.chdir(output_dir)
+        PORT = 8000
+
+        Handler = http.server.SimpleHTTPRequestHandler
+
+        def start_server():
+            with socketserver.TCPServer(("", PORT), Handler) as httpd:
+                print(f"Serving cell analysis dashboard at http://localhost:{PORT}")
+                httpd.serve_forever()
+
+        # Start server in a separate thread
+        server_thread = threading.Thread(target=start_server, daemon=True)
+        server_thread.start()
+
+        # Open the dashboard in the default browser.
+        # Add the timestamp as version number to prevent loading from the cache
+        webbrowser.open(f'http://localhost:{PORT}/dashboard/cell_index.html?v={time.time()}')
+
+        try:
+            input("Press Enter to stop the server and close the dashboard...")
+        except KeyboardInterrupt:
+            print("\nShutting down the server...")
 
 
 
