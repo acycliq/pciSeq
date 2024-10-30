@@ -689,10 +689,11 @@ class VarBayes:
         import http.server
         import socketserver
         import threading
+        import random
 
         # Start HTTP server
         os.chdir(output_dir)
-        PORT = 8000
+        PORT = 8000 + random.randint(0, 999)
 
         Handler = http.server.SimpleHTTPRequestHandler
 
@@ -709,10 +710,10 @@ class VarBayes:
         # Add the timestamp as version number to prevent loading from the cache
         webbrowser.open(f'http://localhost:{PORT}/dashboard/cell_index.html?v={time.time()}')
 
-        try:
-            input("Press Enter to stop the server and close the dashboard...")
-        except KeyboardInterrupt:
-            print("\nShutting down the server...")
+        # try:
+        #     input("Press Enter to stop the server and close the dashboard...")
+        # except KeyboardInterrupt:
+        #     print("\nShutting down the server...")
 
 
 
