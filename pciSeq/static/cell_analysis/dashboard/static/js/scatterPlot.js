@@ -204,7 +204,10 @@ export class ScatterPlot {
             .transition()
             .duration(PLOT_CONFIG.animation.duration)
             .attr('cx', d => this.scales.x(d.x))
-            .attr('cy', d => this.scales.y(d.y));
+            .attr('cy', d => this.scales.y(d.y))
+            .style("stroke", "white")  // add white outline
+            .style("stroke-width", 1.5)  // adjust thickness as needed
+            .style("stroke-opacity", 0.8);  // slightly transparent outline
 
         // Handle exit selection
         dots.exit().remove();

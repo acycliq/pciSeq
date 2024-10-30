@@ -93,6 +93,9 @@ export class DistanceProbabilityPlot {
             .merge(dots)
             .attr('cx', d => this.x(d.x))
             .attr('cy', d => this.y(d.y))
+            .style("stroke", "white")  // add white outline
+            .style("stroke-width", 1.5)  // adjust thickness as needed
+            .style("stroke-opacity", 0.8)  // slightly transparent outline
             .on('mouseenter', function(event, d) {  // Note: need event parameter in D3v6+
                 console.log('Mouse enter')
                 d3.select(this)
