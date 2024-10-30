@@ -74,7 +74,7 @@ export class DistanceProbabilityPlot {
 
         // Now update with our custom text using the existing guide's updateGuideText method
         const guideText = [
-            // "Interpretation Guide:",
+            "Notes:",
             `• Shows all spots in neighborhood of cell ${this.data.cell_num}`,
             `• Points close to x=0: Spots near cell ${this.data.cell_num} centroid`,
             `• Points with high y-values: Spots likely assigned to cell ${this.data.cell_num}`,
