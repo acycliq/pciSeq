@@ -1,6 +1,9 @@
 import time
 import numpy as np
 import pandas as pd
+import os
+import json
+import shutil
 import numpy_groupies as npg
 import scipy.spatial as spatial
 from scipy.special import softmax
@@ -117,12 +120,7 @@ class VarBayes:
 
             if self.has_converged:
                 # self.counts_within_radius(20)
-                query_points = [
-                    {'gene_name': 'Nrn1', 'x': 973.116028, 'y': 2942.226074, 'z': 198},
-                ]
-                cellpose_label = 5445
-                # df_before, df_after = self.calculate_spot_contributions(cellpose_label, query_points)
-
+                self.cell_analysis(2259)
                 cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config['is3D'])
                 break
 
@@ -592,42 +590,32 @@ class VarBayes:
         })
         return df
 
-    def get_gene_loglik_contributions(self, cell_label, user_class):
+    def gene_loglik_contributions(self, cell_num, user_class=None):
         """
-        Get gene log-likelihood contributions for a specified cell.
+        Calculate and return gene log-likelihood contributions for a specified cell.
 
-        This method compares the log-likelihood contributions of genes for the pciSeq-assigned cell class
-        versus a user-specified cell class. It creates an interactive HTML plot that allows users
-        to explore the data and understand which genes contribute most to the classification.
+        This function analyzes how each gene contributes to the cell type classification
+        by calculating log-likelihood values for each gene under different cell type hypotheses.
 
         Args:
-            cell_label (int): The cell number to analyze. This is the user-provided cell label.
-            user_class (str): The user-specified cell class to compare against the assigned class.
+            cell_num (int): The cell number to analyze. Must be between 0 and nC-1.
+            user_class (str, optional): The cell class to compare against the assigned class.
+                If None, uses the assigned class.
 
         Returns:
-            int: The internal cell number that was analyzed. This may differ from the user-provided
-                 cell label as it represents the internal index used by the system.
+            dict: A dictionary containing:
+                - assigned_class (str): The automatically assigned cell class
+                - user_class (str): The user-specified class for comparison
+                - assigned_contr (list): Log-likelihood contributions for assigned class
+                - cell_num (int): The analyzed cell number
+                - gene_names (list): List of gene names
+                - class_names (list): List of available cell type classes
+                - class_probs (dict): Probability distribution over cell types
+                - contr (dict): Log-likelihood contributions for all classes
 
         Raises:
-            ValueError: If an invalid cell number or user class is provided.
-
-        Note:
-            This method generates an HTML file and opens it in the default web browser.
-            The returned internal cell number is used for internal processing and may not
-            correspond directly to the user-visible cell label.
-        """
-
-        # the label in the segmentation array might have gaps. Because for example we drop cells that
-        # appear in a single plane. In these cases the labels are rearranged so that they
-        # are a sequence of integers without gaps (no skipping labels). This relationship is kept
-        # in the self.config['remapping'] dict, keys are the original labels (from cellpose for example)
-        # and values the new ones. PciSeq works with the new labels.
-        # The step below will give the new label that corresponds to the original cell_label
-
-        cell_num = cell_label
-        if self.config['remapping'] is not None:
-            remapping = self.config['remapping']
-            cell_num = remapping[cell_label]
+            ValueError: If cell_num is invalid or user_class is not recognized
+            """
 
         if cell_num < 0 or cell_num >= self.nC:
             raise ValueError(f"Invalid cell number. Must be between 0 and {self.nC - 1}")
@@ -635,12 +623,16 @@ class VarBayes:
         assigned_class_idx = np.argmax(self.cells.classProb[cell_num])
         assigned_class = self.cellTypes.names[assigned_class_idx]
 
+        if user_class is None:
+            user_class = assigned_class
+
         try:
             user_class_idx = np.where(self.cellTypes.names == user_class)[0][0]
         except IndexError:
             raise ValueError(
                 f"Invalid user class: {user_class}. Available classes are: {', '.join(self.cellTypes.names)}")
 
+        # it will be nice to avoid duplicating the code. This has already been calculated.
         ScaledExp = self.scaled_exp.compute()
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
@@ -648,16 +640,6 @@ class VarBayes:
 
         # Calculate contributions for all classes
         all_class_contrs = contr[cell_num, :, :]
-
-        # Create the plot data
-        plot_data = [
-            {
-                "name": gene,
-                assigned_class: all_class_contrs[i, assigned_class_idx],
-                user_class: all_class_contrs[i, user_class_idx]
-            }
-            for i, gene in enumerate(self.genes.gene_panel)
-        ]
 
         # Prepare the user_data dictionary with contributions for all classes
         user_data = {
@@ -671,7 +653,7 @@ class VarBayes:
             'assigned_class': assigned_class,
             'user_class': user_class,
             'assigned_contr': all_class_contrs[:, assigned_class_idx].tolist(),
-            'cell_num': cell_label, # the label that the user has passed. It is used only to make the title
+            'cell_num': cell_num,
             'gene_names': self.genes.gene_panel.tolist(),
             'class_names': self.cellTypes.names.tolist(),
             'class_probs': class_probs,
@@ -679,6 +661,153 @@ class VarBayes:
         }
 
         # Call the plotting function
-        utils.gene_loglik_contributions_scatter(out)
+        # utils.gene_loglik_contributions_scatter(out)
 
-        return cell_num
+        return out
+
+    def spot_dist_and_prob(self, cell_num):
+        """
+        Calculate the relationship between spot-to-cell distances and their assignment
+        probabilities for a given cell.
+
+        This function analyzes spatial relationships between spots and a target cell by:
+        1. Finding spots near the target cell
+        2. Calculating distances from spots to cell centroid
+        3. Computing assignment probabilities
+
+        Args:
+            cell_num (int): The cell number to analyze
+
+        Returns:
+            dict: A dictionary containing plot data:
+                - x (list): Distances from spots to cell centroid
+                - y (list): Assignment probabilities
+                - labels (list): Gene names for each spot
+                - cell_num (int): The analyzed cell number
+                - title (str): Plot title
+                - xlabel (str): X-axis label
+                - ylabel (str): Y-axis label
+
+        Note:
+            The returned data is structured for visualization in the cell analysis dashboard.
+        """
+
+        # Get cell centroid
+        centroid_zyx = self.cells.zyx_coords[cell_num]
+
+        # Find spots near target cell
+        is_spot_near_target_cell = self.spots.parent_cell_id == cell_num
+        mask = np.any(is_spot_near_target_cell, axis=1)
+
+        # Get probabilities for spots assigned to this cell
+        prob = self.spots.parent_cell_prob[is_spot_near_target_cell]
+
+        # Select relevant spots
+        spots = self.spots.data[mask]
+
+        # Find most likely parent cell for each spot
+        max_idx = np.argmax(self.spots.parent_cell_prob[mask], axis=1)
+        assigned_cell = np.choose(max_idx, self.spots.parent_cell_id[mask].T)
+
+        # Calculate distances and create DataFrame
+        spots = spots.assign(
+            cell_x=centroid_zyx[2],
+            cell_y=centroid_zyx[1],
+            cell_z=centroid_zyx[0],
+            prob=prob,
+            assigned_cell=assigned_cell,
+            dist=np.sqrt(
+                (spots.x - centroid_zyx[2]) ** 2 +
+                (spots.y - centroid_zyx[1]) ** 2 +
+                (spots.z - centroid_zyx[0]) ** 2
+            )
+        )
+
+        # Select and order columns
+        spots = spots[
+            ['x', 'y', 'z', 'gene_name', 'cell_x', 'cell_y', 'cell_z',
+             'prob', 'assigned_cell', 'dist']
+        ].reset_index()
+
+        # Prepare plot data
+        # Prepare plot data with cell-specific axis labels
+        data = {
+            'x': spots.dist.tolist(),
+            'y': spots.prob.tolist(),
+            'labels': spots.gene_name.tolist(),
+            'cell_num': cell_num,
+            'title': f'Cell {cell_num} - Distance vs Assignment Probability',
+            'xlabel': f'Distance from cell {cell_num} centroid',
+            'ylabel': f'Assignment probability to cell {cell_num}'
+        }
+        return data
+
+    def cell_analysis(self, cell_num, output_dir=None):
+        """
+        Generates data and launches the cell analysis dashboard for a specific cell.
+
+        Args:
+            cell_num: The cell number to analyze
+            output_dir: Optional directory to save JSON files. Defaults to cell_analysis/
+        """
+        # Get default output directory if none specified
+        if output_dir is None:
+            output_dir = utils.get_out_dir(self.config['output_path'])
+            output_dir = os.path.join(output_dir, 'debug', 'cell_analysis')
+
+        # Ensure output directory exists
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Get the data2
+        assigned_class_idx = np.argmax(self.cells.classProb[cell_num])
+        user_class = self.cellTypes.names[assigned_class_idx]
+
+        # Generate gene contribution data
+        spot_dist = self.spot_dist_and_prob(cell_num)
+
+        loglik_data = self.gene_loglik_contributions(cell_num, user_class)
+        with open(os.path.join(output_dir, 'gene_loglik_contr.json'), 'w') as fp:
+            json.dump(loglik_data, fp)
+            main_logger.info(f'saved at {os.path.join(output_dir, "gene_loglik_contr.json")}')
+
+        # Save the data files
+        with open(os.path.join(output_dir, "spot_dist.json"), "w") as f:
+            json.dump(spot_dist, f)
+            main_logger.info(f'saved at {os.path.join(output_dir, "spot_dist.json")}')
+
+        pciSeq_dir = utils.get_pciSeq_install_dir()
+        src = os.path.join(pciSeq_dir, 'static', 'cell_analysis')
+
+        shutil.copytree(src, output_dir, dirs_exist_ok=True)
+        # viewer_utils_logger.info('viewer code (%s) copied from %s to %s' % (dim, src, dst))
+
+        # Launch the dashboard
+        import webbrowser
+        import http.server
+        import socketserver
+        import threading
+        import random
+
+        # Start HTTP server
+        os.chdir(output_dir)
+        PORT = 8000 + random.randint(0, 999)
+
+        Handler = http.server.SimpleHTTPRequestHandler
+
+        def start_server():
+            with socketserver.TCPServer(("", PORT), Handler) as httpd:
+                print(f"Serving cell analysis dashboard at http://localhost:{PORT}")
+                httpd.serve_forever()
+
+        # Start server in a separate thread
+        server_thread = threading.Thread(target=start_server, daemon=True)
+        server_thread.start()
+
+        # Open the dashboard in the default browser.
+        # Add the timestamp as version number to prevent loading from the cache
+        webbrowser.open(f'http://localhost:{PORT}/dashboard/cell_index.html?v={time.time()}')
+
+        # try:
+        #     input("Press Enter to stop the server and close the dashboard...")
+        # except KeyboardInterrupt:
+        #     print("\nShutting down the server...")

@@ -1,4 +1,5 @@
 import {calculateDimensions, PLOT_CONFIG} from "./plotConfig.js";
+import { InterpretationGuide } from './interpretationGuide.js';
 
 export class DistanceProbabilityPlot {
     constructor(containerId, data, tooltip) {
@@ -6,6 +7,7 @@ export class DistanceProbabilityPlot {
         this.data = data;
         this.tooltip = tooltip;  // Store the shared tooltip
         this.margin = {top: 60, right: 80, bottom: 50, left: 100};
+        this.guide = null;
         this.initializePlot();
     }
 
@@ -65,10 +67,38 @@ export class DistanceProbabilityPlot {
             .style("text-anchor", "middle")
             .text(`Assignment probability to cell ${this.data.cell_num}`);
 
-        // // Create tooltip
-        // this.tooltip = d3.select("body").append("div")
-        //     .attr("class", "tooltip")
-        //     .style("opacity", 0);
+        // Add interpretation guide with correct positioning
+        this.guide = new InterpretationGuide(this.svg, this.width, this.height);
+        // Pass empty strings as parameters since we're not using the class/assigned class paradigm
+        this.guide.update('', '');
+
+        // Now update with our custom text using the existing guide's updateGuideText method
+        const guideText = [
+            // "Interpretation Guide:",
+            `• Shows all spots in neighborhood of cell ${this.data.cell_num}`,
+            `• Points close to x=0: Spots near cell ${this.data.cell_num} centroid`,
+            `• Points with high y-values: Spots likely assigned to cell ${this.data.cell_num}`,
+            `• Points with low y-values: Spots likely assigned to neighboring cells`,
+            // `• Pattern shows how cell territory influences spot assignments`
+        ];
+
+        let guide = this.svg.select('.interpretation-guide');
+        guide.selectAll("text").remove();  // Remove existing text
+        guide.selectAll("text")  // Add new text
+            .data(guideText)
+            .enter()
+            .append("text")
+            .attr("x", 0)
+            .attr("y", (d, i) => i * this.guide.lineHeight)
+            .style("text-anchor", "start")
+            .style("font-size", "12px")
+            .text(d => d);
+
+        // Reposition guide to top-right corner
+        const guideBBox = guide.node().getBBox();
+        guide.attr("transform",
+            `translate(${this.width - guideBBox.width - 20}, ${20})`);  // 20px margin from top and right
+
 
         this.updatePlot();
     }
