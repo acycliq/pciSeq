@@ -49,8 +49,6 @@ The diagnostics system is typically launched as part of the main pciSeq algorith
 
 To launch the dashboard manually:
 
-`python`
-
 `from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard`
 `launch_dashboard()`
 
