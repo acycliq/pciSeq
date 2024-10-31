@@ -50,6 +50,7 @@ The diagnostics system is typically launched as part of the main pciSeq algorith
 To launch the dashboard manually:
 
 `from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard`
+
 `launch_dashboard()`
 
 Note: Ensure that Redis is installed and running before launching the diagnostics dashboard.
