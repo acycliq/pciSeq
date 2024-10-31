@@ -11,7 +11,7 @@ import logging
 du_logger = logging.getLogger(__name__)
 
 
-class redis_db():
+class RedisDB:
     def __init__(self, flush=False):
         self.pool = None
         self.redis_client = None
@@ -24,9 +24,9 @@ class redis_db():
     def _attach_client(self):
         self.pool = config.SETTINGS['POOL']
         self.redis_client = redis.Redis(connection_pool=self.pool)
-        self.is_connected = self._is_connected()
+        self.is_connected = redis_passed()
         if self.is_connected and not self.keyspace_events_enabled:
-            self.enable_keyspace_events()
+            self._enable_keyspace_events()
 
     def to_redis(self, df_in, key, **kwargs):
         df = df_in.copy()
@@ -66,18 +66,19 @@ class redis_db():
             else:
                 raise Exception("Cannot validate redis")
 
-    def enable_keyspace_events(self):
+    def _enable_keyspace_events(self):
         exe = "memurai-cli.exe" if check_platform() == "windows" else "redis-cli"
         try:
             out, err, exit_code = subprocess_cmd([exe, 'config', 'set', 'notify-keyspace-events', 'KEA'])
             if exit_code != 0:
-                du_logger.info(out.decode('UTF-8').rstrip())
-                du_logger.info(err.decode('UTF-8').rstrip())
-                raise Exception('notify-keyspace-events failed with exit code: %d' % exit_code)
-            du_logger.info("enabling keyspace events... %s" % out.decode('UTF-8').rstrip())
+                du_logger.error(f"notify-keyspace-events failed with exit code: {exit_code}")
+                du_logger.error(f"Output: {out.decode('UTF-8').rstrip()}")
+                du_logger.error(f"Error: {err.decode('UTF-8').rstrip()}")
+                raise Exception('Failed to enable keyspace events')
+            du_logger.info(f"Enabling keyspace events... {out.decode('UTF-8').rstrip()}")
             self.keyspace_events_enabled = True
         except OSError as ex:
-            du_logger.info("Cannot enable keyspace events. Failed with error: %s" % ex)
+            du_logger.error(f"Cannot enable keyspace events. Failed with error: {ex}")
             raise
 
 
@@ -151,7 +152,8 @@ def install_redis_server(os):
         out, err, exit_code = subprocess_cmd([msi])
     elif os in ['linux']:
         sudo_password = getpass.getpass(prompt='sudo password: ')
-        out, err, exit_code = subprocess_cmd(['sudo', '-S', 'apt-get', 'install', '-y', 'redis-server', 'redis-tools'], sudo_password)
+        out, err, exit_code = subprocess_cmd(['sudo', '-S', 'apt-get', 'install', '-y', 'redis-server', 'redis-tools'],
+                                             sudo_password)
     else:
         ## need to add osx here!
         raise Exception('not implemented for %s' % os)
@@ -161,21 +163,21 @@ def install_redis_server(os):
 
 
 def subprocess_cmd(command, passwd=None):
-    p = sp.Popen(command, stderr=sp.PIPE, stdout=sp.PIPE, stdin=sp.PIPE)
-    out = None
-    err = None
-    try:
-        if passwd:
-            out, err = p.communicate(input=(passwd + '\n').encode(), timeout=5)
-        else:
-            out, err = p.communicate(timeout=5)
-    except sp.TimeoutExpired:
-        p.kill()
-    if not err.decode('UTF-8') == '':
-        p.kill()
-        # logger.info(err.decode('UTF-8'))
-        # raise Exception(err.decode('UTF-8'))
-    return out, err, p.returncode
+    with sp.Popen(command, stderr=sp.PIPE, stdout=sp.PIPE, stdin=sp.PIPE) as p:
+        try:
+            if passwd:
+                out, err = p.communicate(input=(passwd + '\n').encode(), timeout=5)
+            else:
+                out, err = p.communicate(timeout=5)
+        except sp.TimeoutExpired:
+            p.kill()
+            raise Exception("Subprocess command timed out")
+
+        if p.returncode != 0:
+            du_logger.error(f"Command failed with exit code: {p.returncode}")
+            du_logger.error(f"Error: {err.decode('UTF-8')}")
+
+        return out, err, p.returncode
 
 
 def locate_msi():
@@ -206,9 +208,54 @@ def check_platform():
 
 
 def validate_redis():
+    status = check_redis_status()
+
+    if status['installed'] and status['running']:
+        du_logger.info("Redis is installed and running.")
+        return 0, 0
+    elif not status['installed']:
+        du_logger.error(f"Redis is not installed. {status['installation_output']}")
+        return 1, 1
+    elif not status['running']:
+        du_logger.error(f"Redis is installed but not running. {status['running_output']}")
+        return 0, 1
+
+
+def redis_passed():
+    redis_status = check_redis_status()
+    return redis_status['installed'] and redis_status['running']
+
+
+def check_redis_status():
     os = check_platform()
-    _, _,  code_1 = is_redis_installed(os)
-    _, _,  code_2 = is_redis_running(os)
-    return code_1, code_2
+    installed_status, installed_output = check_redis_installation(os)
+    running_status, running_output = check_redis_running(os)
+
+    return {
+        'installed': installed_status,
+        'running': running_status,
+        'installation_output': installed_output,
+        'running_output': running_output
+    }
 
 
+def check_redis_installation(os):
+    exe = "memurai.exe" if os == "windows" else "redis-server"
+    out, err, exit_code = subprocess_cmd([exe, '--version'])
+
+    if exit_code == 0:
+        return True, out.decode('UTF-8').strip()
+    else:
+        return False, err.decode('UTF-8').strip()
+
+
+def check_redis_running(os):
+    exe = "memurai-cli.exe" if os == "windows" else "redis-cli"
+    out, err, exit_code = subprocess_cmd([exe, 'ping'])
+
+    if exit_code == 0 and out.decode('UTF-8').strip().lower() == 'pong':
+        return True, "Redis is running"
+    else:
+        return False, "Redis is not running"
+
+# Keep the existing subprocess_cmd and check_platform functions

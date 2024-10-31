@@ -8,7 +8,7 @@ from pciSeq import config
 from pciSeq.src.core.main import VarBayes
 from pciSeq.src.core.utils import get_out_dir, adjust_for_anisotropy
 from scipy.sparse import coo_matrix
-from pciSeq.src.diagnostics.utils import redis_db
+from pciSeq.src.diagnostics.utils import RedisDB
 from pciSeq.src.core.utils import get_img_shape, serialise, purge_spots, recover_original_labels
 from pciSeq.src.viewer.run_flask import flask_app_start
 from pciSeq.src.preprocess.spot_labels import stage_data
@@ -425,9 +425,10 @@ def confirm_prompt(question):
 def check_redis_server():
     app_logger.info("check_redis_server")
     try:
-        redis_db()
+        RedisDB()
         return True
     except (redis.exceptions.ConnectionError, ConnectionRefusedError, OSError):
-        app_logger.info(
-            "Redis ping failed!. Diagnostics will not be called unless redis is installed and the service is running")
+        app_logger.info("Redis ping failed!. Diagnostics will not be called unless redis is installed and the service "
+                        "is running")
         return False
+

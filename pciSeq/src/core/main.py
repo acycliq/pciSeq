@@ -10,7 +10,8 @@ from scipy.special import softmax
 from dask.delayed import delayed
 import pciSeq.src.core.utils as utils
 from pciSeq.src.core.summary import collect_data
-from pciSeq.src.diagnostics.utils import redis_db
+from pciSeq.src.diagnostics.utils import RedisDB
+from pciSeq.src.diagnostics.redis_publisher import RedisPublisher
 from pciSeq.src.core.datatypes import Cells, Spots, Genes, SingleCell, CellType
 import logging
 
@@ -20,7 +21,8 @@ main_logger = logging.getLogger(__name__)
 class VarBayes:
     def __init__(self, _cells_df, _spots_df, scRNAseq, config):
         self.config = config
-        self.redis_db = redis_db(flush=True) if config['is_redis_running'] else None
+        self.redis_db = RedisDB(flush=True) if config['is_redis_running'] else None
+        self.redis_publisher = RedisPublisher(self.redis_db) if config['is_redis_running'] else None
         self.cells = Cells(_cells_df, config)
         self.spots = Spots(_spots_df, config)
         self.genes = Genes(self.spots)
@@ -52,6 +54,7 @@ class VarBayes:
         # FYI: https://realpython.com/python-pickle-module/
         attributes = self.__dict__.copy()
         del attributes['redis_db']
+        del attributes['redis_publisher']
         # del attributes['_scaled_exp']
         return attributes
 
@@ -115,8 +118,8 @@ class VarBayes:
             # replace p0 with the latest probabilities
             p0 = self.spots.parent_cell_prob
 
-            if self.config['is_redis_running']:
-                self.redis_upd()
+            if self.redis_publisher:
+                self.redis_publisher.publish_diagnostics(self, self.iter_num, self.has_converged)
 
             if self.has_converged:
                 # self.counts_within_radius(20)
