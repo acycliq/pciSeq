@@ -190,19 +190,20 @@ def init(opts):
 
 def log_file(cfg):
     """
-    Setup the file handler.
-    Ideally that should happen when the logger is first configured, hence avoid having
-    the console handler and the file handler set up in two different places. However
-    the file handler needs access to the config dict and that was not possible until
-    this point into the program.
+    Setup the logger file handler if it doesn't already exist.
     """
-    logfile = os.path.join(get_out_dir(cfg['output_path']), 'pciSeq.log')
-    fh = logging.FileHandler(logfile, mode='w')
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    fh.setFormatter(formatter)
+    root_logger = logging.getLogger()
+    if root_logger.handlers:
+        # setup a FileHandler if it has not been setup already. Maybe I should be adding a FileHandler anyway,
+        # regardless whether there is one already or not
+        if not np.any([isinstance(d, logging.FileHandler) for d in root_logger.handlers]):
+            logfile = os.path.join(get_out_dir(cfg['output_path']), 'pciSeq.log')
+            fh = logging.FileHandler(logfile, mode='w')
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            fh.setFormatter(formatter)
 
-    logging.getLogger().addHandler(fh)
-    app_logger.info('Writing to %s' % logfile)
+            root_logger.addHandler(fh)
+            app_logger.info('Writing to %s' % logfile)
 
 
 def validate(spots, coo, scData, cfg):
