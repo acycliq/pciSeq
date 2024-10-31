@@ -6,7 +6,7 @@ from scipy.sparse import load_npz
 from pciSeq.src.core.utils import load_from_url
 import logging
 
-gtd_logger = logging.getLogger(__name__)
+main_logger = logging.getLogger(__name__)
 
 
 bbox = [
@@ -31,7 +31,7 @@ def get_out_dir():
     return out_dir
 
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def read_demo_data(bbox=None):
     ROOT = r'https://github.com/acycliq/pciSeq/raw/master'
     path_str = "{}".format("/".join([ROOT, 'pciSeq', 'data', 'mouse', 'ca1', 'iss', 'spots.csv']))
