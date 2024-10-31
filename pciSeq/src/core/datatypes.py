@@ -1,7 +1,7 @@
 import scipy
 import numpy as np
 import pandas as pd
-import dask
+# import dask
 import numpy_groupies as npg
 from natsort import natsort_keygen
 from .utils import read_image_objects, keep_labels_unique
@@ -403,7 +403,7 @@ class Spots(object):
         TotPredictedZ = np.bincount(geneNo, pSpotZero)
         return TotPredictedZ
 
-    @dask.delayed
+    # @dask.delayed
     def gammaExpectation(self, rho, beta):
         """
         :param r:
@@ -414,7 +414,7 @@ class Spots(object):
         r = rho[:, :, None]
         return r / beta
 
-    @dask.delayed
+    # @dask.delayed
     def logGammaExpectation(self, rho, beta):
         r = rho[:, :, None]
         return scipy.special.psi(r) - np.log(beta)

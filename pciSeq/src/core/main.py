@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import numpy_groupies as npg
 import scipy.spatial as spatial
+from dask.delayed import delayed
 from scipy.special import softmax
 import pciSeq.src.core.utils as utils
 from pciSeq.src.core.summary import collect_data
@@ -160,15 +161,15 @@ class VarBayes:
         cells = self.cells
         cfg = self.config
 
-        self._scaled_exp = utils.scaled_exp(cells.ini_cell_props['area_factor'],
+        self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
                                             self.single_cell.mean_expression.values,
-                                            self.genes.eta_bar)
+                                            self.genes.eta_bar))
 
         beta = self.scaled_exp.compute() + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
-        self.spots._log_gamma_bar = self.spots.logGammaExpectation(rho, beta)
-        self.spots._gamma_bar = self.spots.gammaExpectation(rho, beta)
+        self.spots._log_gamma_bar = delayed(self.spots.logGammaExpectation(rho, beta))
+        self.spots._gamma_bar = delayed(self.spots.gammaExpectation(rho, beta))
 
     # -------------------------------------------------------------------- #
     def cell_to_cellType(self):
