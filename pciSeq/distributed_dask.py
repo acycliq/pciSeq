@@ -3,6 +3,8 @@ import numpy as np
 import dask
 import os
 import dask.array as da
+import dask.dataframe as dd
+from dask.array import overlap
 from dask.diagnostics import ProgressBar, ResourceProfiler
 from scipy.sparse import load_npz, coo_matrix
 from pciSeq import fit as fit_chunk
@@ -61,7 +63,70 @@ def filter_spots(spots: pd.DataFrame, bbox: List[List[int]]) -> Tuple[pd.DataFra
     return df, (xmin, ymin, zmin)
 
 
-def slice_data(image: da.Array, spots: pd.DataFrame) -> Tuple[
+# Define the function to slice data with overlap
+def slice_data(image: da.Array, spots_future, overlap_depth: int):
+    """
+    Slices the image data with overlap and filters spots for each chunk.
+
+    Args:
+        image: 3D image data, expected to be a Dask array.
+        spots_future: Dask future for the DataFrame with x, y, z coordinates.
+        overlap_depth: Depth of overlap for each chunk.
+
+    Returns:
+        Tuple of Dask arrays: (output_image, output_spots)
+    """
+    # Ensure spots is computed from the future
+    spots = spots_future.result()
+
+    # Add overlap to image array chunks
+    image_with_overlap = overlap.overlap(image, depth=overlap_depth, boundary='reflect')
+
+    def process_chunk(image_chunk, spots, block_info=None):
+        # Extract chunk indices from block_info
+        if block_info is not None:
+            chunk_indices = block_info[0]['chunk-location']
+        else:
+            raise ValueError("block_info is None, cannot determine chunk indices.")
+
+        # Ensure chunk_indices has three elements
+        if len(chunk_indices) != 3:
+            raise ValueError(f"Expected 3 indices, got {len(chunk_indices)}: {chunk_indices}")
+
+        # Calculate chunk boundaries with overlap
+        z_start, y_start, x_start = [idx * (size - 2 * overlap_depth) for idx, size in zip(chunk_indices, image_chunk.shape)]
+        z_end, y_end, x_end = z_start + image_chunk.shape[0], y_start + image_chunk.shape[1], x_start + image_chunk.shape[2]
+
+        # Filter spots within these chunk boundaries
+        filtered_spots = spots[
+            (spots['x'] >= x_start) & (spots['x'] < x_end) &
+            (spots['y'] >= y_start) & (spots['y'] < y_end) &
+            (spots['z'] >= z_start) & (spots['z'] < z_end)
+        ].copy()  # Use copy to avoid SettingWithCopyWarning
+
+        # Optional: Perform processing on image_chunk and filtered_spots
+        output_image = np.zeros_like(image_chunk)
+        output_image.fill(len(filtered_spots))  # Example: fill chunk with the count of spots
+
+        return output_image, filtered_spots  # Return both image chunk and spots
+
+    # Apply process_chunk to each chunk of image_with_overlap
+    output_dask = da.map_blocks(
+        process_chunk, image_with_overlap,
+        dtype=(image.dtype, object),  # Return tuple of (image_chunk, filtered_spots)
+        spots=spots,
+        meta=(np.empty((0, 0, 0), dtype=image.dtype), pd.DataFrame(columns=spots.columns))  # Metadata for output
+    )
+
+    # Trim overlap after processing to match original array shape
+    # output_image = output_dask.map_blocks(lambda x: x[0], dtype=image.dtype)
+    # output_spots = output_dask.map_blocks(lambda x: x[1], dtype=object)
+
+    return output_dask[0], output_dask[1]
+
+
+
+def _slice_data(image: da.Array, spots: pd.DataFrame) -> Tuple[
     List[Tuple[da.Array, Tuple[int, int, int]]], List[Tuple[pd.DataFrame, Tuple[int, int, int]]]]:
     """
     Slices both image and spot data into corresponding chunks for parallel processing.
@@ -191,10 +256,10 @@ def fit(spots: Any,
     try:
         # No need to convert image anymore, it's already a Dask array
         overlap = int(opts['cell_radius'] * opts['overlap_factor'])
-        daskimage = da.overlap.overlap(image, depth=overlap, boundary='reflect')
+        # daskimage = da.overlap.overlap(image, depth=overlap, boundary='reflect')
 
         # Slice data into chunks
-        image_chunks, spot_chunks = slice_data(daskimage, spots)
+        image_chunks, spot_chunks = slice_data(image, spots, overlap_depth=overlap)
 
         # Process chunks with progress monitoring
         with ProgressBar(), ResourceProfiler() as rprof:
@@ -206,9 +271,16 @@ def fit(spots: Any,
         raise
 
 
-def calculate_optimal_chunk_size(shape: Tuple[int, int], memory_limit: str) -> Tuple[int, int]:
+def calculate_optimal_chunk_size(shape: Tuple[int, int, int], memory_limit: str) -> Tuple[int, int, int]:
     """
     Calculates optimal chunk size based on image shape and memory constraints.
+
+    Args:
+        shape: Tuple of image dimensions (z, y, x).
+        memory_limit: Memory limit as a string, e.g., '4GB' or '500MB'.
+
+    Returns:
+        Tuple of optimal chunk sizes for each dimension (z_chunk, y_chunk, x_chunk).
     """
     # Convert memory limit to bytes
     if isinstance(memory_limit, str):
@@ -218,12 +290,22 @@ def calculate_optimal_chunk_size(shape: Tuple[int, int], memory_limit: str) -> T
             memory_bytes = float(memory_limit[:-2]) * 1e6
         else:
             raise ValueError("Memory limit must be specified in GB or MB")
+    else:
+        raise ValueError("Memory limit must be a string ending with 'GB' or 'MB'")
 
-    # Calculate chunk size
-    pixels_per_chunk = memory_bytes / (8 * 4)  # 8 bytes per pixel, 4x overhead
-    chunk_side = int(np.sqrt(pixels_per_chunk))
+    # Calculate the number of bytes per element (assuming float64, which is 8 bytes)
+    bytes_per_element = 8
 
-    return (min(chunk_side, shape[0]), min(chunk_side, shape[1]))
+    # Calculate the total number of elements that can fit in the memory limit
+    elements_per_chunk = memory_bytes / bytes_per_element
+
+    # Calculate the chunk size for each dimension
+    # Here, we assume a cubic chunk for simplicity, but you can adjust this based on your needs
+    z_chunk = min(shape[0], int(elements_per_chunk ** (1/3)))
+    y_chunk = min(shape[1], int(elements_per_chunk ** (1/3)))
+    x_chunk = min(shape[2], int(elements_per_chunk ** (1/3)))
+
+    return z_chunk, y_chunk, x_chunk
 
 
 if __name__ == "__main__":
@@ -256,16 +338,20 @@ if __name__ == "__main__":
 
     my_opts = {**DEFAULT_OPTS, **user_opts}
 
-    # read some demo data
-    ca1_spots = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'iss', 'spots.csv'))
 
-    coo = load_npz(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'segmentation', 'label_image.coo.npz'))
-    label_image = coo.toarray()
+    scRNAseq = pd.read_csv('/media/dimitris/New Volume/data/Mathieu/WT94_alpha072/yao_73g_cx.csv')
+    scRNAseq = scRNAseq.set_index('cluster').T
 
-    scRNAseq = pd.read_csv(os.path.join(ROOT_DIR, 'data', 'mouse', 'ca1', 'scRNA', 'scRNAseq.csv.gz'),
-                           header=None, index_col=0, compression='gzip', dtype=object)
-    scRNAseq = scRNAseq.rename(columns=scRNAseq.iloc[0], copy=False).iloc[1:]
-    scRNAseq = scRNAseq.astype(float).astype(np.uint32)
+    # # read 3D some demo data
+    ca1_spots = pd.read_csv(r"/media/dimitris/New Volume/data/Mathieu/WT94_alpha072/pciseq_anchor.csv")
+    ca1_spots = ca1_spots[['y', 'x', 'z_stack', 'Gene']]
+    ca1_spots = ca1_spots.rename(columns={'z_stack': 'z_plane',
+                                                  'Gene': 'gene_name'})
+
+    label_image = np.load(r"/media/dimitris/New Volume/data/Mathieu/WT94_alpha072/dapi_segmented.npy")
+    # coo = [coo_matrix(d) for d in coo]
+    # label_image = coo.toarray()
+
 
     with Client(cluster) as client:
         try:
