@@ -1,3 +1,50 @@
+"""
+Core Data Types Module for pciSeq
+
+This module defines the fundamental data structures used throughout pciSeq for:
+- Cell data management (Cells class)
+- Gene expression handling (Genes class)
+- Spot detection processing (Spots class)
+- Single-cell RNA sequencing data (SingleCell class)
+- Cell type classification (CellType class)
+
+Key Classes:
+-----------
+Cells:
+    Handles cell segmentation data, including properties like centroids,
+    covariance matrices, and gene counts.
+
+Genes:
+    Manages gene-specific data and calculations.
+
+Spots:
+    Processes RNA spot detection data, including spatial coordinates and
+    cell assignments.
+
+SingleCell:
+    Handles single-cell RNA sequencing reference data, including mean
+    expression levels per cell type.
+
+CellType:
+    Manages cell type classification, including prior probabilities and
+    class assignments.
+
+Notes:
+------
+- All numerical computations use numpy arrays for efficiency
+- Sparse matrices are used where appropriate for memory efficiency
+- Dask is used for delayed computations of large arrays
+
+Dependencies:
+------------
+- scipy: For statistical computations
+- numpy: For numerical operations
+- pandas: For data management
+- dask: For delayed computations
+- sklearn: For nearest neighbor calculations
+- numpy_groupies: For efficient grouping operations
+"""
+
 import scipy
 import numpy as np
 import pandas as pd
