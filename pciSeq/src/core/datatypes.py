@@ -1,3 +1,52 @@
+"""
+Core Data Types Module for pciSeq
+
+This module defines the fundamental data structures used throughout pciSeq, a package designed for
+analyzing and processing image segmentation data, particularly in the context of cell and gene analysis.
+
+Key Functionalities:
+- Manages and processes cell segmentation data, gene expression data, and RNA spot detection.
+- Provides structures for handling single-cell RNA sequencing data and classifying cell types.
+
+Key Classes:
+-----------
+Cells:
+    Handles cell segmentation data, including properties like centroids,
+    covariance matrices, and gene counts. It provides methods for calculating
+    nearest neighbors and scatter matrices, essential for spatial analysis.
+
+Genes:
+    Manages gene-specific data and calculations, including initialization and
+    computation of gene expression parameters. This class is crucial for
+    understanding gene distribution and expression levels across cells.
+
+Spots:
+    Processes RNA spot detection data, including spatial coordinates and
+    cell assignments. It includes methods for reading spot data, calculating
+    nearest cells, and managing gene counts, which are vital for spatial
+    transcriptomics.
+
+SingleCell:
+    Handles single-cell RNA sequencing reference data, including mean
+    expression levels per cell type. This class supports the integration of
+    single-cell data into broader analyses, providing a reference for gene
+    expression.
+
+CellType:
+    Manages cell type classification, including prior probabilities and
+    class assignments. It helps in understanding the distribution of different
+    cell types and their characteristics within a dataset.
+
+Dependencies:
+------------
+- scipy: For statistical computations and special functions.
+- numpy: For efficient numerical operations and array handling.
+- pandas: For data management and manipulation, particularly with tabular data.
+- dask: For delayed computations and handling large datasets efficiently.
+- sklearn: For nearest neighbor calculations, essential for spatial analysis.
+- numpy_groupies: For efficient grouping operations, used in aggregating data.
+"""
+
 import scipy
 import numpy as np
 import pandas as pd
@@ -419,7 +468,7 @@ class Spots(object):
         """
         :param r:
         :param b:
-        :return: Expectetation of a rv X following a Gamma(r,b) distribution with pdf
+        :return: Expectation of a rv X following a Gamma(r,b) distribution with pdf
         f(x;\alpha ,\beta )= \frac{\beta^r}{\Gamma(r)} x^{r-1}e^{-\beta x}
         """
         r = rho[:, :, None]
