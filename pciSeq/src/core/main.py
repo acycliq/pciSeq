@@ -221,10 +221,10 @@ class VarBayes:
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
         logeta_bar = self.genes.logeta_bar[self.spots.gene_id]
 
-        # loglik = self.spots.loglik(self.cells, self.config)
+        misread = self.spot_misread_density()
 
         # pre-populate last column
-        wSpotCell[:, -1] = np.log(self.config['MisreadDensity'])
+        wSpotCell[:, -1] = np.log(misread)
 
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
         for n in range(nN - 1):
@@ -814,3 +814,19 @@ class VarBayes:
         #     input("Press Enter to stop the server and close the dashboard...")
         # except KeyboardInterrupt:
         #     print("\nShutting down the server...")
+
+    def spot_misread_density(self):
+        # Get default misread probability for all genes
+        default_val = self.config['MisreadDensity']['default']
+        gene_names = self.genes.gene_panel
+        misread_dict = dict(zip(gene_names, [default_val] * self.nG))
+
+        # Update with any gene-specific probabilities
+        misread_dict.update(self.config['MisreadDensity'] or {})
+        misread_dict.pop('default', None)
+
+        # Convert to array and align directly with spots
+        v = np.array(list(misread_dict.values()))
+        v = v[self.spots.gene_id]  # Align with spots
+        return v
+
