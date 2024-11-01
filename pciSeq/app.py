@@ -1,6 +1,7 @@
 import os
 import redis
 import pickle
+from numbers import Number
 import numpy as np
 import pandas as pd
 from typing import Tuple
@@ -189,7 +190,7 @@ def init(opts):
         user_items = set(opts.keys())
         assert user_items.issubset(default_items), ('Options passed-in should be a dict with keys: %s ' % default_items)
         for item in opts.items():
-            if isinstance(item[1], (int, float, list, str)) or isinstance(item[1](1), np.floating):
+            if isinstance(item[1], (int, float, list, str, dict)) or isinstance(item[1](1), np.floating):
                 val = item[1]
             # elif isinstance(item[1], list):
             #     val = item[1]
@@ -252,6 +253,15 @@ def validate(spots, coo, sc, cfg):
         'Gene': str,
         'x': np.float32,
         'y': np.float32})
+
+    if isinstance(cfg['MisreadDensity'], Number):
+        val = cfg['MisreadDensity']
+        cfg['MisreadDensity'] = {'default': val}
+    elif isinstance(cfg['MisreadDensity'], dict):
+        if 'default' not in cfg['MisreadDensity']:
+            raise ValueError("When MisreadDensity is a dictionary, it must contain a 'default' key")
+    else:
+        raise ValueError("MisreadDensity must be either a number or a dictionary with a 'default' key")
 
     return cfg, spots
 
