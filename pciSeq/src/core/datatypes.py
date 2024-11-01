@@ -68,7 +68,7 @@ from natsort import natsort_keygen
 from .utils import read_image_objects, keep_labels_unique
 from sklearn.neighbors import NearestNeighbors
 import logging
-from typing import Tuple, List, Dict, Optional, Any
+from typing import Tuple, Dict, Any
 
 datatypes_logger = logging.getLogger(__name__)
 
