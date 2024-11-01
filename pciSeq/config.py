@@ -47,7 +47,7 @@ DEFAULT = {
     'rSpot': 2,
 
     # Boolean, if True the output will be saved as tsv files in a folder named 'pciSeq' in your system's temp dir.
-    'save_data': False,
+    'save_data': True,
 
     # Set here where the results will be saved. If default then they will be saved at your system's temp folder
     'output_path': ['default'],
@@ -55,7 +55,7 @@ DEFAULT = {
     # if true the viewer will be launched once convergence has been achieved
     'launch_viewer': False,
 
-    'launch_diagnostics': True,
+    'launch_diagnostics': False,
 
     # Initialise this to False, the correct value is set internally by the code itself
     'is_redis_running': False,
