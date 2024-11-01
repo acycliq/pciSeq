@@ -68,6 +68,7 @@ from natsort import natsort_keygen
 from .utils import read_image_objects, keep_labels_unique
 from sklearn.neighbors import NearestNeighbors
 import logging
+from typing import Tuple, List, Dict, Optional
 
 datatypes_logger = logging.getLogger(__name__)
 
@@ -90,7 +91,7 @@ class Cells(object):
         _background_counts (np.array): Num of spots assigned to background.
     """
 
-    def __init__(self, _cells_df, config):
+    def __init__(self, _cells_df: pd.DataFrame, config: Dict):
         """
         Initializes the Cells object with cell data and configuration.
 
@@ -111,22 +112,25 @@ class Cells(object):
 
     # -------- PROPERTIES -------- #
     @property
-    def zyx_coords(self):
+    def zyx_coords(self) -> np.ndarray:
         """Returns the centroid coordinates in z, y, x order."""
+        # Convenience property but maybe it should be removed. Potentially could be using memory
+        # lots of memory for no real benefit
+
         return self.centroid[['z', 'y', 'x']].values
 
     @property
-    def geneCount(self):
+    def geneCount(self) -> np.ndarray:
         """Returns the gene counts for cells."""
         return self._gene_counts
 
     @geneCount.setter
-    def geneCount(self, val):
+    def geneCount(self, val: np.ndarray):
         """Sets the gene counts for cells."""
         self._gene_counts = val
 
     @property
-    def background_counts(self):
+    def background_counts(self) -> np.ndarray:
         """Returns the background counts for cells."""
         return self._background_counts
 
@@ -136,17 +140,17 @@ class Cells(object):
         self._background_counts = val
 
     @property
-    def total_counts(self):
+    def total_counts(self) -> np.ndarray:
         """Returns the total gene counts for cells."""
         return self.geneCount.sum(axis=1)
 
     @property
-    def centroid(self):
+    def centroid(self) -> pd.DataFrame:
         """Returns a copy of the centroid DataFrame."""
         return self._centroid.copy()
 
     @centroid.setter
-    def centroid(self, df):
+    def centroid(self, df: pd.DataFrame):
         """
         Sets the centroid DataFrame.
 
@@ -159,17 +163,17 @@ class Cells(object):
         self._centroid = df.copy()
 
     @property
-    def cov(self):
+    def cov(self) -> np.ndarray:
         """Returns the covariance matrices for cells."""
         return self._cov
 
     @cov.setter
-    def cov(self, val):
+    def cov(self, val: np.ndarray):
         """Sets the covariance matrices for cells."""
         self._cov = val
 
     @property
-    def mcr(self):
+    def mcr(self) -> float:
         """Returns the mean cell radius."""
         if self.config['cell_radius'] is not None:
             r = self.config['cell_radius']
@@ -178,7 +182,7 @@ class Cells(object):
         return r
 
     # -------- METHODS -------- #
-    def ini_centroids(self):
+    def ini_centroids(self) -> pd.DataFrame:
         """
         Initializes the centroids for cells.
 
@@ -193,7 +197,7 @@ class Cells(object):
         df = pd.DataFrame(d)
         return df.copy()
 
-    def ini_cov(self):
+    def ini_cov(self) -> np.ndarray:
         """
         Initializes the covariance matrices for cells.
 
@@ -204,7 +208,7 @@ class Cells(object):
         cov = self.mcr * self.mcr * np.eye(dim, dim)
         return np.tile(cov.astype(np.float32), (self.nC, 1, 1))
 
-    def nn(self):
+    def nn(self) -> NearestNeighbors:
         """
         Calculates the nearest neighbors for cells.
 
@@ -216,7 +220,7 @@ class Cells(object):
         nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(self.zyx_coords)
         return nbrs
 
-    def scatter_matrix(self, spots):
+    def scatter_matrix(self, spots: 'Spots') -> np.ndarray:
         """
         Calculates the scatter matrix for cells based on spot data.
 
@@ -371,12 +375,12 @@ class Spots(object):
         _counts_per_gene (np.array): Counts per gene for spots.
     """
 
-    def __init__(self, spots_df, config):
+    def __init__(self, spots_df: pd.DataFrame, config: Dict):
         """
         Initializes the Spots object with spot data and configuration.
 
         Parameters:
-            spots_df (pd.DataFrame): DataFrame containing spot data.
+            data (pd.DataFrame): DataFrame containing spot data.
             config (dict): Configuration parameters for spot data.
         """
         self._parent_cell_prob = None
@@ -407,37 +411,37 @@ class Spots(object):
 
     # -------- PROPERTIES -------- #
     @property
-    def gene_id(self):
+    def gene_id(self) -> np.ndarray:
         """Returns the gene IDs for spots."""
         return self._gene_id
 
     @gene_id.setter
-    def gene_id(self, val):
+    def gene_id(self, val: np.ndarray):
         """Sets the gene IDs for spots."""
         self._gene_id = val.astype(np.int32)
 
     @property
-    def counts_per_gene(self):
+    def counts_per_gene(self) -> np.ndarray:
         """Returns the counts per gene for spots."""
         return self._counts_per_gene
 
     @counts_per_gene.setter
-    def counts_per_gene(self, val):
+    def counts_per_gene(self, val: np.ndarray):
         """Sets the counts per gene for spots."""
         self._counts_per_gene = val.astype(np.int32)
 
     @property
-    def gamma_bar(self):
+    def gamma_bar(self) -> np.ndarray:
         """Returns the gamma bar values for spots."""
         return self._gamma_bar
 
     @property
-    def log_gamma_bar(self):
+    def log_gamma_bar(self) -> np.ndarray:
         """Returns the log gamma bar values for spots."""
         return self._log_gamma_bar
 
     @property
-    def xyz_coords(self):
+    def xyz_coords(self) -> np.ndarray:
         """Returns the spatial coordinates of spots."""
         lst = list(zip(*[self.data.x, self.data.y, self.data.z]))
         return np.array(lst, dtype=np.float32)
@@ -456,19 +460,31 @@ class Spots(object):
         return self._parent_cell_prob
 
     @parent_cell_prob.setter
-    def parent_cell_prob(self, val):
+    def parent_cell_prob(self, val: np.ndarray):
+        """Sets the parent cell probabilities for spots."""
         self._parent_cell_prob = val
 
     @property
-    def parent_cell_id(self):
+    def parent_cell_id(self) -> np.ndarray:
+        """Returns the parent cell IDs for spots."""
         return self._parent_cell_id
 
     @parent_cell_id.setter
-    def parent_cell_id(self, val):
+    def parent_cell_id(self, val: np.ndarray):
+        """Sets the parent cell IDs for spots."""
         self._parent_cell_id = val.astype(np.uint32)
 
     # -------- METHODS -------- #
-    def read(self, spots_df):
+    def read(self, spots_df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Reads and processes spot data, excluding specified genes.
+
+        Parameters:
+            spots_df (pd.DataFrame): DataFrame containing spot data.
+
+        Returns:
+            Tuple[pd.DataFrame, pd.DataFrame]: Processed spot data and excluded spot data.
+        """
         # No need for x_global, y_global to be in the spots_df at first place.
         # Instead of renaming here, you could just use 'x' and 'y' when you
         # created the spots_df
@@ -483,7 +499,16 @@ class Spots(object):
         spots_excluded_df = spots_copy.loc[neg_gene_mask]
         return spots_df, spots_excluded_df
 
-    def cells_nearby(self, cells: Cells) -> np.array:
+    def cells_nearby(self, cells: 'Cells') -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Finds nearby cells for each spot.
+
+        Parameters:
+            cells (Cells): Cells object containing cell data.
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray]: Neighbors and cell probabilities.
+        """
         spotZYX = self.data[['z', 'y', 'x']].values
 
         # for each spot find the closest cell (in fact the top nN-closest cells...)
@@ -671,17 +696,25 @@ class SingleCell(object):
         _log_mean_expression (pd.DataFrame): Log mean expression levels.
     """
 
-    def __init__(self, scdata: pd.DataFrame, genes: np.array, config):
-        self.isMissing = None  # Will be set to False is single cell data are assumed known and given as an input
+    def __init__(self, scdata: pd.DataFrame, genes: np.ndarray, config: Dict):
+        """
+        Initializes the SingleCell object with single-cell data and configuration.
+
+        Parameters:
+            scdata (pd.DataFrame): Single-cell data.
+            genes (np.array): Array of gene names.
+            config (dict): Configuration parameters for single-cell data.
+        """
+        self.isMissing = None  # Will be set to False if single cell data are assumed known and given as an input
         # otherwise, if they are unknown, this will be set to True and the algorithm will
         # try to estimate them
         # self.raw_data = self._raw_data(scdata, genes)
         self.config = config
         self._mean_expression, self._log_mean_expression = self._setup(scdata, genes, self.config)
 
-    def _setup(self, scdata, genes, config):
+    def _setup(self, scdata: pd.DataFrame, genes: np.ndarray, config: Dict) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
-        Sets up the single-cell data, calculating mean and log-mean expression levels.
+        Sets up the mean and log mean expression levels.
 
         Parameters:
             scdata (pd.DataFrame): Single-cell data.
@@ -689,7 +722,7 @@ class SingleCell(object):
             config (dict): Configuration parameters.
 
         Returns:
-            tuple: Mean and log-mean expression levels.
+            Tuple[pd.DataFrame, pd.DataFrame]: Mean and log mean expression levels.
         """
         if scdata is None:
             datatypes_logger.info('Single Cell data are missing. Cannot determine mean expression per cell class.')
@@ -880,7 +913,7 @@ class CellType(object):
         single_cell_data_missing (bool): Indicates if single-cell data is missing.
     """
 
-    def __init__(self, single_cell, config):
+    def __init__(self, single_cell: SingleCell, config: Dict):
         """
         Initializes the CellType object with single-cell data and configuration.
 
@@ -895,50 +928,50 @@ class CellType(object):
         self.single_cell_data_missing = single_cell.isMissing
 
     @property
-    def names(self):
+    def names(self) -> np.ndarray:
         """Returns the names of cell types."""
         assert self._names[-1] == 'Zero', "Last label should be the Zero class"
         return self._names
 
     @property
-    def nK(self):
+    def nK(self) -> int:
         """Returns the number of cell types."""
         return len(self.names)
 
     @property
-    def alpha(self):
+    def alpha(self) -> np.ndarray:
         """Returns the alpha values for cell types."""
         return self._alpha
 
     @alpha.setter
-    def alpha(self, val):
+    def alpha(self, val: np.ndarray):
         """Sets the alpha values for cell types."""
         self._alpha = val
 
     @property
-    def pi_bar(self):
+    def pi_bar(self) -> np.ndarray:
         """Returns the pi bar values for cell types."""
         return self.alpha / self.alpha.sum()
 
     @property
-    def logpi_bar(self):
+    def logpi_bar(self) -> np.ndarray:
         """Returns the log pi bar values for cell types."""
         return scipy.special.psi(self.alpha) - scipy.special.psi(self.alpha.sum())
 
     @property
-    def prior(self):
+    def prior(self) -> np.ndarray:
         """Returns the prior probabilities for cell types."""
         return self.pi_bar
 
     @property
-    def log_prior(self):
+    def log_prior(self) -> np.ndarray:
         """Returns the log prior probabilities for cell types."""
         if self.single_cell_data_missing or self.config['cell_type_prior'] == 'weighted':
             return self.logpi_bar
         else:
             return np.log(self.prior)
 
-    def size(self, cells):
+    def size(self, cells: Cells) -> np.ndarray:
         """
         Calculates the size of each cell type, i.e., the number of cells in each type.
 
@@ -954,7 +987,7 @@ class CellType(object):
         """Initializes the prior probabilities for cell types."""
         self.alpha = self.ini_alpha()
 
-    def ini_alpha(self):
+    def ini_alpha(self) -> np.ndarray:
         """
         Initializes the alpha values for cell types.
 
