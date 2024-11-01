@@ -1,3 +1,49 @@
+"""
+Logging Configuration Module for pciSeq
+
+This module provides a standardized logging setup for the pciSeq package,
+with colored output and consistent formatting across all modules.
+
+Key Functions:
+------------
+setup_logger:
+    Main configuration function that:
+    - Sets up colored console output
+    - Configures log levels and formats
+    - Returns a configured logger instance
+
+attach_to_log:
+    Legacy function maintained for backwards compatibility
+    (Redirects to setup_logger)
+
+Features:
+--------
+- Color-coded output by log level:
+  * DEBUG: Cyan
+  * INFO: Green
+  * WARNING: Yellow
+  * ERROR: Red
+  * CRITICAL: Red with white background
+
+- Standardized timestamp format
+- Console output to stdout
+- Configurable log levels
+- Thread-safe logging
+
+Usage:
+-----
+>>> logger = setup_logger()
+>>> logger.info("Analysis started")
+>>> logger.error("Error occurred")
+
+Notes:
+-----
+- Default log level is INFO
+- All handlers are cleared before setup to avoid duplication
+- Uses colorlog for ANSI color support
+- Format: "timestamp - level - message"
+"""
+
 import sys
 import colorlog
 import logging
