@@ -40,8 +40,3 @@ This module contains the core functionality of pciSeq, implementing the Variatio
 - sklearn: Nearest neighbor calculations
 - numpy_groupies: Group operations
 
-## Notes
-- All numerical computations use numpy arrays for efficiency
-- Sparse matrices used where appropriate
-- Dask used for large array operations
-- Redis optional for diagnostic monitoring
