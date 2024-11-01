@@ -63,7 +63,6 @@ biological data.
 import scipy
 import numpy as np
 import pandas as pd
-import dask
 import numpy_groupies as npg
 from natsort import natsort_keygen
 from .utils import read_image_objects, keep_labels_unique
@@ -88,7 +87,7 @@ class Cells(object):
         nu_0 (float): Mean gene counts per cell.
         _centroid (pd.DataFrame): Centroid coordinates for cells.
         _gene_counts (np.array): Gene counts for cells.
-        _background_counts (np.array): Background counts for cells.
+        _background_counts (np.array): Num of spots assigned to background.
     """
 
     def __init__(self, _cells_df, config):
@@ -133,7 +132,7 @@ class Cells(object):
 
     @background_counts.setter
     def background_counts(self, val):
-        """Sets the background counts for cells."""
+        """Sets the background gene counts."""
         self._background_counts = val
 
     @property
@@ -288,7 +287,7 @@ class Genes(object):
 
     Attributes:
         gene_panel (np.array): Array of unique gene names.
-        _eta_bar (np.array): Eta bar values for genes.
+        _eta_bar (np.array): Eta bar values: This is basically the expected Gene inefficiency.
         _logeta_bar (np.array): Log eta bar values for genes.
         nG (int): Number of genes.
     """
