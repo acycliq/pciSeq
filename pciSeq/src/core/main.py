@@ -1,3 +1,60 @@
+"""
+Core Algorithm Implementation Module for pciSeq
+
+This module implements the main Variational Bayes algorithm for spatial transcriptomics
+analysis, primarily through the VarBayes class. The algorithm iteratively:
+1. Assigns spots to cells
+2. Determines cell types
+3. Estimates gene expression patterns
+4. Updates model parameters
+
+Key Components:
+-------------
+VarBayes:
+    Main class implementing the iterative algorithm with methods for:
+    - Gene count updates
+    - Cell type assignment
+    - Spot-to-cell assignment
+    - Parameter estimation (eta, gamma, covariance)
+    - Model convergence checking
+
+Algorithm Steps:
+--------------
+1. Initialization:
+   - Set prior probabilities
+   - Initialize cell assignments
+   - Set gene efficiency parameters
+
+2. Iterative Updates:
+   - Update expected gene counts
+   - Calculate gamma expectations
+   - Update gaussian parameters
+   - Assign cells to types
+   - Assign spots to cells
+   - Update gene efficiency
+   - Update Dirichlet parameters
+   - Update single-cell reference
+
+3. Convergence:
+   - Check for convergence after each iteration
+   - Return results when converged or max iterations reached
+
+Notes:
+-----
+- Uses Redis for optional diagnostic monitoring
+- Implements equations from the pciSeq paper
+- Handles missing single-cell reference data
+- Supports parallel processing via numpy operations
+
+Dependencies:
+-----------
+- numpy: For numerical computations
+- pandas: For data management
+- scipy: For statistical operations
+- numpy_groupies: For efficient group operations
+- dask: For delayed computations
+"""
+
 import time
 import numpy as np
 import pandas as pd
