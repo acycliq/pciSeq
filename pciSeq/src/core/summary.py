@@ -1,3 +1,57 @@
+"""
+Data Summary Module for pciSeq
+
+This module provides functionality to summarize and format the results of the
+pciSeq analysis for visualization and reporting. It processes both cell and spot
+data into structured DataFrames.
+
+Key Functions:
+------------
+cells_summary:
+    Summarizes cell-level information including:
+    - Spatial coordinates
+    - Gene counts
+    - Cell type probabilities
+    - Gaussian contours for visualization
+    Returns a DataFrame with one row per cell.
+
+spots_summary:
+    Summarizes spot-level information including:
+    - Gene identities
+    - Spatial coordinates
+    - Cell assignments and probabilities
+    Returns a DataFrame with one row per spot.
+
+collect_data:
+    Main interface function that combines cell and spot summaries
+    for downstream visualization and analysis.
+
+Data Structure:
+-------------
+Cell Summary DataFrame:
+    - Cell_Num: Unique cell identifier
+    - X, Y: Spatial coordinates
+    - Genenames: List of detected genes
+    - CellGeneCount: Corresponding gene counts
+    - ClassName: Assigned cell types
+    - Prob: Cell type probabilities
+    - gaussian_contour: Cell boundary coordinates
+
+Spot Summary DataFrame:
+    - Gene: Gene name
+    - Gene_id: Numeric gene identifier
+    - x, y: Spatial coordinates
+    - neighbour: Most likely parent cell
+    - neighbour_array: Array of nearby cells
+    - neighbour_prob: Assignment probabilities
+
+Notes:
+-----
+- First cell (index 0) is treated as background and excluded from summaries
+- Gene counts and probabilities below tolerance (0.001) are filtered
+- Gaussian contours are computed at 3 standard deviations
+"""
+
 import numpy as np
 import pandas as pd
 from pciSeq.src.core.utils import gaussian_contour
