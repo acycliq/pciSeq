@@ -37,6 +37,15 @@ CellType:
     class assignments. It helps in understanding the distribution of different
     cell types and their characteristics within a dataset.
 
+Notes:
+------
+- All numerical computations use numpy arrays for efficiency, ensuring fast
+  processing of large datasets.
+- Sparse matrices are used where appropriate for memory efficiency, particularly
+  in handling large, sparse datasets.
+- Dask is used for delayed computations of large arrays, allowing for scalable
+  and parallel processing.
+
 Dependencies:
 ------------
 - scipy: For statistical computations and special functions.
@@ -45,6 +54,10 @@ Dependencies:
 - dask: For delayed computations and handling large datasets efficiently.
 - sklearn: For nearest neighbor calculations, essential for spatial analysis.
 - numpy_groupies: For efficient grouping operations, used in aggregating data.
+
+This module is designed to be integrated into larger pipelines for image segmentation
+and analysis, providing robust data structures and methods for handling complex
+biological data.
 """
 
 import scipy
@@ -59,10 +72,33 @@ import logging
 
 datatypes_logger = logging.getLogger(__name__)
 
-
 class Cells(object):
-    # Get rid of the properties where not necessary!!
+    """
+    Represents cell segmentation data, including properties like centroids,
+    covariance matrices, and gene counts. Provides methods for calculating
+    nearest neighbors and scatter matrices.
+
+    Attributes:
+        config (dict): Configuration parameters for cell data.
+        ini_cell_props (dict): Initial cell properties.
+        nC (int): Number of cells.
+        classProb (np.array): Class probabilities for cells.
+        class_names (list): Names of cell classes.
+        _cov (np.array): Covariance matrices for cells.
+        nu_0 (float): Mean gene counts per cell.
+        _centroid (pd.DataFrame): Centroid coordinates for cells.
+        _gene_counts (np.array): Gene counts for cells.
+        _background_counts (np.array): Background counts for cells.
+    """
+
     def __init__(self, _cells_df, config):
+        """
+        Initializes the Cells object with cell data and configuration.
+
+        Parameters:
+            _cells_df (pd.DataFrame): DataFrame containing cell data.
+            config (dict): Configuration parameters for cell data.
+        """
         self.config = config
         self.ini_cell_props, self._mcr = read_image_objects(_cells_df, config)
         self.nC = len(self.ini_cell_props['cell_label'])
@@ -77,35 +113,47 @@ class Cells(object):
     # -------- PROPERTIES -------- #
     @property
     def zyx_coords(self):
+        """Returns the centroid coordinates in z, y, x order."""
         return self.centroid[['z', 'y', 'x']].values
 
     @property
     def geneCount(self):
+        """Returns the gene counts for cells."""
         return self._gene_counts
 
     @geneCount.setter
     def geneCount(self, val):
+        """Sets the gene counts for cells."""
         self._gene_counts = val
 
     @property
     def background_counts(self):
+        """Returns the background counts for cells."""
         return self._background_counts
 
     @background_counts.setter
     def background_counts(self, val):
+        """Sets the background counts for cells."""
         self._background_counts = val
 
     @property
     def total_counts(self):
+        """Returns the total gene counts for cells."""
         return self.geneCount.sum(axis=1)
 
     @property
     def centroid(self):
-        # lst = list(zip(*[self._centroid['x'], self._centroid['y']]))
+        """Returns a copy of the centroid DataFrame."""
         return self._centroid.copy()
 
     @centroid.setter
     def centroid(self, df):
+        """
+        Sets the centroid DataFrame.
+
+        Parameters:
+            df (pd.DataFrame): DataFrame containing centroid coordinates.
+        """
         assert isinstance(df, pd.DataFrame), 'Input should be a dataframe'
         assert set(df.columns.values) == {'x', 'y', 'z'}, 'Dataframe columns should be ''x'', ''y'' and ''z'' '
         df.index.name = 'cell_label'
@@ -113,14 +161,17 @@ class Cells(object):
 
     @property
     def cov(self):
+        """Returns the covariance matrices for cells."""
         return self._cov
 
     @cov.setter
     def cov(self, val):
+        """Sets the covariance matrices for cells."""
         self._cov = val
 
     @property
     def mcr(self):
+        """Returns the mean cell radius."""
         if self.config['cell_radius'] is not None:
             r = self.config['cell_radius']
         else:
@@ -129,6 +180,12 @@ class Cells(object):
 
     # -------- METHODS -------- #
     def ini_centroids(self):
+        """
+        Initializes the centroids for cells.
+
+        Returns:
+            pd.DataFrame: DataFrame containing centroid coordinates.
+        """
         d = {
             'x': self.ini_cell_props['x0'],
             'y': self.ini_cell_props['y0'],
@@ -138,20 +195,38 @@ class Cells(object):
         return df.copy()
 
     def ini_cov(self):
+        """
+        Initializes the covariance matrices for cells.
+
+        Returns:
+            np.array: Array of covariance matrices.
+        """
         dim = 3
         cov = self.mcr * self.mcr * np.eye(dim, dim)
         return np.tile(cov.astype(np.float32), (self.nC, 1, 1))
 
-    # def dapi_mean_cell_radius(self):
-    #     return np.nanmean(np.sqrt(self.ini_cell_props['area'] / np.pi)) * 0.5
-
     def nn(self):
+        """
+        Calculates the nearest neighbors for cells.
+
+        Returns:
+            NearestNeighbors: Fitted NearestNeighbors object.
+        """
         n = self.config['nNeighbors'] + 1
         # for each spot find the closest cell (in fact the top nN-closest cells...)
         nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(self.zyx_coords)
         return nbrs
 
     def scatter_matrix(self, spots):
+        """
+        Calculates the scatter matrix for cells based on spot data.
+
+        Parameters:
+            spots (Spots): Spots object containing spot data.
+
+        Returns:
+            np.array: Scatter matrix for cells.
+        """
         mu_bar = self.centroid.values
         prob = spots.parent_cell_prob[:, :-1]
         id = spots.parent_cell_id[:, :-1]
@@ -207,7 +282,24 @@ class Cells(object):
 
 # ----------------------------------------Class: Genes--------------------------------------------------- #
 class Genes(object):
+    """
+    Manages gene-specific data and calculations, including initialization and
+    computation of gene expression parameters.
+
+    Attributes:
+        gene_panel (np.array): Array of unique gene names.
+        _eta_bar (np.array): Eta bar values for genes.
+        _logeta_bar (np.array): Log eta bar values for genes.
+        nG (int): Number of genes.
+    """
+
     def __init__(self, spots):
+        """
+        Initializes the Genes object with spot data.
+
+        Parameters:
+            spots (Spots): Spots object containing spot data.
+        """
         self.gene_panel = np.unique(spots.data.gene_name.values)
         self._eta_bar = None
         self._logeta_bar = None
@@ -215,29 +307,79 @@ class Genes(object):
 
     @property
     def eta_bar(self):
+        """Returns the eta bar values for genes."""
         return self._eta_bar
 
     @property
     def logeta_bar(self):
+        """Returns the log eta bar values for genes."""
         return self._logeta_bar
 
     def init_eta(self, a, b):
+        """
+        Initializes eta values for genes.
+
+        Parameters:
+            a (float): Parameter a for eta calculation.
+            b (float): Parameter b for eta calculation.
+        """
         self._eta_bar = np.ones(self.nG, dtype=np.float32) * (a / b)
         self._logeta_bar = np.ones(self.nG, dtype=np.float32) * self._digamma(a, b)
 
     def calc_eta(self, a, b):
+        """
+        Calculates eta values for genes.
+
+        Parameters:
+            a (np.array): Array of parameter a values.
+            b (np.array): Array of parameter b values.
+        """
         a = a.astype(np.float32)
         b = b.astype(np.float32)
         self._eta_bar = a / b
         self._logeta_bar = self._digamma(a, b)
 
     def _digamma(self, a, b):
+        """
+        Calculates the digamma function for eta calculation.
+
+        Parameters:
+            a (np.array): Array of parameter a values.
+            b (np.array): Array of parameter b values.
+
+        Returns:
+            np.array: Digamma values.
+        """
         return scipy.special.psi(a) - np.log(b)
 
 
 # ----------------------------------------Class: Spots--------------------------------------------------- #
 class Spots(object):
+    """
+    Processes RNA spot detection data, including spatial coordinates and
+    cell assignments. Includes methods for reading spot data, calculating
+    nearest cells, and managing gene counts.
+
+    Attributes:
+        config (dict): Configuration parameters for spot data.
+        data (pd.DataFrame): DataFrame containing spot data.
+        data_excluded (pd.DataFrame): DataFrame containing excluded spot data.
+        nS (int): Number of spots.
+        unique_gene_names (np.array): Array of unique gene names.
+        _gamma_bar (np.array): Gamma bar values for spots.
+        _log_gamma_bar (np.array): Log gamma bar values for spots.
+        _gene_id (np.array): Gene IDs for spots.
+        _counts_per_gene (np.array): Counts per gene for spots.
+    """
+
     def __init__(self, spots_df, config):
+        """
+        Initializes the Spots object with spot data and configuration.
+
+        Parameters:
+            spots_df (pd.DataFrame): DataFrame containing spot data.
+            config (dict): Configuration parameters for spot data.
+        """
         self._parent_cell_prob = None
         self._parent_cell_id = None
         self.Dist = None
@@ -253,11 +395,12 @@ class Spots(object):
                                                             return_counts=True)
 
     def __getstate__(self):
-        # set here attributes to be excluded from serialisation (pickling)
-        # FYI: https://realpython.com/python-pickle-module/
-        # Removing _gamma_bar and _log_gamma_bar because they are delayed
-        # But even if they werent, I would remove them anyway because they
-        # make the pickle file a lot larger!
+        """
+        Customizes the state for pickling, excluding certain attributes.
+
+        Returns:
+            dict: Attributes to be serialized.
+        """
         attributes = self.__dict__.copy()
         del attributes['_gamma_bar']
         del attributes['_log_gamma_bar']
@@ -266,30 +409,37 @@ class Spots(object):
     # -------- PROPERTIES -------- #
     @property
     def gene_id(self):
+        """Returns the gene IDs for spots."""
         return self._gene_id
 
     @gene_id.setter
     def gene_id(self, val):
+        """Sets the gene IDs for spots."""
         self._gene_id = val.astype(np.int32)
 
     @property
     def counts_per_gene(self):
+        """Returns the counts per gene for spots."""
         return self._counts_per_gene
 
     @counts_per_gene.setter
     def counts_per_gene(self, val):
+        """Sets the counts per gene for spots."""
         self._counts_per_gene = val.astype(np.int32)
 
     @property
     def gamma_bar(self):
+        """Returns the gamma bar values for spots."""
         return self._gamma_bar
 
     @property
     def log_gamma_bar(self):
+        """Returns the log gamma bar values for spots."""
         return self._log_gamma_bar
 
     @property
     def xyz_coords(self):
+        """Returns the spatial coordinates of spots."""
         lst = list(zip(*[self.data.x, self.data.y, self.data.z]))
         return np.array(lst, dtype=np.float32)
 
@@ -304,8 +454,6 @@ class Spots(object):
             tmp[:, -1] = np.ones(nrows)
             ispot_id = [i for i, v in enumerate(self.data.index.values) if v in spot_id]
             self._parent_cell_prob[ispot_id] = tmp
-            # print('parent_cell_prob: override')
-            # print(spot_id)
         return self._parent_cell_prob
 
     @parent_cell_prob.setter
@@ -401,6 +549,18 @@ class Spots(object):
     #     return D
 
     def mvn_loglik(self, data, cell_label, cells, is3D):
+        """
+        Calculates the multivariate normal log likelihood for spots.
+
+        Parameters:
+            data (np.array): Spot data.
+            cell_label (np.array): Cell labels for spots.
+            cells (Cells): Cells object containing cell data.
+            is3D (bool): Whether the data is 3D.
+
+        Returns:
+            np.array: Log likelihood values.
+        """
         centroids = cells.centroid.values[cell_label]
         covs = cells.cov[cell_label]
         if ~is3D:
@@ -412,7 +572,6 @@ class Spots(object):
             data = data[:, :-1]
             centroids = centroids[:, :-1]
             covs = covs[:, :-1, :-1]
-
         out = self.multiple_logpdfs(data, centroids, covs)
         return out
 
@@ -448,7 +607,14 @@ class Spots(object):
 
     def zero_class_counts(self, geneNo, pCellZero):
         """
-        Gene counts for the zero expressing class
+        Calculates gene counts for the zero expressing class.
+
+        Parameters:
+            geneNo (np.array): Gene numbers for spots.
+            pCellZero (np.array): Probabilities of zero expression for cells.
+
+        Returns:
+            np.array: Total predicted zero counts per gene.
         """
         # for each spot get the ids of the 3 nearest cells
         spotNeighbours = self.parent_cell_id[:, :-1]
@@ -463,25 +629,49 @@ class Spots(object):
         TotPredictedZ = np.bincount(geneNo, pSpotZero)
         return TotPredictedZ
 
-    # @dask.delayed
     def gammaExpectation(self, rho, beta):
         """
-        :param r:
-        :param b:
-        :return: Expectation of a rv X following a Gamma(r,b) distribution with pdf
-        f(x;\alpha ,\beta )= \frac{\beta^r}{\Gamma(r)} x^{r-1}e^{-\beta x}
+        Calculates the expectation of a gamma distribution.
+
+        Parameters:
+            rho (np.array): Shape parameters.
+            beta (np.array): Rate parameters.
+
+        Returns:
+            np.array: Expected values.
         """
         r = rho[:, :, None]
         return r / beta
 
-    # @dask.delayed
     def logGammaExpectation(self, rho, beta):
+        """
+        Calculates the log expectation of a gamma distribution.
+
+        Parameters:
+            rho (np.array): Shape parameters.
+            beta (np.array): Rate parameters.
+
+        Returns:
+            np.array: Log expected values.
+        """
         r = rho[:, :, None]
         return scipy.special.psi(r) - np.log(beta)
 
 
 # ----------------------------------------Class: SingleCell--------------------------------------------------- #
 class SingleCell(object):
+    """
+    Handles single-cell RNA sequencing reference data, including mean
+    expression levels per cell type. Supports integration of single-cell
+    data into broader analyses.
+
+    Attributes:
+        isMissing (bool): Indicates if single-cell data is missing.
+        config (dict): Configuration parameters for single-cell data.
+        _mean_expression (pd.DataFrame): Mean expression levels.
+        _log_mean_expression (pd.DataFrame): Log mean expression levels.
+    """
+
     def __init__(self, scdata: pd.DataFrame, genes: np.array, config):
         self.isMissing = None  # Will be set to False is single cell data are assumed known and given as an input
         # otherwise, if they are unknown, this will be set to True and the algorithm will
@@ -492,16 +682,20 @@ class SingleCell(object):
 
     def _setup(self, scdata, genes, config):
         """
-        calcs the mean (and the log-mean) gene counts per cell type. Note that
-        some hyperparameter values have been applied before those means are derived.
-        These hyperparameters and some bacic cleaning takes part in the functions
-        called herein
+        Sets up the single-cell data, calculating mean and log-mean expression levels.
+
+        Parameters:
+            scdata (pd.DataFrame): Single-cell data.
+            genes (np.array): Array of gene names.
+            config (dict): Configuration parameters.
+
+        Returns:
+            tuple: Mean and log-mean expression levels.
         """
         if scdata is None:
-            datatypes_logger.info('Single Cell data are missing. Cannot determine meam expression per cell class.')
+            datatypes_logger.info('Single Cell data are missing. Cannot determine mean expression per cell class.')
             datatypes_logger.info('We will try to estimate the array instead')
             datatypes_logger.info('Starting point is a diagonal array of size numGenes-by-numGenes')
-            # expr = self._naive(scdata, genes)
             expr = self._diag(genes)
             self.isMissing = True
         else:
@@ -518,55 +712,91 @@ class SingleCell(object):
     # -------- PROPERTIES -------- #
     @property
     def mean_expression(self):
+        """Returns the mean expression levels."""
         assert self._mean_expression.columns[-1] == 'Zero', "Last column should be the Zero class"
         return self._mean_expression
 
     @property
     def log_mean_expression(self):
+        """Returns the log mean expression levels."""
         assert self._log_mean_expression.columns[-1] == 'Zero', "Last column should be the Zero class"
         return self._log_mean_expression
 
     @property
     def genes(self):
+        """Returns the gene names."""
         return self.mean_expression.index.values
 
     @property
     def classes(self):
+        """Returns the class names."""
         return self.mean_expression.columns.values
 
     ## Helper functions ##
     def _set_axes(self, df):
+        """
+        Sets the axes labels for a DataFrame.
+
+        Parameters:
+            df (pd.DataFrame): DataFrame to set axes for.
+
+        Returns:
+            pd.DataFrame: DataFrame with set axes.
+        """
         df = df.rename_axis("class_name", axis="columns").rename_axis('gene_name')
         return df
 
     def _remove_zero_cols(self, df):
         """
-        Removes zero columns (ie if a column is populated by zeros only, then it is removed)
-        :param da:
-        :return:
+        Removes columns with all zero values from a DataFrame.
+
+        Parameters:
+            df (pd.DataFrame): DataFrame to remove zero columns from.
+
+        Returns:
+            pd.DataFrame: DataFrame with zero columns removed.
         """
         out = df.loc[:, (df != 0).any(axis=0)]
         return out
 
     def _helper(self, expr):
+        """
+        Helper function to process expression data.
+
+        Parameters:
+            expr (pd.DataFrame): Expression data.
+
+        Returns:
+            tuple: Processed mean and log-mean expression data.
+        """
+
         # order by column name
         expr = expr.copy().sort_index(axis=0).sort_index(axis=1, key=natsort_keygen(key=lambda y: y.str.lower()))
 
         # append at the end the Zero class
         expr['Zero'] = np.zeros([expr.shape[0], 1])
+        me = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")
 
-        # expr = self.config['Inefficiency'] * arr
-        me = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")  # mean expression
-        me = me + self.config['SpotReg']  # add the regularization parameter
-        lme = np.log(me)  # log mean expression
+        # add the regularization parameter
+        me = me + self.config['SpotReg']
+
+        # log mean expression
+        lme = np.log(me)
         return me, lme
 
     def _gene_expressions(self, fitted, scale):
         """
-        Finds the expected mean gene counts. The prior *IS NOT* taken
+        Calculates expected mean gene counts. The prior *IS NOT* taken
         into account. We use data evidence only
         For the zero class only the prior is used *AND NOT* data
         evidence.
+
+        Parameters:
+            fitted (np.array): Fitted values.
+            scale (np.array): Scale values.
+
+        Returns:
+            tuple: Mean and log-mean gene expressions.
         """
 
         # the prior on mean expression follows a Gamma(m * M , m), where M is the starting point (the initial
@@ -574,7 +804,6 @@ class SingleCell(object):
         # 07-May-2023. Hiding m from the config.py. Should bring it back at a later version
         # m = self.config['m']
         m = 1
-
         a = fitted + m * (self.raw_data + self.config['SpotReg'])
         b = scale + m
         me = a / b
@@ -583,6 +812,7 @@ class SingleCell(object):
         # the expressions for the zero class are a 0.0 plus the regularition param
         zero_col = np.zeros(me.shape[0]) + self.config['SpotReg']
         me = me.assign(Zero=zero_col)
+
         # For the mean of the log-expressions, again only the prior is used for the Zero class
         zero_col_2 = scipy.special.psi(m * zero_col) - np.log(m)
         lme = lme.assign(Zero=zero_col_2)
@@ -590,13 +820,17 @@ class SingleCell(object):
 
     def _raw_data(self, scdata, genes):
         """
-        Reads the raw single data, filters out any genes outside the gene panel and then it
-        groups by the cell type
+        Processes raw single-cell data, filtering out any genes outside the gene panel and grouping by cell type.
+
+        Parameters:
+            scdata (pd.DataFrame): Single-cell data.
+            genes (np.array): Array of gene names.
+
+        Returns:
+            pd.DataFrame: Processed single-cell data.
         """
         assert np.all(scdata >= 0), "Single cell dataframe has negative values"
-        datatypes_logger.info(
-            'Single cell data passed-in have %d genes and %d cells' % (scdata.shape[0], scdata.shape[1]))
-
+        datatypes_logger.info('Single cell data passed-in have %d genes and %d cells' % (scdata.shape[0], scdata.shape[1]))
         datatypes_logger.info('Single cell data: Keeping counts for the gene panel of %d only' % len(genes))
         df = scdata.loc[genes]
 
@@ -615,12 +849,17 @@ class SingleCell(object):
         return out
 
     def _diag(self, genes):
-        # logger.info('******************************************************')
-        # logger.info('*************** DIAGONAL SINGLE CELL DATA ***************')
-        # logger.info('******************************************************')
+        """
+        Creates a diagonal matrix for single-cell data initialization.
+
+        Parameters:
+            genes (np.array): Array of gene names.
+
+        Returns:
+            pd.DataFrame: Diagonal single-cell data.
+        """
         nG = len(genes)
-        mgc = self.config[
-            'mean_gene_counts_per_class']  # the avg gene count per cell. Better expose that so it can be set by the user.
+        mgc = self.config['mean_gene_counts_per_class']
         arr = mgc * np.eye(nG)
         labels = ['class_%d' % (i + 1) for i, _ in enumerate(genes)]
         df = pd.DataFrame(arr).set_index(genes)
@@ -630,7 +869,26 @@ class SingleCell(object):
 
 # ---------------------------------------- Class: CellType --------------------------------------------------- #
 class CellType(object):
+    """
+    Manages cell type classification, including prior probabilities and
+    class assignments. Helps in understanding the distribution of different
+    cell types and their characteristics within a dataset.
+
+    Attributes:
+        _names (np.array): Names of cell types.
+        _alpha (np.array): Alpha values for cell types.
+        config (dict): Configuration parameters for cell types.
+        single_cell_data_missing (bool): Indicates if single-cell data is missing.
+    """
+
     def __init__(self, single_cell, config):
+        """
+        Initializes the CellType object with single-cell data and configuration.
+
+        Parameters:
+            single_cell (SingleCell): SingleCell object containing single-cell data.
+            config (dict): Configuration parameters for cell types.
+        """
         assert single_cell.classes[-1] == 'Zero', "Last label should be the Zero class"
         self._names = single_cell.classes
         self._alpha = None
@@ -639,35 +897,43 @@ class CellType(object):
 
     @property
     def names(self):
+        """Returns the names of cell types."""
         assert self._names[-1] == 'Zero', "Last label should be the Zero class"
         return self._names
 
     @property
     def nK(self):
+        """Returns the number of cell types."""
         return len(self.names)
 
     @property
     def alpha(self):
+        """Returns the alpha values for cell types."""
         return self._alpha
 
     @alpha.setter
     def alpha(self, val):
+        """Sets the alpha values for cell types."""
         self._alpha = val
 
     @property
     def pi_bar(self):
+        """Returns the pi bar values for cell types."""
         return self.alpha / self.alpha.sum()
 
     @property
     def logpi_bar(self):
+        """Returns the log pi bar values for cell types."""
         return scipy.special.psi(self.alpha) - scipy.special.psi(self.alpha.sum())
 
     @property
     def prior(self):
+        """Returns the prior probabilities for cell types."""
         return self.pi_bar
 
     @property
     def log_prior(self):
+        """Returns the log prior probabilities for cell types."""
         if self.single_cell_data_missing or self.config['cell_type_prior'] == 'weighted':
             return self.logpi_bar
         else:
@@ -675,13 +941,26 @@ class CellType(object):
 
     def size(self, cells):
         """
-        calcs the size of a cell class, ie how many members (ie cells) each cell type has
+        Calculates the size of each cell type, i.e., the number of cells in each type.
+
+        Parameters:
+            cells (Cells): Cells object containing cell data.
+
+        Returns:
+            np.array: Sizes of cell types.
         """
         return cells.classProb.sum(axis=0)
 
     def ini_prior(self):
+        """Initializes the prior probabilities for cell types."""
         self.alpha = self.ini_alpha()
 
     def ini_alpha(self):
+        """
+        Initializes the alpha values for cell types.
+
+        Returns:
+            np.array: Initialized alpha values.
+        """
         ones = np.ones(self.nK - 1)
         return np.append(ones, sum(ones)).astype(np.float32)
