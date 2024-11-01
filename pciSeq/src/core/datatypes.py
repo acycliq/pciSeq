@@ -68,9 +68,10 @@ from natsort import natsort_keygen
 from .utils import read_image_objects, keep_labels_unique
 from sklearn.neighbors import NearestNeighbors
 import logging
-from typing import Tuple, List, Dict, Optional
+from typing import Tuple, List, Dict, Optional, Any
 
 datatypes_logger = logging.getLogger(__name__)
+
 
 class Cells(object):
     """
@@ -526,7 +527,7 @@ class Spots(object):
         # the second return value is not getting used. maybe in the future
         return neighbors.astype(np.int32), cellProb
 
-    def ini_cellProb(self, neighbors, cfg):
+    def ini_cellProb(self, neighbors: np.ndarray, cfg: Dict[str, Any]) -> np.ndarray:
         nS = self.data.shape[0]
         nN = cfg['nNeighbors'] + 1
         SpotInCell = self.data.label
@@ -599,7 +600,7 @@ class Spots(object):
         out = self.multiple_logpdfs(data, centroids, covs)
         return out
 
-    def multiple_logpdfs(self, x, means, covs):
+    def multiple_logpdfs(self, x: np.ndarray, means: np.ndarray, covs: np.ndarray) -> np.ndarray:
         """
         vectorised mvn log likelihood evaluated at multiple pairs of (centroid_1, cov_1), ..., (centroid_N, cov_N)
         Taken from http://gregorygundersen.com/blog/2020/12/12/group-multivariate-normal-pdf/
@@ -850,7 +851,7 @@ class SingleCell(object):
         lme = lme.assign(Zero=zero_col_2)
         return me, lme
 
-    def _raw_data(self, scdata, genes):
+    def _raw_data(self, scdata: pd.DataFrame, genes: np.ndarray) -> pd.DataFrame:
         """
         Processes raw single-cell data, filtering out any genes outside the gene panel and grouping by cell type.
 
