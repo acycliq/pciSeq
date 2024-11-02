@@ -1,83 +1,186 @@
-import time
-import numpy as np
-import pandas as pd
-import os
+# Standard library imports
 import json
-import shutil
-import numpy_groupies as npg
-import scipy.spatial as spatial
-from scipy.special import softmax
-from dask.delayed import delayed
-import pciSeq.src.core.utils as utils
-from pciSeq.src.core.summary import collect_data
-from pciSeq.src.diagnostics.utils import RedisDB
-from pciSeq.src.diagnostics.redis_publisher import RedisPublisher
-from pciSeq.src.core.datatypes import Cells, Spots, Genes, SingleCell, CellType
 import logging
+import os
+import shutil
+import time
+from typing import Dict, List, Optional, Tuple, Union
 
+# Third-party imports
+import numpy as np
+import numpy_groupies as npg
+import pandas as pd
+import scipy.spatial as spatial
+from dask.delayed import delayed
+from scipy.special import softmax
+from dataclasses import dataclass
+from typing import Dict, Any
+
+# Local imports
+from pciSeq.src.core.datatypes import Cells, Spots, Genes, SingleCell, CellType
+from pciSeq.src.core.summary import collect_data
+from pciSeq.src.core import utils
+from pciSeq.src.diagnostics.redis_publisher import RedisPublisher
+from pciSeq.src.diagnostics.utils import RedisDB
+
+# Configure logging
 main_logger = logging.getLogger(__name__)
 
 
+@dataclass
+class RedisConfig:
+    """Data class for Redis configuration."""
+    enabled: bool
+    host: str = 'localhost'
+    port: int = 6379
+    db: int = 0
+    flush: bool = True
+
+
 class VarBayes:
-    def __init__(self, _cells_df, _spots_df, scRNAseq, config):
+    """
+    Implements Variational Bayes algorithm for spatial transcriptomics analysis.
+
+    This class performs cell type assignment and spot-to-cell mapping using a 
+    probabilistic model with variational inference.
+
+    Args:
+        cells_df: DataFrame containing cell information
+        spots_df: DataFrame containing spot information
+        scRNAseq: Single-cell RNA sequencing reference data
+        config: Configuration dictionary containing algorithm parameters
+    """
+    def __init__(self,
+                 cells_df: pd.DataFrame,
+                 spots_df: pd.DataFrame,
+                 scRNAseq: pd.DataFrame,
+                 config: Dict[str, Any]) -> None:
+        """Initialize components and setup."""
+        self._validate_config(config)
         self.config = config
-        self.redis_db = RedisDB(flush=True) if config['is_redis_running'] else None
-        self.redis_publisher = RedisPublisher(self.redis_db) if config['is_redis_running'] else None
-        self.cells = Cells(_cells_df, config)
-        self.spots = Spots(_spots_df, config)
-        self.genes = Genes(self.spots)
-        self.single_cell = SingleCell(scRNAseq, self.genes.gene_panel, self.config)
-        self.cellTypes = CellType(self.single_cell, config)
-        self.cells.class_names = self.single_cell.classes
-        self.nC = self.cells.nC  # number of cells
-        self.nG = self.genes.nG  # number of genes
-        self.nK = self.cellTypes.nK  # number of classes
-        self.nS = self.spots.nS  # number of spots
-        self.nN = self.config['nNeighbors'] + 1  # number of closest nearby cells, candidates for being parent
-                                                # cell of any given spot. The last cell will be used for the
-                                                # misread spots. (ie cell at position nN is the background)
+        self._setup_redis()
+        self._setup_components(cells_df, spots_df, scRNAseq)
+        self._setup_dimensions()
+
+        # Initialize algorithm state tracking
         self.iter_num = None
         self.iter_delta = []
         self.has_converged = False
+
+        # Will hold computed expression values
         self._scaled_exp = None
-        self.needs_recalc = True
 
-    @property
-    def scaled_exp(self):
-        return self._scaled_exp
+    def _validate_config(self, config: Dict[str, Any]) -> None:
+        """Check for required config parameters."""
+        required = ['exclude_genes', 'max_iter', 'CellCallTolerance',
+                    'rGene', 'Inefficiency', 'InsideCellBonus', 'MisreadDensity',
+                    'SpotReg', 'nNeighbors', 'rSpot', 'save_data', 'output_path',
+                    'launch_viewer', 'launch_diagnostics', 'is_redis_running',
+                    'cell_radius', 'cell_type_prior', 'is3D', 'mean_gene_counts_per_class',
+                    'mean_gene_counts_per_cell']
+        missing = [param for param in required if param not in config]
+        if missing:
+            raise ValueError(f"Missing required config parameters: {missing}")
 
-    def __getstate__(self):
-        # set here attributes to be excluded from serialisation (pickling)
-        # It makes the pickle filesize smaller but maybe this will have to
-        # change in the future.
-        # Removing redis so I can pickle and _scaled_exp because it is delayed
-        # FYI: https://realpython.com/python-pickle-module/
-        attributes = self.__dict__.copy()
-        del attributes['redis_db']
-        del attributes['redis_publisher']
-        # del attributes['_scaled_exp']
-        return attributes
+    def _setup_redis(self) -> None:
+        """Configure Redis if enabled, otherwise set to None."""
+        if self.config.get('is_redis_running', False):
+            self.redis_db = RedisDB(flush=True)
+            self.redis_publisher = RedisPublisher(self.redis_db)
+            main_logger.info("Redis connection established")
+        else:
+            self.redis_db = None
+            self.redis_publisher = None
 
-    def initialise(self):
+    def _setup_components(self, cells_df, spots_df, scRNAseq) -> None:
+        """Set up the core data components needed for the algorithm."""
+        self.cells = Cells(cells_df, self.config)
+        self.spots = Spots(spots_df, self.config)
+        self.genes = Genes(self.spots)
+        self.single_cell = SingleCell(scRNAseq, self.genes.gene_panel, self.config)
+        self.cellTypes = CellType(self.single_cell, self.config)
+        self.cells.class_names = self.single_cell.classes
+
+    def _setup_dimensions(self) -> None:
+        """Set up core dimensions."""
+        self.nC = self.cells.nC  # cells
+        self.nG = self.genes.nG  # genes
+        self.nK = self.cellTypes.nK  # classes
+        self.nS = self.spots.nS  # spots
+        self.nN = self.config['nNeighbors'] + 1  # neighbors + background
+
+    def initialise_state(self) -> None:
         self.cellTypes.ini_prior()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
         self.genes.init_eta(1, 1 / self.config['Inefficiency'])
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
 
+    def __getstate__(self):
+        """
+        Get state for pickling.
+        Removes Redis-related attributes to enable pickling and reduce file size.
+
+        Returns:
+            Dict: Object state dictionary without Redis attributes
+        """
+        attributes = self.__dict__.copy()
+        del attributes['redis_db']
+        del attributes['redis_publisher']
+        # del attributes['_scaled_exp']
+        return attributes
+
+    @property
+    def scaled_exp(self):
+        """
+        Get scaled expression values.
+
+        Returns:
+            delayed: Dask delayed object containing scaled expression computation
+        """
+        return self._scaled_exp
+
     # -------------------------------------------------------------------- #
-    def run(self):
-        self.initialise()
+    def run(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        self.initialise_state()
         cell_df, gene_df = self.main_loop()
         return cell_df, gene_df
 
-    def main_loop(self):
+    # -------------------------------------------------------------------- #
+    def main_loop(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Executes the main Variational Bayes algorithm loop.
+
+        Iteratively updates:
+            1. Gene counts per cell
+            2. Gamma parameters
+            3. Gaussian parameters (if needed)
+            4. Cell type assignments
+            5. Spot-to-cell assignments
+            6. Gene efficiency parameters
+            7. Dirichlet parameters (if needed)
+            8. Expression means (if needed)
+
+        The loop continues until either:
+            - Convergence is reached (change in probabilities below tolerance)
+            - Maximum iterations are reached
+
+        Args:
+            None
+
+        Returns:
+            Tuple[pd.DataFrame, pd.DataFrame]:
+                - Cell dataframe with final assignments and probabilities
+                - Gene dataframe with expression statistics
+
+        Note:
+            Progress is published to Redis if enabled.
+        """
         p0 = None
         cell_df = None
         gene_df = None
         max_iter = self.config['max_iter']
 
-        self.initialise()
         for i in range(max_iter):
             self.iter_num = i
 
@@ -98,8 +201,7 @@ class VarBayes:
             self.spots_to_cell()
 
             # 6. update gene efficiency
-            if self.needs_recalc:
-                self.eta_upd()
+            self.eta_upd()
 
             # 7. update the dirichlet distribution
             if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):
@@ -132,10 +234,17 @@ class VarBayes:
         return cell_df, gene_df
 
     # -------------------------------------------------------------------- #
-    def geneCount_upd(self):
+    def geneCount_upd(self) -> None:
         """
-        Produces a matrix numCells-by-numGenes where element at position (c,g) keeps the expected
-        counts of gene g  in cell c.
+        Updates the gene count matrix for each cell.
+
+        Produces a matrix numCells-by-numGenes where element at position (c,g) keeps
+        the expected counts of gene g in cell c. The first row corresponds to the
+        background counts (spots not assigned to any cell).
+
+        Note:
+            The sum of background spots and cell gene counts should equal
+            the total number of spots.
         """
         # make an array nS-by-nN and fill it with the spots id
         gene_ids = np.tile(self.spots.gene_id, (self.nN, 1)).T
@@ -168,9 +277,17 @@ class VarBayes:
         self.cells.geneCount = out
 
     # -------------------------------------------------------------------- #
-    def gamma_upd(self):
+    def gamma_upd(self) -> None:
         """
-         Implements equation (3) of the Qian paper
+        Updates gamma parameters for the negative binomial distribution.
+
+        Implements equation (3) of the Qian paper. Calculates the expected gamma
+        values using scaled expression and spot regularization parameters.
+
+        Updates:
+            - self._scaled_exp: Delayed computation of scaled expression
+            - self.spots._log_gamma_bar: Log of expected gamma values
+            - self.spots._gamma_bar: Expected gamma values
         """
         cells = self.cells
         cfg = self.config
@@ -186,14 +303,18 @@ class VarBayes:
         self.spots._gamma_bar = delayed(self.spots.gammaExpectation(rho, beta))
 
     # -------------------------------------------------------------------- #
-    def cell_to_cellType(self):
+    def cell_to_cellType(self) -> None:
         """
-        return a an array of size numCells-by-numCellTypes where element in position [i,j]
-        keeps the probability that cell i has cell type j
-        Implements equation (2) of the Qian paper
-        :param spots:
-        :param config:
-        :return:
+        Updates cell type assignment probabilities.
+
+        Implements equation (2) of the Qian paper. Returns an array of size
+        numCells-by-numCellTypes where element in position [i,j] keeps the
+        probability that cell i has cell type j.
+
+        The computation combines:
+            1. Negative binomial log-likelihood for gene expression
+            2. Cell type priors
+            3. Softmax normalization for final probabilities
         """
 
         ScaledExp = self.scaled_exp.compute()
@@ -208,10 +329,23 @@ class VarBayes:
         self.cells.classProb = pCellClass
 
     # -------------------------------------------------------------------- #
-    def spots_to_cell(self):
+    def spots_to_cell(self) -> None:
         """
-        spot to cell assignment.
-        Implements equation (4) of the Qian paper
+        Updates spot-to-cell assignment probabilities.
+
+        Implements equation (4) of the Qian paper. For each spot, calculates the
+        probability of it belonging to each nearby cell or being a misread.
+
+        The computation includes:
+            1. Expected gene expression for each cell type
+            2. Gamma parameter contributions
+            3. Gene efficiency factors
+            4. Spatial distance likelihood
+            5. Inside-cell bonus for spots within cell boundaries
+            6. Misread probability for background noise
+
+        Note:
+            Updates spot-cell assignments and triggers gene count update.
         """
         nN = self.nN
         nS = self.spots.data.gene_name.shape[0]
@@ -263,10 +397,19 @@ class VarBayes:
         self.geneCount_upd()
 
     # -------------------------------------------------------------------- #
-    def eta_upd(self):
+    def eta_upd(self) -> None:
         """
-        Calcs the expected eta
-        Implements equation (5) of the Qian paper
+        Updates gene efficiency parameters (eta).
+
+        Implements equation (5) of the Qian paper. Calculates the expected eta values
+        by combining:
+            1. Total gene counts across cells
+            2. Cell type probabilities
+            3. Mean expression values
+            4. Area factors and gamma values
+
+        Note:
+            The zero-expressing cell class is excluded from the computation.
         """
         grand_total = self.cells.background_counts.sum() + self.cells.total_counts.sum()
         assert round(grand_total) == self.spots.data.shape[0], \
@@ -297,12 +440,34 @@ class VarBayes:
         self.genes.calc_eta(alpha, beta)
 
     # -------------------------------------------------------------------- #
-    def gaussian_upd(self):
+    def gaussian_upd(self) -> None:
+        """
+        Updates Gaussian distribution parameters for spatial modeling.
+
+        Updates both centroids and covariance matrices for cells based on:
+            1. Current spot assignments
+            2. Spatial coordinates
+            3. Prior parameters
+
+        This method is called when:
+            - Single cell data is missing
+            - Inside cell bonus is disabled
+            - 3D analysis is being performed
+        """
         self.centroid_upd()
         self.cov_upd()
 
     # -------------------------------------------------------------------- #
-    def centroid_upd(self):
+    def centroid_upd(self) -> None:
+        """
+        Updates cell centroid positions based on spot assignments.
+
+        Calculates weighted average positions of spots assigned to each cell.
+        For cells with no assigned spots, maintains initial centroid positions.
+
+        Updates:
+            self.cells.centroid: DataFrame with updated x, y, z coordinates
+        """
         spots = self.spots
 
         # get the total gene counts per cell
@@ -352,7 +517,18 @@ class VarBayes:
         # print(np.array(list(zip(x_bar.T, y_bar.T))))
 
     # -------------------------------------------------------------------- #
-    def cov_upd(self):
+    def cov_upd(self) -> None:
+        """
+        Updates cell covariance matrices for spatial distributions.
+
+        Combines:
+            1. Empirical scatter matrix from assigned spots
+            2. Prior covariance scaled by prior degrees of freedom
+            3. Shrinkage to control estimation stability
+
+        Note:
+            Uses delta=0.5 for shrinkage towards prior covariance.
+        """
         spots = self.spots
 
         # first get the scatter matrix
@@ -373,7 +549,20 @@ class VarBayes:
         self.cells.cov = cov.astype(np.float32)
 
     # -------------------------------------------------------------------- #
-    def mu_upd(self):
+    def mu_upd(self) -> None:
+        """
+        Updates mean expression values when single-cell reference is missing.
+
+        Estimates mean expression for each gene and cell type using:
+            1. Current cell type assignments
+            2. Observed gene counts
+            3. Cell area factors
+            4. Current gamma and eta values
+
+        Updates:
+            - single_cell._mean_expression: Updated mean expression values
+            - single_cell._log_mean_expression: Log of mean expression values
+        """
         classProb = self.cells.classProb[1:, :-1].copy()
         geneCount = self.cells.geneCount[1:, :].copy()
         gamma_bar = self.spots.gamma_bar.compute()[1:, :, :-1]
@@ -387,7 +576,19 @@ class VarBayes:
         self.single_cell._log_mean_expression = lme
 
     # -------------------------------------------------------------------- #
-    def dalpha_upd(self):
+    def dalpha_upd(self) -> None:
+        """
+        Updates cell type prior distribution parameters.
+
+        Adjusts Dirichlet parameters based on:
+            1. Current cell type assignments
+            2. Initial alpha values
+            3. Minimum class size constraints
+
+        Note:
+            - Ensures Zero class (background) is preserved
+            - Sets very small weights (1e-6) for classes below minimum size
+        """
         # logger.info('Update cell type (marginal) distribution')
         zeta = self.cells.classProb.sum(axis=0)  # this the class size
         alpha = self.cellTypes.ini_alpha()
@@ -411,10 +612,23 @@ class VarBayes:
         out[mask] = 10e-6
         self.cellTypes.alpha = out
 
-    def counts_within_radius(self, r):
+    # -------------------------------------------------------------------- #
+    def counts_within_radius(self, r) -> None:
         """
-        calcs the gene counts within radius r of the centroid of each cell.
-        Units in radius are the same as in your coordinates x and y of your spots.
+        Calculates gene counts within specified radius of cell centroids.
+
+        Args:
+            r: Radius for counting spots (same units as spot coordinates)
+
+        Returns:
+            pd.DataFrame: DataFrame containing:
+                - cell_label: Cell identifier
+                - cell_type: Assigned cell type
+                - cell_label_old: Original cell label (if relabeled)
+                - Gene counts columns for each gene
+
+        Note:
+            Excludes background (label=0) from the output.
         """
 
         # check that the background (label=0) is at the top row
@@ -466,134 +680,7 @@ class VarBayes:
         return df.iloc[1:, :]
 
     # -------------------------------------------------------------------- #
-    def redis_upd(self):
-        eta_bar_df = pd.DataFrame({
-            'gene_efficiency': self.genes.eta_bar,
-            'gene': self.genes.gene_panel
-        })
-        self.redis_db.publish(eta_bar_df, "gene_efficiency", iteration=self.iter_num,
-                              has_converged=self.has_converged, unix_time=time.time())
-
-        idx = []
-        size = self.cellTypes.names.shape[0]
-        for i, row in enumerate(self.cells.classProb[1:,
-                                :]):  # ignore the top row, it corresponds to the background, it is not an actual cell
-            idx.append(np.argmax(row))
-        counts = np.bincount(idx, minlength=size)
-        # prob = np.bincount(idx) / np.bincount(idx).sum()
-        df = pd.DataFrame({
-            'class_name': self.cellTypes.names,
-            'counts': counts
-        })
-        self.redis_db.publish(df, "cell_type_posterior", iteration=self.iter_num, has_converged=self.has_converged,
-                              unix_time=time.time())
-
-    def calculate_spot_contributions(self, cell_num, datapoints, offset=None, coords_format=None):
-        """
-        Processes and logs the contribution of a spot for a given cell.
-
-        Arguments:
-        - cell_num (int): The cell number being processed.
-        - gene_dict (dict): Dictionary containing gene name and spatial coordinates.
-          Expected keys are:
-            - 'gene_name' (str): Name of the gene.
-            - 'x' (int): X coordinate.
-            - 'y' (int): Y coordinate.
-            - 'z_plane' (int, optional): Z plane coordinate (used if coords_format is None).
-            - 'z' (int, optional): Z coordinate (used if coords_format is 'pciSeq').
-        - offset (int, optional): Offset applied to z-plane if 'z_plane' is used (default 0).
-        - coords_format (str, optional): Specify the format for coordinates (e.g., 'pciSeq').
-
-        Raises:
-        - ValueError: If inconsistent arguments are provided (e.g., both offset and coords_format).
-
-        Returns:
-        Two dataframes summarizing the processed contribution information.
-        """
-
-        # Check if both 'z_plane' and 'z' are provided, or if inconsistent combinations of arguments are used
-        datapoints_df = pd.DataFrame(datapoints)
-        column_names = datapoints_df.columns.tolist()
-        if 'z_plane' in column_names and coords_format is not None:
-            raise ValueError("If 'z_plane' is provided, 'coords_format' must be None.")
-
-        if 'z' in column_names and offset is not None:
-            raise ValueError("If 'z' is provided, 'offset' must be None.")
-
-        # Handle default behavior for 'z_plane' and 'z'
-        if 'z_plane' in column_names:
-            if offset is None:
-                offset = 0  # Default offset is 0 if 'z_plane' is used
-            datapoints_df['z'] = datapoints_df['z_plane'] - offset
-            voxel_size = self.config['voxel_size']
-        elif 'z' in column_names:
-            if coords_format is None:
-                coords_format = 'pciSeq'  # Default to 'pciSeq' if 'z' is used
-            elif coords_format != 'pciSeq':
-                raise ValueError("When using 'z' as a key, 'coords_format' must be 'pciSeq'.")
-            voxel_size = [1, 1, 1]
-        else:
-            raise ValueError("Either 'z_plane' or 'z' must be provided in gene_dict.")
-
-        self.config['launch_diagnostics'] = False
-        self.config['launch_viewer'] = False
-        self.config['save_data'] = False
-        self.config['is_redis_running'] = False
-        self.needs_recalc = False
-
-        # some cells might have dropped during preprocessing (because they exist on just one single plane
-        # for example. In such cases has been relabelled so that there are not skipping labels.
-        # Map the original cell_num to the new value
-        if self.config['remapping'] is not None:
-            cell_num = self.config['remapping'][cell_num]
-
-        df_before = self.get_celltypes_for_cell(cell_num)
-
-        mask = np.any(self.spots.cells_nearby(self.cells)[0] == cell_num, axis=1)
-        df = self.spots.data[mask]
-
-        self.spots.Dist = self.spots.Dist[mask]
-        self.spots.data = self.spots.data[mask]
-        self.spots.gene_id = self.spots.gene_id[mask]
-        self.spots.parent_cell_id = self.spots.parent_cell_id[mask]
-        self.spots.parent_cell_prob = self.spots.parent_cell_prob[mask]
-        # self.spots.xy_coords = self.spots.xy_coords[mask]
-        _, _, counts_per_gene_masked = np.unique(self.spots.data.gene_name.values, return_inverse=True,
-                                                 return_counts=True)
-        self.nS = self.spots.data.shape[0]
-        self.spots.nS = self.spots.data.shape[0]
-
-        datapoints_df = utils.get_closest(df, datapoints_df, voxel_size)
-        if datapoints_df is None:
-            df_after = df_before.copy()
-        else:
-            # set the overrides
-            self.set_overrides(datapoints_df)
-            self.spots.parent_cell_prob = self.spots.parent_cell_prob
-
-            # redo the estimation
-            _ = self.main_loop()
-
-            df_after = self.get_celltypes_for_cell(cell_num)
-
-        return df_before, df_after
-
-    def set_overrides(self, data):
-        self.config['overrides'] = data.to_dict(orient='records')
-        main_logger.info('overrides saved!')
-
-    def get_celltypes_for_cell(self, cell_num):
-        cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config['is3D'])
-        df = cell_df[cell_df.Cell_Num == cell_num]
-        class_name = df.ClassName.tolist()[0]
-        prob = df.Prob.tolist()[0]
-        df = pd.DataFrame({
-            'class_name': class_name,
-            'prob': prob
-        })
-        return df
-
-    def gene_loglik_contributions(self, cell_num, user_class=None):
+    def gene_loglik_contributions(self, cell_num, user_class=None) -> Dict:
         """
         Calculate and return gene log-likelihood contributions for a specified cell.
 
@@ -668,7 +755,7 @@ class VarBayes:
 
         return out
 
-    def spot_dist_and_prob(self, cell_num):
+    def spot_dist_and_prob(self, cell_num) -> Dict:
         """
         Calculate the relationship between spot-to-cell distances and their assignment
         probabilities for a given cell.
@@ -745,13 +832,22 @@ class VarBayes:
         }
         return data
 
-    def cell_analysis(self, cell_num, output_dir=None):
+    def cell_analysis(self, cell_num, output_dir=None) -> None:
         """
         Generates data and launches the cell analysis dashboard for a specific cell.
+
+        This function:
+        1. Generates analysis data for the specified cell
+        2. Saves data to JSON files
+        3. Sets up and launches a local server
+        4. Opens the analysis dashboard in a web browser
 
         Args:
             cell_num: The cell number to analyze
             output_dir: Optional directory to save JSON files. Defaults to cell_analysis/
+
+        Note:
+            Creates a local server to serve the dashboard. Close terminal to stop server.
         """
         # Get default output directory if none specified
         if output_dir is None:
@@ -815,7 +911,18 @@ class VarBayes:
         # except KeyboardInterrupt:
         #     print("\nShutting down the server...")
 
-    def spot_misread_density(self):
+    def spot_misread_density(self) -> None:
+        """
+        Calculates spot misread probabilities for each gene.
+
+        Combines:
+            1. Default misread probability for all genes
+            2. Gene-specific probabilities from configuration
+            3. Alignment with current spot assignments
+
+        Returns:
+            np.ndarray: Array of misread probabilities aligned with spots
+        """
         # Get default misread probability for all genes
         default_val = self.config['MisreadDensity']['default']
         gene_names = self.genes.gene_panel
