@@ -1,4 +1,19 @@
 # Standard library imports
+"""
+Core implementation of the Variational Bayes algorithm for spatial transcriptomics analysis.
+
+This module contains the VarBayes class which performs probabilistic cell type assignment 
+and spot-to-cell mapping. Key features include:
+
+- Cell type assignment using single-cell RNA reference data
+- Spatial spot-to-cell mapping using probabilistic model
+- Gene efficiency parameter estimation
+- Iterative convergence through variational inference
+- Support for 2D and 3D spatial data
+- Optional Redis-based diagnostic monitoring
+
+The implementation is based on (and extends) the methodology described in the Qian paper
+"""
 import logging
 from typing import Dict, List, Optional, Tuple, Union
 
