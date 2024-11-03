@@ -46,7 +46,7 @@ DEFAULT = {
     # Option 1 - Scalar (same value for all genes):
     # 'MisreadDensity': 0.00001,    # 2D: 1 misread per 100x100 pixel area
     #                   0.0000001   # 3D: 1 misread per 100x100x100 normalized pixel volume
-    #                                       (Use ~100x smaller values due to volume vs area)
+    #                                       (~100x smaller values due to volume vs area)
     #
     # Option 2 - Dictionary (different values per gene):
     # For 2D data (per pixel area):
