@@ -40,7 +40,7 @@ from pciSeq.src.core import utils
 analysis_logger = logging.getLogger(__name__)
 
 
-class CellAnalyzer:
+class CellExplorer:
     """Provides analysis and diagnostic tools for VarBayes results."""
 
     def __init__(self, var_bayes):
@@ -249,7 +249,7 @@ class CellAnalyzer:
         }
         return data
 
-    def cell_analysis(self, cell_num, output_dir=None) -> None:
+    def view_cell(self, cell_num, output_dir=None) -> None:
         """
         Generates data and launches the cell analysis dashboard for a specific cell.
 

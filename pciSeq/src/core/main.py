@@ -31,7 +31,7 @@ from .summary import collect_data
 from . import utils
 from ...src.diagnostics.redis_publisher import RedisPublisher
 from ...src.diagnostics.utils import RedisDB
-from .analysis import CellAnalyzer
+from .analysis import CellExplorer
 
 # Configure logging
 main_logger = logging.getLogger(__name__)
@@ -70,7 +70,7 @@ class VarBayes:
 
         # Will hold computed expression values
         self._scaled_exp = None
-        self._analyzer: Optional[CellAnalyzer] = None
+        self._cell_explorer: Optional[CellExplorer] = None
 
     def _validate_config(self, config: Dict[str, Any]) -> None:
         """Check for required config parameters."""
@@ -143,16 +143,16 @@ class VarBayes:
         return self._scaled_exp
 
     @property
-    def analyzer(self) -> CellAnalyzer:
+    def cell_explorer(self) -> CellExplorer:
         """
         Get cell analyzer instance.
 
         Returns:
-            CellAnalyzer: Instance configured for this VarBayes object
+            CellExplorer: Instance configured for this VarBayes object
         """
-        if self._analyzer is None:
-            self._analyzer = CellAnalyzer(self)
-        return self._analyzer
+        if self._cell_explorer is None:
+            self._cell_explorer = CellExplorer(self)
+        return self._cell_explorer
 
     # -------------------------------------------------------------------- #
     def run(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -240,7 +240,7 @@ class VarBayes:
             if self.has_converged:
                 # self.counts_within_radius(20)
                 # self.cell_analysis(2259)
-                self.analyzer.cell_analysis(2259)
+                # self.cell_explorer.view_cell(2259)
                 cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config['is3D'])
                 break
 
