@@ -17,6 +17,14 @@ DEFAULT = {
     # A gamma distribution expresses the efficiency of the in-situ sequencing for each gene. It tries to capture
     # the ratio of the observed over the theoretical counts for a given gene. rGene controls the variance and
     # Inefficiency is the average of this assumed Gamma distribution
+    #
+    # Example: If you expect 100 RNA molecules of a gene:
+    # - With Inefficiency=0.2, you'll detect about 20 on average (20% detection rate)
+    # - rGene=20 means this efficiency is fairly consistent between genes
+    # - A lower rGene would mean more variance (e.g., some genes at 5% efficiency, others at 35%)
+    #
+    # This helps account for systematic differences in detection efficiency between genes
+    # when making cell type assignments.
     'rGene': 20,
     'Inefficiency': 0.2,
 
@@ -25,13 +33,29 @@ DEFAULT = {
     # outside the cell boundaries
     'InsideCellBonus': 2,
 
-    # To account for spots far from the some a uniform distribution is introduced to describe those misreads.
-    # By default this uniform distribution has a density of 1e-5 misreads per pixel.
+    # MisreadDensity accounts for RNA spots that appear far from any cell (background noise).
+    # It represents the expected number of misread spots per pixel in your image.
+    #
+    # Rules of thumb for setting MisreadDensity:
+    # - Default (0.00001) means 1 misread per 100x100 pixel area
+    # - For high-quality data with clean background: use 0.000001 to 0.00001
+    # - For noisier data with more background spots: use 0.0001 to 0.001
+    # - If your data has many spots far from cells: increase this value
+    # - If most spots are clearly associated with cells: decrease this value
+    #
+    # To calculate a custom value:
+    # 1. Count the number of spots you think are background noise in a region
+    # 2. Divide by the area (in pixels) of that region
+    # Example: 10 background spots in a 200x200 pixel region = 10/(200*200) = 0.00025
     'MisreadDensity': 0.00001,
 
     # Gene detection might come with irregularities due to technical errors. A small value is introduced
     # here to account for these errors. It is an additive factor, applied to the single cell expression
     # counts when the mean counts per class and per gene are calculated.
+    # It is like a tiny safety cushion for gene counts and adds a tiny number to all our counts to 
+    # help handle these small errors.
+    # This is especially helpful when we see zero counts, as it prevents mathematical problems
+    # when we're doing calculations with these numbers.
     'SpotReg': 0.1,
 
     # By default only the 3 nearest cells will be considered as possible parent cells for any given spot.
@@ -44,6 +68,22 @@ DEFAULT = {
     # A gamma distributed variate from Gamma(rSpot, 1) is applied to the mean expression, hence the counts
     # are distributed according to a Negative Binomial distribution.
     # The value for rSpot will control the variance/dispersion of the counts
+    # rSpot controls how much variation we expect to see in gene counts between cells of the same type.
+    # It's used in a Negative Binomial distribution which models gene expression.
+    #
+    # Rules of thumb for setting rSpot:
+    # - Default (2) is good for typical single-cell RNA data
+    # - Lower values (0.5-1) mean high variability between cells
+    #   → Use when you expect cells of the same type to show very different expression levels
+    #   → Good for genes that tend to burst in expression
+    # - Higher values (3-5) mean less variability between cells
+    #   → Use when you expect cells of the same type to have similar expression levels
+    #   → Good for housekeeping genes or very stable markers
+    #
+    # Examples:
+    # rSpot = 0.5: Counts might vary a lot (e.g., [0,5,20,100] for same cell type)
+    # rSpot = 2.0: Moderate variation (e.g., [10,15,20,25] for same cell type)
+    # rSpot = 5.0: More consistent counts (e.g., [17,18,19,21] for same cell type)
     'rSpot': 2,
 
     # Boolean, if True the output will be saved as tsv files in a folder named 'pciSeq' in your system's temp dir.
