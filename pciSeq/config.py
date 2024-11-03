@@ -93,8 +93,12 @@ DEFAULT = {
     # - Normalized volume = 200 * 200 * 61.2 = 2,448,000 pixels³
     # - Density = 10/2,448,000 = 0.000004 misreads per pixel³
     #
-    # Note: 3D densities are naturally much lower because they're divided by volume
-    # instead of area. Always adjust your density values based on whether you're
+    # Note: The example above assumes the same number of background
+    # spots, hence the 3D density is naturally much lower because
+    # it is divided by volume instead of area.
+    # If background spots are uniformly distributed in the tissue,
+    # the density values might end up similar between 2D and 3D!
+    # Always adjust your density values based on whether you're
     # working with 2D or 3D data!
     'MisreadDensity': 0.00001,
 
