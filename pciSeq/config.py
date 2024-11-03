@@ -47,6 +47,19 @@ DEFAULT = {
     # 1. Count the number of spots you think are background noise in a region
     # 2. Divide by the area (in pixels) of that region
     # Example: 10 background spots in a 200x200 pixel region = 10/(200*200) = 0.00025
+    #
+    # It can be either a scalar (float) or a dictionary with gene names as keys.
+    #
+    # Option 1 - Scalar (same value for all genes):
+    # 'MisreadDensity': 0.00001,  # 1 misread per 100x100 pixel area
+    #
+    # Option 2 - Dictionary (different values per gene):
+    # 'MisreadDensity': {
+    #     'default': 0.00001,  # Used for any genes not explicitly listed
+    #     'Vip': 0.00001,     # Clean signal, low background
+    #     'Npy': 0.0001,    # Noisier gene with more background
+    #     'Aldoc': 0.000001,     # Very clean signal
+    # },
     'MisreadDensity': 0.00001,
 
     # Gene detection might come with irregularities due to technical errors. A small value is introduced
