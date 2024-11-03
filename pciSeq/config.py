@@ -34,32 +34,68 @@ DEFAULT = {
     'InsideCellBonus': 2,
 
     # MisreadDensity accounts for RNA spots that appear far from any cell (background noise).
-    # It represents the expected number of misread spots per pixel in your image.
+    # It represents the expected number of misread spots per pixel area (2D) or pixel volume (3D).
     #
-    # Rules of thumb for setting MisreadDensity:
-    # - Default (0.00001) means 1 misread per 100x100 pixel area
-    # - For high-quality data with clean background: use 0.000001 to 0.00001
-    # - For noisier data with more background spots: use 0.0001 to 0.001
-    # - If your data has many spots far from cells: increase this value
-    # - If most spots are clearly associated with cells: decrease this value
-    #
-    # To calculate a custom value:
-    # 1. Count the number of spots you think are background noise in a region
-    # 2. Divide by the area (in pixels) of that region
-    # Example: 10 background spots in a 200x200 pixel region = 10/(200*200) = 0.00025
-    #
-    # It can be either a scalar (float) or a dictionary with gene names as keys.
+    # Important: All coordinates are first normalized to pixel units using voxel_size.
+    # Example: If voxel_size = [0.147, 0.147, 0.9]:
+    # - Each Z step equals 6.12 pixels in normalized space (0.9/0.147)
+    # - A volume of 100x100x10 raw pixels becomes 100x100x61.2 normalized pixels
     #
     # Option 1 - Scalar (same value for all genes):
-    # 'MisreadDensity': 0.00001,  # 1 misread per 100x100 pixel area
+    # 'MisreadDensity': 0.00001,    # 2D: 1 misread per 100x100 pixel area
+    #                   0.0000001   # 3D: Use ~100x smaller values due to volume vs area
+    #                               #     1 misread per 100x100x100 normalized pixel volume
     #
     # Option 2 - Dictionary (different values per gene):
+    # For 2D data (per pixel area):
     # 'MisreadDensity': {
-    #     'default': 0.00001,  # Used for any genes not explicitly listed
-    #     'Vip': 0.00001,     # Clean signal, low background
-    #     'Npy': 0.0001,    # Noisier gene with more background
-    #     'Aldoc': 0.000001,     # Very clean signal
+    #     'default': 1e-5,     # 2D: 1 misread per 100x100 pixel area
+    #     'Vip': 1e-5,         # Clean signal, low background
+    #     'Npy': 1e-4,         # Noisier gene with more background
+    #     'Aldoc': 1e-6,       # Very clean signal
     # },
+    #
+    #
+    # For 3D data (per pixel volume):
+    # 'MisreadDensity': {
+    #     'default': 1e-5,     # 3D: 100 misreads per 100x100x100 normalized pixel volume
+    #     'Vip': 1e-5,         # Clean signal, low background
+    #     'Npy': 1e-4,         # Noisier gene with more background
+    #     'Aldoc': 1e-6,       # Very clean signal
+    # },
+    #
+    # Note: Values might be similar between 2D and 3D if:
+    # - Background noise is uniform throughout the tissue
+    # - Number of spots scales proportionally with volume
+    # - All coordinates are properly normalized using voxel_size
+    #
+    # Rules of thumb for setting values:
+    # For 2D data (per pixel area):
+    # - Default (0.00001) means 1 misread per 100x100 pixel area
+    # - For high-quality data: use 0.000001 to 0.00001
+    # - For noisier data: use 0.0001 to 0.001
+    #
+    # For 3D data (per pixel volume):
+    # - Use ~100x smaller values than 2D due to volume vs area
+    # - Default (0.00001) means 100 misread per 100x100x100 normalized pixel volume
+    # - For high-quality data: use 0.00000001 to 0.0000001
+    # - For noisier data: use 0.000001 to 0.00001
+    #
+    # To calculate a custom value:
+    # 2D Example:
+    # - 10 background spots in 200x200 pixels
+    # - Area = 200 * 200 = 40,000 pixels²
+    # - Density = 10/40,000 = 0.00025 misreads per pixel²
+    #
+    # 3D Example with voxel_size=[0.147, 0.147, 0.9]:
+    # - 10 background spots in 200x200x10 raw voxels
+    # - Z dimension normalized: 10 * (0.9/0.147) = 61.2 pixels
+    # - Normalized volume = 200 * 200 * 61.2 = 2,448,000 pixels³
+    # - Density = 10/2,448,000 = 0.000004 misreads per pixel³
+    #
+    # Note: 3D densities are naturally much lower because they're divided by volume
+    # instead of area. Always adjust your density values based on whether you're
+    # working with 2D or 3D data!
     'MisreadDensity': 0.00001,
 
     # Gene detection might come with irregularities due to technical errors. A small value is introduced
