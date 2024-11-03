@@ -59,16 +59,20 @@ This module is designed to be integrated into larger pipelines for image segment
 and analysis, providing robust data structures and methods for handling complex
 biological data.
 """
-
-import scipy
-import numpy as np
-import pandas as pd
-import numpy_groupies as npg
-from natsort import natsort_keygen
-from .utils import read_image_objects, keep_labels_unique
-from sklearn.neighbors import NearestNeighbors
+# Standard library imports
 import logging
 from typing import Tuple, Dict, Any
+
+# Third party imports
+import numpy as np
+import pandas as pd
+import scipy
+from natsort import natsort_keygen
+from sklearn.neighbors import NearestNeighbors
+import numpy_groupies as npg
+
+# Local imports
+from .utils import read_image_objects, keep_labels_unique
 
 datatypes_logger = logging.getLogger(__name__)
 

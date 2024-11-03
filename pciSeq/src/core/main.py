@@ -26,11 +26,11 @@ from scipy.special import softmax
 from typing import Dict, Any
 
 # Local imports
-from pciSeq.src.core.datatypes import Cells, Spots, Genes, SingleCell, CellType
-from pciSeq.src.core.summary import collect_data
-from pciSeq.src.core import utils
-from pciSeq.src.diagnostics.redis_publisher import RedisPublisher
-from pciSeq.src.diagnostics.utils import RedisDB
+from .datatypes import Cells, Spots, Genes, SingleCell, CellType
+from .summary import collect_data
+from . import utils
+from ...src.diagnostics.redis_publisher import RedisPublisher
+from ...src.diagnostics.utils import RedisDB
 from .analysis import CellAnalyzer
 
 # Configure logging

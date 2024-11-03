@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from pciSeq.src.core.utils import gaussian_ellipsoid_props, gaussian_contour
+from ...src.core.utils import gaussian_ellipsoid_props, gaussian_contour
 import logging
 
 summary_logger = logging.getLogger(__name__)
