@@ -33,8 +33,10 @@ DEFAULT = {
     # outside the cell boundaries
     'InsideCellBonus': 2,
 
-    # MisreadDensity accounts for RNA spots that appear far from any cell (background noise).
-    # It represents the expected number of misread spots per pixel area (2D) or pixel volume (3D).
+    # MisreadDensity: Expected number of misread spots per unit area (2D) or volume (3D)
+    # Can be set as either:
+    #   - Scalar value: Same density applied everywhere
+    #   - Dict: Different densities for specific genes
     #
     # Important: All coordinates are first normalized to pixel units using voxel_size.
     # Example: If voxel_size = [0.147, 0.147, 0.9]:
