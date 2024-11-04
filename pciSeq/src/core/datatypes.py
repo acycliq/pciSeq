@@ -53,6 +53,7 @@ import numpy_groupies as npg
 from natsort import natsort_keygen
 from .utils import read_image_objects, keep_labels_unique
 from sklearn.neighbors import NearestNeighbors
+from .config_manager import ConfigManager
 import logging
 
 dtypes_logger = logging.getLogger(__name__)
@@ -60,7 +61,7 @@ dtypes_logger = logging.getLogger(__name__)
 
 class Cells(object):
     # Get rid of the properties where not necessary!!
-    def __init__(self, _cells_df, config):
+    def __init__(self, _cells_df, config: ConfigManager):
         self.config = config
         self.ini_cell_props, self._mcr = read_image_objects(_cells_df, config)
         self.nC = len(self.ini_cell_props['cell_label'])

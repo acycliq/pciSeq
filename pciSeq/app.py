@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 from typing import Tuple
 from pciSeq import config
+from .src.core.config_manager import ConfigManager
+from .src.core.validation import validate_inputs
 from pciSeq.src.core.main import VarBayes
 from pciSeq.src.core.utils import get_out_dir
 from scipy.sparse import coo_matrix, load_npz
@@ -64,7 +66,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
             Name: Cell_Num, dtype: int64, The label of the cell
             Name: X, dtype: float64, X-axis coordinate of the cell centroid
             Name: Y, dtype: float64, Y-axis coordinate of the cell centroid
-            Name: Genenames, dtype: Object, array-like of the genes assinged to the cell
+            Name: Genenames, dtype: Object, array-like of the genes assigned to the cell
             Name: CellGeneCount, dtype: Object,array-like of the corresponding gene counts
             Name: ClassName, dtype: Object, array-like of the genes probable classes for the cell
             Name: Prob, dtype: Object, array-like of the corresponding cell class probabilities
@@ -85,25 +87,23 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     # 1. parse/check the arguments
     spots, coo, scRNAseq, opts = parse_args(*args, **kwargs)
 
-    # 2. get the hyperparameters
-    cfg = init(opts)
+    # 2. Create config
+    cfg_man = ConfigManager.from_opts(opts)
 
     # 3. validate inputs
-    # NOTE 1: Spots might get mutated here. Genes not found in the single cell data will be removed.
-    # NOTE 2: cfg might also get mutated. Fields 'is3D' and 'remove_planes' might get overridden
-    cfg, spots = validate(spots.copy(), coo, scRNAseq, cfg)
+    spots, coo, scdata, cfg = validate_inputs(spots, coo, scRNAseq, cfg_man)
 
-    # 4. launch the diagnostics
-    if cfg['launch_diagnostics'] and cfg['is_redis_running']:
-        app_logger.info('Launching the diagnostics dashboard')
-        launch_dashboard()
-
-    # 5. prepare the data
+    # 4. Use validated inputs and prepare the data
     app_logger.info('Preprocessing data')
     _cells, cellBoundaries, _spots = stage_data(spots, coo)
 
+    # 5. launch the diagnostics
+    if cfg['launch_diagnostics'] and ['cfg.is_redis_running']:
+        app_logger.info('Launching the diagnostics dashboard')
+        launch_dashboard()
+
     # 6. cell typing
-    cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
+    cellData, geneData, varBayes = cell_type(_cells, _spots, scdata, cfg)
 
     # 7. save to the filesystem
     if (cfg['save_data'] and varBayes.has_converged) or cfg['launch_viewer']:
@@ -174,31 +174,6 @@ def export_db_table(table_name, out_dir, con):
     df.to_csv(fname, index=False)
     app_logger.info('Saved at %s' % fname)
 
-
-def init(opts):
-    """
-    Reads the opts dict and if not None, it will override the default parameter value by
-    the value that the dictionary key points to.
-    If opts is None, then the default values as these specified in the config.py file
-    are used without any change.
-    """
-    cfg = config.DEFAULT
-    log_file(cfg)
-    cfg['is_redis_running'] = check_redis_server()
-    if opts is not None:
-        default_items = set(cfg.keys())
-        user_items = set(opts.keys())
-        assert user_items.issubset(default_items), ('Options passed-in should be a dict with keys: %s ' % default_items)
-        for item in opts.items():
-            if isinstance(item[1], (int, float, list, str, dict)) or isinstance(item[1](1), np.floating):
-                val = item[1]
-            # elif isinstance(item[1], list):
-            #     val = item[1]
-            else:
-                raise TypeError("Only integers, floats and lists are allowed")
-            cfg[item[0]] = val
-            app_logger.info('%s is set to %s' % (item[0], cfg[item[0]]))
-    return cfg
 
 
 def log_file(cfg):

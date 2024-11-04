@@ -5,8 +5,10 @@ import hashlib
 import numpy as np
 import pciSeq.config as config
 from pciSeq.src.core.main import VarBayes
-from pciSeq.app import parse_args, validate, stage_data, init
+from pciSeq.app import parse_args, validate, stage_data
 from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
+from pciSeq.src.core.config_manager import ConfigManager
+from pciSeq.src.core.validation import validate_inputs
 from constants import EXPECTED_AREA_METRICS, EXPECTED_ITER_DELTAS
 from utils import setup_logger
 
@@ -56,7 +58,8 @@ class TestPciSeq:
         scData = read_demo_data[2]
 
         with pytest.raises(AssertionError) as excinfo:
-            validate(coo, coo, scData, config.DEFAULT)
+            cfg_man = ConfigManager.from_opts()
+            validate_inputs(spots, coo, scData, cfg_man)
         assert str(excinfo.value) == ("Spots should be passed-in to the fit() method as "
                                       "a dataframe with columns ['Gene', 'x', 'y']")
 
@@ -90,12 +93,16 @@ class TestPciSeq:
         read_demo_data = request.getfixturevalue(filename)
         spots, coo, scData = read_demo_data
 
-        cfg = init({
+        # Create config
+        opts = {
             'launch_viewer': True,
             'launch_diagnostics': True,
             'max_iter': 31,
-        })
-        validate(spots, coo, scData, cfg)
+        }
+        cfg_man = ConfigManager.from_opts(opts)
+
+        # validate inputs
+        spots, coo, scdata, cfg = validate_inputs(spots, coo, scData, cfg_man)
 
         if cfg['launch_diagnostics'] and cfg['is_redis_running']:
             launch_dashboard()
