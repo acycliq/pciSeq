@@ -1,12 +1,12 @@
 import pandas as pd
 from typing import Tuple
-from .src.core.config_manager import ConfigManager
-from .src.core.validation import validate_inputs
-from pciSeq.src.core.main import VarBayes
-from pciSeq.src.core.utils import write_data, pre_launch
-from pciSeq.src.viewer.run_flask import flask_app_start
-from pciSeq.src.preprocess.spot_labels import stage_data
-from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
+from .src.validation.config_manager import ConfigManager
+from .src.validation.input_validation import validate_inputs
+from .src.core.main import VarBayes
+from .src.core.utils import write_data, pre_launch
+from .src.viewer.run_flask import flask_app_start
+from .src.preprocess.spot_labels import stage_data
+from .src.diagnostics.launch_diagnostics import launch_dashboard
 import logging
 
 app_logger = logging.getLogger(__name__)
