@@ -44,9 +44,9 @@ DEFAULT = {
     # - A volume of 100x100x10 raw pixels becomes 100x100x61.2 normalized pixels
     #
     # Option 1 - Scalar (same value for all genes):
-    # 'MisreadDensity': 0.00001,    # 2D: 1 misread per 100x100 pixel area
-    #                   0.0000001   # 3D: 1 misread per 100x100x100 normalized pixel volume
-    #                                       (~100x smaller values due to volume vs area)
+    # 'MisreadDensity': 0.0001,    # 2D: 1 misread per 100x100 pixel area
+    #                   0.000001   # 3D: 1 misread per 100x100x100 normalized pixel volume
+    #                                      (~100x smaller values due to volume vs area)
     #
     # Option 2 - Dictionary (different values per gene):
     # For 2D data (per pixel area):
