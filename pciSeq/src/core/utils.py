@@ -281,8 +281,9 @@ def keep_labels_unique(scdata):
     return scdata.drop(['total'], axis=1)
 
 
-@dask.delayed
+# @dask.delayed
 def scaled_exp(cell_area_factor, sc_mean_expressions, inefficiency):
+    # the @dask.delayed decorator can be used here but pickling will crash
     if np.all(cell_area_factor == 1):
         subscripts = 'gk, g -> gk'
         operands = [sc_mean_expressions, inefficiency]

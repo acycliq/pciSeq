@@ -51,80 +51,139 @@ Dependencies:
 - numpy: For numerical computations
 - pandas: For data management
 - scipy: For statistical operations
-- numpy_groupies: For efficient group operations
+- numpy_groupies: For group operations
 - dask: For delayed computations
 """
 
 import time
+import logging
+from typing import Dict, List, Optional, Tuple, Union
+
+# Third-party imports
 import numpy as np
-import pandas as pd
 import numpy_groupies as npg
+import pandas as pd
+from dask.delayed import delayed
 import scipy.spatial as spatial
 from scipy.special import softmax
-import pciSeq.src.core.utils as utils
-from pciSeq.src.core.summary import collect_data
-from pciSeq.src.diagnostics.utils import RedisDB
-from pciSeq.src.diagnostics.redis_publisher import RedisPublisher
-from pciSeq.src.core.datatypes import Cells, Spots, Genes, SingleCell, CellType
-import logging
+from typing import Dict, Any
+
+# Local imports
+from .datatypes import Cells, Spots, Genes, SingleCell, CellType
+from .summary import collect_data
+from . import utils
+from ...src.diagnostics.redis_publisher import RedisPublisher
+from ...src.diagnostics.utils import RedisDB
 
 main_logger = logging.getLogger(__name__)
 
 
 class VarBayes:
-    def __init__(self, _cells_df, _spots_df, scRNAseq, config):
+    def __init__(self,
+                 cells_df: pd.DataFrame,
+                 spots_df: pd.DataFrame,
+                 scRNAseq: pd.DataFrame,
+                 config: Dict[str, Any]) -> None:
+
+        """Initialize components and setup."""
+        self._validate_config(config)
         self.config = config
-        self.redis_db = RedisDB(flush=True) if config['is_redis_running'] else None
-        self.redis_publisher = RedisPublisher(self.redis_db) if config['is_redis_running'] else None
-        self.cells = Cells(_cells_df, config)
-        self.spots = Spots(_spots_df, config)
-        self.genes = Genes(self.spots)
-        self.single_cell = SingleCell(scRNAseq, self.genes.gene_panel, self.config)
-        self.cellTypes = CellType(self.single_cell, config)
-        self.cells.class_names = self.single_cell.classes
-        self.nC = self.cells.nC  # number of cells
-        self.nG = self.genes.nG  # number of genes
-        self.nK = self.cellTypes.nK  # number of classes
-        self.nS = self.spots.nS  # number of spots
-        self.nN = self.config['nNeighbors'] + 1  # number of closest nearby cells, candidates for being parent
-                                                # cell of any given spot. The last cell will be used for the
-                                                # misread spots. (ie cell at position nN is the background)
+        self._setup_redis()
+        self._setup_components(cells_df, spots_df, scRNAseq)
+        self._setup_dimensions()
+
+        # Initialize algorithm state tracking
         self.iter_num = None
         self.iter_delta = []
         self.has_converged = False
+
+        # Placeholder for attributes populated by the code
         self._scaled_exp = None
 
-    @property
-    def scaled_exp(self):
-        return self._scaled_exp
+    def _validate_config(self, config: Dict[str, Any]) -> None:
+        """Check for required config parameters."""
+        required = ['exclude_genes', 'max_iter', 'CellCallTolerance',
+                    'rGene', 'Inefficiency', 'InsideCellBonus', 'MisreadDensity',
+                    'SpotReg', 'nNeighbors', 'rSpot', 'save_data', 'output_path',
+                    'launch_viewer', 'launch_diagnostics', 'is_redis_running',
+                    'cell_radius', 'cell_type_prior', 'mean_gene_counts_per_class',
+                    'mean_gene_counts_per_cell']
+        missing = [param for param in required if param not in config]
+        if missing:
+            raise ValueError(f"Missing required config parameters: {missing}")
 
-    def __getstate__(self):
-        # set here attributes to be excluded from serialisation (pickling)
-        # It makes the pickle filesize smaller but maybe this will have to
-        # change in the future.
-        # Removing redis so I can pickle and _scaled_exp because it is delayed
-        # FYI: https://realpython.com/python-pickle-module/
-        attributes = self.__dict__.copy()
-        del attributes['redis_db']
-        del attributes['redis_publisher']
-        del attributes['_scaled_exp']
-        return attributes
+    def _setup_redis(self) -> None:
+        """Configure Redis if enabled, otherwise set to None."""
+        if self.config.get('is_redis_running', False):
+            self.redis_db = RedisDB(flush=True)
+            self.redis_publisher = RedisPublisher(self.redis_db)
+            main_logger.info("Redis connection established")
+        else:
+            self.redis_db = None
+            self.redis_publisher = None
 
-    def initialise(self):
+    def _setup_components(self, cells_df, spots_df, scRNAseq) -> None:
+        """Set up the core data components needed for the algorithm."""
+        self.cells = Cells(cells_df, self.config)
+        self.spots = Spots(spots_df, self.config)
+        self.genes = Genes(self.spots)
+        self.single_cell = SingleCell(scRNAseq, self.genes.gene_panel, self.config)
+        self.cellTypes = CellType(self.single_cell, self.config)
+        self.cells.class_names = self.single_cell.classes
+
+    def _setup_dimensions(self) -> None:
+        """Set up core dimensions."""
+        self.nC = self.cells.nC  # cells
+        self.nG = self.genes.nG  # genes
+        self.nK = self.cellTypes.nK  # classes
+        self.nS = self.spots.nS  # spots
+        self.nN = self.config['nNeighbors'] + 1  # neighbors + background
+
+    def initialise_state(self) -> None:
         self.cellTypes.ini_prior()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
         self.genes.init_eta(1, 1 / self.config['Inefficiency'])
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
 
+    def __getstate__(self):
+        """
+        Get state for pickling.
+        Removes Redis-related attributes to enable pickling and reduce file size.
+
+        Returns:
+            Dict: Object state dictionary without Redis attributes
+        """
+        attributes = self.__dict__.copy()
+        del attributes['redis_db']
+        del attributes['redis_publisher']
+        # del attributes['_scaled_exp']
+        return attributes
+
+    @property
+    def scaled_exp(self):
+        """
+        Get scaled expression values.
+
+        Returns:
+            delayed: Dask delayed object containing scaled expression computation
+        """
+        return self._scaled_exp
+
     # -------------------------------------------------------------------- #
-    def run(self):
+    def run(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        self.initialise_state()
+        cell_df, gene_df = self.main_loop()
+        return cell_df, gene_df
+
+    # -------------------------------------------------------------------- #
+    def main_loop(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         p0 = None
         cell_df = None
         gene_df = None
         max_iter = self.config['max_iter']
 
-        self.initialise()
+        self.initialise_state()
         for i in range(max_iter):
             self.iter_num = i
 
@@ -220,9 +279,9 @@ class VarBayes:
         cells = self.cells
         cfg = self.config
 
-        self._scaled_exp = utils.scaled_exp(cells.ini_cell_props['area_factor'],
+        self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
                                             self.single_cell.mean_expression.values,
-                                            self.genes.eta_bar)
+                                            self.genes.eta_bar))
 
         beta = self.scaled_exp.compute() + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
@@ -233,7 +292,7 @@ class VarBayes:
     # -------------------------------------------------------------------- #
     def cell_to_cellType(self):
         """
-        return a an array of size numCells-by-numCellTypes where element in position [i,j]
+        returns an array of size numCells-by-numCellTypes where element in position [i,j]
         keeps the probability that cell i has cell type j
         Implements equation (2) of the Qian paper
         :param spots:
