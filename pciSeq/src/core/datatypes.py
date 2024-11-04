@@ -53,7 +53,7 @@ import numpy_groupies as npg
 from natsort import natsort_keygen
 from .utils import read_image_objects, keep_labels_unique
 from sklearn.neighbors import NearestNeighbors
-from .config_manager import ConfigManager
+from pciSeq.src.validation.config_manager import ConfigManager
 import logging
 
 dtypes_logger = logging.getLogger(__name__)
