@@ -1,18 +1,22 @@
+from typing import Tuple, List, Optional, Dict, Any, Union
+import logging
+import os
+import pickle
 import sys
-import tempfile, shutil
-from tqdm import tqdm
+import tempfile
+import redis
+from pathlib import Path
+import shutil
 from urllib.parse import urlparse
 from urllib.request import urlopen
+
 import numpy as np
 import pandas as pd
-import pickle
-import redis
-import os
-import glob
-from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js, make_classConfig_js
-from pciSeq.src.preprocess.utils import get_img_shape
+from tqdm import tqdm
+
 from pciSeq.src.diagnostics.utils import RedisDB
-import logging
+from pciSeq.src.preprocess.utils import get_img_shape
+from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js, make_classConfig_js
 
 utils_logger = logging.getLogger(__name__)
 
@@ -20,6 +24,14 @@ utils_logger = logging.getLogger(__name__)
 def log_file(cfg):
     """
     Setup the logger file handler if it doesn't already exist.
+
+    Args:
+        cfg: Configuration dictionary containing 'output_path' key
+
+    Notes:
+        - Creates a FileHandler if one doesn't exist
+        - Writes logs to 'pciSeq.log' in the output directory
+        - Uses format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     """
     root_logger = logging.getLogger()
     if root_logger.handlers:
@@ -35,286 +47,421 @@ def log_file(cfg):
             utils_logger.info('Writing to %s' % logfile)
 
 
-def check_redis_server():
-    utils_logger.info("check_redis_server")
+def check_redis_server() -> bool:
+    """
+    Check if Redis server is running and available.
+
+    Returns:
+        bool: True if Redis server is running, False otherwise
+
+    Notes:
+        - Attempts to create a RedisDB connection
+        - Logs warning if connection fails
+        - Required for diagnostics functionality
+
+    Example:
+        >>> if check_redis_server():
+        ...     print("Redis server is running")
+        ... else:
+        ...     print("Redis server is not available")
+    """
+    utils_logger.info("Checking Redis server connection...")
     try:
         RedisDB()
+        utils_logger.info("Redis server connection successful")
         return True
-    except (redis.exceptions.ConnectionError, ConnectionRefusedError, OSError):
-        utils_logger.info("Redis ping failed!. Diagnostics will not be called unless redis is installed and the service "
-                        "is running")
+    except (redis.exceptions.ConnectionError, ConnectionRefusedError, OSError) as e:
+        utils_logger.warning(
+            "Redis server not available. Diagnostics will be disabled. "
+            f"Error: {str(e)}"
+        )
         return False
 
 
-def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
-    dst = get_out_dir(cfg['output_path'])
-    out_dir = os.path.join(dst, 'data')
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-
-    cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
-    utils_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
-
-    geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
-    utils_logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
-
-    # Do not change the if-then branching flow. InsideCellBonus can take the value of zero
-    # and the logic below will ensure that in that case, the segmentation borders will be
-    # drawn instead of the gaussian contours.
-    if cfg['InsideCellBonus'] is False:
-        ellipsoidBoundaries = cellData[['Cell_Num', 'gaussian_contour']]
-        ellipsoidBoundaries = ellipsoidBoundaries.rename(columns={"Cell_Num": "cell_id", "gaussian_contour": "coords"})
-        ellipsoidBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-        utils_logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
-    else:
-        cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-        utils_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
-
-    serialise(varBayes, os.path.join(out_dir, 'debug'))
-
-
-def serialise(varBayes, debug_dir):
-    if not os.path.exists(debug_dir):
-        os.makedirs(debug_dir)
-    pickle_dst = os.path.join(debug_dir, 'pciSeq.pickle')
-    with open(pickle_dst, 'wb') as outf:
-        pickle.dump(varBayes, outf)
-        utils_logger.info('Saved at %s' % pickle_dst)
-
-
-
-def pre_launch(cellData, coo, scRNAseq, cfg):
-    '''
-    Does some housekeeping, pre-flight control checking before the
-    viewer is triggered
-
-    Returns the destination folder that keeps the viewer code and
-    will be served to launch the website
-    '''
-    [h, w] = get_img_shape(coo)
-    dst = get_out_dir(cfg['output_path'])
-    copy_viewer_code(cfg, dst)
-    make_config_js(dst, w, h)
-    if scRNAseq is None:
-        label_list = [d[:] for d in cellData.ClassName.values]
-        labels = [item for sublist in label_list for item in sublist]
-        labels = sorted(set(labels))
-
-        make_classConfig_js(labels, dst)
-    return dst
-
-
-
-
-def negBinLoglik(x, r, p):
+def write_data(
+        cell_data: pd.DataFrame,
+        gene_data: pd.DataFrame,
+        cell_boundaries: pd.DataFrame,
+        var_bayes: Any,
+        cfg: Dict[str, Any]
+) -> None:
     """
-    Negative Binomial loglikehood
-    :param x:
-    :param r:
-    :param p:
-    :return:
+    Write analysis results to output files.
+
+    Args:
+        cell_data: DataFrame containing cell information
+        gene_data: DataFrame containing gene information
+        cell_boundaries: DataFrame containing cell boundary coordinates
+        var_bayes: Variational Bayes results object
+        cfg: Configuration dictionary with 'output_path' and 'InsideCellBonus'
+
+    Notes:
+        - Creates 'data' subdirectory in output path
+        - Saves files in TSV format
+        - Serializes var_bayes object for debugging
+
+    Files created:
+        - cellData.tsv: Cell information
+        - geneData.tsv: Gene information
+        - cellBoundaries.tsv: Cell boundary coordinates
+        - debug/pciSeq.pickle: Serialized var_bayes object
     """
+    try:
+        # Create output directory
+        out_dir = Path(get_out_dir(cfg['output_path'])) / 'data'
+        out_dir.mkdir(parents=True, exist_ok=True)
 
-    x = x[:, :, None]
-    contr = x * np.log(p) + r * np.log(1 - p)
-    return contr
+        # Save cell data
+        cell_path = out_dir / 'cellData.tsv'
+        cell_data.to_csv(cell_path, sep='\t', index=False)
+        utils_logger.info(f'Saved cell data to {cell_path}')
+
+        # Save gene data
+        gene_path = out_dir / 'geneData.tsv'
+        gene_data.to_csv(gene_path, sep='\t', index=False)
+        utils_logger.info(f'Saved gene data to {gene_path}')
+
+        # Save boundaries based on configuration
+        bounds_path = out_dir / 'cellBoundaries.tsv'
+        if not cfg['InsideCellBonus']:
+            # Use gaussian contours
+            ellipsoid_boundaries = cell_data[['Cell_Num', 'gaussian_contour']]
+            ellipsoid_boundaries = ellipsoid_boundaries.rename(
+                columns={"Cell_Num": "cell_id", "gaussian_contour": "coords"}
+            )
+            ellipsoid_boundaries.to_csv(bounds_path, sep='\t', index=False)
+        else:
+            # Use segmentation borders
+            cell_boundaries.to_csv(bounds_path, sep='\t', index=False)
+        utils_logger.info(f'Saved cell boundaries to {bounds_path}')
+
+        # Serialize var_bayes object
+        serialise(var_bayes, out_dir / 'debug')
+
+    except Exception as e:
+        utils_logger.error(f"Failed to write data: {str(e)}")
+        raise
 
 
-def hasConverged(spots, p0, tol):
+def serialise(var_bayes: Any, debug_dir: Union[str, Path]) -> None:
+    """
+    Serialize variational Bayes object for debugging purposes.
+
+    Args:
+        var_bayes: Variational Bayes results object to serialize
+        debug_dir: Directory path to save the pickle file
+
+    Notes:
+        - Creates debug directory if it doesn't exist
+        - Saves object as 'pciSeq.pickle'
+    """
+    debug_dir = Path(debug_dir)
+    debug_dir.mkdir(parents=True, exist_ok=True)
+
+    pickle_path = debug_dir / 'pciSeq.pickle'
+    try:
+        with open(pickle_path, 'wb') as outf:
+            pickle.dump(var_bayes, outf)
+            utils_logger.info(f'Serialized object saved to {pickle_path}')
+    except Exception as e:
+        utils_logger.error(f"Failed to serialize object: {str(e)}")
+        raise
+
+
+def pre_launch(
+        cell_data: pd.DataFrame,
+        coo: Any,
+        scRNA_seq: Optional[Any],
+        cfg: Dict[str, Any]
+) -> Path:
+    """
+    Perform pre-flight checks and setup before launching the viewer.
+
+    Args:
+        cell_data: DataFrame containing cell information
+        coo: Coordinate data object
+        scRNA_seq: Single-cell RNA sequencing data (optional)
+        cfg: Configuration dictionary
+
+    Returns:
+        Path: Destination folder containing viewer code
+
+    Notes:
+        - Gets image dimensions from coordinates
+        - Copies viewer code to destination
+        - Creates configuration JavaScript files
+    """
+    try:
+        # Get image dimensions
+        height, width = get_img_shape(coo)
+
+        # Setup destination directory
+        dst = Path(get_out_dir(cfg['output_path']))
+
+        # Copy viewer code and create configs
+        copy_viewer_code(cfg, dst)
+        make_config_js(dst, width, height)
+
+        # Handle class configuration
+        if scRNA_seq is None:
+            # Extract unique class names
+            label_list = [d[:] for d in cell_data.ClassName.values]
+            labels = sorted(set(item for sublist in label_list for item in sublist))
+            make_classConfig_js(labels, dst)
+
+        return dst
+
+    except Exception as e:
+        utils_logger.error(f"Pre-launch setup failed: {str(e)}")
+        raise
+
+
+def negative_binomial_loglikelihood(x: np.ndarray, r: float, p: np.ndarray) -> np.ndarray:
+    """
+    Calculate the Negative Binomial log-likelihood for given parameters.
+
+    The Negative Binomial distribution models the number of successes (x) before
+    r failures occur, with probability of success p. The PMF is:
+    P(X=k) = C(k+r-1,k) * p^k * (1-p)^r
+
+    Args:
+        x: Array of observed counts with shape
+        r: Number of failures until stopping (dispersion parameter)
+        p: Probability of success, array with shape
+
+    Returns:
+        Array of log-likelihood contributions with shape
+    """
+    try:
+        x = x[:, :, None]  # Add dimension for broadcasting
+
+        # negative binomial log-likelihood.
+        # Focusing only on the terms that involve p and r (without the binomial coefficient):
+        log_likelihood = x * np.log(p) + r * np.log(1 - p)
+
+        return log_likelihood
+
+    except Exception as e:
+        utils_logger.error(f"Error calculating negative binomial log-likelihood: {str(e)}")
+        raise ValueError("Failed to compute log-likelihood. Check input dimensions and values.")
+
+
+def has_converged(
+        spots: Any,
+        p0: Optional[np.ndarray],
+        tol: float
+) -> Tuple[bool, float]:
+    """
+    Check if the probability assignments have converged.
+
+    Args:
+        spots: Spot data object containing parent_cell_prob
+        p0: Previous probability matrix (None for first iteration)
+        tol: Convergence tolerance threshold
+
+    Returns:
+        Tuple containing:
+            - bool: True if converged, False otherwise
+            - float: Maximum absolute difference between iterations
+    """
     p1 = spots.parent_cell_prob
     if p0 is None:
-        p0 = np.zeros(p1.shape)
-    delta = np.max(np.abs(p1 - p0))
-    converged = (delta < tol)
-    return converged, delta
+        p0 = np.zeros_like(p1)
 
-
-def splitter_mb(filepath, mb_size):
-    """ Splits a text file in (almost) equally sized parts on the disk. Assumes that there is a header in the first line
-    :param filepath: The path of the text file to be broken up into smaller files
-    :param mb_size: size in MB of each chunk
-    :return:
-    """
-    handle = open(filepath, 'r')
-    OUT_DIR = os.path.join(os.path.splitext(filepath)[0] + '_split')
-
-    if not os.path.exists(OUT_DIR):
-        os.makedirs(OUT_DIR)
-    else:
-        files = glob.glob(OUT_DIR + '/*.*')
-        for f in files:
-            os.remove(f)
-
-    n = 0
-    size = None
-    header_line = next(handle)
-    file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)
-    for line in handle:
-        size = os.stat(file_out).st_size
-        if size > mb_size * 1024 * 1024:
-            utils_logger.info('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
-            n += 1
-            handle_out.close()
-            file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)
-        handle_out.write(str(line))
-
-    # print(str(file_out) + " file size = \t" + str(size))
-    print('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
-    handle_out.close()
-
-
-def splitter_n(filepath, n):
-    """ Splits a text file in n smaller files
-    :param filepath: The path of the text file to be broken up into smaller files
-    :param n: determines how many smaller files will be created
-    :return:
-    """
-    filename_ext = os.path.basename(filepath)
-    [filename, ext] = filename_ext.split('.')
-
-    OUT_DIR = os.path.join(os.path.splitext(filepath)[0] + '_split')
-
-    if ext == 'json':
-        df = pd.read_json(filepath)
-    elif ext == 'tsv':
-        df = pd.read_csv(filepath, sep='\t')
-    else:
-        df = None
-
-    df_list = np.array_split(df, n)
-    if not os.path.exists(OUT_DIR):
-        os.makedirs(OUT_DIR)
-    else:
-        files = glob.glob(OUT_DIR + '/*.' + ext)
-        for f in files:
-            os.remove(f)
-
-    for i, d in enumerate(df_list):
-        fname = os.path.join(OUT_DIR, filename + '_%d.%s' % (i, ext))
-        if ext == 'json':
-            d.to_json(fname, orient='records')
-        elif ext == 'tsv':
-            d.to_csv(fname, sep='\t', index=False)
-
-
-def _get_file(OUT_DIR, filepath, n, header_line):
-    [filename, ext] = os.path.basename(filepath).split('.')
-    file = os.path.join(OUT_DIR, filename + '_%d.%s' % (n, ext))
-    handle = open(file, "a")
-    handle.write(header_line)
-    return file, handle
-
-
-def download_url_to_file(url, dst, progress=True):
-    r"""Download object at the given URL to a local path.
-            Thanks to torch, slightly modified
-    Args:
-        url (string): URL of the object to download
-        dst (string): Full path where object will be saved, e.g. `/tmp/temporary_file`
-        progress (bool, optional): whether or not to display a progress bar to stderr
-            Default: True
-    """
-    file_size = None
-    u = urlopen(url)
-    meta = u.info()
-    if hasattr(meta, 'getheaders'):
-        content_length = meta.getheaders("Content-Length")
-    else:
-        content_length = meta.get_all("Content-Length")
-    if content_length is not None and len(content_length) > 0:
-        file_size = int(content_length[0])
-    # We deliberately save it in a temp file and move it after
-    dst = os.path.expanduser(dst)
-    dst_dir = os.path.dirname(dst)
-    f = tempfile.NamedTemporaryFile(delete=False, dir=dst_dir)
     try:
-        with tqdm(total=file_size, disable=not progress,
-                  unit='B', unit_scale=True, unit_divisor=1024) as pbar:
-            while True:
-                buffer = u.read(8192)
-                if len(buffer) == 0:
-                    break
-                f.write(buffer)
-                pbar.update(len(buffer))
-        f.close()
-        shutil.move(f.name, dst)
-    finally:
-        f.close()
-        if os.path.exists(f.name):
-            os.remove(f.name)
+        delta = np.max(np.abs(p1 - p0))
+        converged = (delta < tol)
+        return converged, delta
+    except Exception as e:
+        utils_logger.error(f"Convergence check failed: {str(e)}")
+        raise
 
 
-def load_from_url(url):
-    # files = []
-    parts = urlparse(url)
-    filename = os.path.basename(parts.path)
-    if not os.path.exists(filename):
-        sys.stderr.write('Downloading: "{}" to {}\n'.format(url, filename))
-        download_url_to_file(url, filename)
-    return filename
+def download_url_to_file(
+        url: str,
+        dst: Union[str, Path],
+        progress: bool = True
+) -> None:
+    """
+    Download a file from URL to local path with progress tracking.
+
+    Args:
+        url: URL of the file to download
+        dst: Destination path for downloaded file
+        progress: Whether to display progress bar (default: True)
+
+    Notes:
+        - Uses temporary file for safe downloading
+        - Shows progress with tqdm if enabled
+        - Cleans up temporary files on failure
+    """
+    BUFFER_SIZE = 8192
+
+    dst = Path(dst).expanduser()
+    dst_dir = dst.parent
+
+    try:
+        # Get file size if available
+        with urlopen(url) as u:
+            meta = u.info()
+            file_size = int(meta.get("Content-Length", 0))
+
+        # Download with temporary file
+        with tempfile.NamedTemporaryFile(delete=False, dir=dst_dir) as temp_file:
+            with tqdm(
+                    total=file_size,
+                    disable=not progress,
+                    unit='B',
+                    unit_scale=True,
+                    unit_divisor=1024
+            ) as pbar:
+                with urlopen(url) as response:
+                    while True:
+                        buffer = response.read(BUFFER_SIZE)
+                        if not buffer:
+                            break
+                        temp_file.write(buffer)
+                        pbar.update(len(buffer))
+
+            # Move temporary file to destination
+            shutil.move(temp_file.name, dst)
+            utils_logger.info(f"Downloaded {url} to {dst}")
+
+    except Exception as e:
+        utils_logger.error(f"Download failed: {str(e)}")
+        if 'temp_file' in locals():
+            try:
+                os.remove(temp_file.name)
+            except OSError:
+                pass
+        raise
 
 
-def get_out_dir(path=None, sub_folder=''):
+def load_from_url(url: str) -> str:
+    """
+    Download and load a file from URL if not already present.
+
+    Args:
+        url: URL of the file to download
+
+    Returns:
+        str: Path to the downloaded file
+    """
+    try:
+        parts = urlparse(url)
+        filename = Path(parts.path).name
+
+        if not Path(filename).exists():
+            sys.stderr.write(f'Downloading: "{url}" to {filename}\n')
+            download_url_to_file(url, filename)
+
+        return filename
+
+    except Exception as e:
+        utils_logger.error(f"Failed to load from URL: {str(e)}")
+        raise
+
+
+def get_out_dir(path: Optional[List[str]] = None, sub_folder: str = '') -> str:
+    """
+    Get or create output directory path.
+
+    Args:
+        path: List containing base path, or None for default temp directory
+        sub_folder: Optional subdirectory name
+
+    Returns:
+        str: Path to output directory
+
+    Notes:
+        - Uses system temp directory if path is None or ['default']
+        - Creates directories if they don't exist
+    """
     if path is None or path[0] == 'default':
-        out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq')
+        out_dir = Path(tempfile.gettempdir()) / 'pciSeq'
     else:
-        out_dir = os.path.join(path[0], sub_folder, 'pciSeq')
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-    return out_dir
+        out_dir = Path(path[0]) / sub_folder / 'pciSeq'
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    return str(out_dir)
 
 
-
-def gaussian_contour(mu, cov, sdwidth=3):
+def gaussian_contour(
+        mu: np.ndarray,
+        cov: np.ndarray,
+        sdwidth: float = 3.0
+) -> np.ndarray:
     """
-    Draws an ellipsoid for a given covariance matrix cov
-    and mean vector mu
+    Generate ellipsoid contour points from covariance matrix and mean.
 
-    Example
-    cov_1 = [[1, 0.5], [0.5, 1]]
-    means_1 = [1, 1]
+    Args:
+        mu: Mean vector [2,] specifying the center of the ellipse
+        cov: Covariance matrix [2,2] specifying the shape and orientation
+        sdwidth: Number of standard deviations for contour size (default: 3.0)
 
-    cov_2 = [[1, -0.7], [-0.7, 1]]
-    means_2 = [2, 1.5]
+    Returns:
+        Array of contour points shape [n_points, 2]
 
-    cov_3 = [[1, 0], [0, 1]]
-    means_3 = [0, 0]
+    Raises:
+        ValueError: If input dimensions are incorrect
 
-    ellipsis_1 = gaussian_contour(means_1, cov_1)
-    ellipsis_2 = gaussian_contour(means_2, cov_2)
-    ellipsis_3 = gaussian_contour(means_3, cov_3)
-    ellipsis_3b = gaussian_contour(means_3, cov_3, sdwidth=2)
-    ellipsis_3c = gaussian_contour(means_3, cov_3, sdwidth=3)
+    Examples:
+        Basic usage with circular covariance:
+        >>> import numpy as np
+        >>> import matplotlib.pyplot as plt
+        >>> mu = np.array([0, 0])
+        >>> cov = np.array([[1, 0], [0, 1]])
+        >>> points = gaussian_contour(mu, cov)
+        >>> plt.plot(points[:, 0], points[:, 1])
 
-    plt.plot(ellipsis_1[0], ellipsis_1[1], c='b')
-    plt.plot(ellipsis_2[0], ellipsis_2[1], c='r')
-    plt.plot(ellipsis_3[0], ellipsis_3[1], c='g')
-    plt.plot(ellipsis_3b[0], ellipsis_3b[1], c='g')
-    plt.plot(ellipsis_3c[0], ellipsis_3c[1], c='g')
+        Elliptical shape with correlation:
+        >>> mu = np.array([1, 2])
+        >>> cov = np.array([[2, 0.5],
+        ...                 [0.5, 1]])
+        >>> points = gaussian_contour(mu, cov)
+        >>> plt.plot(points[:, 0], points[:, 1])
+
+        Multiple ellipses with different parameters:
+        >>> fig, ax = plt.subplots()
+        >>> # Standard circle
+        >>> p1 = gaussian_contour([0, 0], [[1, 0], [0, 1]])
+        >>> # Elongated ellipse
+        >>> p2 = gaussian_contour([2, 2], [[3, 0.5], [0.5, 1]])
+        >>> # Rotated ellipse
+        >>> p3 = gaussian_contour([-1, 1], [[1, -0.8], [-0.8, 1]])
+        >>> ax.plot(p1[:, 0], p1[:, 1], 'b-', label='Circle')
+        >>> ax.plot(p2[:, 0], p2[:, 1], 'r-', label='Elongated')
+        >>> ax.plot(p3[:, 0], p3[:, 1], 'g-', label='Rotated')
+        >>> ax.legend()
+        >>> ax.axis('equal')
+        >>> plt.show()
+
+    Notes:
+        - The covariance matrix must be 2x2 symmetric and positive semi-definite
+        - sdwidth controls the size of the ellipse (larger values = larger ellipse)
+        - The contour represents a constant probability density contour of a
+          2D Gaussian distribution
     """
+    if mu.shape != (2,) or cov.shape != (2, 2):
+        raise ValueError("Invalid input dimensions. Expected mu.shape=(2,) and cov.shape=(2,2)")
 
-    # cov_00 = sigma_x * sigma_x
-    # cov_10 = rho * sigma_x * sigma_y
-    # cov_11 = sigma_y * sigma_y
-    # cov = np.array([[cov_00, cov_10], [cov_10, cov_11]])
-    mu = np.array(mu)
+    try:
+        contour_points = 40
 
-    npts = 40
-    tt = np.linspace(0, 2 * np.pi, npts)
-    ap = np.zeros((2, npts))
-    x = np.cos(tt)
-    y = np.sin(tt)
-    ap[0, :] = x
-    ap[1, :] = y
+        # Generate circle points
+        tt = np.linspace(0, 2 * np.pi, contour_points)
+        ap = np.stack([np.cos(tt), np.sin(tt)])
 
-    eigvals, eigvecs = np.linalg.eig(cov)
-    eigvals = sdwidth * np.sqrt(eigvals)
-    eigvals = eigvals * np.eye(2)
+        # Transform to ellipse
+        eigvals, eigvecs = np.linalg.eigh(cov)
+        eigvals = sdwidth * np.sqrt(np.maximum(eigvals, 0))  # Ensure non-negative
+        vd = eigvecs @ (eigvals[:, None] * ap)
+        out = vd + mu.reshape(2, -1)
 
-    vd = eigvecs.dot(eigvals)
-    out = vd.dot(ap) + mu.reshape(2, -1)
-
-    return np.array(list(zip(*out)), dtype=np.float32)
+        return np.array(list(zip(*out)), dtype=np.float32)
+    except Exception as e:
+        utils_logger.error(f"Error generating gaussian contour: {str(e)}")
+        raise
 
 
 def read_image_objects(img_obj, cfg):
@@ -349,7 +496,6 @@ def read_image_objects(img_obj, cfg):
 
     return out, meanCellRadius.astype(np.float32)
 
-
 def keep_labels_unique(scdata):
     """
     In the single cell data you might find cases where two or more rows have the same gene label
@@ -367,13 +513,38 @@ def keep_labels_unique(scdata):
 
 
 # @dask.delayed
-def scaled_exp(cell_area_factor, sc_mean_expressions, inefficiency):
-    # the @dask.delayed decorator can be used here but pickling will crash
-    if np.all(cell_area_factor == 1):
-        subscripts = 'gk, g -> gk'
-        operands = [sc_mean_expressions, inefficiency]
-    else:
-        subscripts = 'c, gk, g -> cgk'
-        operands = [cell_area_factor, sc_mean_expressions, inefficiency]
-    out = np.einsum(subscripts, *operands)
-    return out
+def scaled_exp(
+        cell_area_factor: np.ndarray,
+        sc_mean_expressions: np.ndarray,
+        inefficiency: np.ndarray
+) -> np.ndarray:
+    """
+    Calculate scaled expression values using cell areas and efficiency factors.
+
+    Args:
+        cell_area_factor: Array of cell area scaling factors
+        sc_mean_expressions: Array of mean expression values
+        inefficiency: Array of inefficiency factors
+
+    Returns:
+        Array of scaled expression values
+
+    Optimization:
+        - Use np.einsum for efficient matrix multiplication
+        - Pre-allocate output array for large computations
+        - Consider using numba for very large arrays
+        - Add input validation for array shapes
+    """
+    try:
+        if np.all(cell_area_factor == 1):
+            subscripts = 'gk,g->gk'
+            operands = [sc_mean_expressions, inefficiency]
+        else:
+            subscripts = 'c,gk,g->cgk'
+            operands = [cell_area_factor, sc_mean_expressions, inefficiency]
+
+        return np.einsum(subscripts, *operands)
+
+    except Exception as e:
+        utils_logger.error(f"Error in scaled expression calculation: {str(e)}")
+        raise

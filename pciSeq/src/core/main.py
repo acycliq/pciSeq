@@ -214,7 +214,7 @@ class VarBayes:
             if self.single_cell.isMissing:
                 self.mu_upd()
 
-            self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
+            self.has_converged, delta = utils.has_converged(self.spots, p0, self.config['CellCallTolerance'])
             main_logger.info('Iteration %d, mean prob change %f' % (i, delta))
 
             # keep track of the deltas
@@ -303,7 +303,7 @@ class VarBayes:
         ScaledExp = self.scaled_exp.compute()
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
-        contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
+        contr = utils.negative_binomial_loglikelihood(cgc, self.config['rSpot'], pNegBin)
         wCellClass = np.sum(contr, axis=1) + self.cellTypes.log_prior
         pCellClass = softmax(wCellClass, axis=1)
         del contr

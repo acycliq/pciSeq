@@ -89,7 +89,7 @@ def cells_summary(cells, genes, single_cell):
     contour = []
     for i in range(cells.nC):
         # ea = cells.ellipsoid_attributes[i]
-        mu = cells.centroid.iloc[i].tolist()
+        mu = cells.centroid.iloc[i].values
         cov = cells.cov[i]
         ellipsis = gaussian_contour(mu[:2], cov[:2, :2], 3).astype(np.int64)
         contour.append(ellipsis.tolist())
