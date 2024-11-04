@@ -14,64 +14,43 @@ app_logger = logging.getLogger(__name__)
 
 def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Main entry point for pciSeq.
+    Main entry point for pciSeq cell typing analysis.
 
     Parameters
     ----------
-    **spots : pandas.DataFrame
-        Index:
-            RangeIndex
-        Columns:
-            Name: Gene, dtype: string, The gene name
-            Name: x, dtype: int64, X-axis coordinate of the spot
-            Name: y, dtype: int64, Y-axis coordinate of the spot
+    *args : tuple
+        Positional arguments:
+        - args[0]: pd.DataFrame containing spot data
+        - args[1]: scipy.sparse.coo_matrix containing gene expression data
 
-    **coo : scipy.sparse.coo_matrix
-        A label image array as a coo_matrix datatype. The label denote
-        which cell the corresponding pixel 'belongs' to. If label is
-        zero, the pixel is on the background
-
-    **scRNAseq : pandas.DataFrame (Optional)
-        Index:
-            The gene name
-        Columns:
-            The column headers are the cell classes and the data are uint32
-
-    **opts : dictionary (Optional)
-        A dictionary to pass-in user-defined hyperparameter values. They override the default
-        values as these are set by the config.py file. For example to exclude genes Npy and
-        Vip you can define opts as:
-            opts = {'exclude_genes': ['Npy', 'Vip']}
-        and pass that dict to the fit function as the last argument
-
-    *args: If 'spots' and 'coo' are not passed-in as keyword arguments then they should be provided
-    as first and second positional arguments
+    **kwargs : dict
+        Keyword arguments:
+        - spots: pd.DataFrame
+            Spot data with gene expressions and coordinates
+        - coo: scipy.sparse.coo_matrix
+            Sparse matrix of gene expression data
+        - scRNAseq: pd.DataFrame, optional
+            Single-cell RNA sequencing reference data
+        - opts: dict, optional
+            Configuration options for the analysis
 
     Returns
-    ------
-    cellData : pandas.DataFrame
-        Index:
-            RangeIndex
-        Columns:
-            Name: Cell_Num, dtype: int64, The label of the cell
-            Name: X, dtype: float64, X-axis coordinate of the cell centroid
-            Name: Y, dtype: float64, Y-axis coordinate of the cell centroid
-            Name: Genenames, dtype: Object, array-like of the genes assigned to the cell
-            Name: CellGeneCount, dtype: Object,array-like of the corresponding gene counts
-            Name: ClassName, dtype: Object, array-like of the genes probable classes for the cell
-            Name: Prob, dtype: Object, array-like of the corresponding cell class probabilities
+    -------
+    Tuple[pd.DataFrame, pd.DataFrame]
+        - cellData: DataFrame containing cell typing results and metadata
+        - geneData: DataFrame containing gene assignment results
 
-    geneData : pandas.DataFrame
-        Index:
-            RangeIndex
-        Columns:
-            Name: Gene, dtype: string, The gene name.
-            Name: Gene_id, dtype: int64, The gene id, the position of the gene if all genes are sorted.
-            Name: x, dtype: int64, X-axis coordinate of the spot
-            Name: y, dtype: int64, Y-axis coordinate of the spot
-            Name: neighbour, dtype: int64, the label of the cell which is more likely to 'raise' the spot. If zero then the spot is a misread.
-            Name: neighbour_array, dtype: Object, array-like with the labels of the 4 nearest cell. The last is always the background and has label=0
-            Name: neighbour_prob, dtype: Object, array-like with the prob the corresponding cell from neighbour_array has risen the spot.
+    Raises
+    ------
+    ValueError
+        If required arguments (spots and coo) are missing or invalid
+    RuntimeError
+        If cell typing algorithm fails to converge
+
+    Notes
+    -----
+    The function can be called either with positional arguments (spots, coo)
+    or with keyword arguments. If both are provided, keyword arguments take precedence.
     """
     try:
         # 1. parse/check the arguments
