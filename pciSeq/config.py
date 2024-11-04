@@ -51,7 +51,7 @@ DEFAULT = {
     # Option 2 - Dictionary (different values per gene):
     # For 2D data (per pixel area):
     # 'MisreadDensity': {
-    #     'default': 1e-5,     # 2D: 1 misread per 100x100 pixel area
+    #     'default': 1e-5,     # 2D: 1 misread per 100x100 pixel area. Used for any genes not explicitly listed
     #     'Vip': 1e-5,         # Clean signal, low background
     #     'Npy': 1e-4,         # Noisier gene with more background
     #     'Aldoc': 1e-6,       # Very clean signal
@@ -60,7 +60,7 @@ DEFAULT = {
     #
     # For 3D data (per pixel volume):
     # 'MisreadDensity': {
-    #     'default': 1e-5,     # 3D: 100 misreads per 100x100x100 normalized pixel volume
+    #     'default': 1e-5,     # 3D: 100 misreads per 100x100x100 normalized pixel volume. Used for any genes not explicitly listed
     #     'Vip': 1e-5,         # Clean signal, low background
     #     'Npy': 1e-4,         # Noisier gene with more background
     #     'Aldoc': 1e-6,       # Very clean signal
