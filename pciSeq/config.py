@@ -44,7 +44,7 @@ DEFAULT = {
     # - A volume of 100x100x10 raw pixels becomes 100x100x61.2 normalized pixels
     #
     # Option 1 - Scalar (same value for all genes):
-    # 'MisreadDensity': 0.0001,    # 2D: 1 misread per 100x100 pixel area
+    # 'MisreadDensity': 0.0001,    # 2D: 1 misread per 100x100 pixel area OR
     #                   0.000001   # 3D: 1 misread per 100x100x100 normalized pixel volume
     #                                      (~100x smaller values due to volume vs area)
     #
@@ -73,15 +73,16 @@ DEFAULT = {
     #
     # Rules of thumb for setting values:
     # For 2D data (per pixel area):
-    # - Default (0.00001) means 1 misread per 100x100 pixel area
+    # - A value of 0.0001 means 1 misread per 100x100 pixel area (since 1/10000 = 0.0001)
+    # - Default (0.00001) means 0.1 misread per 100x100 pixel area
     # - For high-quality data: use 0.000001 to 0.00001
     # - For noisier data: use 0.0001 to 0.001
     #
     # For 3D data (per pixel volume):
     # - Use ~100x smaller values than 2D due to volume vs area
-    # - Default (0.00001) means 100 misread per 100x100x100 normalized pixel volume
-    # - For high-quality data: use 0.00000001 to 0.0000001
-    # - For noisier data: use 0.000001 to 0.00001
+    # - Default (0.00001) means 10 misread per 100x100x100 normalized pixel volume
+    # - For high-quality data: use 0.0000001 to 0.000001
+    # - For noisier data: use 0.00001 to 0.0001
     #
     # To calculate a custom value:
     # 2D Example:
@@ -142,7 +143,7 @@ DEFAULT = {
     'rSpot': 2,
 
     # Boolean, if True the output will be saved as tsv files in a folder named 'pciSeq' in your system's temp dir.
-    'save_data': False,
+    'save_data': True,
 
     # Set here where the results will be saved. If default then they will be saved at your system's temp folder
     'output_path': ['default'],
@@ -150,7 +151,7 @@ DEFAULT = {
     # if true the viewer will be launched once convergence has been achieved
     'launch_viewer': False,
 
-    'launch_diagnostics': True,
+    'launch_diagnostics': False,
 
     # Initialise this to False, the correct value is set internally by the code itself
     'is_redis_running': False,
