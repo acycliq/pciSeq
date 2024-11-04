@@ -1,22 +1,12 @@
-import os
-import redis
-import pickle
-from numbers import Number
-import numpy as np
 import pandas as pd
 from typing import Tuple
-from pciSeq import config
 from .src.core.config_manager import ConfigManager
 from .src.core.validation import validate_inputs
 from pciSeq.src.core.main import VarBayes
-from pciSeq.src.core.utils import get_out_dir
-from scipy.sparse import coo_matrix, load_npz
-from pciSeq.src.diagnostics.utils import RedisDB
-from pciSeq.src.preprocess.utils import get_img_shape
+from pciSeq.src.core.utils import write_data, pre_launch
 from pciSeq.src.viewer.run_flask import flask_app_start
 from pciSeq.src.preprocess.spot_labels import stage_data
 from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
-from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js, make_classConfig_js
 import logging
 
 app_logger = logging.getLogger(__name__)
@@ -126,82 +116,6 @@ def cell_type(_cells, _spots, scRNAseq, ini):
     return cellData, geneData, varBayes
 
 
-def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
-    dst = get_out_dir(cfg['output_path'])
-    out_dir = os.path.join(dst, 'data')
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-
-    cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
-    app_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
-
-    geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
-    app_logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
-
-    # Do not change the if-then branching flow. InsideCellBonus can take the value of zero
-    # and the logic below will ensure that in that case, the segmentation borders will be
-    # drawn instead of the gaussian contours.
-    if cfg['InsideCellBonus'] is False:
-        ellipsoidBoundaries = cellData[['Cell_Num', 'gaussian_contour']]
-        ellipsoidBoundaries = ellipsoidBoundaries.rename(columns={"Cell_Num": "cell_id", "gaussian_contour": "coords"})
-        ellipsoidBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-        app_logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
-    else:
-        cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-        app_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
-
-    serialise(varBayes, os.path.join(out_dir, 'debug'))
-
-
-def serialise(varBayes, debug_dir):
-    if not os.path.exists(debug_dir):
-        os.makedirs(debug_dir)
-    pickle_dst = os.path.join(debug_dir, 'pciSeq.pickle')
-    with open(pickle_dst, 'wb') as outf:
-        pickle.dump(varBayes, outf)
-        app_logger.info('Saved at %s' % pickle_dst)
-
-
-def export_db_tables(out_dir, con):
-    tables = con.get_db_tables()
-    for table in tables:
-        export_db_table(table, out_dir, con)
-
-
-def export_db_table(table_name, out_dir, con):
-    df = con.from_redis(table_name)
-    fname = os.path.join(out_dir, table_name + '.csv')
-    df.to_csv(fname, index=False)
-    app_logger.info('Saved at %s' % fname)
-
-
-def log_file(cfg):
-    """
-    Setup the logger file handler if it doesn't already exist.
-    """
-    root_logger = logging.getLogger()
-    if root_logger.handlers:
-        # setup a FileHandler if it has not been setup already. Maybe I should be adding a FileHandler anyway,
-        # regardless whether there is one already or not
-        if not np.any([isinstance(d, logging.FileHandler) for d in root_logger.handlers]):
-            logfile = os.path.join(get_out_dir(cfg['output_path']), 'pciSeq.log')
-            fh = logging.FileHandler(logfile, mode='w')
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            fh.setFormatter(formatter)
-
-            root_logger.addHandler(fh)
-            app_logger.info('Writing to %s' % logfile)
-
-
-def purge_spots(spots, sc):
-    drop_spots = list(set(spots.Gene) - set(sc.index))
-    app_logger.warning('Found %d genes that are not included in the single cell data' % len(drop_spots))
-    idx = ~ np.in1d(spots.Gene, drop_spots)
-    spots = spots.iloc[idx]
-    app_logger.warning('Removed from spots: %s' % drop_spots)
-    return spots
-
-
 def parse_args(*args, **kwargs):
     '''
     Do soma basic checking of the args
@@ -244,43 +158,7 @@ def parse_args(*args, **kwargs):
     return spots, coo, scRNAseq, opts
 
 
-def pre_launch(cellData, coo, scRNAseq, cfg):
-    '''
-    Does some housekeeping, pre-flight control checking before the
-    viewer is triggered
 
-    Returns the destination folder that keeps the viewer code and
-    will be served to launch the website
-    '''
-    [h, w] = get_img_shape(coo)
-    dst = get_out_dir(cfg['output_path'])
-    copy_viewer_code(cfg, dst)
-    make_config_js(dst, w, h)
-    if scRNAseq is None:
-        label_list = [d[:] for d in cellData.ClassName.values]
-        labels = [item for sublist in label_list for item in sublist]
-        labels = sorted(set(labels))
-
-        make_classConfig_js(labels, dst)
-    return dst
-
-
-def confirm_prompt(question):
-    reply = None
-    while reply not in ("", "y", "n"):
-        reply = input(f"{question} (y/n): ").lower()
-    return (reply in ("", "y"))
-
-
-def check_redis_server():
-    app_logger.info("check_redis_server")
-    try:
-        RedisDB()
-        return True
-    except (redis.exceptions.ConnectionError, ConnectionRefusedError, OSError):
-        app_logger.info("Redis ping failed!. Diagnostics will not be called unless redis is installed and the service "
-                        "is running")
-        return False
 
 
 

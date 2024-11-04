@@ -3,7 +3,7 @@ from typing import List, Dict, Optional, Union
 from numbers import Number
 import logging
 from ... import config
-
+from ...src.core.utils import log_file, check_redis_server
 config_manager_logger = logging.getLogger(__name__)
 
 
@@ -34,6 +34,9 @@ class ConfigManager:
         """Create configuration from default values and optional overrides"""
         # Start with default configuration
         cfg_dict = config.DEFAULT.copy()
+
+        log_file(cfg_dict)
+        cfg_dict['is_redis_running'] = check_redis_server()
 
         # Override with user options if provided
         if opts is not None:

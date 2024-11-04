@@ -6,13 +6,106 @@ from urllib.request import urlopen
 import numpy as np
 import pandas as pd
 import dask
+import pickle
+import redis
 import os
 import glob
 import subprocess
+from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js, make_classConfig_js
+from pciSeq.src.preprocess.utils import get_img_shape
+from pciSeq.src.diagnostics.utils import RedisDB
 from email.parser import BytesHeaderParser
 import logging
 
 utils_logger = logging.getLogger(__name__)
+
+
+def log_file(cfg):
+    """
+    Setup the logger file handler if it doesn't already exist.
+    """
+    root_logger = logging.getLogger()
+    if root_logger.handlers:
+        # setup a FileHandler if it has not been setup already. Maybe I should be adding a FileHandler anyway,
+        # regardless whether there is one already or not
+        if not np.any([isinstance(d, logging.FileHandler) for d in root_logger.handlers]):
+            logfile = os.path.join(get_out_dir(cfg['output_path']), 'pciSeq.log')
+            fh = logging.FileHandler(logfile, mode='w')
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            fh.setFormatter(formatter)
+
+            root_logger.addHandler(fh)
+            utils_logger.info('Writing to %s' % logfile)
+
+
+def check_redis_server():
+    utils_logger.info("check_redis_server")
+    try:
+        RedisDB()
+        return True
+    except (redis.exceptions.ConnectionError, ConnectionRefusedError, OSError):
+        utils_logger.info("Redis ping failed!. Diagnostics will not be called unless redis is installed and the service "
+                        "is running")
+        return False
+
+def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
+    dst = get_out_dir(cfg['output_path'])
+    out_dir = os.path.join(dst, 'data')
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+    cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
+    utils_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
+
+    geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
+    utils_logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
+
+    # Do not change the if-then branching flow. InsideCellBonus can take the value of zero
+    # and the logic below will ensure that in that case, the segmentation borders will be
+    # drawn instead of the gaussian contours.
+    if cfg['InsideCellBonus'] is False:
+        ellipsoidBoundaries = cellData[['Cell_Num', 'gaussian_contour']]
+        ellipsoidBoundaries = ellipsoidBoundaries.rename(columns={"Cell_Num": "cell_id", "gaussian_contour": "coords"})
+        ellipsoidBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
+        utils_logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+    else:
+        cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
+        utils_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+
+    serialise(varBayes, os.path.join(out_dir, 'debug'))
+
+
+def serialise(varBayes, debug_dir):
+    if not os.path.exists(debug_dir):
+        os.makedirs(debug_dir)
+    pickle_dst = os.path.join(debug_dir, 'pciSeq.pickle')
+    with open(pickle_dst, 'wb') as outf:
+        pickle.dump(varBayes, outf)
+        utils_logger.info('Saved at %s' % pickle_dst)
+
+
+
+def pre_launch(cellData, coo, scRNAseq, cfg):
+    '''
+    Does some housekeeping, pre-flight control checking before the
+    viewer is triggered
+
+    Returns the destination folder that keeps the viewer code and
+    will be served to launch the website
+    '''
+    [h, w] = get_img_shape(coo)
+    dst = get_out_dir(cfg['output_path'])
+    copy_viewer_code(cfg, dst)
+    make_config_js(dst, w, h)
+    if scRNAseq is None:
+        label_list = [d[:] for d in cellData.ClassName.values]
+        labels = [item for sublist in label_list for item in sublist]
+        labels = sorted(set(labels))
+
+        make_classConfig_js(labels, dst)
+    return dst
+
+
 
 
 def negBinLoglik(x, r, p):
@@ -172,12 +265,6 @@ def get_out_dir(path=None, sub_folder=''):
         os.makedirs(out_dir)
     return out_dir
 
-
-def get_pciSeq_install_dir():
-    p = subprocess.run(['pip', 'show', 'pciSeq'], stdout=subprocess.PIPE)
-    h = BytesHeaderParser().parsebytes(p.stdout)
-    assert h['Location'] is not None, 'Could not locate pciSeq installation folder, maybe the package is not installed.'
-    return os.path.join(h['Location'], 'pciSeq')
 
 
 def gaussian_contour(mu, cov, sdwidth=3):
