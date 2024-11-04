@@ -5,7 +5,7 @@ import hashlib
 import numpy as np
 import pciSeq.config as config
 from pciSeq.src.core.main import VarBayes
-from pciSeq.app import parse_args, validate, stage_data
+from pciSeq.app import parse_args, stage_data
 from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 from pciSeq.src.core.config_manager import ConfigManager
 from pciSeq.src.core.validation import validate_inputs

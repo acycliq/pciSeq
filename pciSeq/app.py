@@ -175,7 +175,6 @@ def export_db_table(table_name, out_dir, con):
     app_logger.info('Saved at %s' % fname)
 
 
-
 def log_file(cfg):
     """
     Setup the logger file handler if it doesn't already exist.
@@ -192,53 +191,6 @@ def log_file(cfg):
 
             root_logger.addHandler(fh)
             app_logger.info('Writing to %s' % logfile)
-
-
-def validate(spots, coo, sc, cfg):
-    assert isinstance(spots, pd.DataFrame) and set(spots.columns) == {'Gene', 'x', 'y'}, \
-        "Spots should be passed-in to the fit() method as a dataframe with columns ['Gene', 'x', 'y']"
-
-    assert isinstance(coo, coo_matrix), 'The segmentation masks should be passed-in as a coo_matrix'
-
-    if sc is not None:
-        assert isinstance(sc, pd.DataFrame), "Single cell data should be passed-in to the fit() method as a dataframe"
-
-        if not set(spots.Gene).issubset(sc.index):
-            # remove genes that cannot been found in the single cell data
-            spots = purge_spots(spots, sc)
-
-    if cfg['InsideCellBonus'] is True:
-        """
-        This is not good enough! The default value for InsideCellBonus is now kept in two places, config.py and 
-        here. What happens if I change the config.py and I set InsideCellBonus = 3 for example? 
-        The line below will stll set it 2 which is not the default anymore! 
-        """
-        d = 2
-        cfg['InsideCellBonus'] = d
-        app_logger.warning('InsideCellBonus was passed-in as True. Overriding with the default value of %d' % d)
-
-    if cfg['cell_type_prior'].lower() not in ['uniform'.lower(), 'weighted'.lower()]:
-        raise ValueError("'cel_type_prior' should be either 'uniform' or 'weighted' ")
-
-    # make sure the string is lowercase from now on
-    cfg['cell_type_prior'] = cfg['cell_type_prior'].lower()
-
-    # do some datatype casting
-    spots = spots.astype({
-        'Gene': str,
-        'x': np.float32,
-        'y': np.float32})
-
-    if isinstance(cfg['MisreadDensity'], Number):
-        val = cfg['MisreadDensity']
-        cfg['MisreadDensity'] = {'default': val}
-    elif isinstance(cfg['MisreadDensity'], dict):
-        if 'default' not in cfg['MisreadDensity']:
-            raise ValueError("When MisreadDensity is a dictionary, it must contain a 'default' key")
-    else:
-        raise ValueError("MisreadDensity must be either a number or a dictionary with a 'default' key")
-
-    return cfg, spots
 
 
 def purge_spots(spots, sc):
