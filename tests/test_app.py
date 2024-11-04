@@ -1,14 +1,12 @@
-import os
 import pytest
 import pathlib
 import hashlib
 import numpy as np
-import pciSeq.config as config
 from pciSeq.src.core.main import VarBayes
 from pciSeq.app import parse_args, stage_data
 from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
-from pciSeq.src.core.config_manager import ConfigManager
-from pciSeq.src.core.validation import validate_inputs
+from pciSeq.src.validation.config_manager import ConfigManager
+from pciSeq.src.validation.input_validation import validate_inputs
 from constants import EXPECTED_AREA_METRICS, EXPECTED_ITER_DELTAS
 from utils import setup_logger
 
