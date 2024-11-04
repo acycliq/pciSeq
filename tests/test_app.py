@@ -57,11 +57,10 @@ class TestPciSeq:
         coo = read_demo_data[1]
         scData = read_demo_data[2]
 
-        with pytest.raises(AssertionError) as excinfo:
-            cfg_man = ConfigManager.from_opts()
-            validate_inputs(spots, coo, scData, cfg_man)
-        assert str(excinfo.value) == ("Spots should be passed-in to the fit() method as "
-                                      "a dataframe with columns ['Gene', 'x', 'y']")
+        with pytest.raises(TypeError) as excinfo:
+            cfg_man = ConfigManager.from_opts(None)
+            validate_inputs(coo, coo, scData, cfg_man)
+        assert str(excinfo.value) == "Spots should be passed-in as a dataframe"
 
     @pytest.mark.parametrize('filename, expected', [
         ('read_demo_data', EXPECTED_AREA_METRICS)
