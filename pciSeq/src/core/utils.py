@@ -5,16 +5,13 @@ from urllib.parse import urlparse
 from urllib.request import urlopen
 import numpy as np
 import pandas as pd
-import dask
 import pickle
 import redis
 import os
 import glob
-import subprocess
 from pciSeq.src.viewer.utils import copy_viewer_code, make_config_js, make_classConfig_js
 from pciSeq.src.preprocess.utils import get_img_shape
 from pciSeq.src.diagnostics.utils import RedisDB
-from email.parser import BytesHeaderParser
 import logging
 
 utils_logger = logging.getLogger(__name__)
@@ -47,6 +44,7 @@ def check_redis_server():
         utils_logger.info("Redis ping failed!. Diagnostics will not be called unless redis is installed and the service "
                         "is running")
         return False
+
 
 def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
     dst = get_out_dir(cfg['output_path'])
