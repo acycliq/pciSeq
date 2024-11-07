@@ -59,39 +59,6 @@ class ConfigManager:
         # instance._validate()
         return instance
 
-    def _validateXXX(self):
-        """Validate configuration values"""
-        #1. validate spots dataframe
-
-        #2. validate coo_matrix
-
-        #3 validate single cell
-
-        # Validate InsideCellBonus
-        if self.InsideCellBonus is True:
-            """
-            This is not good enough! The default value for InsideCellBonus is now kept in two places, config.py and 
-            here. What happens if I change the config.py and I set InsideCellBonus = 3 for example? 
-            The line below will stll set it 2 which is not the default anymore! 
-            """
-            self.InsideCellBonus = 2
-            config_manager_logger.warning('InsideCellBonus was passed-in as True. Overriding with the default value of 2')
-
-        # Validate cell_type_prior
-        if self.cell_type_prior.lower() not in ['uniform', 'weighted']:
-            raise ValueError("'cell_type_prior' should be either 'uniform' or 'weighted'")
-        # make sure the string is lowercase from now on
-        self.cell_type_prior = self.cell_type_prior.lower()
-
-        # Validate MisreadDensity
-        if isinstance(self.MisreadDensity, dict):
-            if 'default' not in self.MisreadDensity:
-                raise ValueError("When MisreadDensity is a dictionary, it must contain a 'default' key")
-        elif isinstance(self.MisreadDensity, Number):
-            self.MisreadDensity = {'default': self.MisreadDensity}
-        else:
-            raise ValueError("MisreadDensity must be either a number or a dictionary with a 'default' key")
-
     def to_dict(self) -> Dict:
         """Convert configuration back to dictionary format"""
         return {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
