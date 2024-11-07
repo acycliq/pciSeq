@@ -2,8 +2,7 @@
 Analysis tools for VarBayes algorithm results.
 
 This module provides diagnostic and analysis capabilities for examining the results
-of the VarBayes spatial transcriptomics algorithm. It is separate from the core
-algorithm implementation to maintain clean separation of concerns.
+of the VarBayes spatial transcriptomics algorithm.
 
 The CellAnalyzer class provides methods for:
     - Analyzing gene expression patterns within cells
@@ -11,9 +10,6 @@ The CellAnalyzer class provides methods for:
     - Calculating likelihood contributions for cell type assignments
     - Visualizing results through an interactive dashboard
 
-Note:
-    These tools are for post-processing and analysis only. They are not part
-    of the core algorithm and do not affect its results.
 """
 # Standard library imports
 import json
