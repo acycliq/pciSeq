@@ -20,9 +20,3 @@ This module handles validation and configuration management for the pciSeq pipel
   * cell_type_prior options
 - Provides configuration conversion between dict and class formats
 
-### 3. `runtime_validation.py`
-- Handles runtime validations during algorithm execution
-- Provides validation for:
-  * Probability distributions (`validate_probability_distribution`)
-  * Matrix dimensions (`validate_matrix_dimensions`)
-  * Convergence conditions (`validate_convergence_state`)
