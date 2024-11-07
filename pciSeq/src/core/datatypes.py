@@ -54,6 +54,7 @@ import numpy_groupies as npg
 from natsort import natsort_keygen
 from .utils import read_image_objects, keep_labels_unique
 from sklearn.neighbors import NearestNeighbors
+from ...src.core.utils import index_genes
 from pciSeq.src.validation.config_manager import ConfigManager
 import logging
 
@@ -191,7 +192,7 @@ class Cells(object):
 # ----------------------------------------Class: Genes--------------------------------------------------- #
 class Genes(object):
     def __init__(self, spots):
-        self.gene_panel = np.unique(spots.data.gene_name.values)
+        self.gene_panel = index_genes(spots.data.gene_name.values)[0]
         self._eta_bar = None
         self._logeta_bar = None
         self.nG = len(self.gene_panel)
@@ -232,8 +233,7 @@ class Spots(object):
         self._log_gamma_bar = None
         self._gene_id = None
         self._counts_per_gene = None
-        [_, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True,
-                                                            return_counts=True)
+        _, self.gene_id, self.counts_per_gene = index_genes(self.data.gene_name.values)
 
     def __getstate__(self):
         # set here attributes to be excluded from serialisation (pickling)

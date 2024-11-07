@@ -548,3 +548,22 @@ def scaled_exp(
     except Exception as e:
         utils_logger.error(f"Error in scaled expression calculation: {str(e)}")
         raise
+
+
+def index_genes(gene_names: np.ndarray):
+    """Creates a mapping between gene names and numerical indices.
+
+    This function serves two purposes:
+    1. Returns unique gene names (used by Genes class to establish gene panel)
+    2. Maps each spot to a gene_id
+    3. the gene_id is the position of the gene reading name in the ordered gene names array
+
+    Args:
+        gene_names: array of gene names
+
+    Returns:
+        - unique_genes: sorted array of unique gene names
+        - gene_ids: numerical index for each original gene name (maps each spot to its gene type)
+        - counts: frequency of each unique gene
+    """
+    return np.unique(gene_names, return_inverse=True, return_counts=True)
