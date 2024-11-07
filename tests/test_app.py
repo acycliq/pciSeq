@@ -39,10 +39,9 @@ class TestPciSeq:
         spots = read_demo_data[0]
         coo = read_demo_data[1]
 
-        with pytest.raises(AssertionError) as excinfo:
+        with pytest.raises(ValueError) as excinfo:
             parse_args(spots)
-        assert str(excinfo.value) == ('Need to provide the spots and the coo matrix as the first '
-                                      'and second args to the fit() method.')
+        assert str(excinfo.value) == ('Need to provide the spots and the coo matrix either as keyword arguments or as the first and second positional arguments.')
 
         _, _, scData, opts = parse_args(spots, coo)
         assert scData is None
