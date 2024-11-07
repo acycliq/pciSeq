@@ -71,6 +71,7 @@ from typing import Dict, Any
 # Local imports
 from .datatypes import Cells, Spots, Genes, SingleCell, CellType
 from .summary import collect_data
+from .analysis import CellExplorer
 from . import utils
 from ...src.diagnostics.redis_publisher import RedisPublisher
 from ...src.diagnostics.utils import RedisDB
@@ -97,8 +98,9 @@ class VarBayes:
         self.iter_delta = []
         self.has_converged = False
 
-        # Placeholder for attributes populated by the code
+        # Placeholder for other attributes
         self._scaled_exp = None
+        self._cell_explorer: Optional[CellExplorer] = None
 
     def _validate_config(self, config: Dict[str, Any]) -> None:
         """Check for required config parameters."""
@@ -170,6 +172,17 @@ class VarBayes:
         """
         return self._scaled_exp
 
+    @property
+    def cell_explorer(self) -> CellExplorer:
+        """
+        Get cell analyzer instance.
+        Returns:
+            CellExplorer: Instance configured for this VarBayes object
+        """
+        if self._cell_explorer is None:
+            self._cell_explorer = CellExplorer(self)
+        return self._cell_explorer
+
     # -------------------------------------------------------------------- #
     def run(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         self.initialise_state()
@@ -228,6 +241,7 @@ class VarBayes:
 
             if self.has_converged:
                 # self.counts_within_radius(20)
+                self.cell_explorer.view_cell(2259)
                 cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
                 break
 
@@ -507,60 +521,6 @@ class VarBayes:
         self.cellTypes.alpha = out
 
     # -------------------------------------------------------------------- #
-    def counts_within_radius(self, r):
-        """
-        calcs the gene counts within radius r of the centroid of each cell.
-        Units in radius are the same as in your coordinates x and y of your spots.
-        """
-
-        # check that the background (label=0) is at the top row
-        assert self.cells.ini_cell_props['cell_label'][0] == 0
-
-        # spots = pd.concat([self.spots.data, self.spots.data_excluded])
-        gene_names, gene_id = np.unique(self.spots.data.gene_name.values,
-                                        return_inverse=True)  # that needs to be encapsulated!!! Make a function in the class to set the ids
-        spots = self.spots.data.assign(gene_id=gene_id)
-
-        xy_coords = spots[['x', 'y']].values
-        point_tree = spatial.cKDTree(xy_coords)
-        nearby_spots = point_tree.query_ball_point(self.cells.centroid, r)
-
-        out = np.zeros([self.cells.centroid.shape[0], len(gene_names)])
-
-        for i, d in enumerate(nearby_spots):
-            t = spots.gene_id[d]
-            b = np.bincount(t)
-            if len(gene_names) - len(b) < 0:
-                print('oops')
-            out[i, :] = np.pad(b, (0, len(gene_names) - len(b)), 'constant')
-
-        # for each cell get the most likely cell type
-        cell_type = []
-        for i, d in enumerate(self.cells.classProb):
-            j = self.cells.class_names[np.argmax(d)]
-            cell_type.append(j)
-
-        temp = pd.DataFrame({
-            'cell_label': self.cells.ini_cell_props['cell_label'],
-            'cell_type': cell_type
-        })
-
-        # if labels have been reassigned, there should be a column 'cell_label_old'.
-        # Relabelling will happen if for example the original labelling that was
-        # assigned from segmentation is not a continuous sequence of integers
-        # Append the original labels to the temp folder so there is a mapping between
-        # old and new labels
-        if 'cell_label_old' in self.cells.ini_cell_props.keys():
-            temp['cell_label_old'] = self.cells.ini_cell_props['cell_label_old']
-            temp = temp[['cell_label', 'cell_label_old', 'cell_type']]
-
-        # assert np.all(temp.cell_label==out.index)
-        df = pd.DataFrame(out, index=self.cells.centroid.index, columns=gene_names)
-        df = pd.merge(temp, df, right_index=True, left_on='cell_label', how='left')
-
-        # ignore the first row, it is the background
-        return df.iloc[1:, :]
-
     def spot_misread_density(self):
         # Get default misread probability for all genes
         default_val = self.config['MisreadDensity']['default']
