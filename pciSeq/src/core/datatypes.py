@@ -49,6 +49,7 @@ import scipy
 import numpy as np
 import pandas as pd
 import dask
+from typing import Dict
 import numpy_groupies as npg
 from natsort import natsort_keygen
 from .utils import read_image_objects, keep_labels_unique
@@ -61,7 +62,7 @@ dtypes_logger = logging.getLogger(__name__)
 
 class Cells(object):
     # Get rid of the properties where not necessary!!
-    def __init__(self, _cells_df, config: ConfigManager):
+    def __init__(self, _cells_df, config: Dict):
         self.config = config
         self.ini_cell_props, self._mcr = read_image_objects(_cells_df, config)
         self.nC = len(self.ini_cell_props['cell_label'])
