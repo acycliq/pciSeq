@@ -24,7 +24,7 @@ def validate_inputs(
         coo: coo_matrix,
         scdata: Optional[pd.DataFrame],
         config: ConfigManager
-) -> tuple[DataFrame, coo_matrix, DataFrame | None, Any]:
+) -> tuple[DataFrame, coo_matrix, DataFrame | None, Dict]:
     """Validate all inputs and return validated versions"""
 
     # Validate spots
