@@ -25,31 +25,25 @@ def install(package):
 
 
 def install_libvips():
-    subprocess.check_call("apt-get update", shell=True)
-    subprocess.check_call("apt-get install", shell=True)
-    subprocess.check_call(['apt-get', 'install', '-y', 'libvips'],
-               stdout=open(os.devnull, 'wb'), stderr=subprocess.STDOUT)
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "pyvips"])
-
-#
-# def check_libvips(logger):
-#     confirm = confirm_prompt('Install libvips?')
-#     if confirm:
-#       install_libvips()
-#     else:
-#       print('>>>> libvips not installed')
-#     return confirm
-
+    try:
+        subprocess.check_call("apt-get update", shell=True)
+        subprocess.check_call("apt-get install -y libvips", shell=True)  # Combined command with -y flag
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "pyvips"])
+        return True
+    except subprocess.CalledProcessError as e:
+        init_logger.error(f"Failed to install libvips: {str(e)}")
+        return False
 
 def check_libvips():
     try:
         import pyvips
-        status = True
-    except OSError:
-        status = False
+        return True
+    except ImportError:  # More specific exception
+        init_logger.warning('libvips not found. Please install it manually or run with sudo privileges.')
+        return False
     except Exception as err:
+        init_logger.error(f"Unexpected error checking libvips: {str(err)}")
         raise
-    return status
 
 
 if check_libvips():
