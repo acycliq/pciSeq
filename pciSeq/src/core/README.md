@@ -27,7 +27,10 @@ This module contains the core functionality of pciSeq, implementing the Variatio
 - File handling utilities
 - Convergence checking
 
-### 5. Logging (`logger.py`)
+### 5. Analysis (`analysis.py`)
+- Data analysis dashboard
+
+### 6. Logging (`logger.py`)
 - Standardized logging setup
 - Color-coded output levels
 - Consistent formatting
