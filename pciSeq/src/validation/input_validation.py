@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Union
 from .config_manager import ConfigManager
 import pandas as pd
 import numpy as np
@@ -24,7 +24,7 @@ def validate_inputs(
         coo: coo_matrix,
         scdata: Optional[pd.DataFrame],
         config: ConfigManager
-) -> tuple[DataFrame, coo_matrix, DataFrame | None, Dict]:
+) -> tuple[DataFrame, coo_matrix, Union[DataFrame, None], Dict]:
     """Validate all inputs and return validated versions"""
 
     # Validate spots
