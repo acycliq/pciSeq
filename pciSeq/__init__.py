@@ -43,7 +43,7 @@ def check_libvips():
         return False
     except Exception as err:
         init_logger.error(f"Unexpected error checking libvips: {str(err)}")
-        raise
+        return False
 
 
 if check_libvips():
