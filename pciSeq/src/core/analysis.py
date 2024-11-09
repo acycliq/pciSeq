@@ -264,7 +264,7 @@ class CellExplorer:
         # Get default output directory if none specified
         if output_dir is None:
             output_dir = utils.get_out_dir(self.vb.config['output_path'])
-            output_dir = os.path.join(output_dir, 'debug', 'cell_analysis')
+            output_dir = os.path.join(output_dir, 'data', 'debug', 'cell_analysis')
 
         # Ensure output directory exists
         os.makedirs(output_dir, exist_ok=True)
