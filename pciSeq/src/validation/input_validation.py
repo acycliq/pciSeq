@@ -100,35 +100,29 @@ def _purge_spots(spots: pd.DataFrame, scdata: pd.DataFrame) -> pd.DataFrame:
 def _process_config(config: 'ConfigManager') -> 'ConfigManager':
     """Process and validate configuration"""
 
+    # Fetch type hints directly from ConfigManager dataclass to ensure type consistency
     type_validations = get_type_hints(ConfigManager)
 
-    # check whether values have the expected type.
-    # Note. This is not 100% safe. I will check the top-level type,
-    # For 'exclude_genes' which ia a list of strings, it will
-    # only check it is a list
+    # Validate each configuration parameter matches its expected type from the dataclass definition
     for attr_name, expected_type in type_validations.items():
         value = getattr(config, attr_name)
         origin_type = get_origin(expected_type)
         validation_logger.info(f'Doing {attr_name}')
 
+        # Handle Union types (e.g., Union[bool, int, float]) separately since they can't be used
+        # directly with isinstance
         if origin_type is Union:
             allowed_types = get_args(expected_type)
-            # validation_logger.info(f'Allowed types {allowed_types}')
             allowed_types = tuple([get_origin(d) if get_origin(d) else d for d in allowed_types])
             if not isinstance(value, allowed_types):
                 raise TypeError(f"'{attr_name}' must be one of {allowed_types}, got {type(value)}")
         else:
+            # For non-Union types, handle both simple types and generics (e.g., List[str])
             origin_type = origin_type or expected_type
-            # validation_logger.info(f'Allowed types {origin_type}')
             if not isinstance(value, origin_type):
                 raise TypeError(f"'{attr_name}' must be of type {expected_type}, got {type(value)}")
 
-    if not isinstance(config.InsideCellBonus, (bool, int, float)):
-        raise TypeError("'InsideCellBonus' must be a boolean, integer, or float")
-
-    if not isinstance(config.MisreadDensity, (dict, int, float)):
-        raise TypeError("'MisreadDensity' must be a dictionary, integer, or float")
-
+    # Validate specific value constraints
     # Validate cell_type_prior
     if config.cell_type_prior.lower() not in ['uniform', 'weighted']:
         raise ValueError("'cell_type_prior' should be either 'uniform' or 'weighted'")
@@ -136,12 +130,12 @@ def _process_config(config: 'ConfigManager') -> 'ConfigManager':
     # Convert to lowercase
     config.cell_type_prior = config.cell_type_prior.lower()
 
-    # Process InsideCellBonus
+    # Convert boolean InsideCellBonus to its numeric equivalent
     if config.InsideCellBonus is True:
         config.InsideCellBonus = 2
         validation_logger.warning('InsideCellBonus was passed-in as True. Overriding with the default value of 2')
 
-    # Validate MisreadDensity
+    # Process MisreadDensity to ensure it has the required structure
     if isinstance(config.MisreadDensity, dict):
         if 'default' not in config.MisreadDensity:
             raise ValueError("When MisreadDensity is a dictionary, it must contain a 'default' key")
