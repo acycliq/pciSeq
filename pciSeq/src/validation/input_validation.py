@@ -42,7 +42,7 @@ def validate_inputs(
         _validate_scdata(scdata)
 
     # Validate config
-    config = _process_config(config)
+    config = _validate_config(config)
 
     out = ValidatedInputs(spots=spots, coo=coo, scdata=scdata, config=config)
 
@@ -97,7 +97,7 @@ def _purge_spots(spots: pd.DataFrame, scdata: pd.DataFrame) -> pd.DataFrame:
     return spots
 
 
-def _process_config(config: 'ConfigManager') -> 'ConfigManager':
+def _validate_config(config: 'ConfigManager') -> 'ConfigManager':
     """Process and validate configuration"""
 
     # Fetch type hints directly from ConfigManager dataclass to ensure type consistency
