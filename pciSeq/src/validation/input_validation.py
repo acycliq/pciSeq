@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, List
+from typing import get_origin, get_args
 from .config_manager import ConfigManager
 import pandas as pd
 import numpy as np
@@ -40,7 +41,7 @@ def validate_inputs(
     if scdata is not None:
         _validate_scdata(scdata)
 
-    # Validate and process config
+    # Validate config
     config = _process_config(config)
 
     out = ValidatedInputs(spots=spots, coo=coo, scdata=scdata, config=config)
@@ -98,6 +99,55 @@ def _purge_spots(spots: pd.DataFrame, scdata: pd.DataFrame) -> pd.DataFrame:
 
 def _process_config(config: 'ConfigManager') -> 'ConfigManager':
     """Process and validate configuration"""
+    type_validations = {
+        'exclude_genes': List[str],
+        'max_iter': int,
+        'CellCallTolerance': float,
+        'rGene': int,
+        'Inefficiency': float,
+        'InsideCellBonus': Union[bool, int, float],
+        'MisreadDensity': Union[float, Dict[str, float]],
+        'SpotReg': float,
+        'nNeighbors': int,
+        'rSpot': int,
+        'save_data': bool,
+        'output_path': str,
+        'launch_viewer': bool,
+        'launch_diagnostics': bool,
+        'is_redis_running': bool,
+        'cell_radius': Optional[float],
+        'cell_type_prior': str,
+        'mean_gene_counts_per_class': int,
+        'mean_gene_counts_per_cell': int
+    }
+
+    # check whether values have the expected type.
+    # Note. This is not 100% safe. I will check the top-level type,
+    # For 'exclude_genes' which ia a list of strings, it will
+    # only check it is a list
+    for attr_name, expected_type in type_validations.items():
+        value = getattr(config, attr_name)
+        origin_type = get_origin(expected_type)
+        validation_logger.info(f'Doing {attr_name}')
+
+        if origin_type is Union:
+            allowed_types = get_args(expected_type)
+            validation_logger.info(f'Allowed types {allowed_types}')
+            allowed_types = tuple([get_origin(d) if get_origin(d) else d for d in allowed_types])
+            if not isinstance(value, allowed_types):
+                raise TypeError(f"'{attr_name}' must be one of {allowed_types}, got {type(value)}")
+        else:
+            origin_type = origin_type or expected_type
+            validation_logger.info(f'Allowed types {origin_type}')
+            if not isinstance(value, origin_type):
+                raise TypeError(f"'{attr_name}' must be of type {expected_type}, got {type(value)}")
+
+    if not isinstance(config.InsideCellBonus, (bool, int, float)):
+        raise TypeError("'InsideCellBonus' must be a boolean, integer, or float")
+
+    if not isinstance(config.MisreadDensity, (dict, int, float)):
+        raise TypeError("'MisreadDensity' must be a dictionary, integer, or float")
+
     # Validate cell_type_prior
     if config.cell_type_prior.lower() not in ['uniform', 'weighted']:
         raise ValueError("'cell_type_prior' should be either 'uniform' or 'weighted'")

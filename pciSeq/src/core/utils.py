@@ -1,4 +1,4 @@
-from typing import Tuple, List, Optional, Dict, Any, Union
+from typing import Tuple, Optional, Dict, Any, Union
 import logging
 import os
 import pickle
@@ -38,6 +38,9 @@ def log_file(cfg):
         # setup a FileHandler if it has not been setup already. Maybe I should be adding a FileHandler anyway,
         # regardless whether there is one already or not
         if not np.any([isinstance(d, logging.FileHandler) for d in root_logger.handlers]):
+            # Add type check for output_path
+            if not isinstance(cfg['output_path'], str):
+                raise TypeError("cfg['output_path'] must be a string")
             logfile = os.path.join(get_out_dir(cfg['output_path']), 'pciSeq.log')
             fh = logging.FileHandler(logfile, mode='w')
             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -362,7 +365,7 @@ def load_from_url(url: str) -> str:
         raise
 
 
-def get_out_dir(path: Optional[List[str]] = None, sub_folder: str = '') -> str:
+def get_out_dir(path: Optional[str] = None, sub_folder: str = '') -> str:
     """
     Get or create output directory path.
 
@@ -377,10 +380,10 @@ def get_out_dir(path: Optional[List[str]] = None, sub_folder: str = '') -> str:
         - Uses system temp directory if path is None or ['default']
         - Creates directories if they don't exist
     """
-    if path is None or path[0] == 'default':
+    if path is None or path == 'default':
         out_dir = Path(tempfile.gettempdir()) / 'pciSeq'
     else:
-        out_dir = Path(path[0]) / sub_folder / 'pciSeq'
+        out_dir = Path(path) / sub_folder / 'pciSeq'
 
     out_dir.mkdir(parents=True, exist_ok=True)
     return str(out_dir)
