@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Dict, Optional, Union, List
-from typing import get_origin, get_args
+from typing import get_origin, get_args, get_type_hints
 from .config_manager import ConfigManager
 import pandas as pd
 import numpy as np
@@ -99,27 +99,8 @@ def _purge_spots(spots: pd.DataFrame, scdata: pd.DataFrame) -> pd.DataFrame:
 
 def _process_config(config: 'ConfigManager') -> 'ConfigManager':
     """Process and validate configuration"""
-    type_validations = {
-        'exclude_genes': List[str],
-        'max_iter': int,
-        'CellCallTolerance': float,
-        'rGene': int,
-        'Inefficiency': float,
-        'InsideCellBonus': Union[bool, int, float],
-        'MisreadDensity': Union[float, Dict[str, float]],
-        'SpotReg': float,
-        'nNeighbors': int,
-        'rSpot': int,
-        'save_data': bool,
-        'output_path': str,
-        'launch_viewer': bool,
-        'launch_diagnostics': bool,
-        'is_redis_running': bool,
-        'cell_radius': Optional[float],
-        'cell_type_prior': str,
-        'mean_gene_counts_per_class': int,
-        'mean_gene_counts_per_cell': int
-    }
+
+    type_validations = get_type_hints(ConfigManager)
 
     # check whether values have the expected type.
     # Note. This is not 100% safe. I will check the top-level type,

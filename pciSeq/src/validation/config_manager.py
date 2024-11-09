@@ -14,13 +14,13 @@ class ConfigManager:
     CellCallTolerance: float
     rGene: int
     Inefficiency: float
-    InsideCellBonus: Union[bool, int]
+    InsideCellBonus: Union[bool, int, float]
     MisreadDensity: Union[float, Dict[str, float]]
     SpotReg: float
     nNeighbors: int
     rSpot: int
     save_data: bool
-    output_path: List[str]
+    output_path: str
     launch_viewer: bool
     launch_diagnostics: bool
     is_redis_running: bool
