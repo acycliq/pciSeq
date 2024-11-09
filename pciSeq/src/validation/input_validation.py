@@ -107,7 +107,6 @@ def _validate_config(config: 'ConfigManager') -> 'ConfigManager':
     for attr_name, expected_type in type_validations.items():
         value = getattr(config, attr_name)
         origin_type = get_origin(expected_type)
-        validation_logger.info(f'Doing {attr_name}')
 
         # Handle Union types (e.g., Union[bool, int, float]) separately since they can't be used
         # directly with isinstance
