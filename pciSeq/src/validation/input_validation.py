@@ -113,13 +113,13 @@ def _process_config(config: 'ConfigManager') -> 'ConfigManager':
 
         if origin_type is Union:
             allowed_types = get_args(expected_type)
-            validation_logger.info(f'Allowed types {allowed_types}')
+            # validation_logger.info(f'Allowed types {allowed_types}')
             allowed_types = tuple([get_origin(d) if get_origin(d) else d for d in allowed_types])
             if not isinstance(value, allowed_types):
                 raise TypeError(f"'{attr_name}' must be one of {allowed_types}, got {type(value)}")
         else:
             origin_type = origin_type or expected_type
-            validation_logger.info(f'Allowed types {origin_type}')
+            # validation_logger.info(f'Allowed types {origin_type}')
             if not isinstance(value, origin_type):
                 raise TypeError(f"'{attr_name}' must be of type {expected_type}, got {type(value)}")
 

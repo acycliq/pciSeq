@@ -41,22 +41,6 @@ class ConfigManager:
                 cfg_dict[key] = opts[key]
                 config_manager_logger.info(f'{key} is set to {opts[key]}')
 
-        # # Override with user options if provided
-        # if opts is not None:
-        #     default_items = set(cfg_dict.keys())
-        #     user_items = set(opts.keys())
-        #     if not user_items.issubset(default_items):
-        #         raise ValueError(f'Options passed-in should be a dict with keys: {default_items}')
-        #
-        #     for key, value in opts.items():
-        #         if isinstance(value, (int, float, list, str, dict)) or \
-        #                 (callable(getattr(value, '__call__', None)) and isinstance(value(1), Number)):
-        #             cfg_dict[key] = value
-        #         else:
-        #             raise TypeError(
-        #                 f"Invalid type for {key}. Only integers, floats, lists, strings, and dicts are allowed")
-        #         config_manager_logger.info(f'{key} is set to {value}')
-
         log_file(cfg_dict)
         cfg_dict['is_redis_running'] = check_redis_server()
 
