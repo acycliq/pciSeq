@@ -32,6 +32,9 @@ class ConfigManager:
     @classmethod
     def from_opts(cls, opts: Optional[Dict] = None) -> 'ConfigManager':
         """Create configuration from default values and optional overrides"""
+        if opts is None:
+            opts = config.DEFAULT.copy()
+
         # Start with default configuration
         cfg_dict = config.DEFAULT.copy()
 
