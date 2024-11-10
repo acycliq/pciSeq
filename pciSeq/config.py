@@ -50,7 +50,7 @@ DEFAULT = {
     'save_data': True,
 
     # Set here where the results will be saved. If default then they will be saved at your system's temp folder
-    'output_path': ['default'],
+    'output_path': 'default',
 
     # if true the viewer will be launched once convergence has been achieved
     'launch_viewer': False,
