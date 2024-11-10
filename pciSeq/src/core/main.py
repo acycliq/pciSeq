@@ -240,8 +240,6 @@ class VarBayes:
                 self.redis_publisher.publish_diagnostics(self, self.iter_num, self.has_converged)
 
             if self.has_converged:
-                # self.counts_within_radius(20)
-                # self.cell_explorer.view_cell(2259)
                 cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
                 break
 
