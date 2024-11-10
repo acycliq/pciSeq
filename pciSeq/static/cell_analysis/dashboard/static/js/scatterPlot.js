@@ -197,7 +197,9 @@ export class ScatterPlot {
         const dotsEnter = dots.enter()
             .append('circle')
             .attr('r', PLOT_CONFIG.point.radius)
-            .attr('fill', PLOT_CONFIG.point.color);
+            .attr('fill', PLOT_CONFIG.point.color)
+            .attr('stroke', 'white')
+            .attr('stroke-width', '0.5');
 
         // Handle update selection
         dots.merge(dotsEnter)
