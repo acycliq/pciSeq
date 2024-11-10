@@ -28,6 +28,16 @@
                 throw new Error(`Cell number mismatch: ${data.cell_num} vs ${data2.cell_num}`);
             }
 
+            // Create a mapping from gene name to its assigned contribution
+            const geneToContribution = {};
+            data.gene_names.forEach((gene, index) => {
+                geneToContribution[gene] = data.assigned_contr[index];
+            });
+
+            // Add new field to data2 by mapping through labels
+            data2.assigned_contributions = data2.labels.map(gene => geneToContribution[gene]);
+
+
             // Store cell number centrally
             const cellNum = data.cell_num;
 
