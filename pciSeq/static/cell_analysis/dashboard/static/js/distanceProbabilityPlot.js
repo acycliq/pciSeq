@@ -53,11 +53,19 @@ export class DistanceProbabilityPlot {
 
         // Add axes
         this.svg.append('g')
+            .attr('class', 'x-axis')
             .attr('transform', `translate(0,${height})`)
-            .call(d3.axisBottom(this.x));
+            .call(d3.axisBottom(this.x)
+                .ticks(5)
+                .tickSize(-5)
+                .tickPadding(5));
 
         this.svg.append('g')
-            .call(d3.axisLeft(this.y));
+            .attr('class', 'y-axis')
+            .call(d3.axisLeft(this.y)
+                .ticks(5)
+                .tickSize(-5)
+                .tickPadding(5));
 
         // Add title
         this.svg.append("text")
@@ -70,6 +78,7 @@ export class DistanceProbabilityPlot {
 
         // Add x-axis label
         this.svg.append("text")
+            .attr("class", "axis-label x-axis-label")
             .attr("x", width / 2)
             .attr("y", height + this.margin.bottom - 10)
             .style("text-anchor", "middle")
@@ -77,6 +86,7 @@ export class DistanceProbabilityPlot {
 
         // Add y-axis label
         this.svg.append("text")
+            .attr("class", "axis-label y-axis-label")
             .attr("transform", "rotate(-90)")
             .attr("x", -height / 2)
             .attr("y", -this.margin.left + 40)
