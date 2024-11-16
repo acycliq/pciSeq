@@ -6,8 +6,8 @@ from urllib.request import urlopen
 import numpy as np
 import pandas as pd
 import pickle
-import dask
-import json
+from ... import config
+from ..diagnostics.utils import check_redis_server
 import os
 import glob
 import subprocess
@@ -20,26 +20,79 @@ import logging
 utils_logger = logging.getLogger(__name__)
 
 
-def negBinLoglik(x, r, p):
-    '''
-    Negative Binomial loglikehood
-    :param x:
-    :param r:
-    :param p:
-    :return:
-    '''
+def init(opts):
+    """
+    Reads the opts dict and if not None, it will override the default parameter value by
+    the value that the dictionary key points to.
+    If opts is None, then the default values as these specified in the config.py file
+    are used without any change.
+    """
+    cfg = config.DEFAULT
+    log_file(cfg)
+    cfg['is_redis_running'] = check_redis_server()
+    if opts is not None:
+        default_items = set(cfg.keys())
+        user_items = set(opts.keys())
+        assert user_items.issubset(default_items), ('Options passed-in should be a dict with keys: %s ' % default_items)
+        for item in opts.items():
+            if isinstance(item[1], (int, float, list, str, dict)) or isinstance(item[1](1), np.floating):
+                val = item[1]
+            # elif isinstance(item[1], list):
+            #     val = item[1]
+            else:
+                raise TypeError("Only integers, floats and lists are allowed")
+            cfg[item[0]] = val
+            utils_logger.info('%s is set to %s' % (item[0], cfg[item[0]]))
+    return cfg
 
-    # sanity check
-    # assert (np.all(da_x.coords['cell_id'].data == da_p.coords['cell_id'])), 'gene counts and beta probabilities are not aligned'
-    # assert (np.all(da_x.coords['gene_name'].data == da_p.coords['gene_name'])), 'gene counts and beta probabilities are not aligned'
 
-    nC, nG = x.shape
-    x = x[:, :, None]
-    nK = p.shape[-1]
-    # contr = np.zeros([nC, nG, nK])
-    contr = x * np.log(p) + r * np.log(1 - p)
-    # ne.evaluate("x * log(p) + r * log(1 - p)", out=contr)
-    return contr
+def log_file(cfg):
+    """
+    Setup the logger file handler if it doesn't already exist.
+    """
+    root_logger = logging.getLogger()
+    if root_logger.handlers:
+        # setup a FileHandler if it has not been setup already. Maybe I should be adding a FileHandler anyway,
+        # regardless whether there is one already or not
+        if not np.any([isinstance(d, logging.FileHandler) for d in root_logger.handlers]):
+            logfile = os.path.join(get_out_dir(cfg['output_path']), 'pciSeq.log')
+            fh = logging.FileHandler(logfile, mode='w')
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            fh.setFormatter(formatter)
+
+            root_logger.addHandler(fh)
+            utils_logger.info('Writing to %s' % logfile)
+
+
+def negative_binomial_loglikelihood(x: np.ndarray, r: float, p: np.ndarray) -> np.ndarray:
+    """
+    Calculate the Negative Binomial log-likelihood for given parameters.
+
+    The Negative Binomial distribution models the number of successes (x) before
+    r failures occur, with probability of success p. The PMF is:
+    P(X=k) = C(k+r-1,k) * p^k * (1-p)^r
+
+    Args:
+        x: Array of observed counts with shape
+        r: Number of failures until stopping (dispersion parameter)
+        p: Probability of success, array with shape
+
+    Returns:
+        Array of log-likelihood contributions with shape
+    """
+    try:
+        x = x[:, :, None]  # Add dimension for broadcasting
+
+        # negative binomial log-likelihood.
+        # Focusing only on the terms that involve p and r (without the binomial coefficient):
+        log_likelihood = x * np.log(p) + r * np.log(1 - p)
+
+        return log_likelihood
+
+    except Exception as e:
+        utils_logger.error(f"Error calculating negative binomial log-likelihood: {str(e)}")
+        raise ValueError("Failed to compute log-likelihood. Check input dimensions and values.")
+
 
 
 def softmax(X, theta=1.0, axis=None):
@@ -229,13 +282,6 @@ def get_out_dir(path=None, sub_folder=''):
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     return out_dir
-
-
-def get_pciSeq_install_dir():
-    p = subprocess.run(['pip', 'show', 'pciSeq'], stdout=subprocess.PIPE)
-    h = BytesHeaderParser().parsebytes(p.stdout)
-    assert h['Location'] is not None, 'Could not locate pciSeq installation folder, maybe the package is not installed.'
-    return os.path.join(h['Location'], 'pciSeq')
 
 
 def gaussian_contour(mu, cov, sdwidth=3):

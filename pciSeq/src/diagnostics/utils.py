@@ -2,8 +2,8 @@ import os
 import redis
 import pickle
 from sys import platform
-from pciSeq.src.core.utils import get_pciSeq_install_dir
-import pciSeq.src.diagnostics.config as config
+from ...src.viewer.utils import get_pciSeq_install_dir
+from ...src.diagnostics import config
 import getpass
 import subprocess as sp
 import logging
@@ -81,6 +81,16 @@ class RedisDB:
             du_logger.error(f"Cannot enable keyspace events. Failed with error: {ex}")
             raise
 
+
+def check_redis_server():
+    du_logger.info("check_redis_server")
+    try:
+        RedisDB()
+        return True
+    except (redis.exceptions.ConnectionError, ConnectionRefusedError, OSError):
+        du_logger.info("Redis ping failed!. Diagnostics will not be called unless redis is installed and the service "
+                        "is running")
+        return False
 
 def is_redis_running(os):
     out = None

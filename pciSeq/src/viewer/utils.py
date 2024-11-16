@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-from pciSeq.src.core.utils import get_pciSeq_install_dir
 import shutil
 import json
 import os
@@ -11,6 +10,7 @@ from matplotlib.colors import to_hex, to_rgb
 import re
 import laspy
 import subprocess
+from email.parser import BytesHeaderParser
 import stat
 import logging
 
@@ -28,6 +28,13 @@ def make_config_base(dst):
         'cellData': cellData_dict,
         'geneData': geneData_dict,
     }
+
+
+def get_pciSeq_install_dir():
+    p = subprocess.run(['pip', 'show', 'pciSeq'], stdout=subprocess.PIPE)
+    h = BytesHeaderParser().parsebytes(p.stdout)
+    assert h['Location'] is not None, 'Could not locate pciSeq installation folder, maybe the package is not installed.'
+    return os.path.join(h['Location'], 'pciSeq')
 
 
 def make_config_js(dst, img_shape):

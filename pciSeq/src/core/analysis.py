@@ -2,8 +2,7 @@
 Analysis tools for VarBayes algorithm results.
 
 This module provides diagnostic and analysis capabilities for examining the results
-of the VarBayes spatial transcriptomics algorithm. It is separate from the core
-algorithm implementation to maintain clean separation of concerns.
+of the VarBayes spatial transcriptomics algorithm.
 
 The CellAnalyzer class provides methods for:
     - Analyzing gene expression patterns within cells
@@ -11,9 +10,6 @@ The CellAnalyzer class provides methods for:
     - Calculating likelihood contributions for cell type assignments
     - Visualizing results through an interactive dashboard
 
-Note:
-    These tools are for post-processing and analysis only. They are not part
-    of the core algorithm and do not affect its results.
 """
 # Standard library imports
 import json
@@ -34,7 +30,8 @@ import pandas as pd
 from scipy import spatial
 
 # Local imports
-from pciSeq.src.core import utils
+from ...src.core import utils
+from ...src.viewer.utils import get_pciSeq_install_dir
 
 # Configure logging
 analysis_logger = logging.getLogger(__name__)
@@ -145,7 +142,7 @@ class CellExplorer:
         ScaledExp = self.vb.scaled_exp.compute()
         pNegBin = ScaledExp / (self.vb.config['rSpot'] + ScaledExp)
         cgc = self.vb.cells.geneCount
-        contr = utils.negBinLoglik(cgc, self.vb.config['rSpot'], pNegBin)
+        contr = utils.negative_binomial_loglikelihood(cgc, self.vb.config['rSpot'], pNegBin)
 
         # Calculate contributions for all classes
         all_class_contrs = contr[cell_num, :, :]
@@ -269,7 +266,7 @@ class CellExplorer:
         # Get default output directory if none specified
         if output_dir is None:
             output_dir = utils.get_out_dir(self.vb.config['output_path'])
-            output_dir = os.path.join(output_dir, 'debug', 'cell_analysis')
+            output_dir = os.path.join(output_dir, 'data', 'debug', 'cell_analysis')
 
         # Ensure output directory exists
         os.makedirs(output_dir, exist_ok=True)
@@ -291,7 +288,7 @@ class CellExplorer:
             json.dump(spot_dist, f)
             analysis_logger.info(f'saved at {os.path.join(output_dir, "spot_dist.json")}')
 
-        pciSeq_dir = utils.get_pciSeq_install_dir()
+        pciSeq_dir = get_pciSeq_install_dir()
         src = os.path.join(pciSeq_dir, 'static', 'cell_analysis')
 
         shutil.copytree(src, output_dir, dirs_exist_ok=True)

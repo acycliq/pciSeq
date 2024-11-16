@@ -240,7 +240,7 @@ class VarBayes:
             if self.has_converged:
                 # self.counts_within_radius(20)
                 # self.cell_analysis(2259)
-                # self.cell_explorer.view_cell(2259)
+                self.cell_explorer.view_cell(2259)
                 cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config['is3D'])
                 break
 
@@ -335,7 +335,7 @@ class VarBayes:
         ScaledExp = self.scaled_exp.compute()
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
-        contr = utils.negBinLoglik(cgc, self.config['rSpot'], pNegBin)
+        contr = utils.negative_binomial_loglikelihood(cgc, self.config['rSpot'], pNegBin)
         contr = np.sum(contr, axis=1)
         wCellClass = contr + self.cellTypes.log_prior
         pCellClass = softmax(wCellClass, axis=1)
@@ -628,7 +628,7 @@ class VarBayes:
         self.cellTypes.alpha = out
 
     # -------------------------------------------------------------------- #
-    def spot_misread_density(self) -> None:
+    def spot_misread_density(self) -> np.array:
         """
         Calculates spot misread probabilities for each gene.
 

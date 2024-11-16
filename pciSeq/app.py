@@ -3,18 +3,18 @@ import redis
 import pickle
 import numpy as np
 import pandas as pd
-from typing import Tuple
-from pciSeq import config
+from typing import Tuple, Optional, Dict, Any
+from . import config
 from numbers import Number
-from pciSeq.src.core.main import VarBayes
-from pciSeq.src.core.utils import get_out_dir, adjust_for_anisotropy
+from .src.core.main import VarBayes
+from .src.core.utils import get_out_dir, adjust_for_anisotropy
 from scipy.sparse import coo_matrix
-from pciSeq.src.diagnostics.utils import RedisDB
-from pciSeq.src.core.utils import get_img_shape, serialise, purge_spots, recover_original_labels
-from pciSeq.src.viewer.run_flask import flask_app_start
-from pciSeq.src.preprocess.spot_labels import stage_data
-from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
-from pciSeq.src.viewer.utils import (copy_viewer_code, make_config_js,
+from .src.diagnostics.utils import RedisDB
+from .src.core.utils import get_img_shape, serialise, purge_spots, recover_original_labels, init
+from .src.viewer.run_flask import flask_app_start
+from .src.preprocess.spot_labels import stage_data
+from .src.diagnostics.launch_diagnostics import launch_dashboard
+from .src.viewer.utils import (copy_viewer_code, make_config_js,
                                      make_classConfig_js, make_glyphConfig_js,
                                      make_classConfig_nsc_js, build_pointcloud,
                                      cellData_rgb, cell_gene_counts)
@@ -85,55 +85,133 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
             Name: neighbour_prob, dtype: Object, array-like with the prob the corresponding cell from neighbour_array has risen the spot.
     """
 
-    # 1. parse/check the arguments
-    spots, coo, scRNAseq, opts = parse_args(*args, **kwargs)
+    try:
+        # 1. parse/check the arguments
+        spots, coo, scRNAseq, opts = parse_args(*args, **kwargs)
 
-    # 2. get the hyperparameters
-    cfg = init(opts)
+        # 2. get the hyperparameters
+        cfg = init(opts)
 
-    # 3. validate inputs
-    # NOTE 1: Spots might get mutated here. Genes not found in the single cell data will be removed.
-    # NOTE 2: cfg might also get mutated. Fields 'is3D' and 'remove_planes' might get overridden
-    spots, coo, cfg = validate(spots.copy(), coo, scRNAseq, cfg)
+        # 3. validate inputs
+        # NOTE 1: Spots might get mutated here. Genes not found in the single cell data will be removed.
+        # NOTE 2: cfg might also get mutated. Fields 'is3D' and 'remove_planes' might get overridden
+        spots, coo, cfg = validate(spots.copy(), coo, scRNAseq, cfg)
 
-    # 4. launch the diagnostics
-    if cfg['launch_diagnostics'] and cfg['is_redis_running']:
-        app_logger.info('Launching the diagnostics dashboard')
-        launch_dashboard()
+        # 4. launch the diagnostics
+        if cfg['launch_diagnostics'] and cfg['is_redis_running']:
+            app_logger.info('Launching the diagnostics dashboard')
+            launch_dashboard()
 
-    # 5. prepare the data
-    app_logger.info('Preprocessing data')
-    _cells, cellBoundaries, _spots, remapping = stage_data(spots, coo, cfg)
-    cfg['remapping'] = remapping
+        # 5. prepare the data
+        app_logger.info('Preprocessing data')
+        _cells, cellBoundaries, _spots, remapping = stage_data(spots, coo, cfg)
+        cfg['remapping'] = remapping
 
-    # 6. cell typing
-    cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
+        # 6. cell typing
+        cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
 
-    # 7 if labels have been remapped, switch to the original ones
-    # swaped_dict = dict(zip(remapping.values(), remapping.keys()))
-    # cellData = cellData.assign(Cell_Num = cellData.Cell_Num.map(lambda x: swaped_dict[x]))
-    if remapping is not None:
-        cellData, geneData = recover_original_labels(cellData, geneData, remapping)
+        # 7 if labels have been remapped, switch to the original ones
+        # swaped_dict = dict(zip(remapping.values(), remapping.keys()))
+        # cellData = cellData.assign(Cell_Num = cellData.Cell_Num.map(lambda x: swaped_dict[x]))
+        if remapping is not None:
+            cellData, geneData = recover_original_labels(cellData, geneData, remapping)
 
-    # 7. save to the filesystem
-    if (cfg['save_data'] and varBayes.has_converged) or cfg['launch_viewer']:
-        write_data(cellData, geneData, cellBoundaries, varBayes, cfg)
+        # 7. save to the filesystem
+        if (cfg['save_data'] and varBayes.has_converged) or cfg['launch_viewer']:
+            write_data(cellData, geneData, cellBoundaries, varBayes, cfg)
 
-    # 8. save to the filesystem
-    if cfg['launch_viewer']:
-        dst = pre_launch(cellData, geneData, coo, scRNAseq, cfg)
-        flask_app_start(dst)
+        # 8. save to the filesystem
+        if cfg['launch_viewer']:
+            dst = pre_launch(cellData, geneData, coo, scRNAseq, cfg)
+            flask_app_start(dst)
 
-    app_logger.info('Done')
-    return cellData, geneData
+        app_logger.info('Done')
+        return cellData, geneData
+
+    except Exception as e:
+        app_logger.error(f"Error in fit function: {str(e)}")
+        raise
 
 
-def cell_type(_cells, _spots, scRNAseq, ini):
-    varBayes = VarBayes(_cells, _spots, scRNAseq, ini)
+def cell_type(
+        cells: pd.DataFrame,
+        spots: pd.DataFrame,
+        scRNAseq: Optional[pd.DataFrame],
+        config: Dict[str, Any]
+) -> Tuple[pd.DataFrame, pd.DataFrame, VarBayes]:
+    """
+    Perform cell typing using Variational Bayes algorithm.
 
-    app_logger.info('Start cell typing')
-    cellData, geneData = varBayes.run()
-    return cellData, geneData, varBayes
+    Parameters
+    ----------
+    cells : pd.DataFrame
+        Preprocessed cell data containing cell locations and boundaries
+    spots : pd.DataFrame
+        Preprocessed spot data containing gene expressions and coordinates
+    scRNAseq : Optional[pd.DataFrame]
+        Single-cell RNA sequencing reference data. Can be None if not using reference data
+    config : Dict[str, Any]
+        Configuration dictionary containing algorithm parameters
+
+    Returns
+    -------
+    Tuple[pd.DataFrame, pd.DataFrame, VarBayes]
+        - cellData: DataFrame containing cell typing results
+        - geneData: DataFrame containing gene assignment results
+        - varBayes: The fitted VarBayes model instance
+
+    Raises
+    ------
+    ValueError
+        If input data is invalid or incompatible
+    RuntimeError
+        If cell typing algorithm fails to converge
+    """
+    try:
+        app_logger.info('Initializing VarBayes model')
+        varBayes = VarBayes(cells, spots, scRNAseq, config)
+
+        app_logger.info('Starting cell typing algorithm')
+        cellData, geneData = varBayes.run()
+
+        if not varBayes.has_converged:
+            app_logger.warning('Cell typing algorithm did not fully converge')
+
+        return cellData, geneData, varBayes
+
+    except Exception as e:
+        app_logger.error(f"Error during cell typing: {str(e)}")
+        raise RuntimeError(f"Cell typing failed: {str(e)}") from e
+
+
+def parse_args(*args, **kwargs) -> Tuple[pd.DataFrame, Any, Optional[pd.DataFrame], Optional[Dict]]:
+    """Parse and validate input arguments.
+
+    Returns:
+        Tuple containing (spots, coo, scRNAseq, opts)
+
+    Raises:
+        ValueError: If required arguments are missing or invalid
+    """
+    # Check if we have the minimum required arguments
+    if not {'spots', 'coo'}.issubset(set(kwargs)) and len(args) < 2:
+        raise ValueError('Need to provide the spots and the coo matrix either as keyword '
+                         'arguments or as the first and second positional arguments.')
+
+    # Get spots from kwargs if present, otherwise from args
+    spots = kwargs['spots'] if 'spots' in kwargs else args[0]
+
+    # Get coo from kwargs if present, otherwise from args
+    coo = kwargs['coo'] if 'coo' in kwargs else args[1]
+
+    # Optional arguments
+    scRNAseq = kwargs.get('scRNAseq', None)
+    opts = kwargs.get('opts', None)
+
+    if spots is None or coo is None:
+        raise ValueError("Both 'spots' and 'coo' must be provided")
+
+    return spots, coo, scRNAseq, opts
 
 
 def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
@@ -163,48 +241,6 @@ def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
     serialise(varBayes, os.path.join(out_dir, 'debug'))
 
 
-def init(opts):
-    """
-    Reads the opts dict and if not None, it will override the default parameter value by
-    the value that the dictionary key points to.
-    If opts is None, then the default values as these specified in the config.py file
-    are used without any change.
-    """
-    cfg = config.DEFAULT
-    log_file(cfg)
-    cfg['is_redis_running'] = check_redis_server()
-    if opts is not None:
-        default_items = set(cfg.keys())
-        user_items = set(opts.keys())
-        assert user_items.issubset(default_items), ('Options passed-in should be a dict with keys: %s ' % default_items)
-        for item in opts.items():
-            if isinstance(item[1], (int, float, list, str, dict)) or isinstance(item[1](1), np.floating):
-                val = item[1]
-            # elif isinstance(item[1], list):
-            #     val = item[1]
-            else:
-                raise TypeError("Only integers, floats and lists are allowed")
-            cfg[item[0]] = val
-            app_logger.info('%s is set to %s' % (item[0], cfg[item[0]]))
-    return cfg
-
-
-def log_file(cfg):
-    """
-    Setup the logger file handler if it doesn't already exist.
-    """
-    root_logger = logging.getLogger()
-    if root_logger.handlers:
-        # setup a FileHandler if it has not been setup already. Maybe I should be adding a FileHandler anyway,
-        # regardless whether there is one already or not
-        if not np.any([isinstance(d, logging.FileHandler) for d in root_logger.handlers]):
-            logfile = os.path.join(get_out_dir(cfg['output_path']), 'pciSeq.log')
-            fh = logging.FileHandler(logfile, mode='w')
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            fh.setFormatter(formatter)
-
-            root_logger.addHandler(fh)
-            app_logger.info('Writing to %s' % logfile)
 
 
 def validate(spots, coo, scData, cfg):
@@ -324,48 +360,6 @@ def clean_spots(spots, sc):
     return spots
 
 
-def parse_args(*args, **kwargs):
-    '''
-    Do some basic checking of the args
-    '''
-
-    spots = None
-    coo = None
-    scRNAseq = None
-    opts = None
-
-    if not {'spots', 'coo'}.issubset(set(kwargs)):
-        try:
-            assert len(args) == 2, 'Need to provide the spots and the coo matrix as the first ' \
-                                   'and second args to the fit() method.'
-            kwargs['spots'] = args[0]
-            kwargs['coo'] = args[1]
-        except Exception as err:
-            raise
-
-    try:
-        spots = kwargs['spots']
-        coo = kwargs['coo']
-    except Exception as err:
-        raise
-
-    try:
-        scRNAseq = kwargs['scRNAseq']
-    except KeyError:
-        scRNAseq = None
-    except Exception as err:
-        raise
-
-    try:
-        opts = kwargs['opts']
-    except KeyError:
-        opts = None
-    except Exception as err:
-        raise
-
-    return spots, coo, scRNAseq, opts
-
-
 def pre_launch(cellData, geneData, coo, scRNAseq, cfg):
     '''
     Does some housekeeping, pre-flight control checking before the
@@ -432,13 +426,5 @@ def confirm_prompt(question):
     return (reply in ("", "y"))
 
 
-def check_redis_server():
-    app_logger.info("check_redis_server")
-    try:
-        RedisDB()
-        return True
-    except (redis.exceptions.ConnectionError, ConnectionRefusedError, OSError):
-        app_logger.info("Redis ping failed!. Diagnostics will not be called unless redis is installed and the service "
-                        "is running")
-        return False
+
 
