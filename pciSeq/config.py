@@ -57,7 +57,7 @@ DEFAULT = {
 
     'launch_diagnostics': False,
 
-    # Initialise this to False, the correct value is set internally by the code itself
+    # Runtime attribute (automatically set during execution)
     'is_redis_running': False,
 
     # cell radius. If None then pciSeq will calc that as the mean radius across all cells.

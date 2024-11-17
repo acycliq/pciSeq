@@ -1,7 +1,7 @@
 import pandas as pd
 from typing import Tuple, Optional, Dict, Any
 from .src.validation.config_manager import ConfigManager
-from .src.validation.input_validation import validate_inputs
+from .src.validation.input_validation import InputValidator
 from .src.core.main import VarBayes
 from .src.core.utils import write_data, pre_launch
 from .src.viewer.run_flask import flask_app_start
@@ -58,7 +58,8 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
         # 2. Create and validate config
         cfg_man = ConfigManager.from_opts(opts)
-        spots, coo, scdata, cfg = validate_inputs(spots, coo, scRNAseq, cfg_man)
+        cfg_man.set_runtime_attributes()
+        spots, coo, scdata, cfg = InputValidator.validate(spots, coo, scRNAseq, cfg_man)
 
         # 3. Use validated inputs and prepare the data
         app_logger.info('Preprocessing data')

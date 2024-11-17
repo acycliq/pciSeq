@@ -45,7 +45,6 @@ class ConfigManager:
                 config_manager_logger.info(f'{key} is set to {opts[key]}')
 
         log_file(cfg_dict)
-        cfg_dict['is_redis_running'] = check_redis_server()
 
         # Create instance
         instance = cls(**cfg_dict)
@@ -55,3 +54,11 @@ class ConfigManager:
     def to_dict(self) -> Dict:
         """Convert configuration back to dictionary format"""
         return {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
+
+    def set_runtime_attributes(self):
+        """Set configuration attributes that can only be determined at runtime.
+
+        Returns:
+            config: Updated configuration with runtime attributes
+        """
+        self.is_redis_running = check_redis_server()
