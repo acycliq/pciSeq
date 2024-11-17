@@ -1,5 +1,7 @@
 import pandas as pd
 from typing import Tuple, Optional, Dict, Any
+from .src.validation.config_manager import ConfigManager
+from .src.validation.input_validation import InputValidator
 from .src.core.main import VarBayes
 from .src.core.utils import validate, recover_original_labels, init, write_data, pre_launch
 from .src.viewer.run_flask import flask_app_start
@@ -12,105 +14,84 @@ app_logger = logging.getLogger(__name__)
 
 def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Main entry point for pciSeq.
+    Main entry point for pciSeq cell typing analysis.
 
     Parameters
     ----------
-    **spots : pandas.DataFrame
-        Index:
-            RangeIndex
-        Columns:
-            Name: Gene, dtype: string, The gene name
-            Name: x, dtype: int64, X-axis coordinate of the spot
-            Name: y, dtype: int64, Y-axis coordinate of the spot
+    *args : tuple
+        Positional arguments:
+        - args[0]: pd.DataFrame containing spot data
+        - args[1]: scipy.sparse.coo_matrix containing gene expression data
 
-    **coo : scipy.sparse.coo_matrix
-        A label image array as a coo_matrix datatype. The label denote
-        which cell the corresponding pixel 'belongs' to. If label is
-        zero, the pixel is on the background
+    **kwargs : dict
+        Keyword arguments (preferred method):
+        spots : pd.DataFrame
+            Spot data with required columns:
+            - 'gene_name': Name of the gene
+            - 'x': X coordinate
+            - 'y': Y coordinate
+            - 'z_plane': Z plane (optional for 3D data)
 
-    **scRNAseq : pandas.DataFrame (Optional)
-        Index:
-            The gene name
-        Columns:
-            The column headers are the cell classes and the data are uint32
+        coo : List[scipy.sparse.coo_matrix]
+            List of sparse matrices containing gene expression data.
+            Length > 1 indicates 3D data
 
-    **opts : dictionary (Optional)
-        A dictionary to pass-in user-defined hyperparameter values. They override the default
-        values as these are set by the config.py file. For example to exclude genes Npy and
-        Vip you can define opts as:
-            opts = {'exclude_genes': ['Npy', 'Vip']}
-        and pass that dict to the fit function as the last argument
-
-    *args: If 'spots' and 'coo' are not passed-in as keyword arguments then they should be provided
-    as first and second positional arguments
+        scRNAseq : pd.DataFrame, optional
+            Single-cell RNA sequencing reference data.
+            Used for cell type annotation if provided
 
     Returns
-    ------
-    cellData : pandas.DataFrame
-        Index:
-            RangeIndex
-        Columns:
-            Name: Cell_Num, dtype: int64, The label of the cell
-            Name: X, dtype: float64, X-axis coordinate of the cell centroid
-            Name: Y, dtype: float64, Y-axis coordinate of the cell centroid
-            Name: Genenames, dtype: Object, array-like of the genes assinged to the cell
-            Name: CellGeneCount, dtype: Object,array-like of the corresponding gene counts
-            Name: ClassName, dtype: Object, array-like of the genes probable classes for the cell
-            Name: Prob, dtype: Object, array-like of the corresponding cell class probabilities
+    -------
+    Tuple[pd.DataFrame, pd.DataFrame]
+        - cellData: DataFrame containing cell typing results and metadata
+        - geneData: DataFrame containing gene assignment results
 
-    geneData : pandas.DataFrame
-        Index:
-            RangeIndex
-        Columns:
-            Name: Gene, dtype: string, The gene name.
-            Name: Gene_id, dtype: int64, The gene id, the position of the gene if all genes are sorted.
-            Name: x, dtype: int64, X-axis coordinate of the spot
-            Name: y, dtype: int64, Y-axis coordinate of the spot
-            Name: neighbour, dtype: int64, the label of the cell which is more likely to 'raise' the spot. If zero then the spot is a misread.
-            Name: neighbour_array, dtype: Object, array-like with the labels of the 4 nearest cell. The last is always the background and has label=0
-            Name: neighbour_prob, dtype: Object, array-like with the prob the corresponding cell from neighbour_array has risen the spot.
+    Raises
+    ------
+    ValueError
+        If required arguments (spots and coo) are missing or invalid
+    RuntimeError
+        If cell typing algorithm fails to converge
+
+    Notes
+    -----
+    The function can be called either with positional arguments (spots, coo)
+    or with keyword arguments. If both are provided, keyword arguments take precedence.
     """
 
     try:
         # 1. parse/check the arguments
         spots, coo, scRNAseq, opts = parse_args(*args, **kwargs)
 
-        # 2. get the hyperparameters
-        cfg = init(opts)
+        # 2. Create and validate config
+        cfg_man = ConfigManager.from_opts(opts)
+        cfg_man.set_runtime_attributes(coo)
+        spots, coo, scdata, cfg = InputValidator.validate(spots, coo, scRNAseq, cfg_man)
 
-        # 3. validate inputs
-        # NOTE 1: Spots might get mutated here. Genes not found in the single cell data will be removed.
-        # NOTE 2: cfg might also get mutated. Fields 'is3D' and 'remove_planes' might get overridden
-        spots, coo, cfg = validate(spots.copy(), coo, scRNAseq, cfg)
+        # 3. Use validated inputs and prepare the data
+        app_logger.info('Preprocessing data')
+        _cells, cellBoundaries, _spots, remapping = stage_data(spots, coo, cfg)
+        cfg['remapping'] = remapping
 
         # 4. launch the diagnostics
         if cfg['launch_diagnostics'] and cfg['is_redis_running']:
             app_logger.info('Launching the diagnostics dashboard')
             launch_dashboard()
 
-        # 5. prepare the data
-        app_logger.info('Preprocessing data')
-        _cells, cellBoundaries, _spots, remapping = stage_data(spots, coo, cfg)
-        cfg['remapping'] = remapping
+        # 5. cell typing
+        cellData, geneData, varBayes = cell_type(_cells, _spots, scdata, cfg)
 
-        # 6. cell typing
-        cellData, geneData, varBayes = cell_type(_cells, _spots, scRNAseq, cfg)
-
-        # 7 if labels have been remapped, switch to the original ones
-        # swaped_dict = dict(zip(remapping.values(), remapping.keys()))
-        # cellData = cellData.assign(Cell_Num = cellData.Cell_Num.map(lambda x: swaped_dict[x]))
+        # 6 if labels have been remapped, switch to the original ones
         if remapping is not None:
             cellData, geneData = recover_original_labels(cellData, geneData, remapping)
 
-        # 7. save to the filesystem
+        # 7. Save data and launch viewer if needed
         if (cfg['save_data'] and varBayes.has_converged) or cfg['launch_viewer']:
             write_data(cellData, geneData, cellBoundaries, varBayes, cfg)
 
-        # 8. save to the filesystem
-        if cfg['launch_viewer']:
-            dst = pre_launch(cellData, geneData, coo, scRNAseq, cfg)
-            flask_app_start(dst)
+            if cfg['launch_viewer']:
+                dst = pre_launch(cellData, geneData, coo, scRNAseq, cfg)
+                flask_app_start(dst)
 
         app_logger.info('Done')
         return cellData, geneData

@@ -1,23 +1,28 @@
-import sys
-import tempfile, shutil
-from tqdm import tqdm
-from urllib.parse import urlparse
-from urllib.request import urlopen
-import numpy as np
-import pandas as pd
-import pickle
-from ... import config
-from ..diagnostics.utils import check_redis_server
+from typing import Optional
+import numbers
 import os
 import glob
-from numbers import Number
+import pickle
+import sys
+import tempfile
+from pathlib import Path
+import shutil
+from urllib.parse import urlparse
+from urllib.request import urlopen
+
+import numpy as np
+import pandas as pd
 from scipy.sparse import coo_matrix
-import numbers
+from tqdm import tqdm
+
+from ... import config
+from ..diagnostics.utils import check_redis_server
 from ...src.viewer.utils import (copy_viewer_code, make_config_js,
                                      make_classConfig_js, make_glyphConfig_js,
                                      make_classConfig_nsc_js, build_pointcloud,
                                      cellData_rgb, cell_gene_counts)
 import logging
+
 
 utils_logger = logging.getLogger(__name__)
 
@@ -94,7 +99,6 @@ def negative_binomial_loglikelihood(x: np.ndarray, r: float, p: np.ndarray) -> n
     except Exception as e:
         utils_logger.error(f"Error calculating negative binomial log-likelihood: {str(e)}")
         raise ValueError("Failed to compute log-likelihood. Check input dimensions and values.")
-
 
 
 def softmax(X, theta=1.0, axis=None):
@@ -276,14 +280,28 @@ def load_from_url(url):
     return filename
 
 
-def get_out_dir(path=None, sub_folder=''):
-    if path is None or path[0] == 'default':
-        out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq')
+def get_out_dir(path: Optional[str] = None, sub_folder: str = '') -> str:
+    """
+    Get or create output directory path.
+
+    Args:
+        path: List containing base path, or None for default temp directory
+        sub_folder: Optional subdirectory name
+
+    Returns:
+        str: Path to output directory
+
+    Notes:
+        - Uses system temp directory if path is None or ['default']
+        - Creates directories if they don't exist
+    """
+    if path is None or path == 'default':
+        out_dir = Path(tempfile.gettempdir()) / 'pciSeq'
     else:
-        out_dir = os.path.join(path[0], sub_folder, 'pciSeq')
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-    return out_dir
+        out_dir = Path(path) / sub_folder / 'pciSeq'
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    return str(out_dir)
 
 
 def gaussian_contour(mu, cov, sdwidth=3):
@@ -630,7 +648,7 @@ def validate(spots, coo, scData, cfg):
         'y': np.float32,
         'z_plane': np.float32})
 
-    if isinstance(cfg['MisreadDensity'], Number):
+    if isinstance(cfg['MisreadDensity'], numbers.Number):
         val = cfg['MisreadDensity']
         cfg['MisreadDensity'] = {'default': val}
     elif isinstance(cfg['MisreadDensity'], dict):
