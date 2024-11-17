@@ -6,7 +6,7 @@ from pciSeq.src.core.main import VarBayes
 from pciSeq.app import parse_args, stage_data
 from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 from pciSeq.src.validation.config_manager import ConfigManager
-from pciSeq.src.validation.input_validation import validate_inputs
+from pciSeq.src.validation.input_validation import InputValidator
 from constants import EXPECTED_AREA_METRICS, EXPECTED_ITER_DELTAS
 from utils import setup_logger
 
@@ -56,7 +56,7 @@ class TestPciSeq:
 
         with pytest.raises(TypeError) as excinfo:
             cfg_man = ConfigManager.from_opts(None)
-            validate_inputs(coo, coo, scData, cfg_man)
+            InputValidator.validate(coo, coo, scData, cfg_man)
         assert str(excinfo.value) == "Spots should be passed-in as a dataframe"
 
     @pytest.mark.parametrize('filename, expected', [
@@ -98,7 +98,7 @@ class TestPciSeq:
         cfg_man = ConfigManager.from_opts(opts)
 
         # validate inputs
-        spots, coo, scdata, cfg = validate_inputs(spots, coo, scData, cfg_man)
+        spots, coo, scdata, cfg = InputValidator.validate(spots, coo, scData, cfg_man)
 
         if cfg['launch_diagnostics'] and cfg['is_redis_running']:
             launch_dashboard()
