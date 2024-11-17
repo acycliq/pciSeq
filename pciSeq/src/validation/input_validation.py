@@ -5,7 +5,6 @@ from typing import Dict, Optional, Union, List
 from typing import get_origin, get_args, get_type_hints
 import pandas as pd
 import numpy as np
-from pandas import DataFrame
 from scipy.sparse import coo_matrix
 import logging
 from .config_manager import ConfigManager
@@ -28,7 +27,7 @@ class InputValidator:
             coo: coo_matrix,
             scdata: Optional[pd.DataFrame],
             config: ConfigManager
-    ) -> tuple[DataFrame, coo_matrix, Union[DataFrame, None], Dict]:
+    ) -> tuple[pd.DataFrame, coo_matrix, Union[pd.DataFrame, None], Dict]:
         """
         Validate all inputs for pciSeq analysis.
 
@@ -37,11 +36,11 @@ class InputValidator:
         spots : pd.DataFrame
             Dataframe containing spot data with required columns
         coo : coo_matrix
-            List of sparse matrices containing gene expression data
+            List of sparse matrices containing image segmentation labeled cells
         scdata : Optional[pd.DataFrame]
             Single-cell reference data, if available
         config : ConfigManager
-            Configuration object with analysis parameters
+            Configuration object with algorithm parameters
 
         Returns
         -------
