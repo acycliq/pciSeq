@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from .constants import DiagnosticKeys
 import time
 
 # This module is part of the diagnostics package in the pciSeq project.
@@ -39,7 +40,7 @@ class RedisPublisher:
             'gene_efficiency': model.genes.eta_bar,
             'gene': model.genes.gene_panel
         })
-        self._publish_to_redis(gene_efficiency_data, "gene_efficiency", iter_num, has_converged)
+        self._publish_to_redis(gene_efficiency_data, DiagnosticKeys.GENE_EFFICIENCY.value, iter_num, has_converged)
 
     def publish_cell_type_distribution_to_redis(self, model, iter_num, has_converged):
         """
@@ -50,7 +51,7 @@ class RedisPublisher:
             'class_name': model.cellTypes.names,
             'counts': cell_type_counts
         })
-        self._publish_to_redis(cell_type_data, "cell_type_posterior", iter_num, has_converged)
+        self._publish_to_redis(cell_type_data, DiagnosticKeys.CELL_TYPE_POSTERIOR.value, iter_num, has_converged)
 
     def _get_cell_type_counts(self, model):
         """

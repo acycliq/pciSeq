@@ -1,4 +1,5 @@
 import pciSeq.src.diagnostics.utils as utils
+from .constants import DiagnosticKeys
 import pickle
 
 """
@@ -47,7 +48,7 @@ class DiagnosticsModel:
         Returns:
             dict or None: Deserialized gene efficiency data if available, None otherwise.
         """
-        data = self.redis_client.get("gene_efficiency")
+        data = self.redis_client.get(DiagnosticKeys.GENE_EFFICIENCY.value)
         return pickle.loads(data) if data else None
 
     def get_cell_type_posterior(self):
@@ -57,7 +58,7 @@ class DiagnosticsModel:
         Returns:
             dict or None: Deserialized cell type posterior data if available, None otherwise.
         """
-        data = self.redis_client.get("cell_type_posterior")
+        data = self.redis_client.get(DiagnosticKeys.CELL_TYPE_POSTERIOR.value)
         return pickle.loads(data) if data else None
 
     def subscribe_to_channels(self):
@@ -68,6 +69,6 @@ class DiagnosticsModel:
             redis.client.PubSub: A PubSub object subscribed to 'gene_efficiency' and 'cell_type_posterior' channels.
         """
         p = self.redis_client.pubsub()
-        subscribe_to = ['gene_efficiency', 'cell_type_posterior']
+        subscribe_to = [key.value for key in DiagnosticKeys]
         p.psubscribe(*subscribe_to)
         return p
