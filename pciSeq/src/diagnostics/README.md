@@ -39,6 +39,9 @@ This folder contains the implementation of the diagnostics system for the pciSeq
 ### Configuration (`config.py`)
 - Contains settings for Redis connection
 
+### Constants (`constants.py`)
+- Centralizes Redis keys used throughout the diagnostics system
+
 ## Data Flow
 1. `redis_publisher.py` publishes diagnostic data to Redis
 2. `model.py` retrieves data from Redis and provides it to the View
