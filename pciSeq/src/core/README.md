@@ -11,11 +11,11 @@ This module contains the core functionality of pciSeq, implementing the Variatio
 
 ### 2. Data Types (`datatypes.py`)
 - Defines fundamental data structures:
-  * Cells: Cell segmentation data
-  * Genes: Gene expression data
-  * Spots: RNA spot detection
+  * Cells: Segmented cells data and features
+  * Genes: Gene-specific features, like inefficiency.
+  * Spots: Gene-read features, like spot to cell assignment probabilities
   * SingleCell: scRNA-seq reference
-  * CellType: Cell type classification
+  * CellType: Cell type prior probabilities
 
 ### 3. Summary Functions (`summary.py`)
 - Processes analysis results

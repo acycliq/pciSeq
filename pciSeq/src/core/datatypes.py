@@ -11,7 +11,7 @@ This module defines the fundamental data structures used throughout pciSeq for:
 Key Classes:
 -----------
 Cells:
-    Handles cell segmentation data, including properties like centroids,
+    Handles segmented cells data, including properties like centroids,
     covariance matrices, and gene counts.
 
 Genes:
@@ -26,8 +26,7 @@ SingleCell:
     expression levels per cell type.
 
 CellType:
-    Manages cell type classification, including prior probabilities and
-    class assignments.
+    Manages cell type featutes, like a-prior class probabilities
 
 Notes:
 ------
