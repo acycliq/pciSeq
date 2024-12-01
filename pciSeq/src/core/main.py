@@ -57,7 +57,7 @@ Dependencies:
 
 import time
 import logging
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Any
 
 # Third-party imports
 import numpy as np
@@ -66,15 +66,13 @@ import pandas as pd
 from dask.delayed import delayed
 import scipy.spatial as spatial
 from scipy.special import softmax
-from typing import Dict, Any
 
 # Local imports
 from .datatypes import Cells, Spots, Genes, SingleCell, CellType
 from .summary import collect_data
 from .analysis import CellExplorer
 from . import utils
-from ...src.diagnostics.redis_publisher import RedisPublisher
-from ...src.diagnostics.utils import RedisDB
+from ...src.diagnostics.controller.diagnostic_controller import DiagnosticController
 
 main_logger = logging.getLogger(__name__)
 
@@ -85,11 +83,10 @@ class VarBayes:
                  spots_df: pd.DataFrame,
                  scRNAseq: pd.DataFrame,
                  config: Dict[str, Any]) -> None:
-
         """Initialize components and setup."""
         self._validate_config(config)
         self.config = config
-        self._setup_redis()
+        self._setup_diagnostics()
         self._setup_components(cells_df, spots_df, scRNAseq)
         self._setup_dimensions()
 
@@ -114,15 +111,20 @@ class VarBayes:
         if missing:
             raise ValueError(f"Missing required config parameters: {missing}")
 
-    def _setup_redis(self) -> None:
-        """Configure Redis if enabled, otherwise set to None."""
-        if self.config.get('is_redis_running', False):
-            self.redis_db = RedisDB(flush=True)
-            self.redis_publisher = RedisPublisher(self.redis_db)
-            main_logger.info("Redis connection established")
-        else:
-            self.redis_db = None
-            self.redis_publisher = None
+    def _setup_diagnostics(self) -> None:
+        """Initialize diagnostics controller if enabled in config."""
+        self.diagnostic_controller = None
+        if not self.config.get('launch_diagnostics', False):
+            return
+
+        try:
+            self.diagnostic_controller = DiagnosticController()
+            if not self.diagnostic_controller.launch_dashboard():
+                main_logger.warning("Failed to launch diagnostics dashboard")
+                self.diagnostic_controller = None
+        except Exception as e:
+            main_logger.warning(f"Failed to initialize diagnostics: {e}")
+            self.diagnostic_controller = None
 
     def _setup_components(self, cells_df, spots_df, scRNAseq) -> None:
         """Set up the core data components needed for the algorithm."""
@@ -151,15 +153,11 @@ class VarBayes:
     def __getstate__(self):
         """
         Get state for pickling.
-        Removes Redis-related attributes to enable pickling and reduce file size.
-
-        Returns:
-            Dict: Object state dictionary without Redis attributes
+        Removes diagnostics-related attributes to enable pickling and reduce file size.
         """
         attributes = self.__dict__.copy()
-        del attributes['redis_db']
-        del attributes['redis_publisher']
-        # del attributes['_scaled_exp']
+        if 'diagnostic_controller' in attributes:
+            del attributes['diagnostic_controller']
         return attributes
 
     @property
@@ -183,68 +181,84 @@ class VarBayes:
             self._cell_explorer = CellExplorer(self)
         return self._cell_explorer
 
-    # -------------------------------------------------------------------- #
     def run(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         self.initialise_state()
         cell_df, gene_df = self.main_loop()
         return cell_df, gene_df
 
-    # -------------------------------------------------------------------- #
     def main_loop(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """Main algorithm loop with diagnostic updates."""
         p0 = None
         cell_df = None
         gene_df = None
         max_iter = self.config['max_iter']
 
         self.initialise_state()
-        for i in range(max_iter):
-            self.iter_num = i
+        try:
+            for i in range(max_iter):
+                self.iter_num = i
 
-            # 1. For each cell, calc the expected gene counts
-            self.geneCount_upd()
+                # 1. For each cell, calc the expected gene counts
+                self.geneCount_upd()
 
-            # 2. calc expected gamma
-            self.gamma_upd()
+                # 2. calc expected gamma
+                self.gamma_upd()
 
-            # 3 update correlation matrix and variance of the gaussian distribution
-            if self.single_cell.isMissing or (self.config['InsideCellBonus'] is False):
-                self.gaussian_upd()
+                # 3 update correlation matrix and variance of the gaussian distribution
+                if self.single_cell.isMissing or (self.config['InsideCellBonus'] is False):
+                    self.gaussian_upd()
 
-            # 4. assign cells to cell types
-            self.cell_to_cellType()
+                # 4. assign cells to cell types
+                self.cell_to_cellType()
 
-            # 5. assign spots to cells
-            self.spots_to_cell()
+                # 5. assign spots to cells
+                self.spots_to_cell()
 
-            # 6. update gene efficiency
-            self.eta_upd()
+                # 6. update gene efficiency
+                self.eta_upd()
 
-            # 7. update the dirichlet distribution
-            if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):
-                self.dalpha_upd()
+                # 7. update the dirichlet distribution
+                if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):
+                    self.dalpha_upd()
 
-            # 8. Update single cell data
-            if self.single_cell.isMissing:
-                self.mu_upd()
+                # 8. Update single cell data
+                if self.single_cell.isMissing:
+                    self.mu_upd()
 
-            self.has_converged, delta = utils.has_converged(self.spots, p0, self.config['CellCallTolerance'])
-            main_logger.info('Iteration %d, mean prob change %f' % (i, delta))
+                self.has_converged, delta = utils.has_converged(
+                    self.spots, p0, self.config['CellCallTolerance']
+                )
+                main_logger.info('Iteration %d, mean prob change %f' % (i, delta))
 
-            # keep track of the deltas
-            self.iter_delta.append(delta)
+                # Update diagnostics using controller
+                self.diagnostics_upd()
 
-            # replace p0 with the latest probabilities
-            p0 = self.spots.parent_cell_prob
+                # keep track of the deltas
+                self.iter_delta.append(delta)
 
-            if self.redis_publisher:
-                self.redis_publisher.publish_diagnostics(self, self.iter_num, self.has_converged)
+                # replace p0 with the latest probabilities
+                p0 = self.spots.parent_cell_prob
 
-            if self.has_converged:
-                cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell)
-                break
+                if self.has_converged:
+                    cell_df, gene_df = collect_data(
+                        self.cells, self.spots, self.genes, self.single_cell
+                    )
+                    break
 
-            if i == max_iter - 1:
-                main_logger.info('Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
+                if i == max_iter - 1:
+                    main_logger.info(
+                        'Loop exhausted. Exiting with convergence status: %s'
+                        % self.has_converged
+                    )
+
+        finally:
+            # Ensure diagnostics are properly shut down
+            if self.diagnostic_controller is not None:
+                try:
+                    self.diagnostic_controller.shutdown()
+                except Exception as e:
+                    main_logger.warning(f"Failed to shutdown diagnostics: {e}")
+
         return cell_df, gene_df
 
     # -------------------------------------------------------------------- #
@@ -534,5 +548,19 @@ class VarBayes:
         v = v[self.spots.gene_id]  # Align with spots
 
         return v
+
+    def diagnostics_upd(self) -> None:
+        """Update diagnostic visualization if controller is available."""
+        if self.diagnostic_controller is None:
+            return
+
+        try:
+            self.diagnostic_controller.update_diagnostics(
+                algorithm_model=self,
+                iteration=self.iter_num,
+                has_converged=self.has_converged
+            )
+        except Exception as e:
+            main_logger.warning(f"Failed to update diagnostics: {e}")
 
 
