@@ -4,7 +4,6 @@ import hashlib
 import numpy as np
 from pciSeq.src.core.main import VarBayes
 from pciSeq.app import parse_args, stage_data
-from pciSeq.src.diagnostics.launch_diagnostics import launch_dashboard
 from pciSeq.src.validation.config_manager import ConfigManager
 from pciSeq.src.validation.input_validation import InputValidator
 from constants import EXPECTED_AREA_METRICS, EXPECTED_ITER_DELTAS
@@ -99,9 +98,6 @@ class TestPciSeq:
 
         # validate inputs
         spots, coo, scdata, cfg = InputValidator.validate(spots, coo, scData, cfg_man)
-
-        if cfg['launch_diagnostics'] and cfg['is_redis_running']:
-            launch_dashboard()
 
         _cells, cellBoundaries, _spots = stage_data(spots, coo)
         varBayes = VarBayes(_cells, _spots, scData, cfg)
