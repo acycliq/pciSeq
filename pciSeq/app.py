@@ -6,7 +6,6 @@ from .src.core.main import VarBayes
 from .src.core.utils import validate, recover_original_labels, init, write_data, pre_launch
 from .src.viewer.run_flask import flask_app_start
 from .src.preprocess.spot_labels import stage_data
-from .src.diagnostics.controller.diagnostic_controller import DiagnosticController
 import logging
 
 app_logger = logging.getLogger(__name__)
@@ -64,7 +63,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
         # 2. Create and validate config
         cfg_man = ConfigManager.from_opts(opts)
-        cfg_man.set_runtime_attributes(coo)
+        cfg_man.set_runtime_attributes()
         spots, coo, scdata, cfg = InputValidator.validate(spots, coo, scRNAseq, cfg_man)
 
         # 3. Use validated inputs and prepare the data

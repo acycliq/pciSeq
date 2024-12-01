@@ -95,16 +95,19 @@ class VarBayes:
                  scRNAseq: pd.DataFrame,
                  config: Dict[str, Any]) -> None:
         """Initialize components and setup."""
+        # Explicitly declare important instance attributes
+        self.diagnostic_controller: Optional[DiagnosticController] = None  # For real-time diagnostics
+        self.config = None
+        self.iter_num = None
+        self.iter_delta = []
+        self.has_converged = False
+
+        # Initialize components
         self._validate_config(config)
         self.config = config
         self._setup_diagnostics()
         self._setup_components(cells_df, spots_df, scRNAseq)
         self._setup_dimensions()
-
-        # Initialize algorithm state tracking
-        self.iter_num = None
-        self.iter_delta = []
-        self.has_converged = False
 
         # Placeholder for other attributes
         self._scaled_exp = None

@@ -19,8 +19,7 @@ from pathlib import Path
 from typing import Optional
 import tomlkit
 
-from ..model.diagnostic_model import DiagnosticModel
-from ..constants import DiagnosticKeys
+from pciSeq.src.diagnostics.model.diagnostic_model import DiagnosticModel
 
 controller_logger = logging.getLogger(__name__)
 
@@ -58,9 +57,8 @@ class DiagnosticController:
     def initialize(self) -> bool:
         """
         Initialize the diagnostics system.
-
         Returns:
-            bool: True if initialization successful, False otherwise
+            bool: True if critical initialization successful
         """
         try:
             self._setup_streamlit_credentials()
@@ -128,11 +126,12 @@ class DiagnosticController:
             finally:
                 self.dashboard_process = None
 
-    def _setup_streamlit_credentials(self) -> None:
+    @staticmethod
+    def _setup_streamlit_credentials() -> bool:
         """
         Setup Streamlit credentials to bypass welcome message.
-
-        Creates or updates .streamlit/credentials.toml to skip the welcome screen.
+        Returns:
+            bool: True if setup successful, False otherwise
         """
         credentials_path = os.path.join(Path.home(), '.streamlit', 'credentials.toml')
         Path(credentials_path).parent.mkdir(parents=True, exist_ok=True)
@@ -151,6 +150,8 @@ class DiagnosticController:
                     tomlkit.dump(doc, outfile)
 
             controller_logger.debug("Streamlit credentials configured successfully")
+            return True
         except Exception as e:
-            controller_logger.error(f"Failed to setup Streamlit credentials: {e}")
-            raise
+            controller_logger.warning(f"Failed to setup Streamlit credentials: {e}")
+            controller_logger.warning("Diagnostics dashboard may show welcome screen")
+            return False  # Continue without proper credentials
