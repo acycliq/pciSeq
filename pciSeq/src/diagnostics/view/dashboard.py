@@ -17,15 +17,27 @@ dashboard_logger = logging.getLogger(__name__)
 
 class DiagnosticDashboard:
     def __init__(self, model: DiagnosticModel):
-        """Initialize dashboard with model connection."""
+        """
+        Initialize dashboard with model connection.
+
+        The dashboard subscribes to Redis channels that the Model publishes to:
+        - gene_efficiency: Model publishes gene efficiency metrics
+        - cell_type_posterior: Model publishes cell type distribution data
+
+        This pub/sub mechanism enables real-time updates as the Model
+        publishes new diagnostic data to Redis.
+        """
         self.model = model
         self._setup_page()
 
-        # Setup Redis pubsub for real-time updates
+        # Subscribe to the Redis channels that the Model publishes to
         self.pubsub = self.model.redis_client.pubsub()
+
+        # These channels match the Model's publishing channels defined in DiagnosticKeys
+        # Model -> Redis -> View data flow
         self.pubsub.subscribe(
-            DiagnosticKeys.GENE_EFFICIENCY.value,
-            DiagnosticKeys.CELL_TYPE_POSTERIOR.value
+            DiagnosticKeys.GENE_EFFICIENCY.value,  # Model publishes gene metrics here
+            DiagnosticKeys.CELL_TYPE_POSTERIOR.value  # Model publishes cell data here
         )
 
     def _setup_page(self) -> None:
@@ -51,7 +63,10 @@ class DiagnosticDashboard:
         return chart
 
     def render(self) -> None:
-        """Main rendering loop for the dashboard."""
+        """
+        Main rendering loop for the dashboard.
+        Listens for Model's publications to Redis and updates visualizations.
+        """
         title = st.title("Convergence screen. (Waiting for data....)")
         placeholder = st.empty()
 
@@ -60,15 +75,15 @@ class DiagnosticDashboard:
                 fig_col1, fig_col2 = st.columns(2)
 
                 with fig_col1:
-                    self._render_gene_efficiency(title)
+                    self._render_gene_efficiency(title)  # Visualize Model's gene efficiency data
 
                 with fig_col2:
-                    self._render_cell_distribution(title)
+                    self._render_cell_distribution(title)  # Visualize Model's cell type data
 
-            # Check for new messages
-            message = self.pubsub.get_message()
-            if message and message['type'] == 'message':
-                st.experimental_rerun()
+            # Check for new messages from Model's publications. This is the heart of the LIVE UPDATE MECHANISM
+            message = self.pubsub.get_message()  # Check if Model published new data
+            if message and message['type'] == 'message':  # If it's a real message (not control message)
+                st.experimental_rerun()  # Tell Streamlit to refresh the dashboard
 
     def _render_gene_efficiency(self, title) -> None:
         """Render gene efficiency visualization."""
