@@ -25,43 +25,61 @@ class DiagnosticModel:
     def publish_diagnostics(self, algorithm_model: Any, iteration: int, has_converged: bool) -> None:
         """Publish diagnostic data to Redis."""
         try:
-            # Publish gene efficiency data
-            gene_data = {
-                'data': pd.DataFrame({
-                    'gene_efficiency': algorithm_model.genes.eta_bar,
-                    'gene': algorithm_model.genes.gene_panel
-                }).to_json(),
-                'metadata': {
-                    'iteration': iteration,
-                    'has_converged': has_converged,
-                    'timestamp': pd.Timestamp.now().isoformat()
-                }
-            }
-            self.redis_client.set(DiagnosticKeys.GENE_EFFICIENCY.value, str(gene_data))
-            self.redis_client.publish(DiagnosticKeys.GENE_EFFICIENCY.value, 'update')
-
-            # Publish cell type distribution data
-            cell_type_indices = np.argmax(algorithm_model.cells.classProb[1:, :], axis=1)
-            counts = np.bincount(
-                cell_type_indices,
-                minlength=len(algorithm_model.cellTypes.names)
+            # Publish both gene efficiency and cell type data using the same pattern
+            self._publish_data_to_redis(
+                key=DiagnosticKeys.GENE_EFFICIENCY,
+                data=self._prepare_gene_data(algorithm_model),
+                metadata=self._create_metadata(iteration, has_converged)
             )
 
-            cell_data = {
-                'data': pd.DataFrame({
-                    'class_name': algorithm_model.cellTypes.names,
-                    'counts': counts
-                }).to_json(),
-                'metadata': {
-                    'iteration': iteration,
-                    'has_converged': has_converged,
-                    'timestamp': pd.Timestamp.now().isoformat()
-                }
-            }
-            self.redis_client.set(DiagnosticKeys.CELL_TYPE_POSTERIOR.value, str(cell_data))
-            self.redis_client.publish(DiagnosticKeys.CELL_TYPE_POSTERIOR.value, 'update')
+            self._publish_data_to_redis(
+                key=DiagnosticKeys.CELL_TYPE_POSTERIOR,
+                data=self._prepare_cell_type_data(algorithm_model),
+                metadata=self._create_metadata(iteration, has_converged)
+            )
         except Exception as e:
             model_logger.error(f"Failed to publish diagnostics: {e}")
+
+    def _publish_data_to_redis(self, key: DiagnosticKeys, data: pd.DataFrame, metadata: dict) -> None:
+        """Helper method to publish data to Redis with a consistent pattern."""
+        formatted_data = {
+            'data': data.to_json(),
+            'metadata': metadata
+        }
+        # Store the data in Redis
+        self.redis_client.set(key.value, str(formatted_data))
+        # Notify subscribers that new data are available
+        self.redis_client.publish(key.value, 'update')
+
+    @staticmethod
+    def _prepare_gene_data(algorithm_model: Any) -> pd.DataFrame:
+        """Prepare gene efficiency data."""
+        return pd.DataFrame({
+            'gene_efficiency': algorithm_model.genes.eta_bar,
+            'gene': algorithm_model.genes.gene_panel
+        })
+
+    @staticmethod
+    def _prepare_cell_type_data(algorithm_model: Any) -> pd.DataFrame:
+        """Prepare cell type distribution data."""
+        cell_type_indices = np.argmax(algorithm_model.cells.classProb[1:, :], axis=1)
+        counts = np.bincount(
+            cell_type_indices,
+            minlength=len(algorithm_model.cellTypes.names)
+        )
+        return pd.DataFrame({
+            'class_name': algorithm_model.cellTypes.names,
+            'counts': counts
+        })
+
+    @staticmethod
+    def _create_metadata(iteration: int, has_converged: bool) -> dict:
+        """Create consistent metadata structure."""
+        return {
+            'iteration': iteration,
+            'has_converged': has_converged,
+            'timestamp': pd.Timestamp.now().isoformat()
+        }
 
     def get_diagnostic_data(self, key: DiagnosticKeys) -> Optional[Dict]:
         """Retrieve data from Redis."""

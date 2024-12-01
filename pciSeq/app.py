@@ -6,7 +6,6 @@ from .src.core.main import VarBayes
 from .src.core.utils import write_data, pre_launch
 from .src.viewer.run_flask import flask_app_start
 from .src.preprocess.spot_labels import stage_data
-from .src.diagnostics.controller.diagnostic_controller import DiagnosticController
 import logging
 
 app_logger = logging.getLogger(__name__)
@@ -65,23 +64,10 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         app_logger.info('Preprocessing data')
         _cells, cellBoundaries, _spots = stage_data(spots, coo)
 
-        # 4. Initialize diagnostics if needed
-        # diagnostic_controller = None
-        # if cfg['launch_diagnostics'] and cfg.get('is_redis_running', False):
-        #     app_logger.info('Initializing diagnostics dashboard')
-        #     try:
-        #         diagnostic_controller = DiagnosticController()
-        #         if not diagnostic_controller.launch_dashboard():
-        #             app_logger.warning("Failed to launch diagnostics dashboard")
-        #             diagnostic_controller = None
-        #     except Exception as e:
-        #         app_logger.warning(f"Failed to initialize diagnostics: {e}")
-        #         diagnostic_controller = None
-
-        # 5. cell typing (diagnostics are now handled inside VarBayes)
+        # 4. cell typing (diagnostics are now handled inside VarBayes)
         cellData, geneData, varBayes = cell_type(_cells, _spots, scdata, cfg)
 
-        # 6. Save data and launch viewer if needed
+        # 5. Save data and launch viewer if needed
         if (cfg['save_data'] and varBayes.has_converged) or cfg['launch_viewer']:
             write_data(cellData, geneData, cellBoundaries, varBayes, cfg)
 

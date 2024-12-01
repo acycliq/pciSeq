@@ -55,16 +55,14 @@ Dependencies:
 - dask: For delayed computations
 """
 
-import time
 import logging
-from typing import Dict, List, Optional, Tuple, Union, Any
+from typing import Dict, Optional, Tuple, Any
 
 # Third-party imports
 import numpy as np
 import numpy_groupies as npg
 import pandas as pd
 from dask.delayed import delayed
-import scipy.spatial as spatial
 from scipy.special import softmax
 
 # Local imports
@@ -72,7 +70,7 @@ from .datatypes import Cells, Spots, Genes, SingleCell, CellType
 from .summary import collect_data
 from .analysis import CellExplorer
 from . import utils
-from ...src.diagnostics.controller.diagnostic_controller import DiagnosticController
+from pciSeq.src.diagnostics.controller.diagnostic_controller import DiagnosticController
 
 main_logger = logging.getLogger(__name__)
 
@@ -84,16 +82,19 @@ class VarBayes:
                  scRNAseq: pd.DataFrame,
                  config: Dict[str, Any]) -> None:
         """Initialize components and setup."""
+        # Explicitly declare important instance attributes
+        self.diagnostic_controller: Optional[DiagnosticController] = None  # For real-time diagnostics
+        self.config = None
+        self.iter_num = None
+        self.iter_delta = []
+        self.has_converged = False
+
+        # Initialize components
         self._validate_config(config)
         self.config = config
         self._setup_diagnostics()
         self._setup_components(cells_df, spots_df, scRNAseq)
         self._setup_dimensions()
-
-        # Initialize algorithm state tracking
-        self.iter_num = None
-        self.iter_delta = []
-        self.has_converged = False
 
         # Placeholder for other attributes
         self._scaled_exp = None
