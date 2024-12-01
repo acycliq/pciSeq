@@ -6,7 +6,7 @@ from .src.core.main import VarBayes
 from .src.core.utils import validate, recover_original_labels, init, write_data, pre_launch
 from .src.viewer.run_flask import flask_app_start
 from .src.preprocess.spot_labels import stage_data
-from .src.diagnostics.launch_diagnostics import launch_dashboard
+from .src.diagnostics.controller.diagnostic_controller import DiagnosticController
 import logging
 
 app_logger = logging.getLogger(__name__)
@@ -58,7 +58,6 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     The function can be called either with positional arguments (spots, coo)
     or with keyword arguments. If both are provided, keyword arguments take precedence.
     """
-
     try:
         # 1. parse/check the arguments
         spots, coo, scRNAseq, opts = parse_args(*args, **kwargs)
@@ -73,12 +72,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         _cells, cellBoundaries, _spots, remapping = stage_data(spots, coo, cfg)
         cfg['remapping'] = remapping
 
-        # 4. launch the diagnostics
-        if cfg['launch_diagnostics'] and cfg['is_redis_running']:
-            app_logger.info('Launching the diagnostics dashboard')
-            launch_dashboard()
-
-        # 5. cell typing
+        # 5. cell typing (diagnostics are now handled inside VarBayes)
         cellData, geneData, varBayes = cell_type(_cells, _spots, scdata, cfg)
 
         # 6 if labels have been remapped, switch to the original ones

@@ -1,37 +1,76 @@
-# Standard library imports
 """
-Core implementation of the Variational Bayes algorithm for spatial transcriptomics analysis.
+Core Algorithm Implementation Module for pciSeq
 
-This module contains the VarBayes class which performs probabilistic cell type assignment 
-and spot-to-cell mapping. Key features include:
+This module implements the main Variational Bayes algorithm for spatial transcriptomics
+analysis, primarily through the VarBayes class. The algorithm iteratively:
+1. Assigns spots to cells
+2. Determines cell types
+3. Estimates gene expression patterns
+4. Updates model parameters
 
-- Cell type assignment using single-cell RNA reference data
-- Spatial spot-to-cell mapping using probabilistic model
-- Gene efficiency parameter estimation
-- Iterative convergence through variational inference
-- Support for 2D and 3D spatial data
-- Optional Redis-based diagnostic monitoring
+Key Components:
+-------------
+VarBayes:
+    Main class implementing the iterative algorithm with methods for:
+    - Gene count updates
+    - Cell type assignment
+    - Spot-to-cell assignment
+    - Parameter estimation (eta, gamma, covariance)
+    - Model convergence checking
 
-The implementation is based on (and extends) the methodology described in the Qian paper
+Algorithm Steps:
+--------------
+1. Initialization:
+   - Set prior probabilities
+   - Initialize cell assignments
+   - Set gene efficiency parameters
+
+2. Iterative Updates:
+   - Update expected gene counts
+   - Calculate gamma expectations
+   - Update gaussian parameters
+   - Assign cells to types
+   - Assign spots to cells
+   - Update gene efficiency
+   - Update Dirichlet parameters
+   - Update single-cell reference
+
+3. Convergence:
+   - Check for convergence after each iteration
+   - Return results when converged or max iterations reached
+
+Notes:
+-----
+- Uses Redis for optional diagnostic monitoring
+- Implements equations from the pciSeq paper
+- Handles missing single-cell reference data
+- Supports parallel processing via numpy operations
+
+Dependencies:
+-----------
+- numpy: For numerical computations
+- pandas: For data management
+- scipy: For statistical operations
+- numpy_groupies: For group operations
+- dask: For delayed computations
 """
 import logging
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Any
 
 # Third-party imports
 import numpy as np
 import numpy_groupies as npg
 import pandas as pd
 from dask.delayed import delayed
+import scipy.spatial as spatial
 from scipy.special import softmax
-from typing import Dict, Any
 
 # Local imports
 from .datatypes import Cells, Spots, Genes, SingleCell, CellType
 from .summary import collect_data
-from . import utils
-from ...src.diagnostics.redis_publisher import RedisPublisher
-from ...src.diagnostics.utils import RedisDB
 from .analysis import CellExplorer
+from . import utils
+from ...src.diagnostics.controller.diagnostic_controller import DiagnosticController
 
 # Configure logging
 main_logger = logging.getLogger(__name__)
@@ -41,7 +80,7 @@ class VarBayes:
     """
     Implements Variational Bayes algorithm for spatial transcriptomics analysis.
 
-    This class performs cell type assignment and spot-to-cell mapping using a 
+    This class performs cell type assignment and spot-to-cell mapping using a
     probabilistic model with variational inference.
 
     Args:
@@ -55,11 +94,10 @@ class VarBayes:
                  spots_df: pd.DataFrame,
                  scRNAseq: pd.DataFrame,
                  config: Dict[str, Any]) -> None:
-
         """Initialize components and setup."""
         self._validate_config(config)
         self.config = config
-        self._setup_redis()
+        self._setup_diagnostics()
         self._setup_components(cells_df, spots_df, scRNAseq)
         self._setup_dimensions()
 
@@ -68,7 +106,7 @@ class VarBayes:
         self.iter_delta = []
         self.has_converged = False
 
-        # Will hold computed expression values
+        # Placeholder for other attributes
         self._scaled_exp = None
         self._cell_explorer: Optional[CellExplorer] = None
 
@@ -84,15 +122,20 @@ class VarBayes:
         if missing:
             raise ValueError(f"Missing required config parameters: {missing}")
 
-    def _setup_redis(self) -> None:
-        """Configure Redis if enabled, otherwise set to None."""
-        if self.config.get('is_redis_running', False):
-            self.redis_db = RedisDB(flush=True)
-            self.redis_publisher = RedisPublisher(self.redis_db)
-            main_logger.info("Redis connection established")
-        else:
-            self.redis_db = None
-            self.redis_publisher = None
+    def _setup_diagnostics(self) -> None:
+        """Initialize diagnostics controller if enabled in config."""
+        self.diagnostic_controller = None
+        if not self.config.get('launch_diagnostics', False):
+            return
+
+        try:
+            self.diagnostic_controller = DiagnosticController()
+            if not self.diagnostic_controller.launch_dashboard():
+                main_logger.warning("Failed to launch diagnostics dashboard")
+                self.diagnostic_controller = None
+        except Exception as e:
+            main_logger.warning(f"Failed to initialize diagnostics: {e}")
+            self.diagnostic_controller = None
 
     def _setup_components(self, cells_df, spots_df, scRNAseq) -> None:
         """Set up the core data components needed for the algorithm."""
@@ -115,21 +158,17 @@ class VarBayes:
         self.cellTypes.ini_prior()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
         self.genes.init_eta(1, 1 / self.config['Inefficiency'])
-        self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
+        self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
 
     def __getstate__(self):
         """
         Get state for pickling.
-        Removes Redis-related attributes to enable pickling and reduce file size.
-
-        Returns:
-            Dict: Object state dictionary without Redis attributes
+        Removes diagnostics-related attributes to enable pickling and reduce file size.
         """
         attributes = self.__dict__.copy()
-        del attributes['redis_db']
-        del attributes['redis_publisher']
-        # del attributes['_scaled_exp']
+        if 'diagnostic_controller' in attributes:
+            del attributes['diagnostic_controller']
         return attributes
 
     @property
@@ -146,7 +185,6 @@ class VarBayes:
     def cell_explorer(self) -> CellExplorer:
         """
         Get cell analyzer instance.
-
         Returns:
             CellExplorer: Instance configured for this VarBayes object
         """
@@ -162,6 +200,7 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def main_loop(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """Main algorithm loop with diagnostic updates."""
         """
         Executes the main Variational Bayes algorithm loop.
 
@@ -195,57 +234,72 @@ class VarBayes:
         gene_df = None
         max_iter = self.config['max_iter']
 
-        for i in range(max_iter):
-            self.iter_num = i
+        self.initialise_state()
+        try:
+            for i in range(max_iter):
+                self.iter_num = i
 
-            # 1. For each cell, calc the expected gene counts
-            self.geneCount_upd()
+                # 1. For each cell, calc the expected gene counts
+                self.geneCount_upd()
 
-            # 2. calc expected gamma
-            self.gamma_upd()
+                # 2. calc expected gamma
+                self.gamma_upd()
 
-            # 3 update correlation matrix and variance of the gaussian distribution
-            if self.single_cell.isMissing or (self.config['InsideCellBonus'] is False) or (self.config['is3D']):
-                self.gaussian_upd()
+                # 3 update correlation matrix and variance of the gaussian distribution
+                if self.single_cell.isMissing or (self.config['InsideCellBonus'] is False) or (self.config['is3D']):
+                    self.gaussian_upd()
 
-            # 4. assign cells to cell types
-            self.cell_to_cellType()
+                # 4. assign cells to cell types
+                self.cell_to_cellType()
 
-            # 5. assign spots to cells
-            self.spots_to_cell()
+                # 5. assign spots to cells
+                self.spots_to_cell()
 
-            # 6. update gene efficiency
-            self.eta_upd()
+                # 6. update gene efficiency
+                self.eta_upd()
 
-            # 7. update the dirichlet distribution
-            if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):
-                self.dalpha_upd()
+                # 7. update the dirichlet distribution
+                if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):
+                    self.dalpha_upd()
 
-            # 8. Update single cell data
-            if self.single_cell.isMissing:
-                self.mu_upd()
+                # 8. Update single cell data
+                if self.single_cell.isMissing:
+                    self.mu_upd()
 
-            self.has_converged, delta = utils.hasConverged(self.spots, p0, self.config['CellCallTolerance'])
-            main_logger.info('Iteration %d, mean prob change %f' % (i, delta))
+                self.has_converged, delta = utils.has_converged(
+                    self.spots, p0, self.config['CellCallTolerance']
+                )
+                main_logger.info('Iteration %d, mean prob change %f' % (i, delta))
 
-            # keep track of the deltas
-            self.iter_delta.append(delta)
+                # Update diagnostics using controller
+                self.diagnostics_upd()
 
-            # replace p0 with the latest probabilities
-            p0 = self.spots.parent_cell_prob
+                # keep track of the deltas
+                self.iter_delta.append(delta)
 
-            if self.redis_publisher:
-                self.redis_publisher.publish_diagnostics(self, self.iter_num, self.has_converged)
+                # replace p0 with the latest probabilities
+                p0 = self.spots.parent_cell_prob
 
-            if self.has_converged:
-                # self.counts_within_radius(20)
-                # self.cell_analysis(2259)
-                self.cell_explorer.view_cell(2259)
-                cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config['is3D'])
-                break
+                if self.has_converged:
+                    cell_df, gene_df = collect_data(
+                        self.cells, self.spots, self.genes, self.single_cell
+                    )
+                    break
 
-            if i == max_iter - 1:
-                main_logger.info('Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
+                if i == max_iter - 1:
+                    main_logger.info(
+                        'Loop exhausted. Exiting with convergence status: %s'
+                        % self.has_converged
+                    )
+
+        finally:
+            # Ensure diagnostics are properly shut down
+            if self.diagnostic_controller is not None:
+                try:
+                    self.diagnostic_controller.shutdown()
+                except Exception as e:
+                    main_logger.warning(f"Failed to shutdown diagnostics: {e}")
+
         return cell_df, gene_df
 
     # -------------------------------------------------------------------- #
@@ -653,4 +707,18 @@ class VarBayes:
         v = np.array(list(misread_dict.values()))
         v = v[self.spots.gene_id]  # Align with spots
         return v
+
+    def diagnostics_upd(self) -> None:
+        """Update diagnostic visualization if controller is available."""
+        if self.diagnostic_controller is None:
+            return
+
+        try:
+            self.diagnostic_controller.update_diagnostics(
+                algorithm_model=self,
+                iteration=self.iter_num,
+                has_converged=self.has_converged
+            )
+        except Exception as e:
+            main_logger.warning(f"Failed to update diagnostics: {e}")
 
