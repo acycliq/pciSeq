@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Tuple, Optional, Dict, Any, Union
 import numbers
 import os
 import glob
@@ -146,13 +146,35 @@ def softmax(X, theta=1.0, axis=None):
     return p
 
 
-def hasConverged(spots, p0, tol):
+def has_converged(
+        spots: Any,
+        p0: Optional[np.ndarray],
+        tol: float
+) -> Tuple[bool, float]:
+    """
+    Check if the probability assignments have converged.
+
+    Args:
+        spots: Spot data object containing parent_cell_prob
+        p0: Previous probability matrix (None for first iteration)
+        tol: Convergence tolerance threshold
+
+    Returns:
+        Tuple containing:
+            - bool: True if converged, False otherwise
+            - float: Maximum absolute difference between iterations
+    """
     p1 = spots.parent_cell_prob
     if p0 is None:
-        p0 = np.zeros(p1.shape)
-    delta = np.max(np.abs(p1 - p0))
-    converged = (delta < tol)
-    return converged, delta
+        p0 = np.zeros_like(p1)
+
+    try:
+        delta = np.max(np.abs(p1 - p0))
+        converged = (delta < tol)
+        return converged, delta
+    except Exception as e:
+        utils_logger.error(f"Convergence check failed: {str(e)}")
+        raise
 
 
 def splitter_mb(filepath, mb_size):

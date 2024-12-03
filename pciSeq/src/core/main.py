@@ -161,7 +161,7 @@ class VarBayes:
         self.cellTypes.ini_prior()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
         self.genes.init_eta(1, 1 / self.config['Inefficiency'])
-        self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
+        self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
 
     def __getstate__(self):
@@ -285,7 +285,7 @@ class VarBayes:
 
                 if self.has_converged:
                     cell_df, gene_df = collect_data(
-                        self.cells, self.spots, self.genes, self.single_cell
+                        self.cells, self.spots, self.genes, self.single_cell, self.config['is3D']
                     )
                     break
 

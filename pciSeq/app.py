@@ -63,7 +63,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
         # 2. Create and validate config
         cfg_man = ConfigManager.from_opts(opts)
-        cfg_man.set_runtime_attributes()
+        cfg_man.set_runtime_attributes(coo)
         spots, coo, scdata, cfg = InputValidator.validate(spots, coo, scRNAseq, cfg_man)
 
         # 3. Use validated inputs and prepare the data
