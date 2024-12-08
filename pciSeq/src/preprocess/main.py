@@ -10,11 +10,11 @@ from scipy.sparse import coo_matrix
 import logging
 from .label_processing import CellLabelManager, get_unique_labels
 from .spot_processing import process_spots, assign_spot_labels
-from .logging_utils import log_data_summary
+from .utils import log_data_summary
 from .plane_management import remove_planes
-from .cell_properties import calculate_cell_properties
+from .cell_processing import calculate_cell_properties
 from ..core.utils import get_img_shape
-from .cell_borders import extract_borders
+from .cell_processing import extract_borders
 
 spot_labels_logger = logging.getLogger(__name__)
 

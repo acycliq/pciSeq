@@ -5,7 +5,7 @@ from .src.validation.input_validation import InputValidator
 from .src.core.main import VarBayes
 from .src.core.utils import validate, recover_original_labels, init, write_data, pre_launch
 from .src.viewer.run_flask import flask_app_start
-from .src.preprocess.spot_labels import stage_data
+from .src.preprocess.main import stage_data
 import logging
 
 app_logger = logging.getLogger(__name__)
