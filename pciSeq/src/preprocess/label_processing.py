@@ -1,115 +1,132 @@
 """
-Cell label processing functionality for pciSeq.
-Handles label validation, reordering, and cell assignment.
+Label processing module for pciSeq preprocessing.
+Handles all label-related operations including:
+- Cell assignment
+- Label normalization and mapping
+- Label validation
+- Label identification
 """
 
-from typing import List, Union, Optional, Tuple
+from typing import List, Tuple, Dict, Optional
 import numpy as np
 import pandas as pd
 from scipy.sparse import coo_matrix, csr_matrix
-from multiprocessing.dummy import Pool as ThreadPool
+import fastremap
 import logging
 
-label_logger = logging.getLogger(__name__)
+label_processing_logger = logging.getLogger(__name__)
 
 
-def inside_cell(label_image: Union[coo_matrix, csr_matrix, np.ndarray],
-                spots: pd.DataFrame) -> np.ndarray:
+class CellLabelManager:
+    """Manages cell label normalization and mapping."""
+
+    def __init__(self, labels: np.ndarray):
+        self.original_labels = labels
+        self.label_map = None
+        self._validate_labels()
+
+    def _validate_labels(self) -> None:
+        """Validate label integrity"""
+        if not self._are_labels_sequential():
+            label_processing_logger.warning('Non-sequential cell labels detected')
+
+    def _are_labels_sequential(self) -> bool:
+        """Check if labels are sequential"""
+        unique_labels = np.unique(self.original_labels[self.original_labels > 0])
+        return len(unique_labels) == unique_labels.max()
+
+    def normalize_labels(self) -> Tuple[np.ndarray, Dict[int, int]]:
+        """Create sequential labels and return mapping"""
+        normalized_labels, label_map = fastremap.renumber(
+            self.original_labels,
+            in_place=False
+        )
+        self.label_map = label_map
+        return normalized_labels, label_map
+
+    def restore_original_labels(self, normalized_labels: np.ndarray) -> np.ndarray:
+        """Restore original label numbering"""
+        if self.label_map is None:
+            return normalized_labels
+        reverse_map = {v: k for k, v in self.label_map.items()}
+        return fastremap.remap(normalized_labels, reverse_map, in_place=False)
+
+    @classmethod
+    def process_label_matrices(cls, coo_matrices: List[coo_matrix]) -> Tuple[List[coo_matrix], Optional[Dict]]:
+        """
+        Process cell label matrices to ensure sequential numbering.
+
+        Args:
+            coo_matrices: List of sparse matrices containing cell labels
+
+        Returns:
+            Tuple containing:
+            - List of processed sparse matrices
+            - Optional mapping dictionary if labels were renumbered
+        """
+        # Convert to dense array for processing
+        arr_3d = np.stack([d.toarray() for d in coo_matrices])
+
+        # Check and normalize labels if needed
+        manager = cls(arr_3d)
+        if not manager._are_labels_sequential():
+            normalized_labels, label_map = manager.normalize_labels()
+            label_processing_logger.warning('Labels have been renumbered for sequential labelling')
+        else:
+            normalized_labels, label_map = arr_3d, None
+
+        # Convert back to sparse matrices
+        processed_matrices = [coo_matrix(d) for d in normalized_labels]
+
+        return processed_matrices, label_map
+
+
+def inside_cell(label_img: csr_matrix, spots: pd.DataFrame) -> np.ndarray:
     """
-    Determine which spots lie within cell boundaries.
+    Find which spots are inside cells.
 
-    Parameters
-    ----------
-    label_image : Union[coo_matrix, csr_matrix, np.ndarray]
-        Image with cell labels
-    spots : pd.DataFrame
-        Spot coordinates
+    Args:
+        label_img: Sparse matrix of cell labels
+        spots: DataFrame with spot coordinates
 
-    Returns
-    -------
-    np.ndarray
-        Cell labels for each spot
+    Returns:
+        Array of cell labels for each spot
     """
-    if isinstance(label_image, coo_matrix):
-        label_image = label_image.tocsr()
-    elif isinstance(label_image, np.ndarray):
-        label_image = csr_matrix(label_image)
-    elif isinstance(label_image, csr_matrix):
-        pass
-    else:
-        raise TypeError('label_image should be of type "csr_matrix"')
+    x = spots.x.values
+    y = spots.y.values
+    label_dense = label_img.toarray()
 
-    m = label_image[spots.y, spots.x]
-    out = np.asarray(m, dtype=np.uint32)
-    return out[0]
+    # Get labels at spot coordinates
+    x = x.astype(int)
+    y = y.astype(int)
+    labels = label_dense[y, x]
+
+    return labels
 
 
-def get_unique_labels(masks: List[coo_matrix]) -> List[np.ndarray]:
+def get_unique_labels(coo_matrices: List[coo_matrix]) -> List[np.ndarray]:
     """
-    Get unique cell labels from each mask.
+    Get unique labels from each image plane.
 
-    Parameters
-    ----------
-    masks : List[coo_matrix]
-        List of label matrices
+    Args:
+        coo_matrices: List of sparse label matrices
 
-    Returns
-    -------
-    List[np.ndarray]
-        Unique labels from each mask
+    Returns:
+        List of unique label arrays for each plane
     """
-    pool = ThreadPool()
-    out = pool.map(lambda mask: np.unique(mask.data), masks)
-    pool.close()
-    pool.join()
-    return out
+    return [np.unique(m.data) for m in coo_matrices if len(m.data) > 0]
 
 
-def reorder_labels(label_image: Union[np.ndarray, List[coo_matrix]]) -> Tuple[List[coo_matrix], Optional[pd.DataFrame]]:
+def reorder_labels(labels: np.ndarray) -> Tuple[np.ndarray, Dict[int, int]]:
     """
-    Rearrange labels to form a sequence of integers.
+    Reorder labels to be sequential.
 
-    Parameters
-    ----------
-    label_image : Union[np.ndarray, List[coo_matrix]]
-        Input label image
+    Args:
+        labels: Array of cell labels
 
-    Returns
-    -------
-    Tuple[List[coo_matrix], Optional[pd.DataFrame]]
-        Reordered labels and mapping (if needed)
+    Returns:
+        Tuple containing:
+        - Reordered labels array
+        - Mapping from new to original labels
     """
-    # Convert input to list of coo matrices if needed
-    if isinstance(label_image, np.ndarray):
-        if len(label_image.shape) not in {2, 3}:
-            raise ValueError("Array must be 2D or 3D")
-        label_image = [coo_matrix(d, dtype=np.uint32) for d in label_image]
-    elif not (isinstance(label_image, list) and all(isinstance(d, coo_matrix) for d in label_image)):
-        raise TypeError('Input must be array or list of coo matrices')
-
-    # Get all unique labels
-    labels = np.concatenate(get_unique_labels(label_image))
-
-    # Check if reordering is needed
-    if labels.max() != len(set(labels)):
-        label_logger.info('Relabelling segmentation array to sequential integers...')
-        labels = np.append(0, labels)  # include background
-        _, idx = np.unique(labels, return_inverse=True)
-        label_dict = dict(zip(labels, idx.astype(np.uint32)))
-
-        if label_dict[0] != 0:
-            raise ValueError("Background label (0) was not preserved")
-
-        # Apply new labels
-        out = []
-        for plane in label_image:
-            data = [label_dict[d] for d in plane.data]
-            c = coo_matrix((data, (plane.row, plane.col)), shape=plane.shape)
-            out.append(c)
-
-        label_map = pd.DataFrame(label_dict.items(),
-                                 columns=['old_label', 'new_label'],
-                                 dtype=np.uint32)
-        return out, label_map
-
-    return label_image, None
+    return fastremap.renumber(labels, in_place=False)

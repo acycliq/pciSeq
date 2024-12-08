@@ -569,13 +569,25 @@ def gaussian_contour(mu, cov, sdwidth=3):
     return np.array(list(zip(*out)), dtype=np.float32)
 
 
-def recover_original_labels(cellData, geneData, remapping):
-    labels_dict = dict(zip(remapping.values(), remapping.keys()))
-    cellData = cellData.assign(Cell_Num=cellData.Cell_Num.map(lambda x: labels_dict[x]))
+def recover_original_labels(cellData, geneData, label_map):
+    """Restore original cell labels using CellLabelManager mapping"""
+    if label_map is None:
+        return cellData, geneData
 
-    # geneData = geneData.assign(neighbour=geneData.neighbour.map(lambda x: swaped_dict[x]))
-    geneData = geneData.assign(neighbour=geneData.neighbour.map(lambda x: fetch_label(x, labels_dict)))
-    geneData = geneData.assign(neighbour_array=geneData.neighbour_array.map(lambda x: fetch_label(x, labels_dict)))
+    # Create reverse mapping
+    reverse_map = {v: k for k, v in label_map.items()}
+
+    # Update cell numbers
+    cellData = cellData.assign(
+        Cell_Num=cellData.Cell_Num.map(lambda x: reverse_map.get(x, x))
+    )
+
+    # Update gene data neighbors
+    geneData = geneData.assign(
+        neighbour=geneData.neighbour.map(lambda x: fetch_label(x, reverse_map)),
+        neighbour_array=geneData.neighbour_array.map(lambda x: fetch_label(x, reverse_map))
+    )
+
     return cellData, geneData
 
 

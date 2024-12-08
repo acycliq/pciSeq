@@ -7,12 +7,13 @@ from typing import List, Tuple, Dict, Optional
 import numpy as np
 import pandas as pd
 from scipy.sparse import coo_matrix
-import fastremap
 import logging
-from .label_processing import inside_cell, get_unique_labels, reorder_labels
-from .plane_management import remove_oob, remove_planes
+from .label_processing import CellLabelManager, get_unique_labels
+from .spot_processing import process_spots, assign_spot_labels
+from .logging_utils import log_data_summary
+from .plane_management import remove_planes
 from .cell_properties import calculate_cell_properties
-from ..core.utils import get_img_shape, adjust_for_anisotropy
+from ..core.utils import get_img_shape
 from .cell_borders import extract_borders
 
 spot_labels_logger = logging.getLogger(__name__)
@@ -41,44 +42,23 @@ def stage_data(spots: pd.DataFrame,
         Cell boundary coordinates
     processed_spots : pd.DataFrame
         Processed spots with cell assignments
-    remapping : Optional[Dict]
+    label_map : Optional[Dict]
         Label remapping if labels were reordered
     """
-    remapping = None
-
     # Handle 3D data plane exclusion
     if cfg['is3D'] and cfg['exclude_planes'] is not None:
         spots, coo, min_plane, removed = remove_planes(spots, coo, cfg)
         if removed.shape[0] > 0:
             removed.frame_num = removed.frame_num + min_plane
 
-    # Check for skipped labels
-    arr_3d = np.stack([d.toarray() for d in coo])
-    if arr_3d.max() != sum(np.unique(arr_3d) > 0):
-        spot_labels_logger.warning('Skipped labels detected in the label image.')
-        arr_3d, remapping = fastremap.renumber(arr_3d, in_place=True)
-        coo = [coo_matrix(d) for d in arr_3d]
-        del arr_3d
+    # Process label matrices
+    coo, label_map = CellLabelManager.process_label_matrices(coo)
 
     # Process spots
-    [n, h, w] = get_img_shape(coo)
-    spots = remove_oob(spots.copy(), [n, h, w])
-    spots = adjust_for_anisotropy(spots, cfg['voxel_size'])
-
-    # Log data summary
-    spot_labels_logger.info(f'Number of spots passed-in: {spots.shape[0]}')
-    spot_labels_logger.info(f'Number of segmented cells: {max([d.data.max() for d in coo if len(d.data) > 0])}')
-    if n == 1:
-        spot_labels_logger.info(f'Image dimensions: {w}px × {h}px')
-    else:
-        spot_labels_logger.info(f'Image dimensions: {n} planes, {w}px × {h}px')
-
-    # Assign spots to cells
-    spots = spots.assign(label=np.zeros(spots.shape[0], dtype=np.uint32))
-    for z in np.unique(spots.z_plane):
-        spots_z = spots[spots.z_plane == z]
-        inc = inside_cell(coo[int(z)].tocsr().astype(np.uint32), spots_z)
-        spots.loc[spots.z_plane == z, 'label'] = inc
+    dimensions = get_img_shape(coo)
+    spots = process_spots(spots, dimensions, cfg['voxel_size'])
+    log_data_summary(spots, coo, dimensions)
+    spots = assign_spot_labels(spots, coo)
 
     # Calculate cell properties
     masks = np.stack([d.toarray().astype(np.uint32) for d in coo])
@@ -97,4 +77,4 @@ def stage_data(spots: pd.DataFrame,
     cells = props_df.rename(columns={'x_cell': 'x0', 'y_cell': 'y0', 'z_cell': 'z0'})
     processed_spots = spots[['x', 'y', 'z', 'label', 'gene_name']].rename_axis('spot_id')
 
-    return cells, cell_boundaries, processed_spots, remapping
+    return cells, cell_boundaries, processed_spots, label_map
