@@ -84,7 +84,7 @@ class DiagnosticDashboard:
             # Check for new messages from Model's publications. This is the heart of the LIVE UPDATE MECHANISM
             message = self.pubsub.get_message()  # Check if Model published new data
             if message and message['type'] == 'message':  # If it's a real message (not control message)
-                st.experimental_rerun()  # Tell Streamlit to refresh the dashboard
+                st.rerun()  # Tell Streamlit to refresh the dashboard
 
     def _render_gene_efficiency(self, title) -> None:
         """Render gene efficiency visualization."""
