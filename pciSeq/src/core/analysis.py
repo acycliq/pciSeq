@@ -31,6 +31,7 @@ from scipy import spatial
 
 # Local imports
 from ...src.core.utils.ops_utils import negative_binomial_loglikelihood
+from ...src.core.utils.io_utils import get_out_dir
 from ...src.viewer.utils import get_pciSeq_install_dir
 
 # Configure logging
@@ -265,7 +266,7 @@ class CellExplorer:
         """
         # Get default output directory if none specified
         if output_dir is None:
-            output_dir = utils.get_out_dir(self.vb.config['output_path'])
+            output_dir = get_out_dir(self.vb.config['output_path'])
             output_dir = os.path.join(output_dir, 'data', 'debug', 'cell_analysis')
 
         # Ensure output directory exists
