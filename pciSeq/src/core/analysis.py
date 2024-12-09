@@ -30,7 +30,7 @@ import pandas as pd
 from scipy import spatial
 
 # Local imports
-from ...src.core import utils
+from ...src.core.utils.ops_utils import negative_binomial_loglikelihood
 from ...src.viewer.utils import get_pciSeq_install_dir
 
 # Configure logging
@@ -142,7 +142,7 @@ class CellExplorer:
         ScaledExp = self.vb.scaled_exp.compute()
         pNegBin = ScaledExp / (self.vb.config['rSpot'] + ScaledExp)
         cgc = self.vb.cells.geneCount
-        contr = utils.negative_binomial_loglikelihood(cgc, self.vb.config['rSpot'], pNegBin)
+        contr = negative_binomial_loglikelihood(cgc, self.vb.config['rSpot'], pNegBin)
 
         # Calculate contributions for all classes
         all_class_contrs = contr[cell_num, :, :]

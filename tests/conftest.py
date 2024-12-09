@@ -3,7 +3,7 @@ import pytest
 import tempfile
 import pandas as pd
 from scipy.sparse import load_npz
-from pciSeq.src.core.utils import load_from_url
+from pciSeq.src.core.utils.io_utils import load_from_url
 import logging
 
 main_logger = logging.getLogger(__name__)

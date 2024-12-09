@@ -15,9 +15,9 @@ import pandas as pd
 from scipy.sparse import coo_matrix
 from tqdm import tqdm
 
-from ... import config
-from ..diagnostics.utils import check_redis_server
-from ...src.viewer.utils import (copy_viewer_code, make_config_js,
+from pciSeq import config
+from pciSeq.src.diagnostics.utils import check_redis_server
+from pciSeq.src.viewer.utils import (copy_viewer_code, make_config_js,
                                      make_classConfig_js, make_glyphConfig_js,
                                      make_classConfig_nsc_js, build_pointcloud,
                                      cellData_rgb, cell_gene_counts)
@@ -27,48 +27,48 @@ import logging
 utils_logger = logging.getLogger(__name__)
 
 
-def init(opts):
-    """
-    Reads the opts dict and if not None, it will override the default parameter value by
-    the value that the dictionary key points to.
-    If opts is None, then the default values as these specified in the config.py file
-    are used without any change.
-    """
-    cfg = config.DEFAULT
-    log_file(cfg)
-    cfg['is_redis_running'] = check_redis_server()
-    if opts is not None:
-        default_items = set(cfg.keys())
-        user_items = set(opts.keys())
-        assert user_items.issubset(default_items), ('Options passed-in should be a dict with keys: %s ' % default_items)
-        for item in opts.items():
-            if isinstance(item[1], (int, float, list, str, dict)) or isinstance(item[1](1), np.floating):
-                val = item[1]
-            # elif isinstance(item[1], list):
-            #     val = item[1]
-            else:
-                raise TypeError("Only integers, floats and lists are allowed")
-            cfg[item[0]] = val
-            utils_logger.info('%s is set to %s' % (item[0], cfg[item[0]]))
-    return cfg
-
-
-def log_file(cfg):
-    """
-    Setup the logger file handler if it doesn't already exist.
-    """
-    root_logger = logging.getLogger()
-    if root_logger.handlers:
-        # setup a FileHandler if it has not been setup already. Maybe I should be adding a FileHandler anyway,
-        # regardless whether there is one already or not
-        if not np.any([isinstance(d, logging.FileHandler) for d in root_logger.handlers]):
-            logfile = os.path.join(get_out_dir(cfg['output_path']), 'pciSeq.log')
-            fh = logging.FileHandler(logfile, mode='w')
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            fh.setFormatter(formatter)
-
-            root_logger.addHandler(fh)
-            utils_logger.info('Writing to %s' % logfile)
+# def init(opts):
+#     """
+#     Reads the opts dict and if not None, it will override the default parameter value by
+#     the value that the dictionary key points to.
+#     If opts is None, then the default values as these specified in the config.py file
+#     are used without any change.
+#     """
+#     cfg = config.DEFAULT
+#     log_file(cfg)
+#     cfg['is_redis_running'] = check_redis_server()
+#     if opts is not None:
+#         default_items = set(cfg.keys())
+#         user_items = set(opts.keys())
+#         assert user_items.issubset(default_items), ('Options passed-in should be a dict with keys: %s ' % default_items)
+#         for item in opts.items():
+#             if isinstance(item[1], (int, float, list, str, dict)) or isinstance(item[1](1), np.floating):
+#                 val = item[1]
+#             # elif isinstance(item[1], list):
+#             #     val = item[1]
+#             else:
+#                 raise TypeError("Only integers, floats and lists are allowed")
+#             cfg[item[0]] = val
+#             utils_logger.info('%s is set to %s' % (item[0], cfg[item[0]]))
+#     return cfg
+#
+#
+# def log_file(cfg):
+#     """
+#     Setup the logger file handler if it doesn't already exist.
+#     """
+#     root_logger = logging.getLogger()
+#     if root_logger.handlers:
+#         # setup a FileHandler if it has not been setup already. Maybe I should be adding a FileHandler anyway,
+#         # regardless whether there is one already or not
+#         if not np.any([isinstance(d, logging.FileHandler) for d in root_logger.handlers]):
+#             logfile = os.path.join(get_out_dir(cfg['output_path']), 'pciSeq.log')
+#             fh = logging.FileHandler(logfile, mode='w')
+#             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+#             fh.setFormatter(formatter)
+#
+#             root_logger.addHandler(fh)
+#             utils_logger.info('Writing to %s' % logfile)
 
 
 def negative_binomial_loglikelihood(x: np.ndarray, r: float, p: np.ndarray) -> np.ndarray:
@@ -253,77 +253,77 @@ def _get_file(OUT_DIR, filepath, n, header_line):
     return file, handle
 
 
-def download_url_to_file(url, dst, progress=True):
-    r"""Download object at the given URL to a local path.
-            Thanks to torch, slightly modified
-    Args:
-        url (string): URL of the object to download
-        dst (string): Full path where object will be saved, e.g. `/tmp/temporary_file`
-        progress (bool, optional): whether or not to display a progress bar to stderr
-            Default: True
-    """
-    file_size = None
-    u = urlopen(url)
-    meta = u.info()
-    if hasattr(meta, 'getheaders'):
-        content_length = meta.getheaders("Content-Length")
-    else:
-        content_length = meta.get_all("Content-Length")
-    if content_length is not None and len(content_length) > 0:
-        file_size = int(content_length[0])
-    # We deliberately save it in a temp file and move it after
-    dst = os.path.expanduser(dst)
-    dst_dir = os.path.dirname(dst)
-    f = tempfile.NamedTemporaryFile(delete=False, dir=dst_dir)
-    try:
-        with tqdm(total=file_size, disable=not progress,
-                  unit='B', unit_scale=True, unit_divisor=1024) as pbar:
-            while True:
-                buffer = u.read(8192)
-                if len(buffer) == 0:
-                    break
-                f.write(buffer)
-                pbar.update(len(buffer))
-        f.close()
-        shutil.move(f.name, dst)
-    finally:
-        f.close()
-        if os.path.exists(f.name):
-            os.remove(f.name)
+# def download_url_to_file(url, dst, progress=True):
+#     r"""Download object at the given URL to a local path.
+#             Thanks to torch, slightly modified
+#     Args:
+#         url (string): URL of the object to download
+#         dst (string): Full path where object will be saved, e.g. `/tmp/temporary_file`
+#         progress (bool, optional): whether or not to display a progress bar to stderr
+#             Default: True
+#     """
+#     file_size = None
+#     u = urlopen(url)
+#     meta = u.info()
+#     if hasattr(meta, 'getheaders'):
+#         content_length = meta.getheaders("Content-Length")
+#     else:
+#         content_length = meta.get_all("Content-Length")
+#     if content_length is not None and len(content_length) > 0:
+#         file_size = int(content_length[0])
+#     # We deliberately save it in a temp file and move it after
+#     dst = os.path.expanduser(dst)
+#     dst_dir = os.path.dirname(dst)
+#     f = tempfile.NamedTemporaryFile(delete=False, dir=dst_dir)
+#     try:
+#         with tqdm(total=file_size, disable=not progress,
+#                   unit='B', unit_scale=True, unit_divisor=1024) as pbar:
+#             while True:
+#                 buffer = u.read(8192)
+#                 if len(buffer) == 0:
+#                     break
+#                 f.write(buffer)
+#                 pbar.update(len(buffer))
+#         f.close()
+#         shutil.move(f.name, dst)
+#     finally:
+#         f.close()
+#         if os.path.exists(f.name):
+#             os.remove(f.name)
+#
+#
+# def load_from_url(url):
+#     # files = []
+#     parts = urlparse(url)
+#     filename = os.path.basename(parts.path)
+#     if not os.path.exists(filename):
+#         sys.stderr.write('Downloading: "{}" to {}\n'.format(url, filename))
+#         download_url_to_file(url, filename)
+#     return filename
 
 
-def load_from_url(url):
-    # files = []
-    parts = urlparse(url)
-    filename = os.path.basename(parts.path)
-    if not os.path.exists(filename):
-        sys.stderr.write('Downloading: "{}" to {}\n'.format(url, filename))
-        download_url_to_file(url, filename)
-    return filename
-
-
-def get_out_dir(path: Optional[str] = None, sub_folder: str = '') -> str:
-    """
-    Get or create output directory path.
-
-    Args:
-        path: List containing base path, or None for default temp directory
-        sub_folder: Optional subdirectory name
-
-    Returns:
-        str: Path to output directory
-
-    Notes:
-        - Uses system temp directory if path is None or ['default']
-        - Creates directories if they don't exist
-    """
-    if path is None or path == 'default':
-        out_dir = Path(tempfile.gettempdir()) / 'pciSeq'
-    else:
-        out_dir = Path(path) / sub_folder / 'pciSeq'
-
-    out_dir.mkdir(parents=True, exist_ok=True)
-    return str(out_dir)
+# def get_out_dir(path: Optional[str] = None, sub_folder: str = '') -> str:
+#     """
+#     Get or create output directory path.
+#
+#     Args:
+#         path: List containing base path, or None for default temp directory
+#         sub_folder: Optional subdirectory name
+#
+#     Returns:
+#         str: Path to output directory
+#
+#     Notes:
+#         - Uses system temp directory if path is None or ['default']
+#         - Creates directories if they don't exist
+#     """
+#     if path is None or path == 'default':
+#         out_dir = Path(tempfile.gettempdir()) / 'pciSeq'
+#     else:
+#         out_dir = Path(path) / sub_folder / 'pciSeq'
+#
+#     out_dir.mkdir(parents=True, exist_ok=True)
+#     return str(out_dir)
 
 
 def gaussian_contour(mu, cov, sdwidth=3):
@@ -597,13 +597,13 @@ def fetch_label(x, d):
     return out[0] if len(out) == 1 else out
 
 
-def serialise(varBayes, debug_dir):
-    if not os.path.exists(debug_dir):
-        os.makedirs(debug_dir)
-    pickle_dst = os.path.join(debug_dir, 'pciSeq.pickle')
-    with open(pickle_dst, 'wb') as outf:
-        pickle.dump(varBayes, outf)
-        utils_logger.info('Saved at %s' % pickle_dst)
+# def serialise(varBayes, debug_dir):
+#     if not os.path.exists(debug_dir):
+#         os.makedirs(debug_dir)
+#     pickle_dst = os.path.join(debug_dir, 'pciSeq.pickle')
+#     with open(pickle_dst, 'wb') as outf:
+#         pickle.dump(varBayes, outf)
+#         utils_logger.info('Saved at %s' % pickle_dst)
 
 
 def purge_spots(spots, sc):
@@ -628,31 +628,31 @@ def export_db_table(table_name, out_dir, con):
     utils_logger.info('Saved at %s' % fname)
 
 
-def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
-    dst = get_out_dir(cfg['output_path'])
-    out_dir = os.path.join(dst, 'data')
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-
-    cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
-    utils_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
-
-    geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
-    utils_logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
-
-    # Do not change the if-then branching flow. InsideCellBonus can take the value of zero
-    # and the logic below will ensure that in that case, the segmentation borders will be
-    # drawn instead of the gaussian contours.
-    if cfg['InsideCellBonus'] is False:
-        ellipsoidBoundaries = cellData[['Cell_Num', 'gaussian_contour']]
-        ellipsoidBoundaries = ellipsoidBoundaries.rename(columns={"Cell_Num": "cell_id", "gaussian_contour": "coords"})
-        ellipsoidBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-        utils_logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
-    else:
-        cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-        utils_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
-
-    serialise(varBayes, os.path.join(out_dir, 'debug'))
+# def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
+#     dst = get_out_dir(cfg['output_path'])
+#     out_dir = os.path.join(dst, 'data')
+#     if not os.path.exists(out_dir):
+#         os.makedirs(out_dir)
+#
+#     cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
+#     utils_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
+#
+#     geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
+#     utils_logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
+#
+#     # Do not change the if-then branching flow. InsideCellBonus can take the value of zero
+#     # and the logic below will ensure that in that case, the segmentation borders will be
+#     # drawn instead of the gaussian contours.
+#     if cfg['InsideCellBonus'] is False:
+#         ellipsoidBoundaries = cellData[['Cell_Num', 'gaussian_contour']]
+#         ellipsoidBoundaries = ellipsoidBoundaries.rename(columns={"Cell_Num": "cell_id", "gaussian_contour": "coords"})
+#         ellipsoidBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
+#         utils_logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+#     else:
+#         cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
+#         utils_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+#
+#     serialise(varBayes, os.path.join(out_dir, 'debug'))
 
 
 def validate(spots, coo, scData, cfg):

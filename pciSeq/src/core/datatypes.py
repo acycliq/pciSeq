@@ -72,7 +72,7 @@ from sklearn.neighbors import NearestNeighbors
 import numpy_groupies as npg
 
 # Local imports
-from .utils import read_image_objects, keep_labels_unique
+from .utils.cell_utils import read_image_objects, keep_labels_unique
 
 datatypes_logger = logging.getLogger(__name__)
 

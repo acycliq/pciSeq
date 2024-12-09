@@ -11,6 +11,8 @@ import re
 import laspy
 import subprocess
 from email.parser import BytesHeaderParser
+from ..core.utils.io_utils import get_out_dir
+from ..core.utils.geometry import get_img_shape
 import stat
 import logging
 
@@ -367,6 +369,65 @@ def _get_file(OUT_DIR, filepath, n, header_line):
     handle = open(file, "a")
     handle.write(header_line)
     return file, handle
+
+
+def pre_launch(cellData, geneData, coo, scRNAseq, cfg):
+    '''
+    Does some housekeeping, pre-flight control checking before the
+    viewer is triggered
+
+    Returns the destination folder that keeps the viewer code and
+    will be served to launch the website
+    '''
+    cfg['is3D'] = False if cfg['launch_viewer'] == '2d' else cfg['launch_viewer']
+    [n, h, w] = get_img_shape(coo)
+    dst = get_out_dir(cfg['output_path'])
+    pciSeq_dir = copy_viewer_code(cfg, dst)
+    make_config(dst, pciSeq_dir, (cellData, scRNAseq, h, w))
+    if cfg['is3D']:
+        # ***************************************
+        # OK FOR NOW BUT THIS IS A TEMP FIX ONLY
+        # THESE LINES MUST BE REMOVED
+        cellData.X = cellData.X - w / 2
+        cellData.Y = cellData.Y - h / 2
+        cellData.Z = cellData.Z - n / 2
+
+        geneData.x = geneData.x - w / 2
+        geneData.y = geneData.y - h / 2
+        geneData.z = geneData.z - n / 2
+        # ***************************************
+
+        build_pointcloud(geneData, pciSeq_dir, dst)
+        cellData_rgb(cellData, pciSeq_dir, dst)
+        cell_gene_counts(geneData, dst)
+    return dst
+
+
+def make_config(target_dir, source_dir, data):
+    '''
+    makes the three javascript configuration files that drive the viewer.
+    They are getting saved into the dst folder. By default this is the tmp directory
+    '''
+
+    cellData = data[0]
+    scRNAseq = data[1]
+    img_shape = data[2:]
+    # 1. make the main configuration file
+    make_config_js(target_dir, img_shape)
+
+    # 2. make the file for the class colors
+    if scRNAseq is None:
+        label_list = [d[:] for d in cellData.ClassName.values]
+        labels = [item for sublist in label_list for item in sublist]
+        labels = sorted(set(labels))
+
+        make_classConfig_nsc_js(labels, target_dir)
+    else:
+        make_classConfig_js(source_dir, target_dir)
+
+    # 3. make the file for the glyph colors
+    gene_panel = scRNAseq.index.values
+    make_glyphConfig_js(gene_panel, source_dir, target_dir)
 
 
 def splitter_mb(df, dir_path, mb_size):

@@ -13,7 +13,7 @@ from .spot_processing import process_spots, assign_spot_labels
 from .utils import log_data_summary
 from .plane_management import remove_planes
 from .cell_processing import calculate_cell_properties
-from ..core.utils import get_img_shape
+from ..core.utils.geometry import get_img_shape
 from .cell_processing import extract_borders
 
 spot_labels_logger = logging.getLogger(__name__)

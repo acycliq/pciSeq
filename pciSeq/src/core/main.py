@@ -69,7 +69,7 @@ from scipy.special import softmax
 from .datatypes import Cells, Spots, Genes, SingleCell, CellType
 from .summary import collect_data
 from .analysis import CellExplorer
-from . import utils
+from .utils import ops_utils as utils
 from ...src.diagnostics.controller.diagnostic_controller import DiagnosticController
 
 # Configure logging

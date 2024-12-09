@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Union
-from numbers import Number
 import logging
 from pciSeq import config
-from pciSeq.src.core.utils import log_file, check_redis_server
+from pciSeq.src.core.utils.io_utils import log_file
+from pciSeq.src.diagnostics.utils import check_redis_server
 config_manager_logger = logging.getLogger(__name__)
 
 

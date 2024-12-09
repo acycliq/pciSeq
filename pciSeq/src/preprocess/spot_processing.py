@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import coo_matrix
 from .label_processing import inside_cell
-from ..core.utils import adjust_for_anisotropy
+from ..core.utils.geometry import adjust_for_anisotropy
 from .plane_management import remove_oob
 
 

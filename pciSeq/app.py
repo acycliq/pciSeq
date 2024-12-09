@@ -3,7 +3,9 @@ from typing import Tuple, Optional, Dict, Any
 from .src.validation.config_manager import ConfigManager
 from .src.validation.input_validation import InputValidator
 from .src.core.main import VarBayes
-from .src.core.utils import validate, recover_original_labels, init, write_data, pre_launch
+from .src.core.utils.cell_utils import recover_original_labels
+from .src.core.utils.io_utils import write_data
+from .src.viewer.utils import pre_launch
 from .src.viewer.run_flask import flask_app_start
 from .src.preprocess.main import stage_data
 import logging
