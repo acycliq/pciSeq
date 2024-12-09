@@ -7,6 +7,7 @@ It maintains the original visualization style while working with the new MVC str
 
 import streamlit as st
 import pandas as pd
+from io import StringIO
 import altair as alt
 import logging
 from pciSeq.src.diagnostics.constants import DiagnosticKeys
@@ -89,7 +90,7 @@ class DiagnosticDashboard:
         """Render gene efficiency visualization."""
         data = self.model.get_diagnostic_data(DiagnosticKeys.GENE_EFFICIENCY)
         if data:
-            df = pd.read_json(data['data'])
+            df = pd.read_json(StringIO(data['data']))
             metadata = data['metadata']
 
             title.title("Convergence screen")
@@ -102,7 +103,7 @@ class DiagnosticDashboard:
         """Render cell type distribution visualization."""
         data = self.model.get_diagnostic_data(DiagnosticKeys.CELL_TYPE_POSTERIOR)
         if data:
-            df = pd.read_json(data['data'])
+            df = pd.read_json(StringIO(data['data']))
             metadata = data['metadata']
 
             title.title("Convergence screen")
