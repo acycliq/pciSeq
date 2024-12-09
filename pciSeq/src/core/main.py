@@ -284,7 +284,7 @@ class VarBayes:
                 p0 = self.spots.parent_cell_prob
 
                 if self.has_converged:
-                    self.cell_explorer.view_cell(2259)
+                    # self.cell_explorer.view_cell(2259)
                     cell_df, gene_df = collect_data(
                         self.cells, self.spots, self.genes, self.single_cell, self.config['is3D']
                     )
