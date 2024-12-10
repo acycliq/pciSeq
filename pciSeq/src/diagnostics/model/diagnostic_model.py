@@ -97,3 +97,7 @@ class DiagnosticModel:
         except redis.ConnectionError as e:
             model_logger.error(f"Redis connection failed: {e}")
             raise
+
+    def flush_db(self):
+        """Clear all keys from the Redis database."""
+        self.redis_client.flushdb()

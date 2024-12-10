@@ -79,6 +79,9 @@ class DiagnosticController:
             return False
 
         try:
+            # Clear any stale data before starting
+            self.flush_db()
+
             # Get path to dashboard script
             dirname = os.path.dirname(os.path.dirname(__file__))
             dashboard_path = os.path.join(dirname, 'view', 'dashboard.py')
@@ -125,6 +128,15 @@ class DiagnosticController:
                 controller_logger.warning(f'Forced dashboard termination with PID: {self.dashboard_process.pid}')
             finally:
                 self.dashboard_process = None
+
+    def flush_db(self) -> None:
+        """Clear all data from Redis database."""
+        try:
+            self.model.flush_db()
+            controller_logger.info('Redis database flushed on startup')
+        except Exception as e:
+            controller_logger.warning(f"Failed to flush redis db: {e}")
+
 
     @staticmethod
     def _setup_streamlit_credentials() -> bool:
