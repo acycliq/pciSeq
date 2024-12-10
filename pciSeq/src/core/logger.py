@@ -4,6 +4,12 @@ Logging Configuration Module for pciSeq
 This module provides a standardized logging setup for the pciSeq package,
 with colored output and consistent formatting across all modules.
 
+IMPORTANT NOTE:
+-------------
+This logger is designed to be non-intrusive when pciSeq is imported as a package.
+It will NOT modify parent application's logging settings or override existing
+configurations. The parent application's logging setup remains unchanged when using pciSeq.
+
 Key Functions:
 ------------
 setup_logger:
@@ -46,7 +52,7 @@ import logging
 def attach_to_log():
     """
     exists only for backwards compatibility.
-    Replaced by logger_setup
+    Replaced by setup_logger
     """
     setup_logger()
 
