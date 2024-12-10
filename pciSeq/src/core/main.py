@@ -726,3 +726,19 @@ class VarBayes:
         except Exception as e:
             main_logger.warning(f"Failed to update diagnostics: {e}")
 
+    def cell_analysis(self, cell_num):
+        """
+        Convenience method to analyze a specific cell.
+
+        Parameters
+        ----------
+        cell_num : int
+            The cell number to analyze
+
+        Returns
+        -------
+        Same as cell_explorer.view_cell()
+        """
+        return self.cell_explorer.view_cell(cell_num)
+
+
