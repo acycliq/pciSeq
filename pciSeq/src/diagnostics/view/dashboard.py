@@ -7,6 +7,7 @@ It maintains the original visualization style while working with the new MVC str
 
 import streamlit as st
 import pandas as pd
+import json
 from io import StringIO
 import altair as alt
 import logging
@@ -90,38 +91,44 @@ class DiagnosticDashboard:
         """Render gene efficiency visualization."""
         data = self.model.get_diagnostic_data(DiagnosticKeys.GENE_EFFICIENCY)
         if data:
-            df = pd.read_json(StringIO(data['data']))
-            metadata = data['metadata']
+            try:
+                df = pd.read_json(StringIO(data['data']))
+                metadata = data['metadata']
 
-            title.title("Convergence screen")
-            st.markdown(f"#### Gene efficiency after iteration {metadata['iteration']}")
+                title.title("Convergence screen")
+                st.markdown(f"#### Gene efficiency after iteration {metadata['iteration']}")
 
-            bar_chart = self._create_barchart(df, nominal_col='gene', val_col='gene_efficiency')
-            st.altair_chart(bar_chart, use_container_width=True)
+                bar_chart = self._create_barchart(df, nominal_col='gene', val_col='gene_efficiency')
+                st.altair_chart(bar_chart, use_container_width=True)
+            except json.JSONDecodeError as e:
+                dashboard_logger.info('guru meditation....')
 
     def _render_cell_distribution(self, title) -> None:
         """Render cell type distribution visualization."""
         data = self.model.get_diagnostic_data(DiagnosticKeys.CELL_TYPE_POSTERIOR)
         if data:
-            df = pd.read_json(StringIO(data['data']))
-            metadata = data['metadata']
+            try:
+                df = pd.read_json(StringIO(data['data']))
+                metadata = data['metadata']
 
-            title.title("Convergence screen")
-            st.markdown(f"#### Cell counts per cell class after iteration {metadata['iteration']}")
+                title.title("Convergence screen")
+                st.markdown(f"#### Cell counts per cell class after iteration {metadata['iteration']}")
 
-            bar_chart = self._create_barchart(df, nominal_col='class_name', val_col='counts')
-            bar_chart = bar_chart.properties(
-                title=alt.TitleParams(
-                    [f'#cells: {df.counts.sum()}'],
-                    baseline='bottom',
-                    orient='bottom',
-                    anchor='end',
-                    fontWeight='normal',
-                    fontSize=12,
-                ),
-                height=1200
-            )
-            st.altair_chart(bar_chart, use_container_width=True)
+                bar_chart = self._create_barchart(df, nominal_col='class_name', val_col='counts')
+                bar_chart = bar_chart.properties(
+                    title=alt.TitleParams(
+                        [f'#cells: {df.counts.sum()}'],
+                        baseline='bottom',
+                        orient='bottom',
+                        anchor='end',
+                        fontWeight='normal',
+                        fontSize=12,
+                    ),
+                    height=1200
+                )
+                st.altair_chart(bar_chart, use_container_width=True)
+            except json.JSONDecodeError as e:
+                dashboard_logger.info('guru meditation....')
 
 
 def main():
