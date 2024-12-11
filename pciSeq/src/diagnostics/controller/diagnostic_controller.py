@@ -19,7 +19,8 @@ from pathlib import Path
 from typing import Optional
 import tomlkit
 
-from pciSeq.src.diagnostics.model.diagnostic_model import DiagnosticModel
+from ...diagnostics.model.diagnostic_model import DiagnosticModel
+from ...diagnostics.utils import subprocess_cmd, check_platform
 
 controller_logger = logging.getLogger(__name__)
 
@@ -82,6 +83,9 @@ class DiagnosticController:
             # Clear any stale data before starting
             self.flush_db()
 
+            # keyspace_events needed to  notify the dashboard when new diagnostic data is available.
+            self.enable_keyspace_events()
+
             # Get path to dashboard script
             dirname = os.path.dirname(os.path.dirname(__file__))
             dashboard_path = os.path.join(dirname, 'view', 'dashboard.py')
@@ -136,6 +140,26 @@ class DiagnosticController:
             controller_logger.info('Redis database flushed on startup')
         except Exception as e:
             controller_logger.warning(f"Failed to flush redis db: {e}")
+
+    def enable_keyspace_events(self):
+        """
+        Enable Redis notifications for real-time dashboard updates.
+
+        Sets up Redis to notify the dashboard when new diagnostic data is published.
+        """
+        exe = "memurai-cli.exe" if check_platform() == "windows" else "redis-cli"
+        try:
+            out, err, exit_code = subprocess_cmd([exe, 'config', 'set', 'notify-keyspace-events', 'KEA'])
+            if exit_code != 0:
+                controller_logger.error(f"notify-keyspace-events failed with exit code: {exit_code}")
+                controller_logger.error(f"Output: {out.decode('UTF-8').rstrip()}")
+                controller_logger.error(f"Error: {err.decode('UTF-8').rstrip()}")
+                raise Exception('Failed to enable keyspace events')
+            controller_logger.info(f"Enabling keyspace events... {out.decode('UTF-8').rstrip()}")
+            self.model.redis_client.keyspace_events_enabled = True
+        except OSError as ex:
+            controller_logger.error(f"Cannot enable keyspace events. Failed with error: {ex}")
+            raise
 
 
     @staticmethod

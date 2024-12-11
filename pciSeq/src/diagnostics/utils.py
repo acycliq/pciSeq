@@ -11,86 +11,101 @@ import logging
 du_logger = logging.getLogger(__name__)
 
 
-class RedisDB:
-    def __init__(self, flush=False):
-        self.pool = None
-        self.redis_client = None
-        self.is_connected = None
-        self.keyspace_events_enabled = None
-        self._attach_client()
-        if flush:
-            self._flushdb()
+# class RedisDB:
+#     """
+#     Deprecated code. Class is not necessary anymore.
+#     """
+#     def __init__(self, flush=False):
+#         self.pool = None
+#         self.redis_client = None
+#         self.is_connected = None
+#         self.keyspace_events_enabled = None
+#         self._attach_client()
+#         if flush:
+#             self._flushdb()
+#
+#     def _attach_client(self):
+#         self.pool = config.SETTINGS['POOL']
+#         self.redis_client = redis.Redis(connection_pool=self.pool)
+#         self.is_connected = redis_passed()
+#         # if self.is_connected and not self.keyspace_events_enabled:
+#         #     self._enable_keyspace_events()
+#
+#     def to_redis(self, df_in, key, **kwargs):
+#         df = df_in.copy()
+#         df = df.assign(**kwargs)
+#         self.redis_client.set(key, pickle.dumps(df))
+#
+#     def _publish(self, df_in, channel, **kwargs):
+#         df = df_in.copy()
+#         df = df.assign(**kwargs)
+#         self.redis_client.publish(channel, pickle.dumps(df))
+#
+#     def publish(self, df_in, key, **kwargs):
+#         """
+#         convenience function, first it writes to redis db and then publishes
+#         """
+#         self.to_redis(df_in, key, **kwargs)
+#         self._publish(df_in, key, **kwargs)
+#
+#     def from_redis(self, key):
+#         """Retrieve Numpy array from Redis key 'key'"""
+#         return pickle.loads(self.redis_client.get(key))
+#
+#     def get_db_tables(self):
+#         bytestings = self.redis_client.keys()
+#         return [d.decode('UTF-8') for d in bytestings]
+#
+#     def _flushdb(self):
+#         self.redis_client.flushdb()
+#
+#     def _is_connected(self):
+#         try:
+#             return self.redis_client.ping()
+#         except (redis.exceptions.ConnectionError, ConnectionRefusedError):
+#             code_1, code_2 = validate_redis()
+#             if code_1 == 0 and code_2 == 0:
+#                 return True
+#             else:
+#                 raise Exception("Cannot validate redis")
+#
+#     def _enable_keyspace_events(self):
+#         exe = "memurai-cli.exe" if check_platform() == "windows" else "redis-cli"
+#         try:
+#             out, err, exit_code = subprocess_cmd([exe, 'config', 'set', 'notify-keyspace-events', 'KEA'])
+#             if exit_code != 0:
+#                 du_logger.error(f"notify-keyspace-events failed with exit code: {exit_code}")
+#                 du_logger.error(f"Output: {out.decode('UTF-8').rstrip()}")
+#                 du_logger.error(f"Error: {err.decode('UTF-8').rstrip()}")
+#                 raise Exception('Failed to enable keyspace events')
+#             du_logger.info(f"Enabling keyspace events... {out.decode('UTF-8').rstrip()}")
+#             self.keyspace_events_enabled = True
+#         except OSError as ex:
+#             du_logger.error(f"Cannot enable keyspace events. Failed with error: {ex}")
+#             raise
 
-    def _attach_client(self):
-        self.pool = config.SETTINGS['POOL']
-        self.redis_client = redis.Redis(connection_pool=self.pool)
-        self.is_connected = redis_passed()
-        if self.is_connected and not self.keyspace_events_enabled:
-            self._enable_keyspace_events()
 
-    def to_redis(self, df_in, key, **kwargs):
-        df = df_in.copy()
-        df = df.assign(**kwargs)
-        self.redis_client.set(key, pickle.dumps(df))
+def check_redis_server() -> bool:
+    """Check if Redis server is installed and running.
 
-    def _publish(self, df_in, channel, **kwargs):
-        df = df_in.copy()
-        df = df.assign(**kwargs)
-        self.redis_client.publish(channel, pickle.dumps(df))
-
-    def publish(self, df_in, key, **kwargs):
-        """
-        convenience function, first it writes to redis db and then publishes
-        """
-        self.to_redis(df_in, key, **kwargs)
-        self._publish(df_in, key, **kwargs)
-
-    def from_redis(self, key):
-        """Retrieve Numpy array from Redis key 'key'"""
-        return pickle.loads(self.redis_client.get(key))
-
-    def get_db_tables(self):
-        bytestings = self.redis_client.keys()
-        return [d.decode('UTF-8') for d in bytestings]
-
-    def _flushdb(self):
-        self.redis_client.flushdb()
-
-    def _is_connected(self):
-        try:
-            return self.redis_client.ping()
-        except (redis.exceptions.ConnectionError, ConnectionRefusedError):
-            code_1, code_2 = validate_redis()
-            if code_1 == 0 and code_2 == 0:
-                return True
-            else:
-                raise Exception("Cannot validate redis")
-
-    def _enable_keyspace_events(self):
-        exe = "memurai-cli.exe" if check_platform() == "windows" else "redis-cli"
-        try:
-            out, err, exit_code = subprocess_cmd([exe, 'config', 'set', 'notify-keyspace-events', 'KEA'])
-            if exit_code != 0:
-                du_logger.error(f"notify-keyspace-events failed with exit code: {exit_code}")
-                du_logger.error(f"Output: {out.decode('UTF-8').rstrip()}")
-                du_logger.error(f"Error: {err.decode('UTF-8').rstrip()}")
-                raise Exception('Failed to enable keyspace events')
-            du_logger.info(f"Enabling keyspace events... {out.decode('UTF-8').rstrip()}")
-            self.keyspace_events_enabled = True
-        except OSError as ex:
-            du_logger.error(f"Cannot enable keyspace events. Failed with error: {ex}")
-            raise
-
-
-def check_redis_server():
-    du_logger.info("check_redis_server")
+    Returns:
+        bool: True if Redis is both installed and running, False otherwise
+    """
+    du_logger.info("Checking Redis server status...")
     try:
-        RedisDB()
-        return True
-    except (redis.exceptions.ConnectionError, ConnectionRefusedError, OSError):
-        du_logger.info("Redis ping failed!. Diagnostics will not be called unless redis is installed and the service "
-                        "is running")
+        # Use existing validation function that checks both installation and running status
+        code_1, code_2 = validate_redis()
+        is_ready = (code_1 == 0 and code_2 == 0)
+
+        if not is_ready:
+            du_logger.info(
+                "Redis check failed. Diagnostics will not be available unless Redis is installed and running")
+        return is_ready
+
+    except Exception as e:
+        du_logger.error(f"Redis check failed with error: {e}")
         return False
+
 
 def is_redis_running(os):
     out = None
@@ -268,4 +283,24 @@ def check_redis_running(os):
     else:
         return False, "Redis is not running"
 
-# Keep the existing subprocess_cmd and check_platform functions
+
+# def check_redis_server() -> bool:
+#     """Check if Redis server is installed and running.
+#
+#     Returns:
+#         bool: True if Redis is both installed and running, False otherwise
+#     """
+#     du_logger.info("Checking Redis server status...")
+#     try:
+#         # Use existing validation function that checks both installation and running status
+#         code_1, code_2 = validate_redis()
+#         is_ready = (code_1 == 0 and code_2 == 0)
+#
+#         if not is_ready:
+#             du_logger.info(
+#                 "Redis check failed. Diagnostics will not be available unless Redis is installed and running")
+#         return is_ready
+#
+#     except Exception as e:
+#         du_logger.error(f"Redis check failed with error: {e}")
+#         return False
