@@ -17,6 +17,12 @@ export class DistanceProbabilityPlot {
             .domain([0, d3.max(data.assigned_contributions) || 1]) // fallback if no contributions
             .range([0.1, 0.5]);  // min radius 3px, max 15px
 
+        // The above is probably wrong! I should change to this, but something looks off to me
+        // Revisit and decide
+        // this.radiusScale = d3.scaleSqrt()
+        //     .domain([d3.min(data.assigned_contributions), d3.max(data.assigned_contributions)])
+        //     .range([0.1, 5]);  // min radius 3px, max 15px
+
 
         // Setup the checkbox listener
         d3.select("#size-toggle")
@@ -229,10 +235,11 @@ export class DistanceProbabilityPlot {
         this.width = width;
         this.height = height;
 
-        // Update SVG size
-        this.svg.parent()
-            .attr('width', width + PLOT_CONFIG.margin.left + PLOT_CONFIG.margin.right)
-            .attr('height', height + PLOT_CONFIG.margin.top + PLOT_CONFIG.margin.bottom);
+        // Update SVG size - Fix the parent selection
+        const svg = d3.select(`#${this.containerId}`).select('svg');
+        svg.attr('width', width + PLOT_CONFIG.margin.left + PLOT_CONFIG.margin.right)
+           .attr('height', height + PLOT_CONFIG.margin.top + PLOT_CONFIG.margin.bottom);
+
 
         // Update scales
         this.x.range([0, width]);
