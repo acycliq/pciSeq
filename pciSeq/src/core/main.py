@@ -226,9 +226,7 @@ class VarBayes:
                 if self.single_cell.isMissing:
                     self.mu_upd()
 
-                self.has_converged, delta = utils.has_converged(
-                    self.spots, p0, self.config['CellCallTolerance']
-                )
+                self.has_converged, delta = utils.has_converged(self.spots, p0, self.config['CellCallTolerance'])
                 main_logger.info('Iteration %d, mean prob change %f' % (i, delta))
 
                 # Update diagnostics using controller
