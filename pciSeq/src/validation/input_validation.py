@@ -253,4 +253,12 @@ class InputValidator:
         else:
             raise ValueError("MisreadDensity must be either a number or a dictionary with a 'default' key")
 
+        if isinstance(config.cell_centroid_prior_weight, dict):
+            if 'default' not in config.MisreadDensity:
+                raise ValueError("cell_centroid_prior_weight dictionary must contain a 'default' key")
+        elif isinstance(config.cell_centroid_prior_weight, (int, float)):
+            config.cell_centroid_prior_weight = {'default': config.cell_centroid_prior_weight}
+        else:
+            raise ValueError("cell_centroid_prior_weight must be either a number or a dictionary with a 'default' key")
+
         return config

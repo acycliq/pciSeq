@@ -53,6 +53,7 @@ def stage_data(spots: pd.DataFrame,
 
     # Process label matrices
     coo, label_map = CellLabelManager.process_label_matrices(coo)
+    cfg['label_map'] = label_map # Dont quite like it here, need to make it more transparent!!
 
     # Process spots
     dimensions = get_img_shape(coo)

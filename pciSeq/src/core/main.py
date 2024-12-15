@@ -531,64 +531,88 @@ class VarBayes:
         self.cov_upd()
 
     # -------------------------------------------------------------------- #
-    def centroid_upd(self) -> None:
+    def centroid_upd(self):
         """
-        Updates cell centroid positions based on spot assignments.
+        Updates cell centroids using Bayesian posterior estimation.
 
-        Calculates weighted average positions of spots assigned to each cell.
-        For cells with no assigned spots, maintains initial centroid positions.
+        Combines prior centroids with empirical means using configurable weights:
+        mu_post = (alpha * mu_0 + x_bar) / (alpha + 1)
 
-        Updates:
-            self.cells.centroid: DataFrame with updated x, y, z coordinates
+        where:
+        - mu_0 is the prior centroid
+        - x_bar is the empirical mean
+        - alpha is the weight controlling prior influence
+
+        Technical Details:
+        -----------------
+        Computes the posterior cluster mean given prior and sample statistics.
+
+        The posterior cluster mean is derived under the assumption of a Normal-Inverse Wishart (NIW) prior, where
+        the cluster's mean mu and covariance Sigma are jointly modeled.
+
+        When given sample data consisting of `n` observations with a sample mean x_bar, the posterior mean mu_n is
+        computed as:
+
+            mu_post = (k_0 * mu_0 + n * x_bar) / (k_0 + n)
+
+        The parameter k_0 controls the weight of the prior mean relative to the data when calculating the posterior
+        mean.
+         - When k_0 = 0 then the posterior mean is the sample mean
+         - A large value of k_0 implies stronger confidence in the prior, making the posterior mean closer to mu_0
+
+        Alternative Formula:
+        k_0 as a Function of alpha, ie: k_0 = alpha * n
+        ------------------------------------------------
+        k_0 can be set proportional to the sample size n as k_0 = alpha * n, where alpha >= 0 and controls the
+        relative influence of the prior:
+
+            mu_post = (alpha * mu_0 + x_bar) / (alpha + 1)
+
+        - When alpha = 0, the prior has no influence, and mu_post = x_bar (purely data-driven).
+        - When alpha = 1, the prior and data contribute equally, mu_post = (mu_0 + x_bar) / 2.
+        - When alpha -> infinity, the prior dominates, and mu_post tends to mu_0.
+
+        Setting alpha:
+        ----------------
+        - alpha = 0: Fully data-driven, no prior information.
+        - alpha = 1: Balance the prior and the data equally.
+        - alpha >> 1: Strong prior influence, posterior mean gets closer to the prior mean.
+        - alpha -> infinity: Prior dominates, posterior mean appx equal to the prior mean.
         """
-        spots = self.spots
 
-        # get the total gene counts per cell
-        N_c = self.cells.total_counts
+        # Get default value for the weight
+        default_val = self.config['cell_centroid_prior_weight']['default']
 
-        xyz_spots = spots.xyz_coords
-        prob = spots.parent_cell_prob
-        n = self.cells.config['nNeighbors'] + 1
+        cell_labels = np.arange(self.nC)
+        alpha_dict = dict(zip(cell_labels, [default_val] * self.nC))
 
-        # multiply the x coord of the spots by the cell prob
-        a = np.tile(xyz_spots[:, 0], (n, 1)).T * prob
+        # Update with any cell specific weights
+        if self.config['label_map']:
+            _label = []
+            for key in self.config['cell_centroid_prior_weight'].keys():
+                if key == 'default':
+                    _label.append('default')
+                else:
+                    _label.append(self.config['label_map'][key])
+            _dict = dict(zip(_label, self.config['cell_centroid_prior_weight'].values()))
+        else:
+            _dict = self.config['cell_centroid_prior_weight']
 
-        # multiply the y coord of the spots by the cell prob
-        b = np.tile(xyz_spots[:, 1], (n, 1)).T * prob
+        alpha_dict.update(_dict or {})
+        alpha_dict.pop('default', None)
 
-        # multiply the z coord of the spots by the cell prob
-        c = np.tile(xyz_spots[:, 2], (n, 1)).T * prob
+        mu_0 = self.cells.ini_centroids()
 
-        # aggregated x and y coordinate
-        idx = spots.parent_cell_id
-        x_agg = npg.aggregate(idx.ravel(), a.ravel(), size=len(N_c))
-        y_agg = npg.aggregate(idx.ravel(), b.ravel(), size=len(N_c))
-        z_agg = npg.aggregate(idx.ravel(), c.ravel(), size=len(N_c))
+        # 1. calc the empirical (sample) mean
+        x_bar = utils.empirical_mean(spots=self.spots, cells=self.cells)
 
-        # get the estimated cell centers
-        x_bar = np.nan * np.ones(N_c.shape)
-        y_bar = np.nan * np.ones(N_c.shape)
-        z_bar = np.nan * np.ones(N_c.shape)
-
-        x_bar[N_c > 0] = x_agg[N_c > 0] / N_c[N_c > 0]
-        y_bar[N_c > 0] = y_agg[N_c > 0] / N_c[N_c > 0]
-        z_bar[N_c > 0] = z_agg[N_c > 0] / N_c[N_c > 0]
-
-        # cells with N_c = 0 will end up with x_bar = y_bar = np.nan
-        xyz_bar_fitted = np.array(list(zip(x_bar.T, y_bar.T, z_bar.T)))
-
-        # if you have a value for the estimated centroid use that, otherwise
-        # use the initial (starting values) centroids
-        ini_cent = self.cells.ini_centroids()
-        xyz_bar = np.array(tuple(zip(*[ini_cent['x'], ini_cent['y'], ini_cent['z']])))
-
-        # # sanity check. NaNs or Infs should appear together
-        # assert np.all(np.isfinite(x_bar) == np.isfinite(y_bar))
-        # use the fitted centroids where possible otherwise use the initial ones
-        xyz_bar[np.isfinite(x_bar)] = xyz_bar_fitted[np.isfinite(x_bar)]
-        self.cells.centroid = pd.DataFrame(xyz_bar, columns=['x', 'y', 'z'], dtype=np.float32)
-        # print(np.array(list(zip(x_bar.T, y_bar.T))))
-
+        # 2.  Weighted average of the prior mean and the empirical mean
+        alpha = np.fromiter(alpha_dict.values(), dtype=np.float32)
+        alpha = alpha[:, None]
+        a = alpha * mu_0 + x_bar
+        b = alpha + 1
+        mu_post = a/b
+        self.cells.centroid = mu_post
     # -------------------------------------------------------------------- #
     def cov_upd(self) -> None:
         """

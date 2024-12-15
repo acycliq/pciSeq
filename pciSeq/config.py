@@ -105,6 +105,9 @@ DEFAULT = {
     # working with 2D or 3D data!
     'MisreadDensity': 0.00001,
 
+
+    'cell_centroid_prior_weight': {'default': 0},
+
     # Gene detection might come with irregularities due to technical errors. A small value is introduced
     # here to account for these errors. It is an additive factor, applied to the single cell expression
     # counts when the mean counts per class and per gene are calculated.
