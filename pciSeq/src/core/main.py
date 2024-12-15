@@ -113,14 +113,15 @@ class VarBayes:
         self._scaled_exp = None
         self._cell_explorer: Optional[CellExplorer] = None
 
-    def _validate_config(self, config: Dict[str, Any]) -> None:
+    @staticmethod
+    def _validate_config(config: Dict[str, Any]) -> None:
         """Check for required config parameters."""
         required = ['exclude_genes', 'max_iter', 'CellCallTolerance',
                     'rGene', 'Inefficiency', 'InsideCellBonus', 'MisreadDensity',
-                    'SpotReg', 'nNeighbors', 'rSpot', 'save_data', 'output_path',
-                    'launch_viewer', 'launch_diagnostics', 'is_redis_running',
-                    'cell_radius', 'cell_type_prior', 'is3D', 'mean_gene_counts_per_class',
-                    'mean_gene_counts_per_cell']
+                    'cell_centroid_prior_weight', 'SpotReg', 'nNeighbors', 'rSpot',
+                    'save_data', 'output_path', 'launch_viewer', 'launch_diagnostics',
+                    'is_redis_running', 'cell_radius', 'cell_type_prior', 'is3D',
+                    'mean_gene_counts_per_class', 'mean_gene_counts_per_cell']
         missing = [param for param in required if param not in config]
         if missing:
             raise ValueError(f"Missing required config parameters: {missing}")
@@ -284,8 +285,9 @@ class VarBayes:
                 p0 = self.spots.parent_cell_prob
 
                 if self.has_converged:
-                    # self.cell_explorer.view_cell(2259)
-                    cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell, self.config['is3D'])
+                    self.cell_explorer.view_cell(2259)
+                    cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell,
+                                                    self.config['is3D'])
                     break
 
                 if i == max_iter - 1:
@@ -361,8 +363,8 @@ class VarBayes:
         cfg = self.config
 
         self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
-                                            self.single_cell.mean_expression.values,
-                                            self.genes.eta_bar))
+                                                    self.single_cell.mean_expression.values,
+                                                    self.genes.eta_bar))
 
         beta = self.scaled_exp.compute() + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
@@ -510,17 +512,7 @@ class VarBayes:
     # -------------------------------------------------------------------- #
     def gaussian_upd(self) -> None:
         """
-        Updates Gaussian distribution parameters for spatial modeling.
-
-        Updates both centroids and covariance matrices for cells based on:
-            1. Current spot assignments
-            2. Spatial coordinates
-            3. Prior parameters
-
-        This method is called when:
-            - Single cell data is missing
-            - Inside cell bonus is disabled
-            - 3D analysis is being performed
+        Updates Gaussian distribution (centroids and covariance matrices) for cells
         """
         self.centroid_upd()
         self.cov_upd()
@@ -606,8 +598,9 @@ class VarBayes:
         alpha = alpha[:, None]
         a = alpha * mu_0 + x_bar
         b = alpha + 1
-        mu_post = a/b
+        mu_post = a / b
         self.cells.centroid = mu_post
+
     # -------------------------------------------------------------------- #
     def cov_upd(self) -> None:
         """
@@ -731,6 +724,7 @@ class VarBayes:
         v = v[self.spots.gene_id]  # Align with spots
         return v
 
+    # -------------------------------------------------------------------- #
     def diagnostics_upd(self) -> None:
         """Update diagnostic visualization if controller is available."""
         if self.diagnostic_controller is None:
@@ -745,6 +739,7 @@ class VarBayes:
         except Exception as e:
             main_logger.warning(f"Failed to update diagnostics: {e}")
 
+    # -------------------------------------------------------------------- #
     def cell_analysis(self, cell_num):
         """
         Convenience method to analyze a specific cell.
@@ -759,5 +754,3 @@ class VarBayes:
         Same as cell_explorer.view_cell()
         """
         return self.cell_explorer.view_cell(cell_num)
-
-
