@@ -474,74 +474,24 @@ class VarBayes:
             Returns:
             --------
             posterior_mean : float or array-like
-                The posterior cluster mean \mu_n, computed using the formula above.
+                The posterior cluster mean mu_post, computed using the formula above.
             """
-        k_0 = 10
+        try:
+            alpha = self.config['centroid_prior_weight']
+        except KeyError:
+            main_logger.info("Setting 'centroid_prior_weight' to zero")
+            alpha = 0
+
         mu_0 = self.cells.ini_centroids()
-        N_c = self.cells.total_counts
 
         # 1. calc the empirical (sample) mean
         mu_bar = utils.empirical_mean(spots=self.spots, cells=self.cells)
 
         # 2.  Weighted average of the prior mean and the empirical mean
-        N_c = N_c[:, None]
-        a = (k_0 * mu_0) + (N_c * mu_bar)
-        b = k_0 + N_c
-
+        a = alpha * mu_0 + mu_bar
+        b = alpha + 1
         mu_c = a/b
-        df =  pd.DataFrame(mu_c, columns=['x', 'y'])
-
-        # Alternative formulation
-        alpha = k_0/N_c
-        alpha = 10e9
-        aa = alpha * mu_0 + mu_bar
-        bb = alpha + 1
-        mu_c2 = aa/bb
-
-
-        spots = self.spots
-
-        # get the total gene counts per cell
-        N_c = self.cells.total_counts
-
-        xy_spots = spots.xy_coords
-        prob = spots.parent_cell_prob
-        n = self.cells.config['nNeighbors'] + 1
-
-        # multiply the x coord of the spots by the cell prob
-        a = np.tile(xy_spots[:, 0], (n, 1)).T * prob
-
-        # multiply the y coord of the spots by the cell prob
-        b = np.tile(xy_spots[:, 1], (n, 1)).T * prob
-
-        # aggregated x and y coordinate
-        idx = spots.parent_cell_id
-        x_agg = npg.aggregate(idx.ravel(), a.ravel(), size=len(N_c))
-        y_agg = npg.aggregate(idx.ravel(), b.ravel(), size=len(N_c))
-
-        # get the estimated cell centers
-        x_bar = np.nan * np.ones(N_c.shape)
-        y_bar = np.nan * np.ones(N_c.shape)
-
-        x_bar[N_c > 0] = x_agg[N_c > 0] / N_c[N_c > 0]
-        y_bar[N_c > 0] = y_agg[N_c > 0] / N_c[N_c > 0]
-
-        # cells with N_c = 0 will end up with x_bar = y_bar = np.nan
-        xy_bar_fitted = np.array(list(zip(x_bar.T, y_bar.T)))
-
-        # if you have a value for the estimated centroid use that, otherwise
-        # use the initial (starting values) centroids
-        ini_cent = self.cells.ini_centroids()
-        xy_bar = np.array(tuple(zip(*[ini_cent['x'], ini_cent['y']])))
-
-        # # sanity check. NaNs or Infs should appear together
-        # assert np.all(np.isfinite(x_bar) == np.isfinite(y_bar))
-        # use the fitted centroids where possible otherwise use the initial ones
-        xy_bar[np.isfinite(x_bar)] = xy_bar_fitted[np.isfinite(x_bar)]
-
-        np.allclose(mu_bar.values, xy_bar)
-        self.cells.centroid = pd.DataFrame(xy_bar, columns=['x', 'y'])
-        # print(np.array(list(zip(x_bar.T, y_bar.T))))
+        self.cells.centroid = pd.DataFrame(mu_c, columns=['x', 'y'])
 
     # -------------------------------------------------------------------- #
     def cov_upd(self):
