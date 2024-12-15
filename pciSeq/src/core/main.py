@@ -568,14 +568,10 @@ class VarBayes:
 
             mu_post = (alpha * mu_0 + x_bar) / (alpha + 1)
 
-        - When alpha = 0, the prior has no influence, and mu_post = x_bar (purely data-driven).
-        - When alpha = 1, the prior and data contribute equally, mu_post = (mu_0 + x_bar) / 2.
-        - When alpha -> infinity, the prior dominates, and mu_post tends to mu_0.
-
         Setting alpha:
         ----------------
         - alpha = 0: Fully data-driven, no prior information.
-        - alpha = 1: Balance the prior and the data equally.
+        - alpha = 1: Balance the prior and the data equally, mu_post = (mu_0 + x_bar) / 2.
         - alpha >> 1: Strong prior influence, posterior mean gets closer to the prior mean.
         - alpha -> infinity: Prior dominates, posterior mean appx equal to the prior mean.
         """
@@ -593,7 +589,11 @@ class VarBayes:
                 if key == 'default':
                     _label.append('default')
                 else:
-                    _label.append(self.config['label_map'][key])
+                    try:
+                        _label.append(self.config['label_map'][key])
+                    except KeyError as e:
+                        main_logger.warning(f"Could not find cell with label: {key}, "
+                                            f"cell_centroid_prior_weight is not applied")
             _dict = dict(zip(_label, self.config['cell_centroid_prior_weight'].values()))
         else:
             _dict = self.config['cell_centroid_prior_weight']

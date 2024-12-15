@@ -105,7 +105,30 @@ DEFAULT = {
     # working with 2D or 3D data!
     'MisreadDensity': 0.00001,
 
-
+    # cell_centroid_prior_weight: Controls how much to trust initial cell positions vs. empirically observed data
+    # Uses formula: mu_post = (alpha * initial_position + empirical_position) / (alpha + 1)
+    #
+    # Can be set as either:
+    #   - Scalar value: Same weight for all cells
+    #   - Dict: Different weights for specific cell types where:
+    #          - keys are cell labels (cell IDs)
+    #          - values are the weights (alpha)
+    #          - 'default' key sets weight for any unspecified cell labels
+    #
+    # Weight values (alpha) effects:
+    #   alpha = 0: Fully trust data, ignore initial position
+    #   alpha = 1: Equal weight (50-50) between initial and empirical positions
+    #             (i.e., final position will be exactly halfway between initial and data-driven positions)
+    #   alpha > 1: More trust in initial position
+    #   alpha >> 1: Heavy bias towards the initial position
+    #   alpha -> Infinity: Completely locks to initial position
+    #
+    # Example usage:
+    # 'cell_centroid_prior_weight': {
+    #     'default': 0,     # Used for any cells not explicitly listed. Value=0 means fully data-driven, no prior)
+    #     3: 1,             # Cell with label 3: equal weight between initial and data-driven positions
+    #     10: 100,          # Cell with label 10: strongly trust initial position
+    # }
     'cell_centroid_prior_weight': {'default': 0},
 
     # Gene detection might come with irregularities due to technical errors. A small value is introduced
@@ -117,12 +140,12 @@ DEFAULT = {
     # when we're doing calculations with these numbers.
     'SpotReg': 0.1,
 
-    # By default only the 3 nearest cells will be considered as possible parent cells for any given spot.
+    # By default only the 6 nearest cells will be considered as possible parent cells for any given spot.
     # There is also one extra 'super-neighbor', which is always a neighbor to the spots so we can assign
     # the misreads to. Could be seen as the background. Hence, by default the algorithm tries examines
     # whether any of the 3 nearest cells is a possible parent cell to a given cell or whether the spot is
     # a misread
-    'nNeighbors': 3,
+    'nNeighbors': 6,
 
     # A gamma distributed variate from Gamma(rSpot, 1) is applied to the mean expression, hence the counts
     # are distributed according to a Negative Binomial distribution.
