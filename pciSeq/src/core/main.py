@@ -425,6 +425,80 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def centroid_upd(self):
+        """
+            Computes the posterior cluster mean given prior and sample statistics.
+
+            The posterior cluster mean is derived under the assumption of a Normal-Inverse Wishart (NIW) prior, where
+            the cluster's mean mu and covariance Sigma are jointly modeled.
+
+            When given sample data consisting of `n` observations with a sample mean x_bar, the posterior mean mu_n is
+            computed as:
+
+                mu_post = (k_0 * mu_0 + n * x_bar) / (k_0 + n)
+
+            The parameter k_0 controls the weight of the prior mean relative to the data when calculating the posterior
+            mean.
+             - When k_0 = 0 then the posterior mean is the sample mean
+             - A large value of k_0 implies stronger confidence in the prior, making the posterior mean closer to mu_0
+
+            Alternative Formula:
+            k_0 as a Function of \alpha, ie: k_0 = \alpha * n
+            ------------------------------------------------
+            k_0 can be set proportional to the sample size n as k_0 = \alpha * n, where \alpha >= 0 and controls the
+            relative influence of the prior:
+
+                mu_post = (\alpha * mu_0 + x_bar) / (\alpha + 1)
+
+            - When \alpha = 0, the prior has no influence, and mu_post = x_bar (purely data-driven).
+            - When \alpha = 1, the prior and data contribute equally, mu_post = (mu_0 + x_bar) / 2.
+            - When \alpha \to infinity, the prior dominates, and mu_post tends to mu_0.
+
+            Setting \alpha:
+            ----------------
+            - \alpha = 0: Fully data-driven, no prior information.
+            - \alpha = 1: Balance the prior and the data equally.
+            - \alpha >> 1: Strong prior influence, posterior mean gets closer to the prior mean.
+            - \alpha -> infinity: Prior dominates, posterior mean appx equal to the prior mean.
+
+            Parameters:
+            -----------
+            kappa_0 : float
+                Prior strength, representing the effective number of pseudo-observations supporting the prior mean \mu_0.
+            mu_0 : float or array-like
+                The prior mean for the cluster.
+            n : int
+                The number of observed data points in the cluster.
+            sample_mean : float or array-like
+                The mean of the observed data points in the cluster.
+
+            Returns:
+            --------
+            posterior_mean : float or array-like
+                The posterior cluster mean \mu_n, computed using the formula above.
+            """
+        k_0 = 10
+        mu_0 = self.cells.ini_centroids()
+        N_c = self.cells.total_counts
+
+        # 1. calc the empirical (sample) mean
+        mu_bar = utils.empirical_mean(spots=self.spots, cells=self.cells)
+
+        # 2.  Weighted average of the prior mean and the empirical mean
+        N_c = N_c[:, None]
+        a = (k_0 * mu_0) + (N_c * mu_bar)
+        b = k_0 + N_c
+
+        mu_c = a/b
+        df =  pd.DataFrame(mu_c, columns=['x', 'y'])
+
+        # Alternative formulation
+        alpha = k_0/N_c
+        alpha = 10e9
+        aa = alpha * mu_0 + mu_bar
+        bb = alpha + 1
+        mu_c2 = aa/bb
+
+
         spots = self.spots
 
         # get the total gene counts per cell
@@ -464,6 +538,8 @@ class VarBayes:
         # assert np.all(np.isfinite(x_bar) == np.isfinite(y_bar))
         # use the fitted centroids where possible otherwise use the initial ones
         xy_bar[np.isfinite(x_bar)] = xy_bar_fitted[np.isfinite(x_bar)]
+
+        np.allclose(mu_bar.values, xy_bar)
         self.cells.centroid = pd.DataFrame(xy_bar, columns=['x', 'y'])
         # print(np.array(list(zip(x_bar.T, y_bar.T))))
 
