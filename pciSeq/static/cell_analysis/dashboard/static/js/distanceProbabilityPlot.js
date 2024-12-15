@@ -165,8 +165,8 @@ export class DistanceProbabilityPlot {
     this.svg.selectAll('circle')
         .transition()
         .duration(200)
-        .style('opacity', d => visibleGenes.includes(d.name) ? 1 : 0.1)
-        .style('pointer-events', d => visibleGenes.includes(d.name) ? 'all' : 'none');
+        .style('opacity', d => visibleGenes.includes(d.label) ? 1 : 0.1)
+        .style('pointer-events', d => visibleGenes.includes(d.label) ? 'all' : 'none');
     }
 
     resize() {
