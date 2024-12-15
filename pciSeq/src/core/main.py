@@ -567,9 +567,9 @@ class VarBayes:
         default_val = self.config['cell_centroid_prior_weight']['default']
 
         cell_labels = np.arange(self.nC)
-        alpha_dict = dict(zip(cell_labels, [default_val] * self.nC))
+        alpha_dict = {label: default_val for label in cell_labels}
 
-        # Update with any cell specific weights
+        # Update with any cell specific weights (Review this, can be done in a simpler way!)
         if self.config['label_map']:
             _label = []
             for key in self.config['cell_centroid_prior_weight'].keys():
