@@ -216,3 +216,34 @@ body {
     font-size: 0.9rem;
     cursor: pointer;
 }
+
+.gene-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.toggle-switch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    min-width: 100px; /* Add fixed width to prevent movement */
+}
+
+.toggle-label {
+    font-size: 0.9rem;
+    color: var(--text-color);
+    user-select: none;
+    text-align: right; /* Align text to the right */
+    flex-grow: 1; /* Allow label to take remaining space */
+}
+
+.toggle-switch input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    margin: 0; /* Reset margin to ensure consistent positioning */
+    flex-shrink: 0; /* Prevent checkbox from shrinking */
+}
