@@ -326,5 +326,14 @@ export class ScatterPlot {
         // Trigger complete plot update
         this.updatePlot();
     }
+
+    updateVisibleGenes(visibleGenes) {
+    // Update points visibility
+    this.svg.selectAll('circle')
+        .transition()
+        .duration(200)
+        .style('opacity', d => visibleGenes.includes(d.name) ? 1 : 0.1)
+        .style('pointer-events', d => visibleGenes.includes(d.name) ? 'all' : 'none');
+    }
 }
 

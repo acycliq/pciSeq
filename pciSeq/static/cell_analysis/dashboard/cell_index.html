@@ -13,9 +13,15 @@
     <div id="plot-area"></div>
     <div id="bottom-plot"></div>
 
+    <div id="gene-selector-panel" class="gene-selector-panel">
+        <h3>Gene Visibility Controls</h3>
+        <div id="gene-checkboxes" class="gene-checkbox-container"></div>
+    </div>
+
     <script type="module">
         import { ScatterPlot } from './static/js/scatterPlot.js';
         import { DistanceProbabilityPlot } from './static/js/distanceProbabilityPlot.js';
+        import { GeneSelector } from './static/js/gene_selector.js';
 
         // import { dummyDistanceData } from './data_plot2.json';
         // Load data from JSON file
@@ -41,6 +47,13 @@
 
             // Create the bottom plot with dummy data
             const bottomPlot = new DistanceProbabilityPlot('bottom-plot', data2, tooltip);
+
+            // Create gene selector
+            const geneSelector = new GeneSelector('gene-selector-panel', data.gene_names, (selectedGenes) => {
+                // Update plots with selected genes
+                mainPlot.updateVisibleGenes(selectedGenes);
+                bottomPlot.updateVisibleGenes(selectedGenes);
+            });
 
             // Add resize handler
             window.addEventListener('resize', () => {

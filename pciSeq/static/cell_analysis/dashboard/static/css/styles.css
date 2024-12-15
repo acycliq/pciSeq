@@ -176,3 +176,43 @@ body {
         width: 100%;
     }
 }
+
+.gene-selector-panel {
+    background-color: var(--card-background);
+    border-radius: var(--border-radius);
+    padding: 24px;
+    margin: 24px 0;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+}
+
+.gene-selector-panel h3 {
+    margin: 0 0 16px 0;
+    color: var(--text-color);
+    font-size: 1.1rem;
+}
+
+.gene-checkbox-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.gene-checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.gene-checkbox-wrapper input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.gene-checkbox-wrapper label {
+    font-size: 0.9rem;
+    cursor: pointer;
+}
