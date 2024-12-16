@@ -48,14 +48,30 @@
                 .attr("class", "tooltip")
                 .style("opacity", 0);
 
-            // Create the plots
-            const mainPlot = new ScatterPlot('plot-area', data, tooltip);
+	        // Get unique genes from the bottom plot
+	    const unique_gene_names = [...new Set(data2.labels)];
 
-            // Create the bottom plot with dummy data
-            const bottomPlot = new DistanceProbabilityPlot('bottom-plot', data2, tooltip);
+	    // Filter data for main plot to only include genes from unique_gene_names
+	    const filteredData = {
+		...data,  // Copy all other properties
+		gene_names: data.gene_names.filter(gene => unique_gene_names.includes(gene)),
+		contr: Object.fromEntries(
+		    Object.entries(data.contr).map(([className, values]) => {
+		        // Filter contribution values to keep only those for genes in unique_gene_names
+		        const filteredValues = values.filter((_, index) =>
+		            unique_gene_names.includes(data.gene_names[index])
+		        );
+		        return [className, filteredValues];
+		    })
+		)
+	    };
+
+	    // Create the plots with filtered data
+	    const mainPlot = new ScatterPlot('plot-area', filteredData, tooltip);
+	    const bottomPlot = new DistanceProbabilityPlot('bottom-plot', data2, tooltip);
 
             // Create gene selector
-            const geneSelector = new GeneSelector('gene-selector-panel', data.gene_names, (selectedGenes) => {
+            const geneSelector = new GeneSelector('gene-selector-panel', unique_gene_names, (selectedGenes) => {
                 // Update plots with selected genes
                 mainPlot.updateVisibleGenes(selectedGenes);
                 bottomPlot.updateVisibleGenes(selectedGenes);
