@@ -105,7 +105,8 @@ DEFAULT = {
     # working with 2D or 3D data!
     'MisreadDensity': 0.00001,
 
-    # cell_centroid_prior_weight: Controls how much to trust initial cell positions vs. empirically observed data
+    # cell_centroid_prior_weight: Determines the balance between relying on initial cell positions (prior) and
+    # fully data-driven.
     # Uses formula: mu_post = (alpha * initial_position + empirical_position) / (alpha + 1)
     #
     # Can be set as either:
@@ -129,7 +130,7 @@ DEFAULT = {
     #     3: 1,             # Cell with label 3: equal weight between initial and data-driven positions
     #     10: 100,          # Cell with label 10: strongly trust initial position
     # }
-    'cell_centroid_prior_weight': {'default': 0},
+    'cell_centroid_prior_weight': 0,
 
     # Gene detection might come with irregularities due to technical errors. A small value is introduced
     # here to account for these errors. It is an additive factor, applied to the single cell expression
