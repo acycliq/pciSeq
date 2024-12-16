@@ -69,6 +69,7 @@ def label_image_remove_planes(coo: List[coo_matrix], cfg: Dict) -> List[coo_matr
 def spots_remove_planes(spots: pd.DataFrame, cfg: Dict) -> Tuple[pd.DataFrame, int]:
     """
     Remove spots from excluded planes and adjust z coordinates.
+    !!!!!!! MUST BE REVIEWED !!!!!
 
     Parameters
     ----------
@@ -87,14 +88,18 @@ def spots_remove_planes(spots: pd.DataFrame, cfg: Dict) -> Tuple[pd.DataFrame, i
     spots = spots[mask].copy()
 
     # Find first kept plane
-    diff = np.diff(cfg['exclude_planes']) - 1
-    if np.all(diff == 0):
-        min_plane = max(cfg['exclude_planes']) + 1
-    else:
-        iLeft = list(diff > 0).index(True)
-        min_plane = cfg['exclude_planes'][iLeft] + 1
+    if cfg['exclude_planes']:
+        diff = np.diff(cfg['exclude_planes']) - 1
+        if np.all(diff == 0):
+            min_plane = max(cfg['exclude_planes']) + 1
+        else:
+            iLeft = list(diff > 0).index(True)
+            min_plane = cfg['exclude_planes'][iLeft] + 1
 
-    spots.loc[:, 'z_plane'] = spots.z_plane - min_plane
+        spots.loc[:, 'z_plane'] = spots.z_plane - min_plane
+    else:
+        min_plane = 0
+
     return spots, min_plane
 
 
@@ -102,6 +107,7 @@ def cells_remove_planes(coo_list: List[coo_matrix],
                         cfg: Dict) -> Tuple[List[coo_matrix], pd.DataFrame]:
     """
     Remove cells that exist in only one frame.
+    !!!!!!! MUST BE REVIEWED !!!!!
 
     Parameters
     ----------

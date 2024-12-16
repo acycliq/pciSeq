@@ -70,3 +70,6 @@ class ConfigManager:
         """
         self.is3D = len(coo) > 1
         self.is_redis_running = check_redis_server()
+
+        # if exclude_planes is None set it to []
+        self.exclude_planes = self.exclude_planes or []
