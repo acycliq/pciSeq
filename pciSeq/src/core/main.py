@@ -604,33 +604,33 @@ class VarBayes:
     # -------------------------------------------------------------------- #
     def cov_upd(self) -> None:
         """
-        Updates cell covariance matrices for spatial distributions.
-
-        Combines:
-            1. Empirical scatter matrix from assigned spots
-            2. Prior covariance scaled by prior degrees of freedom
-            3. Shrinkage to control estimation stability
-
-        Note:
-            Uses delta=0.5 for shrinkage towards prior covariance.
+        TBA
         """
         spots = self.spots
+        n = self.nS  # sample size
+        k_0 = 20 # maybe set this equal to degrees of freedom, nu_0
 
         # first get the scatter matrix
-        S = self.cells.scatter_matrix(spots)  # sample sum of squares
+        S = self.cells.scatter_matrix(spots)
+
+        # 2 compute the term that accounts for the difference between the
+        # prior cell centroids vs empirical cell centroids
+        mu_bar = utils.empirical_mean(spots=self.spots, cells=self.cells)
+        mu_0 = self.cells.ini_centroids()
+        dmu = mu_0 - mu_bar
+        mean_diff = np.einsum('sk, sd->skd', dmu, dmu)
+
+        # 3 scale matrix
         cov_0 = self.cells.ini_cov()
         nu_0 = self.cells.nu_0
-        S_0 = cov_0 * nu_0  # prior sum of squares
-        N_c = self.cells.total_counts
-        d = 2
-        denom = np.ones([self.nC, 1, 1])
-        denom[:, 0, 0] = N_c + nu_0
-        # Note: need to add code to handle the case N_c + nu_0 <= d + 2
-        cov = (S + S_0) / denom
+        psi_0 = cov_0 * nu_0
 
-        # shrinkage
-        delta = 0.5
-        cov = delta * cov_0 + (1 - delta) * cov
+        weight = (n * k_0) / (k_0 + n)
+        psi_n = psi_0 + S + weight * mean_diff
+
+        d = 3 if self.config['is3D'] else 2
+        cov = psi_n / (nu_0 + n - d - 1)
+
         self.cells.cov = cov.astype(np.float32)
 
     # -------------------------------------------------------------------- #
