@@ -238,7 +238,7 @@ DEFAULT = {
     # Hyperparameters below come into action **ONLY** if single cell data are missing
     # *******************************************************************************
     'mean_gene_counts_per_class': 60,
-    'mean_gene_counts_per_cell': 30,
+    # 'mean_gene_counts_per_cell': 30,
 
 
 
