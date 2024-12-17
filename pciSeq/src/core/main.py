@@ -605,6 +605,24 @@ class VarBayes:
     def cov_upd(self) -> None:
         """
         TBA
+        nu_0 is the degrees of freedom. This reflects how much trust you place in your prior belief
+        about the covariance structure before seeing any data.
+        A larger nu_0 means you trust the prior covariance structure more because the prior is
+        "informed" by more data or is based on a more confident belief.
+        For example, in the context of a covariance matrix, \nu_0 could represent how much "prior knowledge"
+        or prior data you have regarding the covariance before observing new data.
+
+        Impact of Degrees of Freedom:
+        Small \nu_0
+        (few prior data points or weak prior knowledge): The posterior estimate will rely more heavily on
+        the data, and the posterior distribution will be closer to the sample covariance matrix
+
+        Large \nu_0
+        (strong prior knowledge): The prior covariance matrix will have a larger influence on the posterior
+        distribution, and the posterior covariance matrix will be more influenced by the prior structure.
+
+        In summary, degrees of freedom essentially determine how much weight is given to the prior information
+        versus the data when estimating parameters like covariance.
         """
         spots = self.spots
         n = self.nS  # sample size
@@ -629,7 +647,8 @@ class VarBayes:
         psi_n = psi_0 + S + weight * mean_diff
 
         d = 3 if self.config['is3D'] else 2
-        cov = psi_n / (nu_0 + n - d - 1)
+        nu_n = nu_0 + n
+        cov = psi_n / (nu_n - d - 1)
 
         self.cells.cov = cov.astype(np.float32)
 
