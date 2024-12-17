@@ -604,7 +604,58 @@ class VarBayes:
     # -------------------------------------------------------------------- #
     def cov_upd(self) -> None:
         """
-        TBA
+        Computes the posterior mean of a covariance matrix using an inverse Wishart prior.
+
+        Combines the sample covariance matrix with the prior covariance estimate, weighted by
+        a factor based on the sample size and prior strength.
+
+        Formulas:
+        ---------
+        Before re-parameterization:
+            E(Cov|data) = (nS + V0) / (n + nu_0 - d - 1)
+
+            Rewriting as a weighted average:
+            E(Cov|data) = (n / (n + nu_0 - d - 1)) * S
+                     + (1 - n / (n + nu_0 - d - 1)) * (V0 / (nu_0 - d - 1))
+
+        After re-parameterization (with nu_0 = alpha * n):
+            E(Cov|data) = (nS + V0) / (n + alpha * n - d - 1)
+
+            Rewriting as a weighted average:
+            E(Cov|data) = (n / (n + alpha * n - d - 1)) * S
+                     + (1 - n / (n + alpha * n - d - 1)) * (V0 / (alpha * n - d - 1))
+
+        Parameters:
+        -----------
+        S (numpy.ndarray): Sample covariance matrix (p x p).
+        V0 (numpy.ndarray): Scale matrix of the inverse Wishart prior.
+        n (int): Sample size.
+        alpha (float): Weighting factor for prior strength, with m0 = alpha * n.
+        p (int): Dimensionality of the covariance matrix.
+
+        Returns:
+        --------
+        numpy.ndarray: Posterior mean of the covariance matrix.
+
+        Technical Details:
+        ------------------
+        - The top-row formula expresses the posterior mean compactly:
+            E(Cov|data) = (nS + V0) / (n + m0 - p - 1) or equivalently
+                     E(Cov|data) = (nS + V0) / (n + alpha * n - p - 1) after re-parameterization.
+        - The weighted average form highlights the balance between sample covariance (`S`)
+          and the prior mean (`V0 / (m0 - p - 1)` or `V0 / (alpha * n - p - 1)`).
+
+        Setting alpha:
+        --------------
+        - alpha = 0: Prior has no influence, posterior mean equals the sample covariance matrix.
+        - alpha = 1: Equal contribution from the prior and the sample data.
+        - alpha >> 1: Strong prior influence, posterior mean approximates the prior covariance.
+        - alpha -> infinity: Prior dominates completely.
+
+        Important Considerations:
+        --------------------------
+        - Ensure alpha * n - p - 1 > 0 to maintain valid degrees of freedom.
+        - Matrices `S` and `V0` must be valid positive-definite covariance matrices.
         """
         spots = self.spots
         n = self.cells.geneCount.sum(axis=1)  # sample size (cell gene counts)
