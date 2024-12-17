@@ -626,19 +626,18 @@ class VarBayes:
         """
         spots = self.spots
         n = self.cells.geneCount.sum(axis=1)  # sample size (cell gene counts)
-        k_0 = 20  # maybe set this equal to degrees of freedom, nu_0
         d = 3 if self.config['is3D'] else 2  # dimensionality of the data points
 
-        # 1. first set the prior scale matrix
+        # 1. first get the components for the prior scale matrix
         cov_0 = self.cells.ini_cov()
         nu_0 = self.cells.nu_0
-        psi_0 = cov_0 * nu_0
+        # psi_0 = cov_0 * nu_0
 
         # 2. Get now the scatter matrix. This is basically the sample covariance matrix
         # scaled be sample size (cell gene counts)
         S = self.cells.scatter_matrix(spots)
 
-        a = S + cov_0 * nu_0
+        a = S + (nu_0 * cov_0)
         b = n + nu_0 - d - 1
 
         # divide a by b (same as a/b[:, :, None])
