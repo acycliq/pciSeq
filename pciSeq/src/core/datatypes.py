@@ -239,7 +239,8 @@ class Cells(object):
         prob = spots.parent_cell_prob[:, :-1]
         id = spots.parent_cell_id[:, :-1]
         xyz_spots = spots.xyz_coords
-        out = self.ini_cov() * self.nu_0
+        # out = self.ini_cov() * self.nu_0
+        out = np.zeros(self.ini_cov().shape)
 
         mu_x = mu_bar[id, 0]  # array of size [nS, N] with the x-coord of the centroid of the N closest cells
         mu_y = mu_bar[id, 1]  # array of size [nS, N] with the y-coord of the centroid of the N closest cells
