@@ -118,7 +118,7 @@ class VarBayes:
         """Check for required config parameters."""
         required = ['exclude_genes', 'max_iter', 'CellCallTolerance',
                     'rGene', 'Inefficiency', 'InsideCellBonus', 'MisreadDensity',
-                    'cell_centroid_prior_weight', 'SpotReg', 'nNeighbors', 'rSpot',
+                    'cell_centroid_prior_weight', 'cell_cov_prior_weight', 'SpotReg', 'nNeighbors', 'rSpot',
                     'save_data', 'output_path', 'launch_viewer', 'launch_diagnostics',
                     'is_redis_running', 'cell_radius', 'cell_type_prior', 'is3D',
                     'mean_gene_counts_per_class', 'mean_gene_counts_per_cell']
@@ -605,44 +605,57 @@ class VarBayes:
     def cov_upd(self) -> None:
         """
         TBA
-        nu_0 is the degrees of freedom. This reflects how much trust you place in your prior belief
-        about the covariance structure before seeing any data.
-        A larger nu_0 means you trust the prior covariance structure more because the prior is
-        "informed" by more data or is based on a more confident belief.
-        For example, in the context of a covariance matrix, \nu_0 could represent how much "prior knowledge"
-        or prior data you have regarding the covariance before observing new data.
-
-        Impact of Degrees of Freedom:
-        Small \nu_0
-        (few prior data points or weak prior knowledge): The posterior estimate will rely more heavily on
-        the data, and the posterior distribution will be closer to the sample covariance matrix
-
-        Large \nu_0
-        (strong prior knowledge): The prior covariance matrix will have a larger influence on the posterior
-        distribution, and the posterior covariance matrix will be more influenced by the prior structure.
-
-        In summary, degrees of freedom essentially determine how much weight is given to the prior information
-        versus the data when estimating parameters like covariance.
         """
         spots = self.spots
         n = self.cells.geneCount.sum(axis=1)  # sample size (cell gene counts)
         d = 3 if self.config['is3D'] else 2  # dimensionality of the data points
+        # Get default value for the weight
+        default_val = self.config['cell_cov_prior_weight']['default']
+
+        ##### DUPLICATE CODE BELOW !!!! #####
+        cell_labels = np.arange(self.nC)
+        alpha_dict = {label: default_val for label in cell_labels}
+        # Update with any cell specific weights (Review this, can be done in a simpler way!)
+        if self.config['label_map']:
+            _label = []
+            for key in self.config['cell_cov_prior_weight'].keys():
+                if key == 'default':
+                    _label.append('default')
+                else:
+                    try:
+                        _label.append(self.config['label_map'][key])
+                    except KeyError as e:
+                        main_logger.warning(f"Could not find cell with label: {key}, "
+                                            f"cell_centroid_prior_weight is not applied")
+            _dict = dict(zip(_label, self.config['cell_cov_prior_weight'].values()))
+        else:
+            _dict = self.config['cell_cov_prior_weight']
+
+        alpha_dict.update(_dict or {})
+        alpha_dict.pop('default', None)
+        ##### DUPLICATE CODE ABOVE !!!! #####
 
         # 1. first get the components for the prior scale matrix
+        alpha = np.fromiter(alpha_dict.values(), dtype=np.float32)
         cov_0 = self.cells.ini_cov()
-        nu_0 = self.cells.nu_0
+        nu_0 = alpha * n
         # psi_0 = cov_0 * nu_0
 
         # 2. Get now the scatter matrix. This is basically the sample covariance matrix
         # scaled be sample size (cell gene counts)
         S = self.cells.scatter_matrix(spots)
 
-        a = S + (nu_0 * cov_0)
+        a = S + (nu_0[:, None, None] * cov_0)
         b = n + nu_0 - d - 1
 
+        out = cov_0.copy()
+        mask = n + nu_0 > d + 1
         # divide a by b (same as a/b[:, :, None])
         cov = np.einsum('crk, c -> crk', a, 1 / b)
-        self.cells.cov = cov.astype(np.float32)
+
+        # if n + nu_0 > d + 1 use the updated values otherwise use the prior Cov
+        out[mask] = cov[mask].astype(np.float32)
+        self.cells.cov = out
 
     # -------------------------------------------------------------------- #
     def mu_upd(self) -> None:
