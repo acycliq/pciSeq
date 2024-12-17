@@ -148,7 +148,7 @@ DEFAULT = {
     # Weight values (alpha) effects:
     #   alpha = 0: Fully trust data, ignore prior covariance
     #   alpha = 1: Equal weight (50-50) between prior and empirical covariance
-    #             (i.e., final covariance will be exactly halfway between prior and data-driven estimates)
+    #             (i.e., final covariance will be halfway between prior and data-driven estimates)
     #   alpha > 1: More trust in prior covariance
     #   alpha >> 1: Heavy bias towards the prior covariance
     #   alpha -> Infinity: Completely locks to prior covariance
