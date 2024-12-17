@@ -648,12 +648,15 @@ class VarBayes:
         a = S + (nu_0[:, None, None] * cov_0)
         b = n + nu_0 - d - 1
 
-        out = cov_0.copy()
         mask = n + nu_0 > d + 1
+
         # divide a by b (same as a/b[:, :, None])
-        cov = np.einsum('crk, c -> crk', a, 1 / b)
+        inv_b = np.zeros_like(b)  # Initialize with zeros
+        inv_b[mask] = 1 / b[mask]
+        cov = np.einsum('crk, c -> crk', a, inv_b)
 
         # if n + nu_0 > d + 1 use the updated values otherwise use the prior Cov
+        out = cov_0.copy()
         out[mask] = cov[mask].astype(np.float32)
         self.cells.cov = out
 
