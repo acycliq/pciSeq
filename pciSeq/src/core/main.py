@@ -627,11 +627,11 @@ class VarBayes:
 
         Parameters:
         -----------
-        S (numpy.ndarray): Sample covariance matrix (p x p).
+        S (numpy.ndarray): Sample covariance matrix.
         V0 (numpy.ndarray): Scale matrix of the inverse Wishart prior.
         n (int): Sample size.
         alpha (float): Weighting factor for prior strength, with m0 = alpha * n.
-        p (int): Dimensionality of the covariance matrix.
+        d (int): Dimensionality of the covariance matrix.
 
         Returns:
         --------
@@ -640,10 +640,10 @@ class VarBayes:
         Technical Details:
         ------------------
         - The top-row formula expresses the posterior mean compactly:
-            E(Cov|data) = (nS + V0) / (n + m0 - p - 1) or equivalently
-                     E(Cov|data) = (nS + V0) / (n + alpha * n - p - 1) after re-parameterization.
+            E(Cov|data) = (nS + V0) / (n + nu_0 - d - 1) or equivalently
+                     E(Cov|data) = (nS + V0) / (n + alpha * n - d - 1) after re-parameterization.
         - The weighted average form highlights the balance between sample covariance (`S`)
-          and the prior mean (`V0 / (m0 - p - 1)` or `V0 / (alpha * n - p - 1)`).
+          and the prior mean (`V0 / (nu_0 - p - 1)` or `V0 / (alpha * n - p - 1)`).
 
         Setting alpha:
         --------------
@@ -651,11 +651,6 @@ class VarBayes:
         - alpha = 1: Equal contribution from the prior and the sample data.
         - alpha >> 1: Strong prior influence, posterior mean approximates the prior covariance.
         - alpha -> infinity: Prior dominates completely.
-
-        Important Considerations:
-        --------------------------
-        - Ensure alpha * n - p - 1 > 0 to maintain valid degrees of freedom.
-        - Matrices `S` and `V0` must be valid positive-definite covariance matrices.
         """
         spots = self.spots
         n = self.cells.geneCount.sum(axis=1)  # sample size (cell gene counts)
@@ -693,7 +688,7 @@ class VarBayes:
         # psi_0 = cov_0 * nu_0
 
         # 2. Get now the scatter matrix. This is basically the sample covariance matrix
-        # scaled be sample size (cell gene counts)
+        # scaled by sample size (cell gene counts)
         S = self.cells.scatter_matrix(spots)
 
         a = S + (nu_0[:, None, None] * cov_0)
@@ -709,6 +704,7 @@ class VarBayes:
         # if n + nu_0 > d + 1 use the updated values otherwise use the prior Cov
         out = cov_0.copy()
         out[mask] = cov[mask].astype(np.float32)
+        # Add a check that it is positive definite, maybe inside the property setter (if it is not too expensive)
         self.cells.cov = out
 
     # -------------------------------------------------------------------- #

@@ -132,6 +132,34 @@ DEFAULT = {
     # }
     'cell_centroid_prior_weight': 0,
 
+    # cell_cov_prior_weight: Determines the balance between relying on prior covariance estimates and
+    # fully data-driven covariance computation.
+    # Uses formula: Cov_post = (S + alpha * n * Cov_0) / [n + alpha * n - d - 1]
+    # where S = n * \Sigma xTx the empirical scatter matrix
+    # and Cov_0 the prior covariance matrix
+    #
+    # Can be set as either:
+    #   - Scalar value: Same weight for all cells
+    #   - Dict: Different weights for specific cell types where:
+    #          - keys are cell labels (cell IDs)
+    #          - values are the weights (alpha)
+    #          - 'default' key sets weight for any unspecified cell labels
+    #
+    # Weight values (alpha) effects:
+    #   alpha = 0: Fully trust data, ignore prior covariance
+    #   alpha = 1: Equal weight (50-50) between prior and empirical covariance
+    #             (i.e., final covariance will be exactly halfway between prior and data-driven estimates)
+    #   alpha > 1: More trust in prior covariance
+    #   alpha >> 1: Heavy bias towards the prior covariance
+    #   alpha -> Infinity: Completely locks to prior covariance
+    #
+    # Example usage:
+    # 'cell_cov_prior_weight': {
+    #     'default': 0,     # Used for any cells not explicitly listed. Value=0 means fully data-driven, no prior
+    #     4: 1,             # Cell with label 4: equal weight between prior and data-driven covariance
+    #     11: 100,          # Cell with label 11: strongly trust prior covariance
+    'cell_cov_prior_weight': 1,
+
     # Gene detection might come with irregularities due to technical errors. A small value is introduced
     # here to account for these errors. It is an additive factor, applied to the single cell expression
     # counts when the mean counts per class and per gene are calculated.
