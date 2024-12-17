@@ -111,9 +111,9 @@ DEFAULT = {
     #
     # Can be set as either:
     #   - Scalar value: Same weight for all cells
-    #   - Dict: Different weights for specific cell types where:
-    #          - keys are cell labels (cell IDs)
-    #          - values are the weights (alpha)
+    #   - Dict: Different weights for specific cells where:
+    #          - keys are cell labels
+    #          - values are the weights
     #          - 'default' key sets weight for any unspecified cell labels
     #
     # Weight values (alpha) effects:
@@ -140,10 +140,10 @@ DEFAULT = {
     #
     # Can be set as either:
     #   - Scalar value: Same weight for all cells
-    #   - Dict: Different weights for specific cell types where:
-    #          - keys are cell labels (cell IDs)
-    #          - values are the weights (alpha)
-    #          - 'default' key sets weight for any unspecified cell labels
+    #   - Dict: Different weights for specific cells where:
+    #          - keys are cell labels
+    #          - values are the weights
+    #          - 'default' key sets weight for any unspecified cells
     #
     # Weight values (alpha) effects:
     #   alpha = 0: Fully trust data, ignore prior covariance
