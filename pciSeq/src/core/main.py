@@ -625,31 +625,24 @@ class VarBayes:
         versus the data when estimating parameters like covariance.
         """
         spots = self.spots
-        n = self.nS  # sample size
-        k_0 = 20 # maybe set this equal to degrees of freedom, nu_0
+        n = self.cells.geneCount.sum(axis=1)  # sample size (cell gene counts)
+        k_0 = 20  # maybe set this equal to degrees of freedom, nu_0
+        d = 3 if self.config['is3D'] else 2  # dimensionality of the data points
 
-        # first get the scatter matrix
-        S = self.cells.scatter_matrix(spots)
-
-        # 2 compute the term that accounts for the difference between the
-        # prior cell centroids vs empirical cell centroids
-        mu_bar = utils.empirical_mean(spots=self.spots, cells=self.cells)
-        mu_0 = self.cells.ini_centroids()
-        dmu = mu_0 - mu_bar
-        mean_diff = np.einsum('sk, sd->skd', dmu, dmu)
-
-        # 3 scale matrix
+        # 1. first set the prior scale matrix
         cov_0 = self.cells.ini_cov()
         nu_0 = self.cells.nu_0
         psi_0 = cov_0 * nu_0
 
-        weight = (n * k_0) / (k_0 + n)
-        psi_n = psi_0 + S + weight * mean_diff
+        # 2. Get now the scatter matrix. This is basically the sample covariance matrix
+        # scaled be sample size (cell gene counts)
+        S = self.cells.scatter_matrix(spots)
 
-        d = 3 if self.config['is3D'] else 2
-        nu_n = nu_0 + n
-        cov = psi_n / (nu_n - d - 1)
+        a = S + cov_0 * nu_0
+        b = n + nu_0 - d - 1
 
+        # divide a by b (same as a/b[:, :, None])
+        cov = np.einsum('crk, c -> crk', a, 1 / b)
         self.cells.cov = cov.astype(np.float32)
 
     # -------------------------------------------------------------------- #
