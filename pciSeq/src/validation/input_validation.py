@@ -245,31 +245,21 @@ class InputValidator:
             config.InsideCellBonus = 2
             validation_logger.warning('InsideCellBonus was passed-in as True. Overriding with default value of 2')
 
-        if isinstance(config.MisreadDensity, dict):
-            if 'default' not in config.MisreadDensity:
-                raise ValueError("MisreadDensity dictionary must contain a 'default' key")
-        elif isinstance(config.MisreadDensity, (int, float)):
-            config.MisreadDensity = {'default': config.MisreadDensity}
-        else:
-            raise ValueError("MisreadDensity must be either a number or a dictionary with a 'default' key")
-
-        if isinstance(config.cell_centroid_prior_weight, dict):
-            if 'default' not in config.cell_centroid_prior_weight:
-                raise ValueError("cell_centroid_prior_weight dictionary must contain a 'default' key")
-        elif isinstance(config.cell_centroid_prior_weight, (int, float)):
-            config.cell_centroid_prior_weight = {'default': config.cell_centroid_prior_weight}
-        else:
-            raise ValueError("cell_centroid_prior_weight must be either a number or a dictionary with a 'default' key")
-
-        # I dont quite like that.
-        # The code is pretty similar to the code above (MisreadDensity, cell_centroid_prior_weight)
-        # Should be able to make a function....
-        if isinstance(config.cell_cov_prior_weight, dict):
-            if 'default' not in config.cell_cov_prior_weight:
-                raise ValueError("cell_cov_prior_weight dictionary must contain a 'default' key")
-        elif isinstance(config.cell_cov_prior_weight, (int, float)):
-            config.cell_cov_prior_weight = {'default': config.cell_cov_prior_weight}
-        else:
-            raise ValueError("cell_cov_prior_weight must be either a number or a dictionary with a 'default' key")
+        config.MisreadDensity = InputValidator._dict_checker(config.MisreadDensity, "MisreadDensity")
+        config.cell_centroid_prior_weight = InputValidator._dict_checker(config.cell_centroid_prior_weight, "cell_centroid_prior_weight")
+        config.cell_cov_prior_weight = InputValidator._dict_checker(config.cell_cov_prior_weight, "cell_cov_prior_weight")
 
         return config
+
+    @staticmethod
+    def _dict_checker(param, param_name):
+        """ Simple helper method """
+        if isinstance(param, dict):
+            if 'default' not in param:
+                raise ValueError(f"{param_name} dictionary must contain a 'default' key")
+        elif isinstance(param, (int, float)):
+            param = {'default': param}
+        else:
+            raise ValueError(f"{param_name} must be either a number or a dictionary with a 'default' key")
+        return param
+
