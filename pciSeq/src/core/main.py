@@ -672,7 +672,7 @@ class VarBayes:
                         _label.append(self.config['label_map'][key])
                     except KeyError as e:
                         main_logger.warning(f"Could not find cell with label: {key}, "
-                                            f"cell_centroid_prior_weight is not applied")
+                                            f"cell_cov_prior_weight is not applied")
             _dict = dict(zip(_label, self.config['cell_cov_prior_weight'].values()))
         else:
             _dict = self.config['cell_cov_prior_weight']
