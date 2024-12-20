@@ -113,6 +113,7 @@ class Cells(object):
         self.nu_0 = config['mean_gene_counts_per_cell']
         self._centroid = self.ini_centroids()
         self._gene_counts = None
+        self._ini_gene_counts = None  # initial gene counts
         self._background_counts = None
 
     # -------- PROPERTIES -------- #

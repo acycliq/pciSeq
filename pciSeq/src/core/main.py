@@ -164,6 +164,7 @@ class VarBayes:
         self.genes.init_eta(1, 1 / self.config['Inefficiency'])
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
+        self.cells._ini_gene_counts = np.bincount(self.spots.data.label.values, minlength=self.nS)
 
     def __getstate__(self):
         """
@@ -654,6 +655,8 @@ class VarBayes:
         """
         spots = self.spots
         n = self.cells.geneCount.sum(axis=1)  # sample size (cell gene counts)
+        _n = self.cells._ini_gene_counts
+        _n[0] = 0
         d = 3 if self.config['is3D'] else 2  # dimensionality of the data points
         # Get default value for the weight
         default_val = self.config['cell_cov_prior_weight']['default']
