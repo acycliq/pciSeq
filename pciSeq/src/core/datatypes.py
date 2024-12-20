@@ -237,14 +237,14 @@ class Cells(object):
         """
         mu_bar = self.centroid.values
         prob = spots.parent_cell_prob[:, :-1]
-        id = spots.parent_cell_id[:, :-1]
+        _id = spots.parent_cell_id[:, :-1]
         xyz_spots = spots.xyz_coords
         # out = self.ini_cov() * self.nu_0
         out = np.zeros(self.ini_cov().shape)
 
-        mu_x = mu_bar[id, 0]  # array of size [nS, N] with the x-coord of the centroid of the N closest cells
-        mu_y = mu_bar[id, 1]  # array of size [nS, N] with the y-coord of the centroid of the N closest cells
-        mu_z = mu_bar[id, 2]  # array of size [nS, N] with the z-coord of the centroid of the N closest cells
+        mu_x = mu_bar[_id, 0]  # array of size [nS, N] with the x-coord of the centroid of the N closest cells
+        mu_y = mu_bar[_id, 1]  # array of size [nS, N] with the y-coord of the centroid of the N closest cells
+        mu_z = mu_bar[_id, 2]  # array of size [nS, N] with the z-coord of the centroid of the N closest cells
 
         N = mu_x.shape[1]
         _x = np.tile(xyz_spots[:, 0], (N, 1)).T  # array of size [nS, N] populated with the x-coord of the spot
@@ -264,13 +264,13 @@ class Cells(object):
         el_12 = prob * y_centered * z_centered  # contribution to the scatter matrix's [1, 2] element
 
         # Aggregate all contributions to get the scatter matrix
-        agg_00 = npg.aggregate(id.ravel(), el_00.ravel(), size=self.nC)
-        agg_11 = npg.aggregate(id.ravel(), el_11.ravel(), size=self.nC)
-        agg_22 = npg.aggregate(id.ravel(), el_22.ravel(), size=self.nC)
+        agg_00 = npg.aggregate(_id.ravel(), el_00.ravel(), size=self.nC)
+        agg_11 = npg.aggregate(_id.ravel(), el_11.ravel(), size=self.nC)
+        agg_22 = npg.aggregate(_id.ravel(), el_22.ravel(), size=self.nC)
 
-        agg_01 = npg.aggregate(id.ravel(), el_01.ravel(), size=self.nC)
-        agg_02 = npg.aggregate(id.ravel(), el_02.ravel(), size=self.nC)
-        agg_12 = npg.aggregate(id.ravel(), el_12.ravel(), size=self.nC)
+        agg_01 = npg.aggregate(_id.ravel(), el_01.ravel(), size=self.nC)
+        agg_02 = npg.aggregate(_id.ravel(), el_02.ravel(), size=self.nC)
+        agg_12 = npg.aggregate(_id.ravel(), el_12.ravel(), size=self.nC)
 
         # Return now the scatter matrix. Some cell might not have any spots nearby. For those empty cells,
         # the scatter matrix will be a squared zero array. That is fine.
