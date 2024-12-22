@@ -293,7 +293,9 @@ class VarBayes:
 
                 if i == max_iter - 1:
                     main_logger.info('Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
-
+                    cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell,
+                                                    self.config['is3D'])
+                    break
         finally:
             # Ensure diagnostics are properly shut down
             if self.diagnostic_controller is not None:
