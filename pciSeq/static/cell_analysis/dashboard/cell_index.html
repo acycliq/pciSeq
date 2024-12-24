@@ -12,16 +12,17 @@
     </div>
     <div id="plot-area"></div>
     <div id="bottom-plot"></div>
+    <div id="gene-selector" class="gene-selector-container"></div>
 
     <script type="module">
         import { ScatterPlot } from './static/js/scatterPlot.js';
         import { DistanceProbabilityPlot } from './static/js/distanceProbabilityPlot.js';
+        import { GeneSelector } from './static/js/geneSelector.js';
 
-        // import { dummyDistanceData } from './data_plot2.json';
         // Load data from JSON file
         Promise.all([
-            d3.json("../gene_loglik_contr.json?v=" + Date.now()),  // Add timestamp as query parameter
-            d3.json("../spot_dist.json?v=" + Date.now())  // Add timestamp as query parameter
+            d3.json("../gene_loglik_contr.json?v=" + Date.now()),
+            d3.json("../spot_dist.json?v=" + Date.now())
         ]).then(([data, data2]) => {
             // Verify cell numbers match
             if (data.cell_num !== data2.cell_num) {
@@ -37,7 +38,6 @@
             // Add new field to data2 by mapping through labels
             data2.assigned_contributions = data2.labels.map(gene => geneToContribution[gene]);
 
-
             // Store cell number centrally
             const cellNum = data.cell_num;
 
@@ -48,9 +48,13 @@
 
             // Create the plots
             const mainPlot = new ScatterPlot('plot-area', data, tooltip);
-
-            // Create the bottom plot with dummy data
             const bottomPlot = new DistanceProbabilityPlot('bottom-plot', data2, tooltip);
+
+            // Create gene selector
+            const geneSelector = new GeneSelector('gene-selector', data.gene_names, (visibleGenes) => {
+                mainPlot.updateVisibleGenes(visibleGenes);
+                bottomPlot.updateVisibleGenes(visibleGenes);
+            });
 
             // Add resize handler
             window.addEventListener('resize', () => {

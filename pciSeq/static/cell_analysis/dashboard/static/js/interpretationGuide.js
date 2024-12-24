@@ -16,7 +16,6 @@ export class InterpretationGuide {
     getText(currentUserClass, currentAssignedClass) {
         // Defines the guide text with dynamic class names
         return [
-            "Notes:",
             `• Genes on diagonal: Contribute equally to both cell types`,
             `• Genes above diagonal: Support classification as ${currentUserClass}`,
             `• Genes below diagonal: Support classification as ${currentAssignedClass}`,
