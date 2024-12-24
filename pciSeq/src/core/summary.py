@@ -80,11 +80,11 @@ def cells_summary(cells, genes, single_cell):
 
     isCount_nonZero = [d > tol for d in gene_count]
     name_list = [list(gene_names[i][d]) for (i, d) in enumerate(isCount_nonZero)]
-    count_list = [list(gene_count[i][d].round(3)) for (i, d) in enumerate(isCount_nonZero)]
+    count_list = [gene_count[i][d].tolist() for (i, d) in enumerate(isCount_nonZero)]
 
     isProb_nonZero = [d > tol for d in class_prob]
     class_name_list = [list(class_names[i][d]) for (i, d) in enumerate(isProb_nonZero)]
-    prob_list = [list(class_prob[i][d].round(3)) for (i, d) in enumerate(isProb_nonZero)]
+    prob_list = [class_prob[i][d].tolist() for (i, d) in enumerate(isProb_nonZero)]
 
     contour = []
     for i in range(cells.nC):
