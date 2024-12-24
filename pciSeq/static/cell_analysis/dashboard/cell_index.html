@@ -12,33 +12,31 @@
     </div>
     <div id="plot-area"></div>
     <div id="bottom-plot"></div>
-
-    <div id="gene-selector-panel" class="gene-selector-panel">
-        <div class="gene-panel-header">
-            <h3>Gene Panel</h3>
-            <label class="toggle-switch">
-                <span class="toggle-label">Unselect All</span>
-                <input type="checkbox" id="select-all-genes">
-            </label>
-        </div>
-        <div id="gene-checkboxes" class="gene-checkbox-container"></div>
-    </div>
+    <div id="gene-selector" class="gene-selector-container"></div>
 
     <script type="module">
         import { ScatterPlot } from './static/js/scatterPlot.js';
         import { DistanceProbabilityPlot } from './static/js/distanceProbabilityPlot.js';
-        import { GeneSelector } from './static/js/gene_selector.js';
+        import { GeneSelector } from './static/js/geneSelector.js';
 
-        // import { dummyDistanceData } from './data_plot2.json';
         // Load data from JSON file
         Promise.all([
-            d3.json("../gene_loglik_contr.json?v=" + Date.now()),  // Add timestamp as query parameter
-            d3.json("../spot_dist.json?v=" + Date.now())  // Add timestamp as query parameter
+            d3.json("../gene_loglik_contr.json?v=" + Date.now()),
+            d3.json("../spot_dist.json?v=" + Date.now())
         ]).then(([data, data2]) => {
             // Verify cell numbers match
             if (data.cell_num !== data2.cell_num) {
                 throw new Error(`Cell number mismatch: ${data.cell_num} vs ${data2.cell_num}`);
             }
+
+            // Create a mapping from gene name to its assigned contribution
+            const geneToContribution = {};
+            data.gene_names.forEach((gene, index) => {
+                geneToContribution[gene] = data.assigned_contr[index];
+            });
+
+            // Add new field to data2 by mapping through labels
+            data2.assigned_contributions = data2.labels.map(gene => geneToContribution[gene]);
 
             // Store cell number centrally
             const cellNum = data.cell_num;
@@ -48,66 +46,45 @@
                 .attr("class", "tooltip")
                 .style("opacity", 0);
 
-            // Get unique genes from the bottom plot and sort alphabetically
-            const unique_gene_names = [...new Set(data2.labels)].sort((a, b) =>
-                a.localeCompare(b, undefined, {sensitivity: 'base'})
-            );
-
-            // Filter data for main plot to only include genes from unique_gene_names
-            const filteredData = {
-            ...data,  // Copy all other properties
-            gene_names: data.gene_names.filter(gene => unique_gene_names.includes(gene)),
-            contr: Object.fromEntries(
-                Object.entries(data.contr).map(([className, values]) => {
-                    // Filter contribution values to keep only those for genes in unique_gene_names
-                    const filteredValues = values.filter((_, index) =>
-                        unique_gene_names.includes(data.gene_names[index])
-                    );
-                    return [className, filteredValues];
-                })
-            )
-            };
-
-            // Create the plots with filtered data
-            const mainPlot = new ScatterPlot('plot-area', filteredData, tooltip);
+            // Create the plots
+            const mainPlot = new ScatterPlot('plot-area', data, tooltip);
             const bottomPlot = new DistanceProbabilityPlot('bottom-plot', data2, tooltip);
 
-                // Create gene selector
-                const geneSelector = new GeneSelector('gene-selector-panel', unique_gene_names, (selectedGenes) => {
-                    // Update plots with selected genes
-                    mainPlot.updateVisibleGenes(selectedGenes);
-                    bottomPlot.updateVisibleGenes(selectedGenes);
+            // Create gene selector
+            const geneSelector = new GeneSelector('gene-selector', data.gene_names, (visibleGenes) => {
+                mainPlot.updateVisibleGenes(visibleGenes);
+                bottomPlot.updateVisibleGenes(visibleGenes);
+            });
+
+            // Add resize handler
+            window.addEventListener('resize', () => {
+                mainPlot.resize();
+                bottomPlot.resize();
+            });
+
+            // Setup class selector
+            const selector = document.getElementById('class-selector');
+
+            // Add options to selector
+            data.class_names
+                .filter(c => c !== data.assigned_class)
+                .forEach(className => {
+                    const option = document.createElement('option');
+                    option.value = className;
+                    option.textContent = `${className} (${(data.class_probs[className] * 100).toFixed(2)}%)`;
+                    option.selected = className === data.user_class;
+                    selector.appendChild(option);
                 });
 
-                // Add resize handler
-                window.addEventListener('resize', () => {
-                    mainPlot.resize();
-                    bottomPlot.resize();
-                });
+            // Initialize plot with the selected value
+            mainPlot.currentUserClass = selector.value;
+            mainPlot.updatePlot();
 
-                // Setup class selector
-                const selector = document.getElementById('class-selector');
-
-                // Add options to selector
-                data.class_names
-                    .filter(c => c !== data.assigned_class)
-                    .forEach(className => {
-                        const option = document.createElement('option');
-                        option.value = className;
-                        option.textContent = `${className} (${(data.class_probs[className] * 100).toFixed(2)}%)`;
-                        option.selected = className === data.user_class;
-                        selector.appendChild(option);
-                    });
-
-                // Initialize plot with the selected value
-                mainPlot.currentUserClass = selector.value;
+            // Add change event listener
+            selector.addEventListener('change', (event) => {
+                mainPlot.currentUserClass = event.target.value;
                 mainPlot.updatePlot();
-
-                // Add change event listener
-                selector.addEventListener('change', (event) => {
-                    mainPlot.currentUserClass = event.target.value;
-                    mainPlot.updatePlot();
-                });
+            });
         }).catch(error => {
             console.error("Error loading the data:", error);
             document.getElementById('plot-area').innerHTML =
