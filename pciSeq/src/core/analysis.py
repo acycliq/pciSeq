@@ -102,7 +102,7 @@ class CellExplorer:
 
         return df.iloc[1:, :]
 
-    def gene_loglik_contributions(self, cell_num: int, user_class: Optional[str] = None) -> Dict:
+    def gene_loglik_contributions(self, label: int, user_class: Optional[str] = None) -> Dict:
         """
         Calculate gene log-likelihood contributions for a specified cell.
 
@@ -124,6 +124,13 @@ class CellExplorer:
         Raises:
             ValueError: If cell_num invalid or user_class not recognized
         """
+
+        # If original labels have been renumbered find the label it's been mapped to.
+        if self.vb.config['label_map']:
+            cell_num = self.vb.config['label_map'][label]
+        else:
+            cell_num = label
+
         if cell_num < 0 or cell_num >= self.vb.nC:
             raise ValueError(f"Invalid cell number. Must be between 0 and {self.vb.nC - 1}")
 
@@ -163,7 +170,7 @@ class CellExplorer:
             'assigned_class': assigned_class,
             'user_class': user_class,
             'assigned_contr': all_class_contrs[:, assigned_class_idx].tolist(),
-            'cell_num': cell_num,
+            'cell_num': label,
             'gene_names': self.vb.genes.gene_panel.tolist(),
             'class_names': self.vb.cellTypes.names.tolist(),
             'class_probs': class_probs,
@@ -171,7 +178,7 @@ class CellExplorer:
             'gene_counts': self.vb.cells.geneCount[cell_num,:].tolist()
         }
 
-    def spot_dist_and_prob(self, cell_num) -> Dict:
+    def spot_dist_and_prob(self, label) -> Dict:
         """
         Calculate the relationship between spot-to-cell distances and their assignment
         probabilities for a given cell.
@@ -182,7 +189,7 @@ class CellExplorer:
         3. Computing assignment probabilities
 
         Args:
-            cell_num (int): The cell number to analyze
+            label (int): The cell number to analyze
 
         Returns:
             dict: A dictionary containing plot data:
@@ -197,6 +204,12 @@ class CellExplorer:
         Note:
             The returned data is structured for visualization in the cell analysis dashboard.
         """
+
+        # If original labels have been renumbered find the label it's been mapped to.
+        if self.vb.config['label_map']:
+            cell_num = self.vb.config['label_map'][label]
+        else:
+            cell_num = label
 
         # Get cell centroid
         centroid_zyx = self.vb.cells.zyx_coords[cell_num]
@@ -242,9 +255,9 @@ class CellExplorer:
             'x': spots.dist.tolist(),
             'y': spots.prob.tolist(),
             'labels': spots.gene_name.tolist(),
-            'cell_num': cell_num,
+            'cell_num': label,
             'gene_counts': gene_counts,
-            'title': f'Cell {cell_num} - Distance vs Assignment Probability',
+            'title': f'Cell {label} - Distance vs Assignment Probability',
             'xlabel': f'Distance from cell {cell_num} centroid',
             'ylabel': f'Assignment probability to cell {cell_num}'
         }
