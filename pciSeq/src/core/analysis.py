@@ -258,8 +258,8 @@ class CellExplorer:
             'cell_num': label,
             'gene_counts': gene_counts,
             'title': f'Cell {label} - Distance vs Assignment Probability',
-            'xlabel': f'Distance from cell {cell_num} centroid',
-            'ylabel': f'Assignment probability to cell {cell_num}'
+            'xlabel': f'Distance (px) from cell {label} centroid',
+            'ylabel': f'Assignment probability to cell {label}'
         }
         return data
 
