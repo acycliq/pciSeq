@@ -11,7 +11,7 @@ import logging
 from .label_processing import CellLabelManager, get_unique_labels
 from .spot_processing import process_spots, assign_spot_labels
 from .utils import log_data_summary
-from .plane_management import remove_planes
+from .plane_management import plane_quality_control
 from .cell_processing import calculate_cell_properties
 from ..core.utils.geometry import get_img_shape
 from .cell_processing import extract_borders
@@ -45,9 +45,9 @@ def stage_data(spots: pd.DataFrame,
     label_map : Optional[Dict]
         Label remapping if labels were reordered
     """
-    # Handle 3D data plane exclusion
-    if cfg['is3D'] and cfg['exclude_planes'] is not None:
-        spots, coo, min_plane, removed = remove_planes(spots, coo, cfg)
+    # Perform quality control on 3D data
+    if cfg['is3D']:
+        spots, coo, min_plane, removed = plane_quality_control(spots, coo, cfg)
         if removed.shape[0] > 0:
             removed.frame_num = removed.frame_num + min_plane
 

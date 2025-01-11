@@ -34,11 +34,12 @@ def remove_oob(spots: pd.DataFrame, img_shape: List[int]) -> pd.DataFrame:
     return spots[mask_x & mask_y & mask_z]
 
 
-def remove_planes(spots: pd.DataFrame,
-                  coo: List[coo_matrix],
-                  cfg: Dict) -> Tuple[pd.DataFrame, List[coo_matrix], int, pd.DataFrame]:
+def plane_quality_control(spots: pd.DataFrame,
+                          coo: List[coo_matrix],
+                          cfg: Dict) -> Tuple[pd.DataFrame, List[coo_matrix], int, pd.DataFrame]:
     """
-    Remove specified planes from 3D data.
+    Perform quality control on 3D segmentation and spatial data.
+    Handles plane exclusion and removes single-plane cells.
 
     Parameters
     ----------
@@ -47,16 +48,21 @@ def remove_planes(spots: pd.DataFrame,
     coo : List[coo_matrix]
         Label matrices
     cfg : Dict
-        Configuration with exclude_planes
+        Configuration with optional exclude_planes
 
     Returns
     -------
     Tuple[pd.DataFrame, List[coo_matrix], int, pd.DataFrame]
         Processed spots, processed coo, minimum plane, removed cells
     """
-    coo = label_image_remove_planes(coo, cfg)
-    spots, min_plane = spots_remove_planes(spots, cfg)
-    coo, removed = cells_remove_planes(coo, cfg)
+    min_plane = 0
+    removed = pd.DataFrame()
+    if cfg['exclude_planes'] is not None:
+        coo = label_image_remove_planes(coo, cfg)
+        spots, min_plane = spots_remove_planes(spots, cfg)
+
+    if cfg['remove_flat_cells']:
+        coo, removed = remove_flat_cells(coo)
     return spots, coo, min_plane, removed
 
 
@@ -103,50 +109,59 @@ def spots_remove_planes(spots: pd.DataFrame, cfg: Dict) -> Tuple[pd.DataFrame, i
     return spots, min_plane
 
 
-def cells_remove_planes(coo_list: List[coo_matrix],
-                        cfg: Dict) -> Tuple[List[coo_matrix], pd.DataFrame]:
+def remove_flat_cells(coo_list: List[coo_matrix]) -> Tuple[List[coo_matrix], pd.DataFrame]:
     """
-    Remove cells that exist in only one frame.
-    !!!!!!! MUST BE REVIEWED !!!!!
+    Remove cells that exist in only one plane
 
     Parameters
     ----------
     coo_list : List[coo_matrix]
-        Label matrices
-    cfg : Dict
-        Configuration
+        List of sparse matrices containing cell labels per z-plane
 
     Returns
     -------
     Tuple[List[coo_matrix], pd.DataFrame]
-        Processed matrices and removed cell information
+        - Modified matrices with single-plane cells removed
+        - DataFrame recording which cells were removed and from which planes
     """
-    labels_per_frame = [np.unique(d.data) for d in coo_list]
-    label_counts = np.bincount([d for labels in labels_per_frame for d in labels])
-    single_page_labels = [d[0] for d in enumerate(label_counts) if d[1] == 1]
+    # Fast path for empty input
+    if not coo_list:
+        return [], pd.DataFrame()
 
+    # 1: Identify single-plane cells
+    # 1.1: Get all unique labels present in each plane
+    labels_per_frame = [np.unique(d.data) for d in coo_list]
+    # 1.2: Count how many times each label appears across all planes
+    label_counts = np.bincount([d for labels in labels_per_frame for d in labels])
+    # 1.3: Get the labels that appear in only one plane
+    single_page_labels = set(d for d, count in enumerate(label_counts) if count == 1)
+
+    # 2: Process each plane and track removals
     removed_cells = []
-    _frames = []
+    removed_planes = []
 
     for i, coo in enumerate(coo_list):
-        s = set(coo.data).intersection(set(single_page_labels))
-        for d in s:
-            coo.data[coo.data == d] = 0
+        # Find intersection of current plane's labels with single-plane labels
+        intersected_labels = set(coo.data).intersection(single_page_labels)
+        for label in intersected_labels:
+            # set all occurrences of the current label to zero
+            coo.data[coo.data == label] = 0
             coo.eliminate_zeros()
-            removed_cells.append(d)
-            _frames.append(i)
+            # record keeping
+            removed_cells.append(label)
+            removed_planes.append(i)
 
+    # 3: Log removal summary
     if removed_cells:
-        len_c = len(set(removed_cells))
-        len_f = len(set(_frames))
         plane_logger.warning(
-            f'Removed {len_c} cells that exist on single planes from {len_f} planes.'
+            f'Removed {len(set(removed_cells))} single-plane cells from {len(set(removed_planes))} planes.'
         )
 
-    removed_df = pd.DataFrame({
+    # Step 4: Create removal record
+    removal_record = pd.DataFrame({
         'removed_cell_label': removed_cells,
-        'frame_num': _frames,
-        'comment': 'labels are the original labels from input segmentation masks'
+        'frame_num': removed_planes,
+        'comment': 'Original labels from segmentation masks'
     })
 
-    return coo_list, removed_df
+    return coo_list, removal_record
