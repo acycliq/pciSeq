@@ -4,6 +4,7 @@ __pycache__/
 .pytest_cache
 /tests/.pytest_cache/
 .ipynb_checkpoints
+.DS_Store
 
 /dist/
 /.eggs/

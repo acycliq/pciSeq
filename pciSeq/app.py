@@ -81,7 +81,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
             cellData, geneData = recover_original_labels(cellData, geneData, label_map)
 
         # 7. Save data and launch viewer if needed
-        if (cfg['save_data'] and varBayes.has_converged) or cfg['launch_viewer']:
+        if cfg['save_data'] or cfg['launch_viewer']:
             write_data(cellData, geneData, cellBoundaries, varBayes, cfg)
 
             if cfg['launch_viewer']:
