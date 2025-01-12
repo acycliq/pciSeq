@@ -294,21 +294,21 @@ class Cells(object):
         """Calculate total (weighted by class prob) gene reads for each class.
 
         Returns:
-            np.ndarray: Shape (K, G) total reads per class and gene
+            np.ndarray: Shape (G, K) total reads per class and gene
         """
         # Calculate weighted sum of gene reads for each class and gene using classProb as weights
-        weighted_sum = np.einsum('cg, ck -> kg', self.geneCount, self.classProb)
+        weighted_sum = np.einsum('cg, ck -> gk', self.geneCount, self.classProb)
         return weighted_sum
 
     def mean_gene_reads_per_class(self):
         """Calculate average gene reads for each cell class/type.
 
         Returns:
-            np.ndarray: Shape (K, G) where:
-                K = number of cell classes/types
+            np.ndarray: Shape (G, K) where:
                 G = number of genes
+                K = number of cell classes/types
 
-            Each element [k,g] represents the average number of reads
+            Each element [g,k] represents the average number of reads
             for gene g in cell class k.
         """
         weighted_sum = self.gene_reads_per_class()
@@ -316,7 +316,7 @@ class Cells(object):
         # Calculate total probability for each class
         class_totals = self.classProb.sum(axis=0)
 
-        return weighted_sum / class_totals[:, None]
+        return weighted_sum / class_totals
 
 
 # ----------------------------------------Class: Genes--------------------------------------------------- #
