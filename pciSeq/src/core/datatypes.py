@@ -199,19 +199,29 @@ class Cells(object):
         return weighted_sum
 
     def mean_gene_reads_per_class(self):
-        """Calculate average gene reads for each cell class/type.
+        """Calculate the average gene reads for each cell class/type in a soft clustering setup.
+
+        In soft clustering, each cell belongs to multiple classes with probabilities \( w_{ck} \).
+        The average number of reads for gene \( g \) in class \( k \) is computed as:
+
+        \[
+        \overline{r}_{gk} = \frac{\sum_{c=1}^{C} x_{cg} \cdot w_{ck}}{\sum_{c=1}^{C} w_{ck}}
+        \]
+
+        Where:
+            - \( x_{cg} \): Number of reads for gene \( g \) in cell \( c \)
+            - \( w_{ck} \): Probability that cell \( c \) belongs to class \( k \)
+            - The numerator is the total weighted sum of reads for gene \( g \) in class \( k \)
+            - The denominator is the total probability mass of class \( k \)
 
         Returns:
-            np.ndarray: Shape (G, K) where:
+            np.ndarray: Shape (G, K), where:
                 G = number of genes
                 K = number of cell classes/types
-
-            Each element [g,k] represents the average number of reads
-            for gene g in cell class k.
         """
         weighted_sum = self.gene_reads_per_class()
 
-        # Calculate total probability for each class
+        # Calculate total probability mass (size) for each class
         class_totals = self.classProb.sum(axis=0)
 
         return weighted_sum / class_totals
