@@ -166,7 +166,8 @@ class CellExplorer:
             'gene_names': self.vb.genes.gene_panel.tolist(),
             'class_names': self.vb.cellTypes.names.tolist(),
             'class_probs': class_probs,
-            'contr': user_data
+            'contr': user_data,
+            'gene_counts': self.vb.cells.geneCount[cell_num,:].tolist()
         }
 
     def spot_dist_and_prob(self, cell_num) -> Dict:
@@ -233,11 +234,13 @@ class CellExplorer:
 
         # Prepare plot data
         # Prepare plot data with cell-specific axis labels
+        gene_counts = dict(zip(self.vb.genes.gene_panel, self.vb.cells.geneCount[cell_num,:].tolist()))
         data = {
             'x': spots.dist.tolist(),
             'y': spots.prob.tolist(),
             'labels': spots.gene_name.tolist(),
             'cell_num': cell_num,
+            'gene_counts': gene_counts,
             'title': f'Cell {cell_num} - Distance vs Assignment Probability',
             'xlabel': f'Distance from cell {cell_num} centroid',
             'ylabel': f'Assignment probability to cell {cell_num}'
