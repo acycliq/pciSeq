@@ -1,9 +1,9 @@
 export const PLOT_CONFIG = {
     margin: {
         top: 60,
-        right: 80,
+        right: 40,
         bottom: 50,
-        left: 100
+        left: 60
     },
     point: {
         radius: 5,
@@ -41,7 +41,7 @@ export const PLOT_CONFIG = {
 
 export function calculateDimensions() {
     return {
-        width: window.innerWidth - PLOT_CONFIG.margin.left - PLOT_CONFIG.margin.right,
-        height: window.innerHeight * 0.34 - PLOT_CONFIG.margin.top - PLOT_CONFIG.margin.bottom
+        width: window.innerWidth * 0.45 - PLOT_CONFIG.margin.left - PLOT_CONFIG.margin.right,
+        height: window.innerHeight * 0.30 - PLOT_CONFIG.margin.top - PLOT_CONFIG.margin.bottom
     };
 }

@@ -1,136 +1,140 @@
 import { PLOT_CONFIG } from './plotConfig.js';
 
 export class GeneSelector {
-    constructor(containerId, geneNames, onChange) {
-        // Core properties
-        this.containerId = containerId;
-        this.geneNames = geneNames;
-        this.selectedGenes = new Set(geneNames); // Start with all genes selected
-        this.onChange = onChange;
-        
-        // Search and filter properties
+    constructor(containerId, genes, onSelectionChange) {
+        this.container = document.getElementById(containerId);
+        this.genes = genes;
+        this.selectedGenes = new Set(genes);
+        this.onSelectionChange = onSelectionChange;
+        this.filteredGenes = [...genes];
         this.searchTerm = '';
-        this.container = d3.select(`#${this.containerId}`);
+        this.render();
+    }
+
+    render() {
+        this.container.innerHTML = `
+            <div class="gene-selector-header">
+                <h3>Gene Selection</h3>
+                <div class="select-controls">
+                    <label>
+                        <span class="toggle-label">Unselect All</span>
+                        <input type="checkbox" id="select-all-genes" checked>
+                    </label>
+                </div>
+            </div>
+            <div class="search-box">
+                <input type="text" 
+                       id="gene-search" 
+                       placeholder="Search genes..."
+                       value="${this.searchTerm}"
+                       autocomplete="off">
+            </div>
+            <div class="gene-list">
+                ${this.filteredGenes.map(gene => `
+                    <label>
+                        <input type="checkbox" 
+                               id="gene-${gene}" 
+                               value="${gene}" 
+                               ${this.selectedGenes.has(gene) ? 'checked' : ''}>
+                        ${gene}
+                    </label>
+                `).join('')}
+            </div>
+        `;
+
+        // Add event listeners
+        const selectAllCheckbox = this.container.querySelector('#select-all-genes');
+        selectAllCheckbox.addEventListener('change', (e) => {
+            this.handleSelectAll(e.target.checked);
+        });
+
+        const searchInput = this.container.querySelector('#gene-search');
+        searchInput.addEventListener('input', (e) => {
+            this.searchTerm = e.target.value;
+            this.handleSearch(this.searchTerm);
+        });
+
+        this.filteredGenes.forEach(gene => {
+            const checkbox = document.getElementById(`gene-${gene}`);
+            checkbox.addEventListener('change', () => this.handleCheckboxChange(gene));
+        });
+    }
+
+    handleSearch(searchTerm) {
+        this.searchTerm = searchTerm;
+        searchTerm = searchTerm.toLowerCase();
+        this.filteredGenes = this.genes.filter(gene => 
+            gene.toLowerCase().includes(searchTerm)
+        );
+        this.render();
         
-        // Initialize the component
-        this.initializeSelector();
+        // Restore checkbox states after re-render
+        this.selectedGenes.forEach(gene => {
+            const checkbox = document.getElementById(`gene-${gene}`);
+            if (checkbox) checkbox.checked = true;
+        });
+
+        // Restore search input focus
+        const searchInput = this.container.querySelector('#gene-search');
+        searchInput.focus();
+        // Place cursor at the end of input
+        searchInput.setSelectionRange(searchTerm.length, searchTerm.length);
     }
 
-    initializeSelector() {
-        // Clear any existing content
-        this.container.html('');
+    handleSelectAll(checked) {
+        // Update all checkboxes
+        this.genes.forEach(geneName => {
+            const checkbox = document.getElementById(`gene-${geneName}`);
+            if (checkbox) checkbox.checked = checked;
+        });
+
+        // Update selected genes set
+        this.selectedGenes = new Set(checked ? this.genes : []);
+
+        // Update toggle label
+        const toggleLabel = this.container.querySelector('.toggle-label');
+        if (toggleLabel) {
+            toggleLabel.textContent = checked ? 'Unselect All' : 'Select All';
+        }
+
+        // Notify plots of the change
+        this.onSelectionChange(Array.from(this.selectedGenes));
+    }
+
+    handleCheckboxChange(geneName) {
+        const checkbox = document.getElementById(`gene-${geneName}`);
         
-        // Create header section
-        const header = this.container.append('div')
-            .attr('class', 'gene-selector-header');
-            
-        header.append('h3')
-            .text('Gene Panel');
-            
-        // Create control buttons
-        const controls = header.append('div')
-            .attr('class', 'gene-selector-controls');
-            
-        controls.append('button')
-            .attr('class', 'control-button')
-            .text('Select All')
-            .on('click', () => this.selectAll());
-            
-        controls.append('button')
-            .attr('class', 'control-button')
-            .text('Deselect All')
-            .on('click', () => this.deselectAll());
+        if (checkbox.checked) {
+            this.selectedGenes.add(geneName);
+        } else {
+            this.selectedGenes.delete(geneName);
+        }
 
-        // Add search input
-        const searchContainer = this.container.append('div')
-            .attr('class', 'gene-search-container');
+        // Update select all checkbox state
+        const selectAllCheckbox = this.container.querySelector('#select-all-genes');
+        const toggleLabel = this.container.querySelector('.toggle-label');
+        
+        if (this.selectedGenes.size === this.genes.length) {
+            selectAllCheckbox.checked = true;
+            toggleLabel.textContent = 'Unselect All';
+        } else {
+            selectAllCheckbox.checked = false;
+            toggleLabel.textContent = 'Select All';
+        }
 
-        searchContainer.append('input')
-            .attr('type', 'text')
-            .attr('class', 'gene-search-input')
-            .attr('placeholder', 'Search genes...')
-            .on('input', (event) => {
-                this.searchTerm = event.target.value.toLowerCase();
-                this.updateVisibleCheckboxes();
-            });
-
-        // Create checkbox container
-        this.checkboxContainer = this.container.append('div')
-            .attr('class', 'gene-checkbox-grid');
-
-        // Initialize checkboxes
-        this.createCheckboxes();
-    }
-
-    createCheckboxes() {
-        // Create checkbox for each gene
-        const items = this.checkboxContainer.selectAll('div')
-            .data(this.geneNames)
-            .enter()
-            .append('div')
-            .attr('class', 'gene-checkbox-item')
-            .style('display', d => 
-                this.searchTerm ? 
-                    (d.toLowerCase().includes(this.searchTerm) ? 'flex' : 'none') 
-                    : 'flex'
-            );
-
-        // Add checkbox input
-        items.append('input')
-            .attr('type', 'checkbox')
-            .attr('id', d => `gene-${this.containerId}-${d}`)
-            .attr('checked', d => this.selectedGenes.has(d))
-            .on('change', (event, d) => {
-                if (event.target.checked) {
-                    this.selectedGenes.add(d);
-                } else {
-                    this.selectedGenes.delete(d);
-                }
-                this.onChange(Array.from(this.selectedGenes));
-            });
-
-        // Add label
-        items.append('label')
-            .attr('for', d => `gene-${this.containerId}-${d}`)
-            .attr('class', 'gene-label')
-            .text(d => d);
-    }
-
-    updateVisibleCheckboxes() {
-        this.checkboxContainer.selectAll('.gene-checkbox-item')
-            .style('display', d => 
-                this.searchTerm ? 
-                    (d.toLowerCase().includes(this.searchTerm) ? 'flex' : 'none') 
-                    : 'flex'
-            );
-    }
-
-    selectAll() {
-        this.selectedGenes = new Set(this.geneNames);
-        this.updateCheckboxes(true);
-        this.onChange(Array.from(this.selectedGenes));
-    }
-
-    deselectAll() {
-        this.selectedGenes.clear();
-        this.updateCheckboxes(false);
-        this.onChange(Array.from(this.selectedGenes));
-    }
-
-    updateCheckboxes(checked) {
-        this.checkboxContainer.selectAll('input[type="checkbox"]')
-            .property('checked', checked);
+        // Notify plots of the change
+        this.onSelectionChange(Array.from(this.selectedGenes));
     }
 
     // Method to programmatically select specific genes
     selectGenes(genes) {
         genes.forEach(gene => {
-            if (this.geneNames.includes(gene)) {
+            if (this.genes.includes(gene)) {
                 this.selectedGenes.add(gene);
             }
         });
         this.updateCheckboxes();
-        this.onChange(Array.from(this.selectedGenes));
+        this.onSelectionChange(Array.from(this.selectedGenes));
     }
 
     // Method to get currently selected genes
@@ -141,11 +145,11 @@ export class GeneSelector {
     // Method to handle errors
     handleError(error) {
         console.error('GeneSelector Error:', error);
-        this.container.html(`
+        this.container.innerHTML = `
             <div class="error-message">
                 An error occurred: ${error.message}
                 <button onclick="location.reload()">Reload</button>
             </div>
-        `);
+        `;
     }
 }
