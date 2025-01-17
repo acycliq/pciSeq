@@ -97,7 +97,7 @@ export class GeneExpressionPlot {
     }
 
     updateLabels() {
-        this.yLabel.text('scRNAseq: Cell Gene Counts');
+        this.yLabel.text('scRNAseq: Class Gene Counts');
         
         // this.subtitle.text('Comparing observed counts with expected counts for selected cell type');
     }
