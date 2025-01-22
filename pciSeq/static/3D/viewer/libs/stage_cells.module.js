@@ -3,7 +3,7 @@ import * as THREE from "./three.js/build/three.module.js";
 function make_cells_2(data) {
     var front_props = {
             side: THREE.FrontSide,
-            opacity: 0.4,
+            opacity: 0.1,
             name: 'front_mesh'
         },
         back_props = {

@@ -1,0 +1,143 @@
+/* Base Styles */
+body {
+    font-family: 'Helvetica Neue', sans-serif;
+}
+
+/* Layout Components */
+.background {
+    fill: #fff1e0;
+}
+
+.anno-capture {
+    fill-opacity: 0;
+}
+
+/* Annotation Styles */
+.annotation-note-bg {
+    fill-opacity: 0.8;
+}
+
+.annotation-note-label,
+.annotation-note-title {
+    fill: black;
+    font-size: 0.8em;
+}
+
+/* Control Panel Positioning */
+#dataTableControl {
+    position: absolute;
+    z-index: 1000;
+    bottom: 10px;
+    left: 10px;
+}
+
+#donutChartControl {
+    position: absolute;
+    z-index: 1000;
+    bottom: 10px;
+    right: 10px;
+}
+
+#cellCoordsControl {
+    position: absolute;
+    z-index: 1000;
+    top: 10px;
+    right: 10px;
+}
+
+#svg_div {
+    position: absolute;
+    z-index: 1000;
+}
+
+/* Tooltip Styles */
+#spot_tooltip {
+    display: none;
+    background: rgba(50, 50, 50, 0.95);
+    color: #ffffff;
+    position: absolute;
+    font-family: 'Helvetica Neue', sans-serif;
+    padding: 4px;
+    min-width: 100px;
+    max-width: 120px;
+    border-radius: 3px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    z-index: 10000;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transform: translate(-50%, 0%);
+    margin-top: 0px;
+}
+
+
+#spot_tooltip table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#spot_tooltip td {
+    padding: 1px 2px;
+    font-size: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#spot_tooltip tr:last-child td {
+    border-bottom: none;
+}
+
+#spot_tooltip td.label {
+    color: #8ab4f8;
+    font-weight: 500;
+    text-align: left;
+    width: 20%;
+}
+
+#spot_tooltip td:not(.label) {
+    color: #ffffff;
+    font-weight: 400;
+    text-align: right;
+}
+
+/* Gene Panel Styles */
+#GenePanelButton {
+    top: 9px;
+    left: 10px;
+    cursor: pointer;
+}
+
+/* Map Content Styles */
+.map-content {
+    position: absolute;
+    z-index: 1000;
+    padding: 4px 7px 5px;
+    border-top: 1px solid #777;
+    border-left: 1px solid #777;
+    border-right: 2px solid #444;
+    border-bottom: 2px solid #444;
+    line-height: 1.6;
+    font-size: 1em;
+    background: white;
+    border-radius: 5px;
+}
+
+/* Tree Demo Styles */
+#jstree_demo {
+    top: 10px;
+    right: 10px;
+}
+
+#cellCoordsControlText {
+    margin-bottom: 5px;
+}
+
+.data-table-container {
+    background-color: darkgrey;
+}
+
+.chart-row {
+    background-color: rgba(255, 255, 255, 0.0);
+}
+
+.chart-stage {
+    background-color: rgba(255, 255, 255, 0.0);
+}
