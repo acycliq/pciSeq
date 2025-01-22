@@ -400,6 +400,15 @@ def pre_launch(cellData, geneData, coo, scRNAseq, cfg):
         build_pointcloud(geneData, pciSeq_dir, dst)
         cellData_rgb(cellData, pciSeq_dir, dst)
         cell_gene_counts(geneData, dst)
+
+        offset = pd.DataFrame({
+            'x': w/2,
+            'y': h/2,
+            'z': n/2
+        }, index=[0])
+        data_folder = os.path.join(dst, 'data')
+        Path(data_folder).mkdir(parents=True, exist_ok=True)
+        offset.to_json(os.path.join(data_folder, 'offset.json'), orient='records')
     return dst
 
 
