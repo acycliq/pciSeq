@@ -113,7 +113,7 @@ def gaussian_ellipsoid_props(cov: np.ndarray,
     return scaling.tolist(), rotation
 
 
-def euler_angles(r: NDArray[np.float32]) -> Tuple[float, float, float]:
+def euler_angles(r: NDArray[np.float32]) -> List[float]:
     """Extract Euler angles from a 3D rotation matrix using ZYX convention.
 
     Decomposes a rotation matrix into three sequential rotations around fixed
@@ -156,7 +156,7 @@ def euler_angles(r: NDArray[np.float32]) -> Tuple[float, float, float]:
     # if np.isclose(abs(theta), np.pi / 2, atol=1e-6):
     #     geometry_logger.warning("Warning: Gimbal lock detected (pitch = ±90°)")
 
-    return phi, theta, psi
+    return [phi, theta, psi]
 
 
 def adjust_for_anisotropy(
