@@ -82011,6 +82011,18 @@ ENDSEC
 			return intersections;
 		}
 
+		 getGeneName(point, position) {
+			// Create array of 32 bytes from gene_name_0 to gene_name_31
+			const bytes = Array.from({ length: 32 }, (_, i) => {
+				const fieldName = `gene_name_${i}`;
+				return point[fieldName] ? point[fieldName][position] : 32;  // 32 is space if field doesn't exist
+			});
+
+			// Convert to string and remove trailing spaces
+			return String.fromCharCode(...bytes).trimEnd();
+		}
+
+
 		getHoveredSpot() {
 			let I = this.getMousePointCloudIntersection(this.mouse);
 			let svg;
@@ -82022,9 +82034,10 @@ ENDSEC
 				tooltip.style("display","block");
 				tooltip.style("left", this.mouse.x + 20 +"px");
 	      		tooltip.style("top", this.mouse.y - 120 + "px");
-				var pid = I.point['point source id'][0];
-				var genes = glyphSettings().map(d => d.gene).sort();
-				var gene = genes[pid];
+				// var pid = I.point['point source id'][0]
+				// var genes = glyphSettings().map(d => d.gene).sort()
+				// var gene = genes[pid]
+				var gene = this.getGeneName(I.point, 0);
 	        	d3.select(".tooltip_gene").node().innerHTML = gene;
 	        	d3.select(".tooltip_spot_coord_x").node().innerHTML = d3.format(".2f")(I.point.position.x);
 				d3.select(".tooltip_spot_coord_y").node().innerHTML = d3.format(".2f")(I.point.position.y);
