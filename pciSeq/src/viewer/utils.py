@@ -189,7 +189,7 @@ def copy_viewer_code(cfg, dst):
 def build_pointcloud(spots_df, pciSeq_dir, dst):
     gs = gene_settings(pciSeq_dir)
     spots_df = spots_df.merge(gs, how='left', left_on='gene_name', right_on="gene")
-    spots_df = spots_df.dropna()
+    # spots_df = spots_df.dropna()
     # fill the nans with the generic values
     generic = gs[gs.gene == 'generic']
     fields = ['color', 'glyphName', 'classification', 'r', 'g', 'b']
@@ -197,6 +197,7 @@ def build_pointcloud(spots_df, pciSeq_dir, dst):
         spots_df[f] = spots_df[f].fillna(generic[f].values[0])
 
     spots = spots_df.rename(columns={'gene_id': 'pointSourceID'})
+    spots = spots.assign(gene=spots.gene_name)
 
     data_folder = os.path.join(dst, 'data')
     Path(data_folder).mkdir(parents=True, exist_ok=True)
@@ -230,37 +231,72 @@ def gene_settings(pciSeq_dir):
 
 
 def build_las(data, las_path):
-    raw = data.values
-    xyz = np.ascontiguousarray(data[['x', 'y', 'z']].values)
-    rgb = np.ascontiguousarray(data[['r', 'g', 'b']].values)
-    classification = np.ascontiguousarray(data.classification.values, dtype='float32')
-    pointSourceID = np.ascontiguousarray(data.pointSourceID.values, dtype='float32')
+    """
+    Build a LAS file from pandas DataFrame containing point cloud data.
 
-    hdr = laspy.LasHeader(version="1.4", point_format=7)
-    mins = np.floor(np.min(xyz, axis=0))
-    np.min(data[['x', 'y', 'z']].values, axis=0)
-    # mins = [352, 6126, 0]
-    hdr.offset = mins
-    hdr.scales = np.array([0.001, 0.001, 0.001])
+    Parameters
+    ----------
+    data : pandas.DataFrame
+        DataFrame containing columns: x, y, z, r, g, b, classification,
+        pointSourceID, and gene_name
+    las_path : str or Path
+        Output directory path for the LAS file
+    """
+    try:
+        # Extract required columns
+        xyz = np.ascontiguousarray(data[['x', 'y', 'z']].values, dtype=np.float64)
+        rgb = np.ascontiguousarray(data[['r', 'g', 'b']].values, dtype=np.uint16)
+        classification = np.ascontiguousarray(data['classification'].values, dtype=np.uint8)
+        pointSourceID = np.ascontiguousarray(data['pointSourceID'].values, dtype=np.uint16)
+        gene_name = data['gene_name'].astype(str).values
 
-    # 2. Create a Las
-    las = laspy.LasData(hdr)
+        # 1. Create LAS header
+        hdr = laspy.LasHeader(version="1.4", point_format=7)
+        mins = np.floor(np.min(xyz, axis=0))
+        hdr.offsets = mins
+        hdr.scales = np.array([0.001, 0.001, 0.001])
 
-    las.x = xyz[:, 0]
-    las.y = xyz[:, 1]
-    las.z = xyz[:, 2]
-    las.red = rgb[:, 0]
-    las.green = rgb[:, 1]
-    las.blue = rgb[:, 2]
-    las.classification = classification
-    las.pt_src_id = pointSourceID
-    # las.intensity = i
+        # Define extra dimensions for gene names
+        # Using 32 individual uint8 fields to store the string
+        for i in range(32):
+            extra_bytes = laspy.ExtraBytesParams(
+                name=f"gene_name_{i}",
+                description=f"Gene Name Byte {i}",
+                type=np.uint8
+            )
+            hdr.add_extra_dim(extra_bytes)
 
-    out_filename = os.path.join(las_path, 'pciSeq.las')
-    if not os.path.exists(os.path.dirname(out_filename)):
-        os.makedirs(os.path.dirname(out_filename))
-    las.write(out_filename)
-    # print('las file saved at: %s ' % out_filename)
+        # 2. Create LAS data object
+        las = laspy.LasData(hdr)
+
+        las.x = xyz[:, 0]
+        las.y = xyz[:, 1]
+        las.z = xyz[:, 2]
+        las.red = rgb[:, 0]
+        las.green = rgb[:, 1]
+        las.blue = rgb[:, 2]
+        las.classification = classification
+        las.pt_src_id = pointSourceID
+
+        # Convert and assign gene names byte by byte
+        gene_bytes = np.array([
+            list(name.encode('ascii', errors='replace')[:32].ljust(32, b' '))
+            for name in gene_name
+        ], dtype=np.uint8)
+
+        # Assign each byte to its corresponding field
+        for i in range(32):
+            setattr(las, f"gene_name_{i}", gene_bytes[:, i])
+
+        # 3. Write the LAS file
+        out_filename = os.path.join(las_path, 'pciSeq.las')
+        os.makedirs(os.path.dirname(out_filename), exist_ok=True)
+        las.write(out_filename)
+
+        return out_filename
+
+    except Exception as e:
+        raise RuntimeError(f"Failed to build LAS file: {str(e)}") from e
 
 
 def build_octree(pciSeq_dir, input_folder):
