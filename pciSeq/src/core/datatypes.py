@@ -624,7 +624,7 @@ class Spots(object):
         """
         centroids = cells.centroid.values[cell_label]
         covs = cells.cov[cell_label]
-        if ~is3D:
+        if not is3D:
             # that shouldn't really be necessary. If the data are 2d then the z dimension if just a dummy dimension.
             # and inference should still hold (with the dummy z dimension)
             # I am just removing z here for backwards compatibility; To yield the same results as in the 2d case.
