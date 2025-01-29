@@ -11,12 +11,14 @@ import logging
 
 init_logger = logging.getLogger(__name__)
 
+print('Hello Izzie!')
+
 
 def confirm_prompt(question):
     reply = None
     while reply not in ("", "y", "n"):
         reply = input(f"{question} (y/n): ").lower()
-    return (reply in ("", "y"))
+    return reply in ("", "y")
 
 
 def install(package):
@@ -27,8 +29,9 @@ def install_libvips():
     subprocess.check_call("apt-get update", shell=True)
     subprocess.check_call("apt-get install", shell=True)
     subprocess.check_call(['apt-get', 'install', '-y', 'libvips'],
-               stdout=open(os.devnull, 'wb'), stderr=subprocess.STDOUT)
+                          stdout=open(os.devnull, 'wb'), stderr=subprocess.STDOUT)
     subprocess.check_call([sys.executable, "-m", "pip", "install", "pyvips"])
+
 
 #
 # def check_libvips(logger):
@@ -58,4 +61,3 @@ else:
         init_logger.warning('>>>> tile_maker() isnt available because libvips is not installed. Please see '
                             'https://www.libvips.org/install.html <<<<')
         init_logger.warning('>>>> If you are on Linux you can install it by calling: sudo apt install libvips <<<<')
-
