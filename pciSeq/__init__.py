@@ -11,9 +11,6 @@ import logging
 
 init_logger = logging.getLogger(__name__)
 
-print('Hello Izzie!')
-
-
 def confirm_prompt(question):
     reply = None
     while reply not in ("", "y", "n"):
