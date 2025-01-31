@@ -161,7 +161,8 @@ class VarBayes:
     def initialise_state(self) -> None:
         self.cellTypes.ini_prior()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
-        self.genes.init_eta(1, 1 / self.config['Inefficiency'])
+        self.genes.init_eta(1, 1)  # Initialise gene inefficiency as a Gamma(1, 1). Note that the single cell
+                                         # data have already been downscaled
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.cells._ini_gene_counts = np.bincount(self.spots.data.label.values, minlength=self.nC)
@@ -239,7 +240,7 @@ class VarBayes:
         gene_df = None
         max_iter = self.config['max_iter']
 
-        self.initialise_state()
+        # self.initialise_state()
         try:
             for i in range(max_iter):
                 self.iter_num = i
@@ -507,7 +508,7 @@ class VarBayes:
                                        gamma_bar[:, :, :-1])
         background_counts = self.cells.background_counts
         alpha = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
-        beta = self.config['rGene'] / self.config['Inefficiency'] + class_total_counts
+        beta = self.config['rGene'] + class_total_counts
 
         # Finally, update gene_gamma
         self.genes.calc_eta(alpha, beta)

@@ -846,10 +846,16 @@ class SingleCell(object):
         expr['Zero'] = np.zeros([expr.shape[0], 1])
         me = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")
 
-        # add the regularization parameter
-        me = me + self.config['SpotReg']
+        # multiply by the starting value of the gene inefficiency. That will scale down all the
+        # gene reads coming from the single cell data. (I don't quite like that tbh...why not leave
+        # single cell data as is and just initialise a gene inefficiency from a Gamma(a, b) where
+        # a = 1 and b = 1/self.config['Inefficiency']). Now we are mixing things up. If I want to
+        # get the expected gene inefficiency I will need to multiply the posterior by config['Inefficiency'].
+        # Similarly, for the mean gene expressions.
+        # I now have to look at two places if I want to fetch the gene inefficiency
+        me = me * self.config['Inefficiency'] + self.config['SpotReg']
 
-        # log mean expression
+        # log mean expression. Add the SpotRegularisation parameter to avoid zeros being fed into the log
         lme = np.log(me)
         return me, lme
 
