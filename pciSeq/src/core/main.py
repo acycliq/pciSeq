@@ -239,7 +239,6 @@ class VarBayes:
         gene_df = None
         max_iter = self.config['max_iter']
 
-        self.initialise_state()
         try:
             for i in range(max_iter):
                 self.iter_num = i
