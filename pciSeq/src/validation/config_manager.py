@@ -20,7 +20,7 @@ class ConfigManager:
     cell_cov_prior_weight: Union[float, int, Dict[str, float]]
     SpotReg: float
     nNeighbors: int
-    rSpot: int
+    rSpot: Union[int, float]
     save_data: bool
     output_path: str
     launch_viewer: Union[bool, str]
