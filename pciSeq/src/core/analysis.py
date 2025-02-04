@@ -176,7 +176,7 @@ class CellExplorer:
             'class_probs': class_probs,
             'contr': user_data,
             'gene_counts': self.vb.cells.geneCount[cell_num,:].tolist(),
-            'gene_efficiency': self.vb.genes.eta_bar.tolist(),
+            'gene_efficiency': self.vb.genes.inefficiency.tolist(),
             'scRNAseq_gene_counts': self.vb.single_cell.mean_expression.values.tolist()
         }
 
@@ -260,7 +260,7 @@ class CellExplorer:
             'cell_num': label,
             'gene_counts': gene_counts,
             'title': f'Cell {label} - Distance vs Assignment Probability',
-            'xlabel': f'Distance from cell {label} centroid',
+            'xlabel': f'Distance (px) from cell {label} centroid',
             'ylabel': f'Assignment probability to cell {label}'
         }
         return data

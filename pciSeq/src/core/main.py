@@ -145,7 +145,7 @@ class VarBayes:
         """Set up the core data components needed for the algorithm."""
         self.cells = Cells(cells_df, self.config)
         self.spots = Spots(spots_df, self.config)
-        self.genes = Genes(self.spots)
+        self.genes = Genes(self.spots, self.config)
         self.single_cell = SingleCell(scRNAseq, self.genes.gene_panel, self.config)
         self.cellTypes = CellType(self.single_cell, self.config)
         self.cells.class_names = self.single_cell.classes
@@ -159,9 +159,14 @@ class VarBayes:
         self.nN = self.config['nNeighbors'] + 1  # neighbors + background
 
     def initialise_state(self) -> None:
+        """Initialises the starting state of the objects
+        4-Feb-2025: Note that inefficiency (denoted by eta) follows a Gamma(rGene, rGene).
+        Keep in mind also that there is also the config['Inefficiency'] parameter that has
+        been applied directly to the expression data from scRNAseq
+        """
         self.cellTypes.ini_prior()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
-        self.genes.init_eta(1, 1 / self.config['Inefficiency'])
+        self.genes.init_eta(self.config['rGene'], self.config['rGene'])
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.cells._ini_gene_counts = np.bincount(self.spots.data.label.values, minlength=self.nC)
@@ -255,9 +260,23 @@ class VarBayes:
 
                 # 4. assign cells to cell types
                 self.cell_to_cellType()
+                out = pd.DataFrame({'class_name': self.cells.class_names,
+                                    'prob': self.cells.classProb[29023]
+                                    }).sort_values(by='prob', ascending=False)
+                print(out.head(5))
 
                 # 5. assign spots to cells
                 self.spots_to_cell()
+                mask = self.spots.parent_cell_id == 29023
+                prob = self.spots.parent_cell_prob[mask]
+                out = self.spots.data[mask.sum(axis=1).astype(bool)]
+                out = out.assign(prob=prob)
+                out = (out.groupby("gene_name", as_index=False)["prob"]
+                       .sum()
+                       .sort_values(by='prob', ascending=False))
+                print(out.head(8))
+
+
 
                 # 6. update gene efficiency
                 self.eta_upd()
@@ -365,7 +384,7 @@ class VarBayes:
         cfg = self.config
 
         self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
-                                                    self.single_cell.mean_expression.values,
+                                                    self.single_cell.mean_expression_adj.values,
                                                     self.genes.eta_bar))
 
         beta = self.scaled_exp.compute() + cfg['rSpot']
@@ -488,7 +507,7 @@ class VarBayes:
             'The sum of the background spots and the total gene counts should be equal to the number of spots'
 
         classProb = self.cells.classProb
-        mu = self.single_cell.mean_expression
+        mu = self.single_cell.mean_expression_adj
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
 
@@ -506,7 +525,7 @@ class VarBayes:
                                        gamma_bar[:, :, :-1])
         background_counts = self.cells.background_counts
         alpha = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
-        beta = self.config['rGene'] / self.config['Inefficiency'] + class_total_counts
+        beta = self.config['rGene'] + class_total_counts
 
         # Finally, update gene_gamma
         self.genes.calc_eta(alpha, beta)
