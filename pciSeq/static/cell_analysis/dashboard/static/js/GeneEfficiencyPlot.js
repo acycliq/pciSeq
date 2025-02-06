@@ -144,7 +144,7 @@ export class GeneEfficiencyPlot {
                     
                 this.tooltip
                     .style("opacity", 0.9)
-                    .html(`<strong>${d.gene}</strong><br>Efficiency: ${d.efficiency.toFixed(3)}`)
+                    .html(`<strong>${d.gene}</strong><br>Inefficiency: ${d.efficiency.toFixed(3)}`)
                     .style("left", `${event.pageX + 10}px`)
                     .style("top", `${event.pageY - 28}px`);
             })

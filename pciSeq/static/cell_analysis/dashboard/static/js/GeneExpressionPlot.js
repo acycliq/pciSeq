@@ -306,7 +306,7 @@ export class GeneExpressionPlot {
                     `Observed: ${d.x.toFixed(2)}<br>` +
                     `Expected (raw): ${(d.y).toFixed(2)}<br>` +  // Show raw expected
                     `Expected (adjusted): ${d.y_adj.toFixed(2)}<br>` +  // Show efficiency-adjusted
-                    `Efficiency: ${efficiency.toFixed(2)}`
+                    `Inefficiency: ${efficiency.toFixed(2)}`
                 );
 
                 const tooltipWidth = this.tooltip.node().getBoundingClientRect().width;

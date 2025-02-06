@@ -215,7 +215,7 @@ export class DistanceProbabilityPlot {
                     `<strong>${d.label}</strong><br/>` +
                     `Distance: ${d.x.toFixed(2)}<br/>` +
                     `Probability: ${d.y.toFixed(2)}<br/>` +
-                    `Gene Count: ${d.geneCount}`
+                    `Gene Count: ${d.geneCount.toFixed(2)}`
                 )
                     .style("left", (event.pageX + 5) + "px")
                     .style("top", (event.pageY - 14) + "px");
