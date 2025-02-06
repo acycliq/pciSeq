@@ -8,11 +8,11 @@
 </head>
 <body>
     <div class="dashboard-container">
-        <div class="plots-grid">
+        <div class="plots-grid" role="main">
             <div id="gene-contribution-plot"></div>
             <div id="distance-probability-plot"></div>
             <div id="cell-gene-counts-plot"></div>
-            <div></div>
+            <div id="gene-efficiency-plot"></div>
         </div>
         <div id="gene-selector"></div>
     </div>
@@ -22,6 +22,7 @@
         import { DistanceProbabilityPlot } from './static/js/distanceProbabilityPlot.js';
         import { GeneSelector } from './static/js/geneSelector.js';
         import { GeneExpressionPlot } from './static/js/GeneExpressionPlot.js';
+        import { GeneEfficiencyPlot } from './static/js/GeneEfficiencyPlot.js';
 
         // Load both data files
         Promise.all([
@@ -33,37 +34,38 @@
                 .attr("class", "tooltip")
                 .style("opacity", 0);
 
-            // Create the plots
+            // Create the plots in the correct order
             const mainPlot = new GeneContributionPlot('gene-contribution-plot', geneData, tooltip);
             const distancePlot = new DistanceProbabilityPlot('distance-probability-plot', spotData, tooltip);
             const cellGenePlot = new GeneExpressionPlot('cell-gene-counts-plot', geneData, tooltip);
+            const geneEfficiencyPlot = new GeneEfficiencyPlot('gene-efficiency-plot', geneData, tooltip);
 
-            // Create gene selector with direct callback
-            const geneSelector = new GeneSelector(
-                'gene-selector',
-                geneData.gene_names,
-                (selectedGenes) => {
-                    const visibleGenes = new Set(selectedGenes);
-                    mainPlot.updateVisibleGenes(visibleGenes);
-                    cellGenePlot.updateVisibleGenes(visibleGenes);
-                    // Only update distance plot if it has the method
-                    if (distancePlot.updateVisibleGenes) {
-                        distancePlot.updateVisibleGenes(visibleGenes);
-                    }
-                }
-            );
+            // Create the gene selector last
+            const geneSelector = new GeneSelector('gene-selector', geneData.gene_names, selectedGenes => {
+                // Convert array to Set for consistency
+                const visibleGenes = new Set(selectedGenes);
+                mainPlot.updateVisibleGenes(visibleGenes);
+                distancePlot.updateVisibleGenes(visibleGenes);
+                cellGenePlot.updateVisibleGenes(visibleGenes);
+                geneEfficiencyPlot.updateVisibleGenes(visibleGenes);
+            });
 
             // Add resize handler
             window.addEventListener('resize', () => {
                 mainPlot.resize();
                 distancePlot.resize();
                 cellGenePlot.resize();
+                geneEfficiencyPlot.resize();
             });
 
         }).catch(error => {
-            console.error("Error loading the data:", error);
-            document.getElementById('gene-contribution-plot').innerHTML =
-                `<div class="error">Error loading data: ${error.message}</div>`;
+            console.error('Error loading data:', error);
+            // Show error in all plot containers
+            ['gene-contribution-plot', 'distance-probability-plot', 
+             'cell-gene-counts-plot', 'gene-efficiency-plot'].forEach(id => {
+                document.getElementById(id).innerHTML = 
+                    `<div class="error-message">Error loading data: ${error.message}</div>`;
+            });
         });
     </script>
 </body>
