@@ -105,11 +105,28 @@ DEFAULT = {
     # working with 2D or 3D data!
     'MisreadDensity': 0.00001,
 
-    # cell_centroid_prior_weight: TBD
-    'cell_centroid_prior_weight': 10,
+    # A pseudo-count representing the confidence in the cell centroid estimated
+    # by the segmentation algorithm.
+    #   - Think of `cell_centroid_prior` as if you had already seen this many imaginary
+    #     data points, all centered at the segmentation-derived centroid, before
+    #     incorporating real data.
+    #   - A small value means you have little confidence in the segmentation result,
+    #     so real data will strongly influence the estimated centroid.
+    #   - A large value means you trust the segmentation strongly, so the estimated
+    #     centroid will remain close to the initial segmentation result, even as new
+    #     data is introduced.
+    'cell_centroid_prior': 10,
 
-    # cell_cov_prior_weight: TBD
-    'cell_cov_prior_weight': 10,
+    # A pseudo-count representing the confidence in the initial estimate of covariance,
+    # which is modeled as a diagonal matrix where each diagonal element is the square
+    # of the mean cell radius.
+    #   - Imagine this prior as if you had already observed this many imaginary data points
+    #     that reinforce your belief about the spread (covariance).
+    #   - A small value means you are uncertain about the initial covariance estimate,
+    #     allowing real data to significantly influence the updated covariance.
+    #   - A large value means you strongly trust the initial covariance assumption, so
+    #     real data will only cause gradual updates.
+    'cell_cov_prior': 10,
 
     # Gene detection might come with irregularities due to technical errors. A small value is introduced
     # here to account for these errors. It is an additive factor, applied to the single cell expression
@@ -120,7 +137,7 @@ DEFAULT = {
     # when we're doing calculations with these numbers.
     'SpotReg': 0.1,
 
-    # By default only the 6 nearest cells will be considered as possible parent cells for any given spot.
+    # By default, only the 6 nearest cells will be considered as possible parent cells for any given spot.
     # There is also one extra 'super-neighbor', which is always a neighbor to the spots so we can assign
     # the misreads to. Could be seen as the background. Hence, by default the algorithm tries examines
     # whether any of the 3 nearest cells is a possible parent cell to a given cell or whether the spot is

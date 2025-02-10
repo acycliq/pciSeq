@@ -16,8 +16,8 @@ class ConfigManager:
     Inefficiency: float
     InsideCellBonus: Union[bool, int, float]
     MisreadDensity: Union[float, Dict[str, float]]
-    cell_centroid_prior_weight: Union[float, int, Dict[str, float]]
-    cell_cov_prior_weight: Union[float, int, Dict[str, float]]
+    cell_centroid_prior: Union[float, int, Dict[str, float]]
+    cell_cov_prior: Union[float, int, Dict[str, float]]
     SpotReg: float
     nNeighbors: int
     rSpot: Union[int, float]

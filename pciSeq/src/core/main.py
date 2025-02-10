@@ -119,7 +119,7 @@ class VarBayes:
         """Check for required config parameters."""
         required = ['exclude_genes', 'max_iter', 'CellCallTolerance',
                     'rGene', 'Inefficiency', 'InsideCellBonus', 'MisreadDensity',
-                    'cell_centroid_prior_weight', 'cell_cov_prior_weight', 'SpotReg', 'nNeighbors', 'rSpot',
+                    'cell_centroid_prior', 'cell_cov_prior', 'SpotReg', 'nNeighbors', 'rSpot',
                     'save_data', 'output_path', 'launch_viewer', 'launch_diagnostics',
                     'is_redis_running', 'cell_radius', 'cell_type_prior', 'is3D',
                     'mean_gene_counts_per_class', 'mean_gene_counts_per_cell']
@@ -536,7 +536,7 @@ class VarBayes:
         """
 
         # Get the prior weight (pseudo-sample size for the centroid)
-        k_0 = self.config['cell_centroid_prior_weight']['default']
+        k_0 = self.config['cell_centroid_prior']['default']
 
         # Prior centroid (mu_0)
         prior_centroid = self.cells.ini_centroids()
@@ -571,8 +571,8 @@ class VarBayes:
         """
 
         # Hyperparameters
-        k_0 = self.config['cell_centroid_prior_weight']['default']  # Prior for centroids
-        nu_0 = self.config['cell_cov_prior_weight']['default']  # Prior degrees of freedom for covariance
+        k_0 = self.config['cell_centroid_prior']['default']  # Prior for centroids
+        nu_0 = self.config['cell_cov_prior']['default']  # Prior degrees of freedom for covariance
 
         # 1. Calculate the scatter matrix (data-driven scale matrix)
         scatter_matrix = self.cells.scatter_matrix(self.spots)

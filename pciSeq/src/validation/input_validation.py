@@ -246,8 +246,8 @@ class InputValidator:
             validation_logger.warning('InsideCellBonus was passed-in as True. Overriding with default value of 2')
 
         config.MisreadDensity = InputValidator._dict_checker(config.MisreadDensity, "MisreadDensity")
-        config.cell_centroid_prior_weight = InputValidator._dict_checker(config.cell_centroid_prior_weight, "cell_centroid_prior_weight")
-        config.cell_cov_prior_weight = InputValidator._dict_checker(config.cell_cov_prior_weight, "cell_cov_prior_weight")
+        config.cell_centroid_prior = InputValidator._dict_checker(config.cell_centroid_prior, "cell_centroid_prior")
+        config.cell_cov_prior = InputValidator._dict_checker(config.cell_cov_prior, "cell_cov_prior")
 
         return config
 
