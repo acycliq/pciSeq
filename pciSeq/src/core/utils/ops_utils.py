@@ -9,6 +9,46 @@ import logging
 ops_utils_logger = logging.getLogger(__name__)
 
 
+def expected_covariance(scale_matrix, dof):
+    """
+        Calculate the expected covariance matrix from a scale matrix and degrees of freedom.
+
+        Parameters
+        ----------
+        scale_matrix : np.ndarray
+            Scale matrix of shape (C, d, d) where d must be 2 or 3
+        dof : np.ndarray
+            Degrees of freedom,shape (C,).
+            Values will be automatically adjusted if below d + 2
+
+        Returns
+        -------
+        np.ndarray
+            Expected covariance matrix of same shape as input scale_matrix
+
+        Raises
+        ------
+        ValueError
+            If matrix dimensions are invalid or don't match
+    """
+    # Get the last two dimensions
+    *_, d1, d2 = scale_matrix.shape
+
+    # Check square
+    if d1 != d2:
+        raise ValueError(f"scale_matrix must be square, got shape {scale_matrix}")
+
+    # Check dimension is 2 or 3
+    if d1 not in (2, 3):
+        raise ValueError(f"scale_matrix dimension must be 2 or 3, got {d1}")
+
+    # Adjust degrees of freedom if needed, maybe I should drop a warning?
+    min_dof = d1 + 1
+    dof[dof <= min_dof] = min_dof + 1
+
+    return scale_matrix / (dof[:, None, None] - d1 - 1)
+
+
 def negative_binomial_loglikelihood(x: np.ndarray, r: float, p: np.ndarray) -> np.ndarray:
     """Calculate the Negative Binomial log-likelihood for given parameters.
 

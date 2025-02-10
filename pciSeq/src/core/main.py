@@ -58,6 +58,7 @@ import logging
 from typing import Dict, List, Optional, Tuple, Union, Any
 
 # Third-party imports
+import sys
 import numpy as np
 import numpy_groupies as npg
 import pandas as pd
@@ -260,9 +261,21 @@ class VarBayes:
 
                 # 4. assign cells to cell types
                 self.cell_to_cellType()
+                out = pd.DataFrame({'class_name': self.cells.class_names,
+                                    'prob': self.cells.classProb[29023]
+                                    }).sort_values(by='prob', ascending=False)
+                print(out.head(5))
 
                 # 5. assign spots to cells
                 self.spots_to_cell()
+                mask = self.spots.parent_cell_id == 29023
+                prob = self.spots.parent_cell_prob[mask]
+                out = self.spots.data[mask.sum(axis=1).astype(bool)]
+                out = out.assign(prob=prob)
+                out = (out.groupby("gene_name", as_index=False)["prob"]
+                       .sum()
+                       .sort_values(by='prob', ascending=False))
+                print(out.head(8))
 
                 # 6. update gene efficiency
                 self.eta_upd()
@@ -525,199 +538,87 @@ class VarBayes:
         self.cov_upd()
 
     # -------------------------------------------------------------------- #
-    def centroid_upd(self):
+    def centroid_upd(self) -> None:
         """
-        Updates cell centroids using Bayesian posterior estimation.
+        Updates the centroid (mean) for each cell based on the posterior distribution.
 
-        Combines prior centroids with empirical means using configurable weights:
-        mu_post = (alpha * mu_0 + x_bar) / (alpha + 1)
-
-        where:
-        - mu_0 is the prior centroid
-        - x_bar is the empirical mean
-        - alpha is the weight controlling prior influence
-
-        Technical Details:
-        -----------------
-        Computes the posterior cluster mean given prior and sample statistics.
-
-        The posterior cluster mean is derived under the assumption of a Normal-Inverse Wishart (NIW) prior, where
-        the cluster's mean mu and covariance Sigma are jointly modeled.
-
-        When given sample data consisting of `n` observations with a sample mean x_bar, the posterior mean mu_n is
-        computed as:
-
-            mu_post = (k_0 * mu_0 + n * x_bar) / (k_0 + n)
-
-        The parameter k_0 controls the weight of the prior mean relative to the data when calculating the posterior
-        mean.
-         - When k_0 = 0 then the posterior mean is the sample mean
-         - A large value of k_0 implies stronger confidence in the prior, making the posterior mean closer to mu_0
-
-        Alternative Formula:
-        k_0 as a Function of alpha, ie: k_0 = alpha * n
-        ------------------------------------------------
-        k_0 can be set proportional to the sample size n as k_0 = alpha * n, where alpha >= 0 and controls the
-        relative influence of the prior:
-
-            mu_post = (alpha * mu_0 + x_bar) / (alpha + 1)
-
-        Setting alpha:
-        ----------------
-        - alpha = 0: Fully data-driven, no prior information.
-        - alpha = 1: Balance the prior and the data equally, mu_post = (mu_0 + x_bar) / 2.
-        - alpha >> 1: Strong prior influence, posterior mean gets closer to the prior mean.
-        - alpha -> infinity: Prior dominates, posterior mean appx equal to the prior mean.
+        The posterior centroid is calculated as a weighted average of:
+        - The prior centroid (mu_0), weighted by the prior pseudo-sample size (k_0)
+        - The empirical (sample) mean (x_bar), weighted by the observed sample size (n)
         """
 
-        # Get default value for the weight
-        default_val = self.config['cell_centroid_prior_weight']['default']
+        # Get the prior weight (pseudo-sample size for the centroid)
+        k_0 = self.config['cell_centroid_prior_weight']['default']
 
-        cell_labels = np.arange(self.nC)
-        alpha_dict = {label: default_val for label in cell_labels}
+        # Prior centroid (mu_0)
+        prior_centroid = self.cells.ini_centroids()
 
-        # Update with any cell specific weights (Review this, can be done in a simpler way!)
-        if self.config['label_map']:
-            _label = []
-            for key in self.config['cell_centroid_prior_weight'].keys():
-                if key == 'default':
-                    _label.append('default')
-                else:
-                    try:
-                        _label.append(self.config['label_map'][key])
-                    except KeyError as e:
-                        main_logger.warning(f"Could not find cell with label: {key}, "
-                                            f"cell_centroid_prior_weight is not applied")
-            _dict = dict(zip(_label, self.config['cell_centroid_prior_weight'].values()))
-        else:
-            _dict = self.config['cell_centroid_prior_weight']
+        # 1. Calculate the empirical (sample) mean
+        sample_mean = utils.empirical_mean(spots=self.spots, cells=self.cells)
 
-        alpha_dict.update(_dict or {})
-        alpha_dict.pop('default', None)
+        # 2. Get the observed sample size (gene counts per cell)
+        sample_size = self.cells.total_counts
 
-        mu_0 = self.cells.ini_centroids()
+        # 3. Calculate the posterior centroid as a weighted average
+        numerator = k_0 * prior_centroid + sample_size[:, None] * sample_mean
+        denominator = k_0 + sample_size[:, None]
+        posterior_centroid = numerator / denominator
 
-        # 1. calc the empirical (sample) mean
-        x_bar = utils.empirical_mean(spots=self.spots, cells=self.cells)
+        # 4. Handle the background (index 0)
+        # Reset the background centroid to a default large value (e.g., max int)
+        posterior_centroid.iloc[0, :] = -sys.maxsize
 
-        # 2.  Weighted average of the prior mean and the empirical mean
-        alpha = np.fromiter(alpha_dict.values(), dtype=np.float32)
-        alpha = alpha[:, None]
-        a = alpha * mu_0 + x_bar
-        b = alpha + 1
-        mu_post = a / b
-        self.cells.centroid = mu_post
+        # Update the centroids
+        self.cells.centroid = posterior_centroid
 
     # -------------------------------------------------------------------- #
     def cov_upd(self) -> None:
         """
-        Computes the posterior mean of a covariance matrix using an inverse Wishart prior.
+        Updates the covariance matrix for each cell based on the posterior distribution.
 
-        Combines the sample covariance matrix with the prior covariance estimate, weighted by
-        a factor based on the sample size and prior strength.
-
-        Formulas:
-        ---------
-        Before re-parameterization:
-            E(Cov|data) = (nS + V0) / (n + nu_0 - d - 1)
-
-            Rewriting as a weighted average:
-            E(Cov|data) = (n / (n + nu_0 - d - 1)) * S
-                     + (1 - n / (n + nu_0 - d - 1)) * (V0 / (nu_0 - d - 1))
-
-        After re-parameterization (with nu_0 = alpha * n):
-            E(Cov|data) = (nS + V0) / (n + alpha * n - d - 1)
-
-            Rewriting as a weighted average:
-            E(Cov|data) = (n / (n + alpha * n - d - 1)) * S
-                     + (1 - n / (n + alpha * n - d - 1)) * (V0 / (alpha * n - d - 1))
-
-        Parameters:
-        -----------
-        S (numpy.ndarray): Sample covariance matrix.
-        V0 (numpy.ndarray): Scale matrix of the inverse Wishart prior.
-        n (int): Sample size.
-        alpha (float): Weighting factor for prior strength, with m0 = alpha * n.
-        d (int): Dimensionality of the covariance matrix.
-
-        Returns:
-        --------
-        numpy.ndarray: Posterior mean of the covariance matrix.
-
-        Technical Details:
-        ------------------
-        - The top-row formula expresses the posterior mean compactly:
-            E(Cov|data) = (nS + V0) / (n + nu_0 - d - 1) or equivalently
-                     E(Cov|data) = (nS + V0) / (n + alpha * n - d - 1) after re-parameterization.
-        - The weighted average form highlights the balance between sample covariance (`S`)
-          and the prior mean (`V0 / (nu_0 - p - 1)` or `V0 / (alpha * n - p - 1)`).
-
-        Setting alpha:
-        --------------
-        - alpha = 0: Prior has no influence, posterior mean equals the sample covariance matrix.
-        - alpha = 1: Equal contribution from the prior and the sample data.
-        - alpha >> 1: Strong prior influence, posterior mean approximates the prior covariance.
-        - alpha -> infinity: Prior dominates completely.
+        The posterior covariance is computed using:
+        - The scatter matrix (data-driven scale matrix)
+        - The prior covariance (weighted by prior hyperparameters)
+        - An adjustment term based on the difference between sample means and prior means
         """
-        spots = self.spots
-        # n = self.cells.geneCount.sum(axis=1)  # sample size (cell gene counts)
-        n = self.cells._ini_gene_counts
 
-        # cell at position zero (label=0) is the background.
-        # Set the gene counts to zero but it won't matter anyway.
-        n[0] = 0
-        d = 3 if self.config['is3D'] else 2  # dimensionality of the data points
-        # Get default value for the weight
-        default_val = self.config['cell_cov_prior_weight']['default']
+        # Hyperparameters
+        k_0 = self.config['cell_centroid_prior_weight']['default']  # Prior for centroids
+        nu_0 = self.config['cell_cov_prior_weight']['default']  # Prior degrees of freedom for covariance
 
-        ##### DUPLICATE CODE BELOW !!!! #####
-        cell_labels = np.arange(self.nC)
-        alpha_dict = {label: default_val for label in cell_labels}
-        # Update with any cell specific weights (Review this, can be done in a simpler way!)
-        if self.config['label_map']:
-            _label = []
-            for key in self.config['cell_cov_prior_weight'].keys():
-                if key == 'default':
-                    _label.append('default')
-                else:
-                    try:
-                        _label.append(self.config['label_map'][key])
-                    except KeyError as e:
-                        main_logger.warning(f"Could not find cell with label: {key}, "
-                                            f"cell_cov_prior_weight is not applied")
-            _dict = dict(zip(_label, self.config['cell_cov_prior_weight'].values()))
-        else:
-            _dict = self.config['cell_cov_prior_weight']
+        # 1. Calculate the scatter matrix (data-driven scale matrix)
+        scatter_matrix = self.cells.scatter_matrix(self.spots)
 
-        alpha_dict.update(_dict or {})
-        alpha_dict.pop('default', None)
-        ##### DUPLICATE CODE ABOVE !!!! #####
+        # 2. Calculate the prior scale matrix
+        prior_cov = self.cells.ini_cov()
+        prior_scale_matrix = nu_0 * prior_cov
 
-        # 1. first get the components for the prior scale matrix
-        alpha = np.fromiter(alpha_dict.values(), dtype=np.float32)
-        cov_0 = self.cells.ini_cov()
-        nu_0 = alpha * n
-        # psi_0 = cov_0 * nu_0
+        # 3. Calculate the adjustment term
+        # Difference between current centroids and prior centroids (x_bar - mu_0)
+        mean_diff = self.cells.centroid - self.cells.ini_centroids()
+        mean_outer_product = np.einsum('rk, rn -> rkn', mean_diff, mean_diff)  # (x_bar - mu_0)(x_bar - mu_0)^T
 
-        # 2. Get now the scatter matrix. This is basically the sample covariance matrix
-        # scaled by sample size (cell gene counts)
-        S = self.cells.scatter_matrix(spots)
+        # Multiplier for the adjustment term
+        multiplier = (k_0 * self.cells.total_counts) / (k_0 + self.cells.total_counts)
 
-        a = S + (nu_0[:, None, None] * cov_0)
-        b = n + nu_0 - d - 1
+        # Avoid warnings by setting background (index 0) adjustment to zero
+        mean_outer_product[0] = np.zeros_like(mean_outer_product[0])
+        adjustment_term = multiplier[:, None, None] * mean_outer_product
 
-        mask = n + nu_0 > d + 1
+        # 4. Calculate the updated scale matrix
+        scale_matrix_upd = scatter_matrix + prior_scale_matrix + adjustment_term
 
-        # divide a by b (same as a/b[:, :, None])
-        inv_b = np.zeros_like(b)  # Initialize with zeros
-        inv_b[mask] = 1 / b[mask]
-        cov = np.einsum('crk, c -> crk', a, inv_b)
+        # 5. Calculate the updated degrees of freedom
+        nu_upd = nu_0 + self.cells.total_counts + 1
 
-        # if n + nu_0 > d + 1 use the updated values otherwise use the prior Cov
-        out = cov_0.copy()
-        out[mask] = cov[mask].astype(np.float32)
-        # Add a check that it is positive definite, maybe inside the property setter (if it is not too expensive)
-        self.cells.cov = out
+        # 6. Compute the expected covariance
+        covariance_upd = utils.expected_covariance(scale_matrix_upd, nu_upd)
+
+        # Handle background (index 0) by mapping it to the prior covariance
+        covariance_upd[0] = prior_cov[0]
+
+        # 7. Update the cell covariance attribute
+        self.cells.cov = covariance_upd
 
     # -------------------------------------------------------------------- #
     def mu_upd(self) -> None:
