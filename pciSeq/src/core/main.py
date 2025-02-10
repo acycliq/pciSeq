@@ -261,21 +261,9 @@ class VarBayes:
 
                 # 4. assign cells to cell types
                 self.cell_to_cellType()
-                out = pd.DataFrame({'class_name': self.cells.class_names,
-                                    'prob': self.cells.classProb[29023]
-                                    }).sort_values(by='prob', ascending=False)
-                print(out.head(5))
 
                 # 5. assign spots to cells
                 self.spots_to_cell()
-                mask = self.spots.parent_cell_id == 29023
-                prob = self.spots.parent_cell_prob[mask]
-                out = self.spots.data[mask.sum(axis=1).astype(bool)]
-                out = out.assign(prob=prob)
-                out = (out.groupby("gene_name", as_index=False)["prob"]
-                       .sum()
-                       .sort_values(by='prob', ascending=False))
-                print(out.head(8))
 
                 # 6. update gene efficiency
                 self.eta_upd()
