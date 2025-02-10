@@ -105,60 +105,11 @@ DEFAULT = {
     # working with 2D or 3D data!
     'MisreadDensity': 0.00001,
 
-    # cell_centroid_prior_weight: Determines the balance between relying on initial cell positions (prior) and
-    # fully data-driven.
-    # Uses formula: mu_post = (alpha * initial_position + empirical_position) / (alpha + 1)
-    #
-    # Can be set as either:
-    #   - Scalar value: Same weight for all cells
-    #   - Dict: Different weights for specific cells where:
-    #          - keys are cell labels
-    #          - values are the weights
-    #          - 'default' key sets weight for any unspecified cell labels
-    #
-    # Weight values (alpha) effects:
-    #   alpha = 0: Fully trust data, ignore initial position
-    #   alpha = 1: Equal weight (50-50) between initial and empirical positions
-    #             (i.e., final position will be exactly halfway between initial and data-driven positions)
-    #   alpha > 1: More trust in initial position
-    #   alpha >> 1: Heavy bias towards the initial position
-    #   alpha -> Infinity: Completely locks to initial position
-    #
-    # Example usage:
-    # 'cell_centroid_prior_weight': {
-    #     'default': 0,     # Used for any cells not explicitly listed. Value=0 means fully data-driven, no prior)
-    #     3: 1,             # Cell with label 3: equal weight between initial and data-driven positions
-    #     10: 100,          # Cell with label 10: strongly trust initial position
-    # }
-    'cell_centroid_prior_weight': 0,
+    # cell_centroid_prior_weight: TBD
+    'cell_centroid_prior_weight': 10,
 
-    # cell_cov_prior_weight: Determines the balance between relying on prior covariance estimates and
-    # fully data-driven covariance computation.
-    # Uses formula: Cov_post = (S + alpha * n * Cov_0) / [n + alpha * n - d - 1]
-    # where S = n * \Sigma xTx the empirical scatter matrix
-    # and Cov_0 the prior covariance matrix
-    #
-    # Can be set as either:
-    #   - Scalar value: Same weight for all cells
-    #   - Dict: Different weights for specific cells where:
-    #          - keys are cell labels
-    #          - values are the weights
-    #          - 'default' key sets weight for any unspecified cells
-    #
-    # Weight values (alpha) effects:
-    #   alpha = 0: Fully trust data, ignore prior covariance
-    #   alpha = 1: Equal weight (50-50) between prior and empirical covariance
-    #             (i.e., final covariance will be halfway between prior and data-driven estimates)
-    #   alpha > 1: More trust in prior covariance
-    #   alpha >> 1: Heavy bias towards the prior covariance
-    #   alpha -> Infinity: Completely locks to prior covariance
-    #
-    # Example usage:
-    # 'cell_cov_prior_weight': {
-    #     'default': 0,     # Used for any cells not explicitly listed. Value=0 means fully data-driven, no prior
-    #     4: 1,             # Cell with label 4: equal weight between prior and data-driven covariance
-    #     11: 100,          # Cell with label 11: strongly trust prior covariance
-    'cell_cov_prior_weight': 1,
+    # cell_cov_prior_weight: TBD
+    'cell_cov_prior_weight': 10,
 
     # Gene detection might come with irregularities due to technical errors. A small value is introduced
     # here to account for these errors. It is an additive factor, applied to the single cell expression
