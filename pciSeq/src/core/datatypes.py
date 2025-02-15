@@ -744,17 +744,32 @@ class Spots(object):
 
     def gammaExpectation(self, rho, beta):
         """
-        Calculates the expectation of a gamma distribution.
+        Calculates the expectation of a gamma distribution
+
+        In this context:
+          - rho represents gene counts for each cell and has shape (nC, nG),
+            where nG is the number of genes and nC is the number of cells.
+          - beta represents (scaled) gene expression from scRNAseq and has shape (nG, nK)
+
+        The expectation is computed so that for each cell c, gene g, and class k:
+            result[c, g, k] = rho[c, g] / beta[g, k]
+
+        This is achieved using an einsum operation that is equivalent to:
+            rho[:, :, None] / beta
+        as verified by:
+            np.allclose(rho[:, :, None] / beta, np.einsum('cg, gk -> cgk', rho, 1 / beta))
 
         Parameters:
-            rho (np.array): Shape parameters.
-            beta (np.array): Rate parameters.
+            rho (np.array): Gene counts per cell with shape (nG, nC).
+            beta (np.array): Scaled gene expression values with shape (nG, nK).
 
         Returns:
-            np.array: Expected values.
+            np.array: Expected gamma values with shape (nC, nG, nK).
         """
-        r = rho[:, :, None]
-        return r / beta
+
+        return np.einsum('cg, gk -> cgk', rho, 1 / beta)
+
+
 
     def logGammaExpectation(self, rho, beta):
         """
