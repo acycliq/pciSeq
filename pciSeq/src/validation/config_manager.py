@@ -49,6 +49,9 @@ class ConfigManager:
             if key in cfg_dict:
                 cfg_dict[key] = opts[key]
                 config_manager_logger.info(f'{key} is set to {opts[key]}')
+            else:
+                config_manager_logger.warning(f"Unrecognized configuration option: '{key}'! "
+                                              f"Valid options are: {', '.join(sorted(cfg_dict.keys()))}")
 
         log_file(cfg_dict)
 
