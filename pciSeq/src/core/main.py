@@ -63,11 +63,14 @@ import numpy as np
 import numpy_groupies as npg
 import pandas as pd
 from dask.delayed import delayed
-import scipy.spatial as spatial
 from scipy.special import softmax
 
 # Local imports
-from .datatypes import Cells, Spots, Genes, SingleCell, CellType
+from .datatypes.cells import Cells
+from .datatypes.genes import Genes
+from .datatypes.spots import Spots
+from .datatypes.singleCell import SingleCell
+from .datatypes.cellType import CellType
 from .summary import collect_data
 from .analysis import CellExplorer
 from .utils import ops_utils as utils
