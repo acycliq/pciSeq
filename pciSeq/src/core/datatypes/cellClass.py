@@ -12,7 +12,7 @@ from .cells import Cells
 cellType_logger = logging.getLogger(__name__)
 
 
-class CellType(object):
+class CellClass(object):
     """
     Manages cell type classification, including prior probabilities and
     class assignments. Helps in understanding the distribution of different

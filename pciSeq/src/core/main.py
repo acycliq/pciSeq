@@ -70,7 +70,7 @@ from .datatypes.cells import Cells
 from .datatypes.genes import Genes
 from .datatypes.spots import Spots
 from .datatypes.singleCell import SingleCell
-from .datatypes.cellType import CellType
+from .datatypes.cellClass import CellClass
 from .summary import collect_data
 from .analysis import CellExplorer
 from .utils import ops_utils as utils
@@ -151,7 +151,7 @@ class VarBayes:
         self.spots = Spots(spots_df, self.config)
         self.genes = Genes(self.spots, self.config)
         self.single_cell = SingleCell(scRNAseq, self.genes.gene_panel, self.config)
-        self.cellTypes = CellType(self.single_cell, self.config)
+        self.cellTypes = CellClass(self.single_cell, self.config)
         self.cells.class_names = self.single_cell.classes
 
     def _setup_dimensions(self) -> None:
