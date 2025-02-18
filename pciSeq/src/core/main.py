@@ -507,10 +507,10 @@ class VarBayes:
         # Note. I also think we should exclude the "cell" that is meant to keep the
         # misreads, ie exclude the background
         class_total_counts = np.einsum('ck, gk, c, cgk -> g',
-                                       classProb[:, :-1],
+                                       classProb[1:, :-1],
                                        mu.values[:, :-1],
-                                       area_factor,
-                                       gamma_bar[:, :, :-1])
+                                       area_factor[1:],
+                                       gamma_bar[1:, :, :-1])
         background_counts = self.cells.background_counts
         alpha = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
         beta = self.config['rGene'] + class_total_counts
