@@ -499,7 +499,8 @@ class VarBayes:
         gamma_bar = self.spots.gamma_bar.compute()
 
         zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
-        zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
+        # zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
+        zero_class_counts = np.einsum('c, cg -> g', classProb[:, -1], self.cells.geneCount)
 
         # Calcs the sum in the Gamma distribution (equation 5). The zero class
         # is excluded from the sum, hence the arrays in the einsum below stop at :-1
