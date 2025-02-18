@@ -504,19 +504,25 @@ class VarBayes:
 
         # Calcs the sum in the Gamma distribution (equation 5). The zero class
         # is excluded from the sum, hence the arrays in the einsum below stop at :-1
-        # Note. I also think we should exclude the "cell" that is meant to keep the
-        # misreads, ie exclude the background
+        # Note. We should exclude the "cell" that is meant to keep the
+        # misreads, ie exclude the background, hence the relevant indexing below
+        # starts at 1
         class_total_counts = np.einsum('ck, gk, c, cgk -> g',
                                        classProb[1:, :-1],
                                        mu.values[:, :-1],
                                        area_factor[1:],
                                        gamma_bar[1:, :, :-1])
         background_counts = self.cells.background_counts
-        alpha = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
-        beta = self.config['rGene'] + class_total_counts
 
-        # Finally, update gene_gamma
-        self.genes.calc_eta(alpha, beta)
+        # observed (ie actual) gene reads per gene
+        observed = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
+
+        # expected (ie predicted) gene reads per gene
+        expected = self.config['rGene'] + class_total_counts
+
+        # Finally, update gene_gamma. It will basically divide observed by expected
+        # and gene inefficiency will eventually express how well a gene is detected.
+        self.genes.calc_eta(observed, expected)
 
     # -------------------------------------------------------------------- #
     def gaussian_upd(self) -> None:
