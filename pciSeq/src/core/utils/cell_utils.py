@@ -26,9 +26,11 @@ def read_image_objects(img_obj: pd.DataFrame,
     Notes:
         Handles special case of misreads by appending dummy cell with label=0
     """
-    # Calculate mean cell radius and relative radii
-    meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
-    relCellRadius = np.sqrt(img_obj.area / np.pi) / meanCellRadius
+    # Calculate mean cell radius
+    meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5  # the dapi part is only half of the typical radius
+
+   # relative cell radius: The radius of each cell wrt to the average radius.
+    relCellRadius = np.sqrt(img_obj.area / np.pi) / np.mean(np.sqrt(img_obj.area / np.pi))
 
     # Append 1 for the misreads
     relCellRadius = np.append(1, relCellRadius)
@@ -38,6 +40,8 @@ def read_image_objects(img_obj: pd.DataFrame,
 
     numer = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(InsideCellBonus)) + np.exp(InsideCellBonus)
     denom = np.exp(-0.5) * (1 - np.exp(InsideCellBonus)) + np.exp(InsideCellBonus)
+
+    # this is area factor relative to that of the average cell
     CellAreaFactor = numer / denom
 
     # Build output dictionary

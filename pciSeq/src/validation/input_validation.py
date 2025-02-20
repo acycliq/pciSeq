@@ -232,9 +232,9 @@ class InputValidator:
                     raise TypeError(f"'{attr_name}' must be of type {expected_type}, got {type(value)}")
 
         # Value validation
-        if config.is3D:
-            config.InsideCellBonus = False
-            validation_logger.warning('InsideCellBonus set to False for 3D data')
+        # if config.is3D:
+        #     config.InsideCellBonus = False
+        #     validation_logger.warning('InsideCellBonus set to False for 3D data')
 
         if config.cell_type_prior.lower() not in ['uniform', 'weighted']:
             raise ValueError("'cell_type_prior' should be either 'uniform' or 'weighted'")

@@ -468,8 +468,14 @@ class VarBayes:
         # cell label = 4. Cell label=5 is the second closest cell and label=4 the first closest. Therefore, the bonus should be
         # applied when we handle the column for the seconds closest near-by cell. The implementation below implies that if
         # a spot is inside the cell boundaries then that cell is the closest one.
-        mask = np.greater(self.spots.data.label.values, 0, where=~np.isnan(self.spots.data.label.values))
-        wSpotCell[mask, 0] = wSpotCell[mask, 0] + self.config['InsideCellBonus']
+        # mask = np.greater(self.spots.data.label.values, 0, where=~np.isnan(self.spots.data.label.values))
+        # wSpotCell[mask, 0] = wSpotCell[mask, 0] + self.config['InsideCellBonus']
+
+        # make the inside cell bonus mask. If a spot is inside the boundaries, boost the loglikelihood
+        bonus_mask = np.tile(self.spots.data.label.values[:,None], [1, self.nN]) == self.spots.parent_cell_id
+        bonus_mask = bonus_mask * self.config['InsideCellBonus']
+        bonus_mask[:, -1] = 0  # reset the last column, this is the background.
+        wSpotCell += bonus_mask
 
         # update the prob a spot belongs to a neighboring cell
         self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
