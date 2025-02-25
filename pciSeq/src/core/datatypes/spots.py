@@ -49,6 +49,7 @@ class Spots(object):
         self._counts_per_gene = None
         [_, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True,
                                                             return_counts=True)
+        self._bonus_mask = None
 
     def __getstate__(self):
         """
@@ -117,6 +118,15 @@ class Spots(object):
     def parent_cell_id(self, val: np.ndarray):
         """Sets the parent cell IDs for spots."""
         self._parent_cell_id = val.astype(np.uint32)
+
+    @property
+    def bonus_mask(self):
+        cell_label = self.data.label.values[:, None]
+        parent_cell_id = self.parent_cell_id
+        nN = parent_cell_id.shape[1]
+        out = np.tile(cell_label, [1, nN]) == parent_cell_id
+        out[:, -1] = 0
+        return out
 
     # -------- METHODS -------- #
     def read(self, spots_df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
