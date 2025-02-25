@@ -81,27 +81,54 @@ class CellLabelManager:
         return processed_matrices, label_map
 
 
-def inside_cell(label_img: csr_matrix, spots: pd.DataFrame) -> np.ndarray:
+# def inside_cell(label_img: csr_matrix, spots: pd.DataFrame) -> np.ndarray:
+#     """
+#     Find which spots are inside cells.
+#
+#     Args:
+#         label_img: Sparse matrix of cell labels
+#         spots: DataFrame with spot coordinates
+#
+#     Returns:
+#         Array of cell labels for each spot
+#     """
+#     x = spots.x.values
+#     y = spots.y.values
+#     label_dense = label_img.toarray()
+#
+#     # Get labels at spot coordinates
+#     x = x.astype(int)
+#     y = y.astype(int)
+#     labels = label_dense[y, x]
+#
+#     return labels
+
+
+def inside_cell(spots: pd.DataFrame, coo_list: List[coo_matrix]) -> pd.Series:
     """
-    Find which spots are inside cells.
+    Compute labels for spots in a single plane group using the corresponding sparse matrix.
 
-    Args:
-        label_img: Sparse matrix of cell labels
-        spots: DataFrame with spot coordinates
-
-    Returns:
-        Array of cell labels for each spot
+    Parameters
+    ----------
+    spots : pd.DataFrame
+        DataFrame corresponding to a single plane group. Must have 'plane_id', 'x', and 'y' columns.
+    coo_list : List[coo_matrix]
+        List of sparse matrices containing cell labels.
     """
-    x = spots.x.values
-    y = spots.y.values
-    label_dense = label_img.toarray()
+    unique_plane_ids = spots['plane_id'].unique()
+    if len(unique_plane_ids) != 1:
+        raise ValueError(f"Expected one unique plane_id per group, got: {unique_plane_ids}")
+    plane_id = unique_plane_ids[0]
 
-    # Get labels at spot coordinates
-    x = x.astype(int)
-    y = y.astype(int)
-    labels = label_dense[y, x]
+    # Convert the appropriate sparse matrix to CSR format.
+    csr = coo_list[plane_id].tocsr()
 
-    return labels
+    # Get the values at (y, x) positions and convert to a flattened 1D array.
+    out = csr[spots['y'], spots['x']].A1
+
+    # convert the list to a Series with the group's index. It needs to be a Series
+    # or dataframe, so it will be properly aligned with the main spots dataframe
+    return pd.Series(out, index=spots.index)
 
 
 def get_unique_labels(coo_matrices: List[coo_matrix]) -> List[np.ndarray]:
