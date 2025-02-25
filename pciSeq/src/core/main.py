@@ -174,6 +174,7 @@ class VarBayes:
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.cells._ini_gene_counts = np.bincount(self.spots.data.label.values, minlength=self.nC)
+        self.genes._misread_density = self.genes.calc_misread_density(self.spots, self.cells.mcr)
 
     def __getstate__(self):
         """

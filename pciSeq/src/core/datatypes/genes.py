@@ -6,6 +6,9 @@ from typing import Tuple, Dict, Any
 import numpy as np
 import pandas as pd
 import scipy
+from sklearn.preprocessing import MinMaxScaler
+from shapely.geometry import MultiPoint, Polygon, mapping
+import alphashape
 
 genes_logger = logging.getLogger(__name__)
 
@@ -33,6 +36,7 @@ class Genes(object):
         self._eta_bar = None
         self._logeta_bar = None
         self.nG = len(self.gene_panel)
+        self._misread_density = None
         self.config = config
 
     @property
@@ -54,6 +58,15 @@ class Genes(object):
         via the configuration file
         """
         return self.eta_bar * self.config['Inefficiency']
+
+    @property
+    def misread_density(self):
+        """
+        Misread density expresses the noise of the signal. It is estimated
+        using the number of points that are too far from the closest cell
+        and are also on the background
+        """
+        return self._misread_density
 
     def init_eta(self, a, b):
         """
@@ -132,4 +145,96 @@ class Genes(object):
             return df.reindex(gene)  # Handles missing genes gracefully (NaN for missing ones)
 
         raise TypeError("Expected gene to be a string, list, or None.")
+
+    def calc_misread_density(self, spots, mcr):
+        # find the mid plane
+        mid_plane = int(spots.data.plane_id.mean())
+
+        # mask = spots.data.plane_id == mid_plane
+        # points_df = spots.data.loc[mask, ['x', 'y']]
+        # points_df = spots.data[['x', 'y']].copy()
+        area = self.pointcloud_shape(spots, mid_plane)
+        misreads_per_gene = self.remote_spots(spots, mid_plane, mcr)
+
+        return misreads_per_gene/area
+
+    def pointcloud_shape(self, spots, mid_plane, alpha=7):
+
+        # get the data around the mid_plane
+        plane_mask = spots.data.plane_id == mid_plane
+        points_df = spots.data.loc[plane_mask, ['x', 'y']]
+
+        # ------------------------------
+        # Step 2: Scale the Data Using MinMaxScaler
+        # ------------------------------
+        scaler = MinMaxScaler()
+        points_scaled = scaler.fit_transform(points_df)
+
+        # ------------------------------
+        # Step 3: Compute the Surrounding Polygon in Scaled Space
+        # ------------------------------
+        # Create a MultiPoint geometry from the scaled data
+        # multi_pt = MultiPoint(points_scaled)
+
+        # Compute the convex hull (you may replace this with a concave hull method if needed)
+        alpha_shape = alphashape.alphashape(points_scaled, alpha)
+        # hull = multi_pt.convex_hull
+
+        # Extract the hull coordinates using shapely.mapping
+        mapped_hull = mapping(alpha_shape)
+        # For a Polygon, the outer boundary is in the first element of the 'coordinates'
+        hull_coords_scaled = np.array(mapped_hull['coordinates'][0])
+
+        # #make sure it is closed:
+        if ~np.all(hull_coords_scaled[0] == hull_coords_scaled[-1]):
+            np.append(hull_coords_scaled, hull_coords_scaled[0])
+
+        # ------------------------------
+        # Step 4: Recover the Original Scale of the Hull Coordinates
+        # ------------------------------
+        hull_coords_original = scaler.inverse_transform(hull_coords_scaled)
+
+        # ------------------------------
+        # Step 5: Plot the Data and the Surrounding Polygon
+        # ------------------------------
+        import matplotlib.pyplot as plt
+        plt.figure(figsize=(8, 6))
+        plt.scatter(points_df['x'], points_df['y'], color='blue', label="Data Points", s=2)
+
+        # Ensure the polygon is closed by appending the first coordinate at the end
+        # x_poly = np.append(hull_coords_original[:, 0], hull_coords_original[0, 0])
+        # y_poly = np.append(hull_coords_original[:, 1], hull_coords_original[0, 1])
+        plt.plot(hull_coords_original[:, 0], hull_coords_original[:, 1], 'r-', linewidth=2, label="Surrounding Polygon")
+
+        # ------------------------------
+        # Step 6: Calculate and Print the Area of the Polygon
+        # ------------------------------
+        polygon = Polygon(hull_coords_original)
+        area = polygon.area
+        print("Area of the shape:", area)
+
+        return area
+
+    def remote_spots(self, spots, mid_plane, mcr):
+        mid_plane_mask = spots.data.plane_id == mid_plane
+        mid_spots = spots.data[mid_plane_mask]
+        dist_mask = spots.Dist[mid_plane_mask, 0] > 3 * mcr
+        isolated_spots = mid_spots[dist_mask]
+
+        # select those on the background
+        # isolated_spots = isolated_spots[isolated_spots.label == 0]
+        misreads_per_gene = isolated_spots[['gene_name', 'label']].groupby('gene_name').count()
+
+        # a = spots.data.assign(z_stack=spots.data.z * 0.28 / 0.9)
+        # b = np.floor(a.z_stack) == 30
+        # spots_30 = a[b]
+        # my_mask = spots.Dist[b, 0] > 3 * mcr
+        # isolated_spots = spots_30[my_mask]
+        # misreads_per_gene = isolated_spots[['gene_name', 'label']].groupby('gene_name').count()
+        # misreads_per_gene.loc['Plp1'] # Should return 69
+
+        return misreads_per_gene
+
+
+
 

@@ -76,6 +76,6 @@ def stage_data(spots: pd.DataFrame,
 
     # Prepare output
     cells = props_df.rename(columns={'x_cell': 'x0', 'y_cell': 'y0', 'z_cell': 'z0'})
-    processed_spots = spots[['x', 'y', 'z', 'label', 'gene_name']].rename_axis('spot_id')
+    processed_spots = spots[['x', 'y', 'z', 'plane_id', 'label', 'gene_name']].rename_axis('spot_id')
 
     return cells, cell_boundaries, processed_spots, label_map
