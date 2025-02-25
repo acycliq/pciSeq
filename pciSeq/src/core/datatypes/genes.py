@@ -148,7 +148,7 @@ class Genes(object):
 
     def calc_misread_density(self, spots, mcr):
         # find the mid plane
-        mid_plane = int(spots.data.plane_id.mean())
+        mid_plane = int(spots.data.plane_id.max()/2)
 
         # mask = spots.data.plane_id == mid_plane
         # points_df = spots.data.loc[mask, ['x', 'y']]
@@ -222,7 +222,7 @@ class Genes(object):
         isolated_spots = mid_spots[dist_mask]
 
         # select those on the background
-        # isolated_spots = isolated_spots[isolated_spots.label == 0]
+        isolated_spots = isolated_spots[isolated_spots.label == 0]
         misreads_per_gene = isolated_spots[['gene_name', 'label']].groupby('gene_name').count()
 
         # a = spots.data.assign(z_stack=spots.data.z * 0.28 / 0.9)
