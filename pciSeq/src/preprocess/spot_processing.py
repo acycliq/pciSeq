@@ -50,59 +50,9 @@ def assign_spot_labels(spots: pd.DataFrame, coo: List[coo_matrix]) -> pd.DataFra
     """
     spots = spots.assign(label=np.zeros(spots.shape[0], dtype=np.uint32))
 
-    my_logger.info('my_inside starts')
-
     # Group by 'plane_id', apply the function, and reset the index so the result aligns with df.
     spots['label'] = (spots.groupby('plane_id')
                       .apply(inside_cell, coo)
                       .reset_index(level=0, drop=True)
                       )
-    my_logger.info('my_inside finished')
-
-    # my_logger.info('inside_cell loop starts')
-    # for z in np.unique(spots.z_plane):
-    #     spots_z = spots[spots.z_plane == z]
-    #     inc = inside_cell(coo[int(z)].tocsr().astype(np.uint32), spots_z)
-    #     spots.loc[spots.z_plane == z, 'label'] = inc
-    #
-    # my_logger.info('inside_cell loop finished')
     return spots
-
-# def my_inside(spots, coo):
-#     pid = set(spots.plane_id)
-#     print(pid)
-#     assert len(pid) == 1
-#     pid = pid.pop()
-#     csr = coo[pid].tocsr()
-#     out = csr[spots.y, spots.x]
-#     out = out.tolist()[0]
-#
-#     # convert the list to a Series with the group's index
-#     return pd.Series(out, index=spots.index)
-
-
-# def my_inside(spots: pd.DataFrame, coo_list: List[coo_matrix]) -> pd.Series:
-#     """
-#     Compute labels for spots in a single plane group using the corresponding sparse matrix.
-#
-#     Parameters
-#     ----------
-#     spots : pd.DataFrame
-#         DataFrame corresponding to a single plane group. Must have 'plane_id', 'x', and 'y' columns.
-#     coo_list : List[coo_matrix]
-#         List of sparse matrices containing cell labels.
-#     """
-#     unique_plane_ids = spots['plane_id'].unique()
-#     if len(unique_plane_ids) != 1:
-#         raise ValueError(f"Expected one unique plane_id per group, got: {unique_plane_ids}")
-#     plane_id = unique_plane_ids[0]
-#
-#     # Convert the appropriate sparse matrix to CSR format.
-#     csr = coo_list[plane_id].tocsr()
-#
-#     # Get the values at (y, x) positions and convert to a flattened 1D array.
-#     out = csr[spots['y'], spots['x']].A1
-#
-#     # convert the list to a Series with the group's index. It needs to be a Series
-#     # or dataframe, so it will be properly aligned with the main spots dataframe
-#     return pd.Series(out, index=spots.index)
