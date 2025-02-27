@@ -351,13 +351,17 @@ class Spots(object):
 
         Parameters:
             rho (np.array): Gene counts per cell with shape (nG, nC).
-            beta (np.array): Scaled gene expression values with shape (nG, nK).
+            beta (np.array): Scaled gene expression values with shape (nC, nG, nK) or (nG, nK)
 
         Returns:
             np.array: Expected gamma values with shape (nC, nG, nK).
         """
 
-        return np.einsum('cg, gk -> cgk', rho, 1 / beta)
+        if len(beta.shape) == 3:
+            subscripts = 'cg, cgk -> cgk'
+        else:
+            subscripts = 'cg, gk -> cgk'
+        return np.einsum(subscripts, rho, 1 / beta)
 
     def logGammaExpectation(self, rho, beta):
         """
