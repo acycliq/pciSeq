@@ -461,7 +461,7 @@ class VarBayes:
 
             # wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik[:, n]
             mvn_loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
-            wSpotCell[:, n] = term_1 + term_2 + logeta_bar + mvn_loglik
+            wSpotCell[:, n] = term_1 + term_2 + mvn_loglik
             del term_1
 
         # apply inside cell bonus
