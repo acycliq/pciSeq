@@ -31,7 +31,7 @@ DEFAULT = {
     # If a spot is inside the cell boundaries this bonus will give the likelihood an extra boost
     # in order to make the spot more probable to get assigned to the cell than another spot positioned
     # outside the cell boundaries
-    'InsideCellBonus': 2,
+    'InsideCellBonus': 0,
 
     # MisreadDensity: Expected number of misread spots. A dictionary contains user-defined values
     # for gene misread densities used in the analysis.
