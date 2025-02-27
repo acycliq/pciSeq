@@ -175,14 +175,6 @@ class Genes(object):
         misread_df[:] = 1e-06
         return misread_df
 
-    import os
-    import tempfile
-    import matplotlib.pyplot as plt
-    import numpy as np
-    from shapely.geometry import Polygon, mapping
-    from sklearn.preprocessing import MinMaxScaler
-    import alphashape
-
     def pointcloud_shape(self, spots, mid_plane, alpha=7):
         """
         Compute the alpha shape (concave hull) of spot coordinates, plot the results, and save the plot.
