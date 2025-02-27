@@ -150,6 +150,22 @@ class Genes(object):
         raise TypeError("Expected gene to be a string, list, or None.")
 
     def calc_misread_density(self, spots, mcr):
+        """
+        Calculate the misread density for each gene across cells.
+
+        Summary of steps:
+          1. Determine the mid-plane and compute the cell's area using the alpha shape.
+          2. Identify remote spots (those on the background with distance > 3 * mcr) and count misreads per gene.
+          3. Compute the misread density by dividing counts by area, fill missing genes with a default/mean value,
+             and update with any user-defined densities.
+
+        Parameters:
+            spots (object): An object with spot data (including a DataFrame 'data' and a NumPy array 'Dist').
+            mcr (float): Mean cell radius used to set the remote spot threshold.
+
+        Returns:
+            pandas.Series: Misread density for each gene (currently all values are overridden to 1e-06).
+        """
         # find the mid plane
         mid_plane = int(spots.data.plane_id.max()/2)
 
@@ -184,7 +200,7 @@ class Genes(object):
         It then computes the alpha shape of the scaled points using the provided alpha parameter.
         The hull coordinates are scaled back to the original coordinate system, the data points
         and the computed polygon are plotted, and the plot is saved as a PNG file. The output
-        directory is taken from self.config['output_dir'] if available; otherwise, it defaults to
+        directory is taken from self.config['output_path'] if available; otherwise, it defaults to
         the system's temporary directory under a folder named "pciSeq". Finally, the area of the
         polygon is computed, logged, and returned.
 
