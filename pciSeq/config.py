@@ -33,76 +33,25 @@ DEFAULT = {
     # outside the cell boundaries
     'InsideCellBonus': 2,
 
-    # MisreadDensity: Expected number of misread spots per unit area (2D) or volume (3D)
-    # Can be set as either:
-    #   - Scalar value: Same density applied everywhere
-    #   - Dict: Different densities for specific genes
+    # MisreadDensity: Expected number of misread spots. A dictionary contains user-defined values
+    # for gene misread densities used in the analysis.
+    # The process to determine the misread density for each gene is as follows:
     #
-    # Important: All coordinates are first normalized to pixel units using voxel_size.
-    # Example: If voxel_size = [0.147, 0.147, 0.9]:
-    # - Each Z step equals 6.12 pixels in normalized space (0.9/0.147)
-    # - A volume of 100x100x10 raw pixels becomes 100x100x61.2 normalized pixels
+    # 1. Compute the misread density as the number of misreads per gene divided by the area of the image.
+    # 2. Calculate the mean of these computed misread densities.
+    # 3. If the computed mean is NaN (for example, due to insufficient data), the fallback value
+    #    specified by the key 'default' in this configuration is used.
+    # 4. Finally, update the computed densities with any gene-specific overrides provided here.
     #
-    # Option 1 - Scalar (same value for all genes):
-    # 'MisreadDensity': 0.0001,    # 2D: 1 misread per 100x100 pixel area OR
-    #                   0.000001   # 3D: 1 misread per 100x100x100 normalized pixel volume
-    #                                      (~100x smaller values due to volume vs area)
+    # The 'default' key thus sets a baseline misread density to ensure that every gene is assigned
+    # a consistent value when the mean cannot be reliably determined.
     #
-    # Option 2 - Dictionary (different values per gene):
-    # For 2D data (per pixel area):
-    # 'MisreadDensity': {
-    #     'default': 1e-5,     # 2D: 1 misread per 100x100 pixel area. Used for any genes not explicitly listed
-    #     'Vip': 1e-5,         # Clean signal, low background
-    #     'Npy': 1e-4,         # Noisier gene with more background
-    #     'Aldoc': 1e-6,       # Very clean signal
-    # },
-    #
-    #
-    # For 3D data (per pixel volume):
-    # 'MisreadDensity': {
-    #     'default': 1e-5,     # 3D: 100 misreads per 100x100x100 normalized pixel volume. Used for any genes not explicitly listed
-    #     'Vip': 1e-5,         # Clean signal, low background
-    #     'Npy': 1e-4,         # Noisier gene with more background
-    #     'Aldoc': 1e-6,       # Very clean signal
-    # },
-    #
-    # Note: Values might be similar between 2D and 3D if:
-    # - Background noise is uniform throughout the tissue
-    # - Number of spots scales proportionally with volume
-    # - All coordinates are properly normalized using voxel_size
-    #
-    # Rules of thumb for setting values:
-    # For 2D data (per pixel area):
-    # - A value of 0.0001 means 1 misread per 100x100 pixel area (since 1/10000 = 0.0001)
-    # - Default (0.00001) means 0.1 misread per 100x100 pixel area
-    # - For high-quality data: use 0.000001 to 0.00001
-    # - For noisier data: use 0.0001 to 0.001
-    #
-    # For 3D data (per pixel volume):
-    # - Use ~100x smaller values than 2D due to volume vs area
-    # - Default (0.00001) means 10 misread per 100x100x100 normalized pixel volume
-    # - For high-quality data: use 0.0000001 to 0.000001
-    # - For noisier data: use 0.00001 to 0.0001
-    #
-    # To calculate a custom value:
-    # 2D Example:
-    # - 10 background spots in 200x200 pixels
-    # - Area = 200 * 200 = 40,000 pixels²
-    # - Density = 10/40,000 = 0.00025 misreads per pixel²
-    #
-    # 3D Example with voxel_size=[0.147, 0.147, 0.9]:
-    # - 10 background spots in 200x200x10 raw voxels
-    # - Z dimension normalized: 10 * (0.9/0.147) = 61.2 pixels
-    # - Normalized volume = 200 * 200 * 61.2 = 2,448,000 pixels³
-    # - Density = 10/2,448,000 = 0.000004 misreads per pixel³
-    #
-    # Note: The example above assumes the same number of background
-    # spots, hence the 3D density is naturally much lower because
-    # it is divided by volume instead of area.
-    # If background spots are uniformly distributed in the tissue,
-    # the density values might end up similar between 2D and 3D!
-    # Always adjust your density values based on whether you're
-    # working with 2D or 3D data!
+    # Example configuration:
+    # {
+    #     'default': 1e-06,  # Fallback misread density if the computed mean is NaN.
+    #     'Plp1': 0.0001,    # User-defined misread density for gene 'Plp1'.
+    #     # Additional gene-specific overrides can be added here.
+    # }
     'MisreadDensity': 0.00001,
 
     # A pseudo-count representing the confidence in the cell centroid estimated
