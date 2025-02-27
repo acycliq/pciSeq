@@ -49,7 +49,6 @@ class Spots(object):
         self._counts_per_gene = None
         [_, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True,
                                                             return_counts=True)
-        self._bonus_mask = None
 
     def __getstate__(self):
         """
@@ -63,7 +62,7 @@ class Spots(object):
         del attributes['_log_gamma_bar']
         return attributes
 
-    # -------- PROPERTIES -------- #
+    # ---------------- PROPERTIES ---------------- #
     @property
     def gene_id(self) -> np.ndarray:
         """Returns the gene IDs for spots."""
@@ -121,14 +120,36 @@ class Spots(object):
 
     @property
     def bonus_mask(self):
-        cell_label = self.data.label.values[:, None]
-        parent_cell_id = self.parent_cell_id
-        nN = parent_cell_id.shape[1]
-        out = np.tile(cell_label, [1, nN]) == parent_cell_id
-        out[:, -1] = 0
-        return out
+        """
+        Compute a boolean mask for bonus assignment in spot-to-cell matching.
 
-    # -------- METHODS -------- #
+        This property returns a boolean array of shape (n_spots, n_neighbors) where:
+          - Each row corresponds to a spot.
+          - Each column corresponds to a neighboring cell.
+          - A value of True at [i, j] indicates that the label of spot i (from self.data.label)
+            matches the parent's cell ID for neighboring cell j (from self.parent_cell_id). This
+            implies that spot i lies within the boundaries of cell j and should receive a bonus in
+            the spot-to-cell assignment.
+          - The last column represents the background and is always set to False (i.e., no bonus).
+
+        Returns:
+            np.ndarray: Boolean mask of shape (n_spots, n_neighbors).
+        """
+        # Get the spot labels as a column vector (shape: n_spots x 1)
+        cell_label = self.data.label.values[:, None]
+
+        # Get the parent's cell IDs (shape: n_spots x n_neighbors)
+        parent_cell_id = self.parent_cell_id
+
+        # Use broadcasting to compare the spot labels against each parent's cell ID.
+        bonus_mask = (cell_label == parent_cell_id)
+
+        # Set the last column (background) to False (no bonus).
+        bonus_mask[:, -1] = False
+
+        return bonus_mask
+
+    # ---------------- METHODS ---------------- #
     def read(self, spots_df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Reads and processes spot data, excluding specified genes.
@@ -283,29 +304,33 @@ class Spots(object):
 
         return -0.5 * (dim * log2pi + mahas + logdets)
 
-    def zero_class_counts(self, geneNo, pCellZero):
-        """
-        Calculates gene counts for the zero expressing class.
-
-        Parameters:
-            geneNo (np.array): Gene numbers for spots.
-            pCellZero (np.array): Probabilities of zero expression for cells.
-
-        Returns:
-            np.array: Total predicted zero counts per gene.
-        """
-        # for each spot get the ids of the 3 nearest cells
-        spotNeighbours = self.parent_cell_id[:, :-1]
-
-        # get the corresponding probabilities
-        neighbourProb = self.parent_cell_prob[:, :-1]
-
-        # prob that a spot belongs to a zero expressing cell
-        pSpotZero = np.sum(neighbourProb * pCellZero[spotNeighbours], axis=1)
-
-        # aggregate per gene id
-        TotPredictedZ = np.bincount(geneNo, pSpotZero)
-        return TotPredictedZ
+    # def zero_class_counts(self, geneNo, pCellZero):
+    #     """
+    #     *****************************
+    #      ******** DEPRECATED ++++++++
+    #      ****** TO BE REMOVED *******
+    #      ****************************
+    #     Calculates gene counts for the zero expressing class.
+    #
+    #     Parameters:
+    #         geneNo (np.array): Gene numbers for spots.
+    #         pCellZero (np.array): Probabilities of zero expression for cells.
+    #
+    #     Returns:
+    #         np.array: Total predicted zero counts per gene.
+    #     """
+    #     # for each spot get the ids of the 3 nearest cells
+    #     spotNeighbours = self.parent_cell_id[:, :-1]
+    #
+    #     # get the corresponding probabilities
+    #     neighbourProb = self.parent_cell_prob[:, :-1]
+    #
+    #     # prob that a spot belongs to a zero expressing cell
+    #     pSpotZero = np.sum(neighbourProb * pCellZero[spotNeighbours], axis=1)
+    #
+    #     # aggregate per gene id
+    #     TotPredictedZ = np.bincount(geneNo, pSpotZero)
+    #     return TotPredictedZ
 
     def gammaExpectation(self, rho, beta):
         """
@@ -334,8 +359,6 @@ class Spots(object):
 
         return np.einsum('cg, gk -> cgk', rho, 1 / beta)
 
-
-
     def logGammaExpectation(self, rho, beta):
         """
         Calculates the log expectation of a gamma distribution.
@@ -349,4 +372,17 @@ class Spots(object):
         """
         r = rho[:, :, None]
         return scipy.special.psi(r) - np.log(beta)
+
+    def misread_density(self, genes):
+        """
+        convenience functon that takes the genes misread density and
+        aligns to the spots. Every spot will have a misread value based
+        on its gene
+        """
+        misread_dict = genes.misread_density.to_dict()
+
+        # Convert to array and align directly with spots
+        v = np.array(list(misread_dict.values()))
+        v = v[self.gene_id]  # Align with spots
+        return v
 

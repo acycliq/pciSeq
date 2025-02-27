@@ -437,7 +437,8 @@ class VarBayes:
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
         logeta_bar = self.genes.logeta_bar[self.spots.gene_id]
 
-        misread = self.spot_misread_density()
+        # misread = self.spot_misread_density()
+        misread = self.spots.misread_density(self.genes)
 
         # pre-populate last column
         wSpotCell[:, -1] = np.log(misread)
@@ -684,31 +685,31 @@ class VarBayes:
         self.cellTypes.alpha = out
 
     # -------------------------------------------------------------------- #
-    def spot_misread_density(self) -> np.array:
-        """
-        Calculates spot misread probabilities for each gene.
-
-        Combines:
-            1. Default misread probability for all genes
-            2. Gene-specific probabilities from configuration
-            3. Alignment with current spot assignments
-
-        Returns:
-            np.ndarray: Array of misread probabilities aligned with spots
-        """
-        # Get default misread probability for all genes
-        default_val = self.config['MisreadDensity']['default']
-        gene_names = self.genes.gene_panel
-        misread_dict = dict(zip(gene_names, [default_val] * self.nG))
-
-        # Update with any gene-specific probabilities
-        misread_dict.update(self.config['MisreadDensity'] or {})
-        misread_dict.pop('default', None)
-
-        # Convert to array and align directly with spots
-        v = np.array(list(misread_dict.values()))
-        v = v[self.spots.gene_id]  # Align with spots
-        return v
+    # def spot_misread_density(self) -> np.array:
+    #     """
+    #     Calculates spot misread probabilities for each gene.
+    #
+    #     Combines:
+    #         1. Default misread probability for all genes
+    #         2. Gene-specific probabilities from configuration
+    #         3. Alignment with current spot assignments
+    #
+    #     Returns:
+    #         np.ndarray: Array of misread probabilities aligned with spots
+    #     """
+    #     # Get default misread probability for all genes
+    #     default_val = self.config['MisreadDensity']['default']
+    #     gene_names = self.genes.gene_panel
+    #     misread_dict = dict(zip(gene_names, [default_val] * self.nG))
+    #
+    #     # Update with any gene-specific probabilities
+    #     misread_dict.update(self.config['MisreadDensity'] or {})
+    #     misread_dict.pop('default', None)
+    #
+    #     # Convert to array and align directly with spots
+    #     v = np.array(list(misread_dict.values()))
+    #     v = v[self.spots.gene_id]  # Align with spots
+    #     return v
 
     # -------------------------------------------------------------------- #
     def diagnostics_upd(self) -> None:
