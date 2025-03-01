@@ -96,8 +96,7 @@ class Spots(object):
     @property
     def xyz_coords(self) -> np.ndarray:
         """Returns the spatial coordinates of spots."""
-        lst = list(zip(*[self.data.x, self.data.y, self.data.z]))
-        return np.array(lst, dtype=np.float32)
+        return self.data[['x', 'y', 'z']].values.astype(np.float32)
 
     @property
     def parent_cell_prob(self):
