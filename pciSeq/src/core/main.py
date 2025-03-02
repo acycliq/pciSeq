@@ -64,6 +64,7 @@ import numpy_groupies as npg
 import pandas as pd
 from dask.delayed import delayed
 from scipy.special import softmax
+import opt_einsum as oe
 
 # Local imports
 from .datatypes.cells import Cells
@@ -412,7 +413,7 @@ class VarBayes:
         self.cells.classProb = pCellClass
 
     # -------------------------------------------------------------------- #
-    def spots_to_cell(self) -> None:
+    def spots_to_cell_XXX(self) -> None:
         """
         Updates spot-to-cell assignment probabilities.
 
@@ -502,10 +503,10 @@ class VarBayes:
             sn = self.spots.parent_cell_id[:, n]
             cp = self.cells.classProb[sn]
 
-            term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
+            term_1 = oe.contract('ij, ij -> i', expected_counts, cp, optimize='optimal')
 
             current_log_gamma = log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
-            term_2 = np.einsum('ij, ij -> i', cp, current_log_gamma)
+            term_2 = oe.contract('ij, ij -> i', cp, current_log_gamma, optimize='optimal')
 
             mvn_loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
             return n, term_1 + term_2 + mvn_loglik
@@ -555,18 +556,18 @@ class VarBayes:
 
         zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
         # zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
-        zero_class_counts = np.einsum('c, cg -> g', classProb[:, -1], self.cells.geneCount)
+        zero_class_counts = oe.contract('c, cg -> g', classProb[:, -1], self.cells.geneCount, optimize='optimal')
 
         # Calcs the sum in the Gamma distribution (equation 5). The zero class
         # is excluded from the sum, hence the arrays in the einsum below stop at :-1
         # Note. We should exclude the "cell" that is meant to keep the
         # misreads, ie exclude the background, hence the relevant indexing below
         # starts at 1
-        class_total_counts = np.einsum('ck, gk, c, cgk -> g',
+        class_total_counts = oe.contract('ck, gk, c, cgk -> g',
                                        classProb[1:, :-1],
                                        mu.values[:, :-1],
                                        area_factor[1:],
-                                       gamma_bar[1:, :, :-1])
+                                       gamma_bar[1:, :, :-1], optimize='optimal')
         background_counts = self.cells.background_counts
 
         # observed (ie actual) gene reads per gene
@@ -646,7 +647,7 @@ class VarBayes:
         # 3. Calculate the adjustment term
         # Difference between current centroids and prior centroids (x_bar - mu_0)
         mean_diff = self.cells.centroid - self.cells.ini_centroids()
-        mean_outer_product = np.einsum('rk, rn -> rkn', mean_diff, mean_diff)  # (x_bar - mu_0)(x_bar - mu_0)^T
+        mean_outer_product = oe.contract('rk, rn -> rkn', mean_diff, mean_diff, optimize='optimal')  # (x_bar - mu_0)(x_bar - mu_0)^T
 
         # Multiplier for the adjustment term
         multiplier = (k_0 * self.cells.total_counts) / (k_0 + self.cells.total_counts)
@@ -690,8 +691,8 @@ class VarBayes:
         gamma_bar = self.spots.gamma_bar.compute()[1:, :, :-1]
         area_factor = self.cells.ini_cell_props['area_factor'][1:]
 
-        numer = np.einsum('ck, cg -> gk', classProb, geneCount)
-        denom = np.einsum('ck, c, cgk, g -> gk', classProb, area_factor, gamma_bar, self.genes.eta_bar)
+        numer = oe.contract('ck, cg -> gk', classProb, geneCount, optimize='optimal')
+        denom = oe.contract('ck, c, cgk, g -> gk', classProb, area_factor, gamma_bar, self.genes.eta_bar, optimize='optimal')
 
         me, lme = self.single_cell._gene_expressions(numer, denom)
         self.single_cell._mean_expression = me

@@ -6,6 +6,7 @@ from typing import Tuple, Dict, Any
 import numpy as np
 import pandas as pd
 import scipy
+import opt_einsum as oe
 
 spots_logger = logging.getLogger(__name__)
 
@@ -292,7 +293,7 @@ class Spots(object):
         devs = x - means
 
         # Use `einsum` for matrix-vector multiplications across the first dimension.
-        devUs = np.einsum('ni,nij->nj', devs, Us)
+        devUs = oe.contract('ni,nij->nj', devs, Us, optimize='optimal')
 
         # Compute the Mahalanobis distance by squaring each term and summing.
         mahas = np.sum(np.square(devUs), axis=1)
@@ -360,7 +361,7 @@ class Spots(object):
             subscripts = 'cg, cgk -> cgk'
         else:
             subscripts = 'cg, gk -> cgk'
-        return np.einsum(subscripts, rho, 1 / beta)
+        return oe.contract(subscripts, rho, 1 / beta,  optimize='optimal')
 
     def logGammaExpectation(self, rho, beta):
         """

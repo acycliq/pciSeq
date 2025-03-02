@@ -9,6 +9,7 @@ import scipy
 from natsort import natsort_keygen
 from sklearn.neighbors import NearestNeighbors
 import numpy_groupies as npg
+import opt_einsum as oe
 
 # Local imports
 from ..utils.cell_utils import read_image_objects, keep_labels_unique
@@ -236,7 +237,7 @@ class Cells(object):
             np.ndarray: Shape (G, K) total reads per class and gene
         """
         # Calculate weighted sum of gene reads for each class and gene using classProb as weights
-        weighted_sum = np.einsum('cg, ck -> gk', self.geneCount, self.classProb)
+        weighted_sum = oe.contract('cg, ck -> gk', self.geneCount, self.classProb, optimize='optimal')
         return weighted_sum
 
     def mean_gene_reads_per_class(self):

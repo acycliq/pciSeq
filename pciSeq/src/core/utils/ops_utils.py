@@ -4,6 +4,7 @@ import pandas as pd
 import numpy_groupies as npg
 from typing import Tuple, Optional, Any, Union
 import logging
+import opt_einsum as oe
 
 # Configure logging
 ops_utils_logger = logging.getLogger(__name__)
@@ -177,7 +178,7 @@ def scaled_exp(cell_area_factor: np.ndarray,
         subscripts = 'c, gk, g -> cgk'
         operands = [cell_area_factor, sc_mean_expressions, inefficiency]
 
-    return np.einsum(subscripts, *operands)
+    return oe.contract(subscripts, *operands, optimize='optimal')
 
 
 def empirical_mean(spots, cells):
