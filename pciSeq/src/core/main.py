@@ -75,6 +75,7 @@ from .summary import collect_data
 from .analysis import CellExplorer
 from .utils import ops_utils as utils
 from ...src.diagnostics.controller.diagnostic_controller import DiagnosticController
+import joblib
 
 # Configure logging
 main_logger = logging.getLogger(__name__)
@@ -267,7 +268,7 @@ class VarBayes:
                 self.cell_to_cellType()
 
                 # 5. assign spots to cells
-                self.spots_to_cell()
+                self.spots_to_cell_par()
 
                 # 6. update gene efficiency
                 self.eta_upd()
@@ -472,6 +473,60 @@ class VarBayes:
         self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
 
         # Since the spot-to-cell assignments changed you need to update the gene counts now
+        self.geneCount_upd()
+
+    # -------------------------------------------------------------------- #
+    def spots_to_cell_par(self) -> None:
+        """
+        Updates spot-to-cell assignment probabilities.
+
+        Implements equation (4) of the Qian paper. For each spot, calculates the
+        probability of it belonging to each nearby cell or being a misread.
+
+        Parallelized (multithreading) version of 'spots_to_cell'
+        """
+        nN = self.nN
+        nS = self.nS
+
+        wSpotCell = np.zeros([nS, nN], dtype=np.float64)
+        gn = self.spots.data.gene_name.values
+        expected_counts = self.single_cell.log_mean_expression.loc[gn].values
+
+        # Pre-populate misread column
+        misread = self.spots.misread_density(self.genes)
+        wSpotCell[:, -1] = np.log(misread)
+
+        log_gamma_bar = self.spots.log_gamma_bar.compute()
+
+        def process_neighbor(n):
+            sn = self.spots.parent_cell_id[:, n]
+            cp = self.cells.classProb[sn]
+
+            term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
+
+            current_log_gamma = log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
+            term_2 = np.einsum('ij, ij -> i', cp, current_log_gamma)
+
+            mvn_loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
+            return n, term_1 + term_2 + mvn_loglik
+
+        # Parallel processing
+        results = joblib.Parallel(n_jobs=-1, backend='threading')(
+            joblib.delayed(process_neighbor)(n) for n in range(nN - 1)
+        )
+
+        # Fill results back into wSpotCell
+        for n, result in results:
+            wSpotCell[:, n] = result
+
+        # Apply inside cell bonus
+        bonus_mask = self.spots.bonus_mask * self.config['InsideCellBonus']
+        wSpotCell += bonus_mask
+
+        # Update probabilities
+        self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
+
+        # Update gene counts
         self.geneCount_upd()
 
     # -------------------------------------------------------------------- #
