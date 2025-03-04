@@ -31,12 +31,14 @@ export class GeneExpressionPlot {
         const xValues = this.data.gene_counts;
 
         // Get all y values (single cell reference)
-        const yValues = this.data.scRNAseq_gene_counts.map(row => row[classIndex]);
-        const yValues_adj = yValues.map((value, index) => value * this.data.gene_efficiency[index]);
+        // const yValues = this.data.scRNAseq_gene_counts.map(row => row[classIndex]);
+        // const yValues_adj = yValues.map((value, index) => value * this.data.gene_efficiency[index]);
+
+        const yValues = this.data.mean_gene_reads_per_class.map(row => row[classIndex])
 
         // Calculate extents separately for x and y
         const xExtent = d3.extent(xValues);
-        const yExtent = d3.extent(yValues_adj);
+        const yExtent = d3.extent(yValues);
 
         // Add some padding to the extents
         const xPadding = (xExtent[1] - xExtent[0]) * 0.05;
@@ -84,7 +86,7 @@ export class GeneExpressionPlot {
             .attr('text-anchor', 'middle')
             .attr('x', this.width / 2)
             .attr('y', this.height + PLOT_CONFIG.margin.bottom - 5)
-            .text('pciSeq: Cell Gene Counts');
+            .text(`pciSeq: Gene Counts for cell: ${this.data.cell_num}`);
 
         this.yLabel = this.svg.append('text')
             .attr('class', 'y-label')
@@ -97,8 +99,7 @@ export class GeneExpressionPlot {
     }
 
     updateLabels() {
-        this.yLabel.text('scRNAseq: Class Gene Counts');
-        
+        this.yLabel.text('pciSeq: Avg counts for selected cell type');
         // this.subtitle.text('Comparing observed counts with expected counts for selected cell type');
     }
 
@@ -148,10 +149,10 @@ export class GeneExpressionPlot {
         // Add change handler
         select.on("change", (event) => {
             this.currentUserClass = event.target.value;
-            
+
             // Update labels first
             this.updateLabels();
-            
+
             // Then update the plot
             this.updatePlot(false);
         });
@@ -176,7 +177,8 @@ export class GeneExpressionPlot {
             .attr('class', 'diagonal-line')
             .style('stroke', 'gray')
             .style('stroke-width', '1px')
-            .style('stroke-dasharray', '4');
+            .style('stroke-dasharray', '4')
+            .style('opacity', 0); // Hide the diagonal line by default, not needed for this plot
         this.updateDiagonalLine();
     }
 
@@ -275,7 +277,7 @@ export class GeneExpressionPlot {
             .transition()
             .duration(PLOT_CONFIG.animation.duration)
             .attr('cx', d => this.scales.x(d.x))
-            .attr('cy', d => this.scales.y(d.y_adj))
+            .attr('cy', d => this.scales.y(d.y))
             .attr('r', this.defaultRadius)
             .attr('fill', PLOT_CONFIG.point.color);
 
@@ -304,8 +306,9 @@ export class GeneExpressionPlot {
                 this.tooltip.html(
                     `<strong>${d.name}</strong><br>` +
                     `Observed: ${d.x.toFixed(2)}<br>` +
-                    `Expected (raw): ${(d.y).toFixed(2)}<br>` +  // Show raw expected
-                    `Expected (adjusted): ${d.y_adj.toFixed(2)}<br>` +  // Show efficiency-adjusted
+                    `Class Average (pciSeq): ${(d.y).toFixed(2)}<br>` +
+                    `scRNAseq (raw): ${(d.y_scRNAseq).toFixed(2)}<br>`+  // Show raw expected
+                    // `Expected (adjusted): ${d.y_adj.toFixed(2)}<br>` +  // Show efficiency-adjusted
                     `Inefficiency: ${efficiency.toFixed(2)}`
                 );
 
@@ -383,8 +386,11 @@ export class GeneExpressionPlot {
                 name,
                 g: +this.data.gene_efficiency[i],
                 x: this.data.gene_counts[i],
-                y: this.data.scRNAseq_gene_counts[i][classIndex],
-                y_adj: this.data.scRNAseq_gene_counts[i][classIndex] * this.data.gene_efficiency[i]
+                // y: this.data.scRNAseq_gene_counts[i][classIndex],
+                y: this.data.mean_gene_reads_per_class[i][classIndex],
+                y_scRNAseq: this.data.scRNAseq_gene_counts[i][classIndex],
+                y_adj: this.data.scRNAseq_gene_counts[i][classIndex] * this.data.gene_efficiency[i],
+                // y_pciSeq: this.data.mean_gene_reads_per_class[i][classIndex]
             }))
             .filter(d => this.visibleGenes.has(d.name));
 
@@ -401,9 +407,10 @@ export class GeneExpressionPlot {
                 .call(d3.axisLeft(this.scales.y));
         } else {
             // For class changes, only update y-axis scale
-            const yValues = this.data.scRNAseq_gene_counts.map(row => row[classIndex]);
-            const yValues_adj = yValues.map((value, index) => value * this.data.gene_efficiency[index]);
-            const yExtent = d3.extent(yValues_adj);
+            // const yValues = this.data.scRNAseq_gene_counts.map(row => row[classIndex]);
+            // const yValues_adj = yValues.map((value, index) => value * this.data.gene_efficiency[index]);
+            const yValues = this.data.mean_gene_reads_per_class.map(row => row[classIndex]);
+            const yExtent = d3.extent(yValues);
             const yPadding = (yExtent[1] - yExtent[0]) * 0.05;
 
             this.scales.y.domain([yExtent[0], yExtent[1]]);

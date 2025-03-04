@@ -177,7 +177,8 @@ class CellExplorer:
             'contr': user_data,
             'gene_counts': self.vb.cells.geneCount[cell_num,:].tolist(),
             'gene_efficiency': self.vb.genes.inefficiency.tolist(),
-            'scRNAseq_gene_counts': self.vb.single_cell.mean_expression.values.tolist()
+            'scRNAseq_gene_counts': self.vb.single_cell.mean_expression.values.tolist(),
+            'mean_gene_reads_per_class': self.vb.cells.mean_gene_reads_per_class().tolist()
         }
 
     def spot_dist_and_prob(self, label) -> Dict:
