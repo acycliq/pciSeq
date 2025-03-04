@@ -75,6 +75,7 @@ from .datatypes.cellClass import CellClass
 from .summary import collect_data
 from .analysis import CellExplorer
 from .utils import ops_utils as utils
+from .utils import visualisation
 from ...src.diagnostics.controller.diagnostic_controller import DiagnosticController
 import joblib
 
@@ -297,7 +298,7 @@ class VarBayes:
                 p0 = self.spots.parent_cell_prob
 
                 if self.has_converged:
-                    # self.cell_analysis(2259)
+                    self.cell_analysis(35975)
                     cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell,
                                                     self.config['is3D'])
                     break
@@ -792,3 +793,8 @@ class VarBayes:
         Same as cell_explorer.view_cell()
         """
         return self.cell_explorer.view_cell(cell_num)
+
+    # -------------------------------------------------------------------- #
+    def heatmap_counts_per_class(self):
+        """Display the interactive heatmap."""
+        return plots.heatmap_counts_per_class(self)

@@ -28,7 +28,7 @@ install_deps = ['numpy_groupies', 'pandas', 'dask', 'scipy', 'streamlit', 'altai
                 'scikit-image', 'scikit-learn', 'tqdm', 'flask', 'fastremap',
                 'numexpr', 'diplib', 'pyvips', 'natsort', 'redis',
                 'matplotlib', 'laspy', 'tomlkit', 'colorlog',
-                'shapely', 'alphashape', 'opt_einsum']
+                'shapely', 'alphashape', 'opt_einsum', 'plotly']
 
 version = None
 with open(os.path.join('pciSeq', '_version.py'), 'r') as fid:
