@@ -266,4 +266,12 @@ class Cells(object):
         # Calculate total probability mass (size) for each class
         class_totals = self.classProb.sum(axis=0)
 
-        return weighted_sum / class_totals
+        # Assuming weighted_sum has shape (319, 39) and class_totals has shape (39,)
+        result = np.divide(
+            weighted_sum,
+            class_totals,
+            out=np.zeros_like(weighted_sum),
+            where=class_totals != 0
+        )
+
+        return result
