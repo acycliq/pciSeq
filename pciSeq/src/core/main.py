@@ -298,7 +298,7 @@ class VarBayes:
                 p0 = self.spots.parent_cell_prob
 
                 if self.has_converged:
-                    self.cell_analysis(35975)
+                    # self.cell_analysis(35975)
                     cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.single_cell,
                                                     self.config['is3D'])
                     break
@@ -797,4 +797,4 @@ class VarBayes:
     # -------------------------------------------------------------------- #
     def heatmap_counts_per_class(self):
         """Display the interactive heatmap."""
-        return plots.heatmap_counts_per_class(self)
+        return visualisation.heatmap_counts_per_class(self)
