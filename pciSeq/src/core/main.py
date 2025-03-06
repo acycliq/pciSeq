@@ -414,7 +414,7 @@ class VarBayes:
         self.cells.classProb = pCellClass
 
     # -------------------------------------------------------------------- #
-    def spots_to_cell_XXX(self) -> None:
+    def spots_to_cell(self) -> None:
         """
         Updates spot-to-cell assignment probabilities.
 
@@ -669,8 +669,9 @@ class VarBayes:
         # Handle background (index 0) by mapping it to the prior covariance
         covariance_upd[0] = prior_cov[0]
 
-        # 7. Update the cell covariance attribute
+        # 7. Update the cell covariance attribute. Get the eigenvals/eigenvectors too
         self.cells.cov = covariance_upd
+        self.cells.eig_vals, self.cells.eig_vecs = np.linalg.eigh(covariance_upd)
 
     # -------------------------------------------------------------------- #
     def mu_upd(self) -> None:

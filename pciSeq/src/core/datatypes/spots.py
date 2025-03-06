@@ -262,6 +262,8 @@ class Spots(object):
         """
         centroids = cells.centroid.values[cell_label]
         covs = cells.cov[cell_label]
+        eig_vals = cells.eig_vals[cell_label]
+        eig_vecs = cells.eig_vecs[cell_label]
         if not is3D:
             # that shouldn't really be necessary. If the data are 2d then the z dimension if just a dummy dimension.
             # and inference should still hold (with the dummy z dimension)
@@ -271,16 +273,18 @@ class Spots(object):
             data = data[:, :-1]
             centroids = centroids[:, :-1]
             covs = covs[:, :-1, :-1]
-        out = self.multiple_logpdfs(data, centroids, covs)
+            eig_vals = eig_vals[:, :-1]  # NEEDS TO BE CHECKED
+            eig_vecs = eig_vecs[:, :-1, :-1]  # NEEDS TO BE CHECKED
+        out = self.multiple_logpdfs(data, centroids, covs, eig_vals, eig_vecs)
         return out
 
-    def multiple_logpdfs(self, x: np.ndarray, means: np.ndarray, covs: np.ndarray) -> np.ndarray:
+    def multiple_logpdfs(self, x: np.ndarray, means: np.ndarray, cov: np.ndarray, vals: np.ndarray, vecs: np.ndarray) -> np.ndarray:
         """
         vectorised mvn log likelihood evaluated at multiple pairs of (centroid_1, cov_1), ..., (centroid_N, cov_N)
         Taken from http://gregorygundersen.com/blog/2020/12/12/group-multivariate-normal-pdf/
         """
         # Thankfully, NumPy broadcasts `eigh`.
-        vals, vecs = np.linalg.eigh(covs)
+        # vals, vecs = np.linalg.eigh(covs)
 
         # Compute the log determinants across the second axis.
         logdets = np.sum(np.log(vals), axis=1)

@@ -50,6 +50,8 @@ class Cells(object):
         self.classProb = None
         self.class_names = None
         self._cov = self.ini_cov()
+        self._eig_vals = None
+        self._eig_vecs = None
         self.nu_0 = config['mean_gene_counts_per_cell']
         self._centroid = self.ini_centroids()
         self._gene_counts = None
@@ -117,6 +119,26 @@ class Cells(object):
     def cov(self, val: np.ndarray):
         """Sets the covariance matrices for cells."""
         self._cov = val
+
+    @property
+    def eig_vals(self) -> np.ndarray:
+        """Returns the eigenvalues of the covariance matrix."""
+        return self._eig_vals
+
+    @eig_vals.setter
+    def eig_vals(self, val: np.ndarray):
+        """Sets the eigenvalues of the covariance matrix."""
+        self._eig_vals = val
+
+    @property
+    def eig_vecs(self) -> np.ndarray:
+        """Returns the eigenvectors of the covariance matrix."""
+        return self._eig_vecs
+
+    @eig_vecs.setter
+    def eig_vecs(self, val: np.ndarray):
+        """Sets the eigenvectors of the covariance matrix."""
+        self._eig_vecs = val
 
     @property
     def mcr(self) -> float:
