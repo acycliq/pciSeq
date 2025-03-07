@@ -131,7 +131,7 @@ class VarBayes:
         """Set up the core data components needed for the algorithm."""
         self.cells = Cells(cells_df, self.config)
         self.spots = Spots(spots_df, self.config)
-        self.genes = Genes(self.spots)
+        self.genes = Genes(self.spots, self.config)
         self.single_cell = SingleCell(scRNAseq, self.genes.gene_panel, self.config)
         self.cellTypes = CellType(self.single_cell, self.config)
         self.cells.class_names = self.single_cell.classes
@@ -147,7 +147,7 @@ class VarBayes:
     def initialise_state(self) -> None:
         self.cellTypes.ini_prior()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
-        self.genes.init_eta(1, 1 / self.config['Inefficiency'])
+        self.genes.init_eta(self.config['rGene'], self.config['rGene'])
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
 
@@ -301,7 +301,7 @@ class VarBayes:
         cfg = self.config
 
         self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
-                                            self.single_cell.mean_expression.values,
+                                            self.single_cell.mean_expression_adj.values,
                                             self.genes.eta_bar))
 
         beta = self.scaled_exp.compute() + cfg['rSpot']
@@ -343,7 +343,6 @@ class VarBayes:
         wSpotCell = np.zeros([nS, nN], dtype=np.float64)
         gn = self.spots.data.gene_name.values
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
-        logeta_bar = self.genes.logeta_bar[self.spots.gene_id]
 
         # pre-populate last column
         misread = self.spot_misread_density()
@@ -367,7 +366,7 @@ class VarBayes:
 
             # wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik[:, n]
             mvn_loglik = self.spots.mvn_loglik(self.spots.xy_coords, sn, self.cells)
-            wSpotCell[:, n] = term_1 + term_2 + logeta_bar + mvn_loglik
+            wSpotCell[:, n] = term_1 + term_2 + mvn_loglik
 
         # apply inside cell bonus
         # NOTE. This is not applied 100% correctly. For example the fourth spot in the demo data. Id2, (x, y) = (0, 4484)
@@ -395,7 +394,7 @@ class VarBayes:
             'The sum of the background spots and the total gene counts should be equal to the number of spots'
 
         classProb = self.cells.classProb
-        mu = self.single_cell.mean_expression
+        mu = self.single_cell.mean_expression_adj
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
 
@@ -413,7 +412,7 @@ class VarBayes:
                                        gamma_bar[:, :, :-1])
         background_counts = self.cells.background_counts
         alpha = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
-        beta = self.config['rGene'] / self.config['Inefficiency'] + class_total_counts
+        beta = self.config['rGene'] + class_total_counts
 
         # Finally, update gene_gamma
         self.genes.calc_eta(alpha, beta)

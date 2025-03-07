@@ -229,11 +229,12 @@ class Cells(object):
 
 # ----------------------------------------Class: Genes--------------------------------------------------- #
 class Genes(object):
-    def __init__(self, spots):
+    def __init__(self, spots, config: Dict):
         self.gene_panel = index_genes(spots.data.gene_name.values)[0]
         self._eta_bar = None
         self._logeta_bar = None
         self.nG = len(self.gene_panel)
+        self.config = config
 
     @property
     def eta_bar(self):
@@ -242,6 +243,16 @@ class Genes(object):
     @property
     def logeta_bar(self):
         return self._logeta_bar
+
+    @property
+    def inefficiency(self):
+        """
+        Returns the gene inefficiency
+        The actual gene inefficiency is the estimated mean of the posterior (eta_bar)
+        multiplied by the inefficiency (user-defined) value that was passed in the algo
+        via the configuration file
+        """
+        return self.eta_bar * self.config['Inefficiency']
 
     def init_eta(self, a, b):
         self._eta_bar = np.ones(self.nG, dtype=np.float32) * (a / b)
@@ -255,6 +266,48 @@ class Genes(object):
 
     def _digamma(self, a, b):
         return scipy.special.psi(a) - np.log(b)
+
+    def get_inefficiency(self, gene=None):
+        """
+        Retrieve the inefficiency values for one or more genes.
+
+        This is a convenience method that returns inefficiency values from the gene panel.
+        it returns a  DataFrame with the genes and the corresponding inefficiencies.
+
+        Parameters:
+        ----------
+        gene : str, list of str, or None (default: None)
+            - If None, returns inefficiency values for all genes.
+            - If a string, returns inefficiency for the specified gene as a DataFrame.
+            - If a list of strings, returns inefficiency values for the specified genes.
+
+        Returns:
+        -------
+        pandas.DataFrame
+            A DataFrame with genes as the index and inefficiency values as the column.
+            Missing genes will be included with NaN values.
+
+        Raises:
+        ------
+        TypeError
+            If `gene` is not a string, list of strings, or None.
+        """
+        df = pd.DataFrame(
+            {'inefficiency': self.inefficiency},
+            index=self.gene_panel
+        )
+
+        if gene is None:
+            return df  # Return full DataFrame
+
+        if isinstance(gene, str):
+            return df.loc[[gene]] if gene in df.index else pd.DataFrame(columns=df.columns, index=[gene])
+
+        if isinstance(gene, list):
+            return df.reindex(gene)  # Handles missing genes gracefully (NaN for missing ones)
+
+        raise TypeError("Expected gene to be a string, list, or None.")
+
 
 
 # ----------------------------------------Class: Spots--------------------------------------------------- #
@@ -470,7 +523,7 @@ class SingleCell(object):
         # try to estimate them
         # self.raw_data = self._raw_data(scdata, genes)
         self.config = config
-        self._mean_expression, self._log_mean_expression = self._setup(scdata, genes, self.config)
+        self._mean_expression_adj, self._log_mean_expression_adj = self._setup(scdata, genes, self.config)
 
     def _setup(self, scdata, genes, config):
         """
@@ -491,32 +544,47 @@ class SingleCell(object):
             self.isMissing = False
 
         self.raw_data = expr
-        me, lme = self._helper(expr.copy())
 
-        assert me.columns[-1] == 'Zero', "Last column should be the Zero class"
-        assert lme.columns[-1] == 'Zero', "Last column should be the Zero class"
-        return me.astype(np.float32), lme.astype(np.float32)
+        # get the mean (and log-mean) expression data by cell type.
+        # Figures have been scaled by the gene inefficiency
+        me_adj, lme_adj = self._helper(expr.copy())
+
+        assert me_adj.columns[-1] == 'Zero', "Last column should be the Zero class"
+        assert lme_adj.columns[-1] == 'Zero', "Last column should be the Zero class"
+        return me_adj.astype(np.float32), lme_adj.astype(np.float32)
 
     # -------- PROPERTIES -------- #
     @property
-    def mean_expression(self):
-        assert self._mean_expression.columns[-1] == 'Zero', "Last column should be the Zero class"
-        return self._mean_expression
+    def mean_expression_adj(self):
+        """Returns the mean expression levels adjusted by the initial gene inefficiency."""
+        assert self._mean_expression_adj.columns[-1] == 'Zero', "Last column should be the Zero class"
+        return self._mean_expression_adj
 
     @property
     def log_mean_expression(self):
-        assert self._log_mean_expression.columns[-1] == 'Zero', "Last column should be the Zero class"
-        return self._log_mean_expression
+        """Returns the log mean expression levels adjusted by the initial gene inefficiency."""
+        assert self._log_mean_expression_adj.columns[-1] == 'Zero', "Last column should be the Zero class"
+        return self._log_mean_expression_adj
+
+    @property
+    def mean_expression(self):
+        """Returns the mean gene counts per cell class"""
+        return (self.mean_expression_adj - self.config['SpotReg']) / self.config['Inefficiency']
 
     @property
     def genes(self):
-        return self.mean_expression.index.values
+        """
+        Returns the gene names.
+        WARNING: you can get the gene names from the Genes object and its gene_panel property.
+        They should be the same but is there any value having two places for the same thing?
+        """
+        return self.mean_expression_adj.index.values
 
     @property
     def classes(self):
-        return self.mean_expression.columns.values
+        return self.mean_expression_adj.columns.values
 
-    ## Helper functions ##
+    # Helper functions #
     def _set_axes(self, df):
         df = df.rename_axis("class_name", axis="columns").rename_axis('gene_name')
         return df
@@ -531,16 +599,47 @@ class SingleCell(object):
         return out
 
     def _helper(self, expr):
+        """
+        Helper function to process expression data.
+
+        Parameters:
+            expr (pd.DataFrame): Expression data.
+
+        Returns:
+            tuple: Processed mean and log-mean expression data.
+        """
+
         # order by column name
         expr = expr.copy().sort_index(axis=0).sort_index(axis=1, key=natsort_keygen(key=lambda y: y.str.lower()))
 
         # append at the end the Zero class
         expr['Zero'] = np.zeros([expr.shape[0], 1])
+        me = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")
 
-        # expr = self.config['Inefficiency'] * arr
-        me = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")  # mean expression
-        me = me + self.config['SpotReg']  # add the regularization parameter
-        lme = np.log(me)  # log mean expression
+        # Apply the inefficiency and add the regularization parameter
+        # Note:     The inefficiency is modelled as a Gamma distribution.
+        #           If we denote inefficiency by X then we re-express it
+        #           as X = c * Y, where Y is Gamma with some parameter rGene
+        #           which is set in the config file. Note that the constant
+        #           is also set in the config file too under the name Inefficiency.
+        #           Hence:
+        #               Y ~ Gamma(rGene, rGene)
+        #               X = c * Y => X ~  Gamma(rGene, rGene/c)
+        #           Here the constant c is 'hijacked' and applied directly on
+        #           single cell data to scale them down.
+        #           In the rest of the code, is assumed to be from Gamma(rGene, rGene)
+        #           and this is reflected when the prior for the inefficiency is initialised
+        #           and in the step inside the Variational Bayes that calcs the posterior
+        #           distribution for the inefficiency (eta_upd)
+        #           This also means that the actual gene inefficiency, the one that
+        #           the end-user cares about is:
+        #               the posterior calculated from the eta_upd step
+        #                               times
+        #                       self.config['Inefficiency']
+        me = me * self.config['Inefficiency'] + self.config['SpotReg']
+
+        # log mean expression
+        lme = np.log(me)
         return me, lme
 
     def _gene_expressions(self, fitted, scale):
