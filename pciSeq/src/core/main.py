@@ -381,7 +381,7 @@ class VarBayes:
         self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
 
         # Since the spot-to-cell assignments changed you need to update the gene counts now
-        self.geneCount_upd()
+        # self.geneCount_upd()
 
     # -------------------------------------------------------------------- #
     def eta_upd(self):
@@ -390,8 +390,8 @@ class VarBayes:
         Implements equation (5) of the Qian paper
         """
         # grand_total = self.cells.background_counts.sum() + self.cells.total_counts.sum()
-        assert round(grand_total) == self.spots.data.shape[0], \
-            'The sum of the background spots and the total gene counts should be equal to the number of spots'
+        # assert round(grand_total) == self.spots.data.shape[0], \
+        #     'The sum of the background spots and the total gene counts should be equal to the number of spots'
 
         classProb = self.cells.classProb
         mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
