@@ -301,8 +301,7 @@ class VarBayes:
         cfg = self.config
 
         self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
-                                            self.single_cell.mean_expression_adj.values,
-                                            self.genes.eta_bar))
+                                            self.single_cell.mean_expression_adj.values))
 
         beta = self.scaled_exp.compute() + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
@@ -321,7 +320,8 @@ class VarBayes:
         :return:
         """
 
-        ScaledExp = self.scaled_exp.compute()
+        ScaledExp = np.einsum('cgk,g->cgk', self.scaled_exp.compute(), self.genes.eta_bar) + self.config['SpotReg']
+        # ScaledExp = self.scaled_exp.compute() * self.genes.eta_bar + self.config['SpotReg']
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negative_binomial_loglikelihood(cgc, self.config['rSpot'], pNegBin)
@@ -389,12 +389,12 @@ class VarBayes:
         Calcs the expected eta
         Implements equation (5) of the Qian paper
         """
-        grand_total = self.cells.background_counts.sum() + self.cells.total_counts.sum()
+        # grand_total = self.cells.background_counts.sum() + self.cells.total_counts.sum()
         assert round(grand_total) == self.spots.data.shape[0], \
             'The sum of the background spots and the total gene counts should be equal to the number of spots'
 
         classProb = self.cells.classProb
-        mu = self.single_cell.mean_expression_adj
+        mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
 

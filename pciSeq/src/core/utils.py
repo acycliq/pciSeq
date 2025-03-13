@@ -518,8 +518,7 @@ def keep_labels_unique(scdata):
 # @dask.delayed
 def scaled_exp(
         cell_area_factor: np.ndarray,
-        sc_mean_expressions: np.ndarray,
-        inefficiency: np.ndarray
+        sc_mean_expressions: np.ndarray
 ) -> np.ndarray:
     """
     Calculate scaled expression values using cell areas and efficiency factors.
@@ -527,30 +526,14 @@ def scaled_exp(
     Args:
         cell_area_factor: Array of cell area scaling factors
         sc_mean_expressions: Array of mean expression values
-        inefficiency: Array of inefficiency factors
 
     Returns:
         Array of scaled expression values
-
-    Optimization:
-        - Use np.einsum for efficient matrix multiplication
-        - Pre-allocate output array for large computations
-        - Consider using numba for very large arrays
-        - Add input validation for array shapes
     """
-    try:
-        if np.all(cell_area_factor == 1):
-            subscripts = 'gk,g->gk'
-            operands = [sc_mean_expressions, inefficiency]
-        else:
-            subscripts = 'c,gk,g->cgk'
-            operands = [cell_area_factor, sc_mean_expressions, inefficiency]
+    subscripts = 'c,gk->cgk'
+    operands = [cell_area_factor, sc_mean_expressions]
 
-        return np.einsum(subscripts, *operands)
-
-    except Exception as e:
-        utils_logger.error(f"Error in scaled expression calculation: {str(e)}")
-        raise
+    return np.einsum(subscripts, *operands)
 
 
 def index_genes(gene_names: np.ndarray):
