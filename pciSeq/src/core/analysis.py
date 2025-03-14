@@ -151,6 +151,7 @@ class CellExplorer:
         pNegBin = ScaledExp / (self.vb.config['rSpot'] + ScaledExp)
         cgc = self.vb.cells.geneCount
         contr = negative_binomial_loglikelihood(cgc, self.vb.config['rSpot'], pNegBin)
+        contr = np.exp(contr)  # loglikelihood -> likelihood
 
         # Calculate contributions for all classes
         all_class_contrs = contr[cell_num, :, :]

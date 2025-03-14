@@ -29,10 +29,10 @@ export class GeneContributionPlot {
     }
 
     // NEW: Add ratio calculation method
-    calculateRatio(geneCount, expectedGeneCount = 1) {
-        if (expectedGeneCount === 0) return 0;
+    calculateRatio(geneCount, ClassAvgCounts_pciSeq = 1) {
+        if (ClassAvgCounts_pciSeq === 0) return 0;
         // const classGeneCountAdj = classGeneCount * geneInefficiency;
-        return geneCount / expectedGeneCount;
+        return geneCount / ClassAvgCounts_pciSeq;
     }
 
     createSvg() {
@@ -95,7 +95,7 @@ export class GeneContributionPlot {
             .attr('x', this.width / 2)
             .attr('y', -30)
             .style('font-size', '14px')
-            .text(`Cell ${this.data.cell_num}: Gene loglikelihood contributions`);
+            .text(`Cell ${this.data.cell_num}: Gene likelihood contributions`);
 
         this.updateLabels();
     }
@@ -341,7 +341,7 @@ export class GeneContributionPlot {
                     const index = this.data.gene_names.indexOf(d.name);
                     const ratio = this.calculateRatio(
                         d.geneCount,
-                        d.expectedGeneCount
+                        d.ClassAvgCounts_pciSeq
                     );
                     return this.ratioColorScale(ratio);
                 }
@@ -374,7 +374,7 @@ export class GeneContributionPlot {
                     .attr('fill', this.colorByRatio ?
                         this.ratioColorScale(this.calculateRatio(
                             d.geneCount,
-                            d.expectedGeneCount
+                            d.ClassAvgCounts_pciSeq
                         )) :
                         PLOT_CONFIG.point.color);
             })
@@ -382,7 +382,7 @@ export class GeneContributionPlot {
                 const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
                 const ratio = this.calculateRatio(
                     d.geneCount,
-                    d.expectedGeneCount
+                    d.ClassAvgCounts_pciSeq
                 );
 
                 this.tooltip.transition()
@@ -393,8 +393,9 @@ export class GeneContributionPlot {
                     `<strong>${d.name}</strong><br>` +
                     `X: ${d.x.toFixed(3)}<br>` +
                     `Y: ${d.y.toFixed(3)}<br>` +
-                    `Gene Count: ${d.geneCount.toFixed(2)}<br>` +
-                    `Expected Count: ${d.expectedGeneCount.toFixed(2)}<br>`
+                    `Cell Gene Count: ${d.geneCount.toFixed(2)}<br>` +
+                    `Class Avg Counts (pciSeq): ${d.ClassAvgCounts_pciSeq.toFixed(2)}<br>` +
+                    `Class Avg Counts (scRNAseq): ${d.ClassAvgCounts_scRNAseq.toFixed(2)}<br>`
                     // `Expression Ratio: ${ratio.toFixed(2)}`
                 );
 
@@ -420,7 +421,7 @@ export class GeneContributionPlot {
     }
 
     getAxisLabel(className, probability) {
-        return `${className} (${(probability * 100).toFixed(2)}%)`;
+        return `Likelihood contr to class: ${className} (${(probability * 100).toFixed(2)}%)`;
     }
 
     updateLabels() {
@@ -471,7 +472,8 @@ export class GeneContributionPlot {
                 x: this.data.contr[this.currentAssignedClass][i],
                 y: this.data.contr[this.currentUserClass][i],
                 geneCount: this.data.gene_counts[i],
-                expectedGeneCount: this.data.scRNAseq_gene_counts[i][classIndex] * this.data.gene_efficiency[i]
+                ClassAvgCounts_pciSeq: this.data.mean_gene_reads_per_class[i][classIndex],
+                ClassAvgCounts_scRNAseq: this.data.scRNAseq_gene_counts[i][classIndex]
             }))
             .filter(d => this.visibleGenes.has(d.name));
 
