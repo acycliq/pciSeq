@@ -159,24 +159,18 @@ def has_converged(
 
 
 def scaled_exp(cell_area_factor: np.ndarray,
-               sc_mean_expressions: np.ndarray,
-               inefficiency: np.ndarray) -> np.ndarray:
+               sc_mean_expressions: np.ndarray) -> np.ndarray:
     """Calculate scaled expression values.
 
     Args:
         cell_area_factor: Cell area scaling factors
         sc_mean_expressions: Single cell mean expression values
-        inefficiency: Inefficiency factors
 
     Returns:
         Scaled expression array
     """
-    if np.all(cell_area_factor == 1):
-        subscripts = 'gk, g -> gk'
-        operands = [sc_mean_expressions, inefficiency]
-    else:
-        subscripts = 'c, gk, g -> cgk'
-        operands = [cell_area_factor, sc_mean_expressions, inefficiency]
+    subscripts = 'c,gk->cgk'
+    operands = [cell_area_factor, sc_mean_expressions]
 
     return oe.contract(subscripts, *operands, optimize='optimal')
 

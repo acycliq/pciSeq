@@ -91,7 +91,7 @@ class SingleCell(object):
     @property
     def mean_expression(self):
         """Returns the mean gene counts per cell class"""
-        return (self.mean_expression_adj - self.config['SpotReg']) / self.config['Inefficiency']
+        return self.mean_expression_adj / self.config['Inefficiency']
 
     @property
     def genes(self):
@@ -160,10 +160,10 @@ class SingleCell(object):
         #               the posterior calculated from the eta_upd step
         #                               times
         #                       self.config['Inefficiency']
-        me = me * self.config['Inefficiency'] + self.config['SpotReg']
+        me = me * self.config['Inefficiency']
 
         # log mean expression
-        lme = np.log(me)
+        lme = np.log(me + self.config['SpotReg'])
         return me, lme
 
     def _gene_expressions(self, fitted, scale):
