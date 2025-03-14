@@ -147,7 +147,7 @@ class CellExplorer:
                 f"Invalid user class: {user_class}. Available classes are: {', '.join(self.vb.cellTypes.names)}")
 
         # Calculate log-likelihood contributions
-        ScaledExp = self.vb.scaled_exp.compute()
+        ScaledExp = np.einsum('cgk,g->cgk', self.vb.scaled_exp.compute(), self.vb.genes.eta_bar) + self.vb.config['SpotReg']
         pNegBin = ScaledExp / (self.vb.config['rSpot'] + ScaledExp)
         cgc = self.vb.cells.geneCount
         contr = negative_binomial_loglikelihood(cgc, self.vb.config['rSpot'], pNegBin)
