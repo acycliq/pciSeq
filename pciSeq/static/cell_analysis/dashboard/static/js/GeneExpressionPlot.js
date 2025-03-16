@@ -178,7 +178,7 @@ export class GeneExpressionPlot {
             .style('stroke', 'gray')
             .style('stroke-width', '1px')
             .style('stroke-dasharray', '4')
-            .style('opacity', 0); // Hide the diagonal line by default, not needed for this plot
+            .style('opacity', 0.8); // Hide the diagonal line by default, not needed for this plot
         this.updateDiagonalLine();
     }
 
