@@ -799,3 +799,12 @@ class VarBayes:
     def heatmap_counts_per_class(self):
         """Display the interactive heatmap."""
         return visualisation.heatmap_counts_per_class(self)
+
+    def calculate_genes_log_likelihood_contr(self, label):
+        return utils.calculate_genes_log_likelihood_contr(self, label)
+
+    def plot_loglik_contr(self, df):
+        return utils.plot_loglik_contr(df)
+
+    def visualize_fit(self, gene_counts, scaled_means):
+        return utils.visualize_fit(gene_counts, scaled_means)

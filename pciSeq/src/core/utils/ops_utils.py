@@ -5,6 +5,9 @@ import numpy_groupies as npg
 from typing import Tuple, Optional, Any, Union
 import logging
 import opt_einsum as oe
+from pandas import DataFrame, Series
+import plotly.express as px
+import plotly.graph_objects as go
 
 # Configure logging
 ops_utils_logger = logging.getLogger(__name__)
@@ -80,6 +83,168 @@ def negative_binomial_loglikelihood(x: np.ndarray, r: float, p: np.ndarray) -> n
     except Exception as e:
         ops_utils_logger.error(f"Error calculating negative binomial log-likelihood: {str(e)}")
         raise ValueError("Failed to compute log-likelihood. Check input dimensions and values.")
+
+
+def calculate_genes_log_likelihood_contr(obj, label: int) -> Tuple[DataFrame, Series, DataFrame]:
+    """
+    Calculate the log-likelihood contributions, gene counts, and scaled expression values
+    for a specific cell.
+
+    This function computes:
+        1. The genes' log-likelihood contributions (`contr`) for the specified cell under a
+           negative binomial distribution.
+        2. The gene counts (`cgc`) for the specified cell.
+        3. The scaled expression values (`scaled_means`) for the specified cell.
+
+    Args:
+        obj: An object containing the following attributes:
+            - scaled_exp: A delayed or computed array of scaled expression values (shape: nC x nG x nK).
+            - genes.eta_bar: Gene efficiency parameters (shape: nG).
+            - config['SpotReg']: Regularization parameter for spot-level noise.
+            - config['rSpot']: Dispersion parameter for the negative binomial distribution.
+            - cells.geneCount: Observed gene counts for all cells (shape: nC x nG).
+        label (int): The index of the cell for which to compute the values.
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray, np.ndarray]:
+            - contr: The log-likelihood contributions for the specified cell (shape: nG x nK).
+            - cgc: The gene counts for the specified cell (shape: nG).
+            - scaled_means: The scaled expression values for the specified cell (shape: nG x nK).
+    """
+    # If original labels have been renumbered find the label it's been mapped to.
+    if obj.config['label_map']:
+        label = obj.config['label_map'][label]
+
+    # Compute scaled expression values for all cells
+    scaled_means = obj.scaled_exp.compute()
+
+    # Calculate scaled expression values adjusted by gene efficiency and regularization
+    ScaledExp = np.einsum('cgk,g->cgk', scaled_means, obj.genes.eta_bar) + obj.config['SpotReg']
+
+    # Calculate negative binomial probabilities
+    pNegBin = ScaledExp / (obj.config['rSpot'] + ScaledExp)
+
+    # Get gene counts for all cells
+    cgc = obj.cells.geneCount
+
+    # Calculate log-likelihood contributions for all cells
+    contr = negative_binomial_loglikelihood(cgc, obj.config['rSpot'], pNegBin)
+
+    # Return values for the specified cell
+    contr_df = pd.DataFrame(contr[label], columns=obj.cells.class_names).set_index(obj.genes.gene_panel)
+    gene_counts = pd.Series(cgc[label], index=obj.genes.gene_panel)
+    scaled_means_df = pd.DataFrame(scaled_means[label], columns=obj.cells.class_names).set_index(obj.genes.gene_panel)
+    return contr_df, gene_counts, scaled_means_df
+
+
+def plot_loglik_contr(df):
+    """
+    Create a scatter plot of the first column vs the second column in a DataFrame,
+    with tooltips from the index, and add a diagonal line (y = x).
+
+    Args:
+        df (pd.DataFrame): The DataFrame containing the data.
+    """
+    # Ensure the DataFrame has at least two columns
+    if len(df.columns) < 2:
+        raise ValueError("The DataFrame must have at least two columns.")
+
+    # Reset the index to include it as a column for tooltips
+    df = df.reset_index()
+
+    # Get the names of the first and second columns
+    x_col = df.columns[1]  # First column (after resetting the index)
+    y_col = df.columns[2]   # Second column (after resetting the index)
+
+    # Create the scatter plot with tooltips
+    fig = px.scatter(
+        df,
+        x=x_col,
+        y=y_col,
+        hover_data=['index'],  # Include the index as a tooltip
+        title=f"Scatter Plot: {x_col} vs {y_col}"
+    )
+
+    # Add a diagonal line (y = x)
+    min_val = min(df[x_col].min(), df[y_col].min())  # Minimum value across both axes
+    max_val = max(df[x_col].max(), df[y_col].max())  # Maximum value across both axes
+
+    diagonal_line = go.Scatter(
+        x=[min_val, max_val],  # X values for the line (y = x)
+        y=[min_val, max_val],  # Y values for the line (y = x)
+        mode='lines',  # Draw a line
+        name='Diagonal Line (y = x)',  # Label for the line
+        line=dict(color='red', dash='dash')  # Customize line color and style
+    )
+
+    # Add the diagonal line to the figure
+    fig.add_trace(diagonal_line)
+
+    # Show the plot
+    fig.show()
+
+
+def visualize_fit(gene_counts, scaled_means):
+    """
+    Visualize the fit between gene_counts and scaled_means using Plotly.
+
+    Args:
+        gene_counts (pd.Series): Observed gene counts for a cell.
+        scaled_means_df (pd.DataFrame): Scaled expected gene expression values for the cell.
+    """
+    # Ensure gene_counts and scaled_means_df have the same index (gene names)
+    if not gene_counts.index.equals(scaled_means.index):
+        raise ValueError("gene_counts and scaled_means_df must have the same index.")
+
+    for column in scaled_means.columns:
+        # Create a scatter plot
+        fig = go.Figure()
+
+        # Add scatter plot: gene_counts vs. scaled_means
+        scatter_trace = go.Scatter(
+            x=scaled_means[column],
+            y=gene_counts,
+            mode='markers',
+            marker=dict(opacity=0.6),
+            text=gene_counts.index,  # Tooltip: gene names
+            name='Scatter Plot'
+        )
+        fig.add_trace(scatter_trace)
+
+        # Add a true diagonal line (y = x)
+        min_val = min(scaled_means[column].min(), gene_counts.min())  # Minimum value across both axes
+        max_val = max(scaled_means[column].max(), gene_counts.max())  # Maximum value across both axes
+
+        diagonal_line = go.Scatter(
+            x=[min_val, max_val],  # X values for the line (y = x)
+            y=[min_val, max_val],  # Y values for the line (y = x)
+            mode='lines',
+            line=dict(color='red', dash='dash'),
+            name='y = x'
+        )
+        fig.add_trace(diagonal_line)
+
+        # Update layout
+        fig.update_layout(
+            title=f'Gene Counts vs. Scaled Means ({column})',
+            xaxis_title=f'Scaled Means ({column})',
+            yaxis_title='Gene Counts',
+            showlegend=True
+        )
+
+        # Calculate correlation
+        correlation = gene_counts.corr(scaled_means[column])
+
+        # Calculate residuals and their sum
+        residuals = gene_counts - scaled_means[column]
+        sum_residuals = residuals.sum()
+
+        # Print correlation and sum of residuals
+        print(f"Correlation between gene_counts and {column}: {correlation:.3f}")
+        print(f"Sum of residuals for {column}: {sum_residuals:.3f}")
+
+        # Show the plot
+        fig.show()
 
 
 def softmax(X: np.ndarray, theta: float = 1.0, axis: Optional[int] = None) -> np.ndarray:
