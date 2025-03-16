@@ -95,7 +95,7 @@ export class GeneContributionPlot {
             .attr('x', this.width / 2)
             .attr('y', -30)
             .style('font-size', '14px')
-            .text(`Cell ${this.data.cell_num}: Gene likelihood contributions`);
+            .text(`Cell ${this.data.cell_num}: Gene loglikelihood contributions`);
 
         this.updateLabels();
     }
@@ -113,7 +113,7 @@ export class GeneContributionPlot {
     setupSizeControl() {
         const checkboxGroup = this.svg.append("g")
             .attr("class", "checkbox-group")
-            .attr("transform", `translate(${this.width - 200}, -110)`); //from -25
+            .attr("transform", `translate(${this.width - 300}, -110)`); //from -25
 
         checkboxGroup.append("rect")
             .attr("width", 180)
@@ -136,13 +136,13 @@ export class GeneContributionPlot {
 
         // NEW: Add ratio coloring checkbox
         checkboxGroup.append("foreignObject")
-            .attr("width", 180)
+            .attr("width", 380)
             .attr("height", 20)
             .append("xhtml:div")
             .style("font-size", "12px")
             .html(`
                 <input type="checkbox" id="ratio-color-toggle-${this.containerId}">
-                <label for="ratio-color-toggle-${this.containerId}">Color by expression ratio</label>
+                <label for="ratio-color-toggle-${this.containerId}">Color by expression ratio to pciSeq class avg</label>
             `);
 
         // Original handler (kept but hidden)
@@ -393,9 +393,9 @@ export class GeneContributionPlot {
                     `<strong>${d.name}</strong><br>` +
                     `X: ${d.x.toFixed(3)}<br>` +
                     `Y: ${d.y.toFixed(3)}<br>` +
-                    `Cell Gene Count: ${d.geneCount.toFixed(2)}<br>` +
-                    `Class Avg Counts (pciSeq): ${d.ClassAvgCounts_pciSeq.toFixed(2)}<br>` +
-                    `Class Avg Counts (scRNAseq): ${d.ClassAvgCounts_scRNAseq.toFixed(2)}<br>`
+                    `Cell Gene Count: ${d.geneCount.toFixed(2)}<br>`
+                    // `Class Avg Counts (pciSeq): ${d.ClassAvgCounts_pciSeq.toFixed(2)}<br>` +
+                    // `Class Avg Counts (scRNAseq): ${d.ClassAvgCounts_scRNAseq.toFixed(2)}<br>`
                     // `Expression Ratio: ${ratio.toFixed(2)}`
                 );
 
@@ -421,7 +421,7 @@ export class GeneContributionPlot {
     }
 
     getAxisLabel(className, probability) {
-        return `Likelihood contr to class: ${className} (${(probability * 100).toFixed(2)}%)`;
+        return `Loglikelihood contr to class: ${className} (${(probability * 100).toFixed(2)}%)`;
     }
 
     updateLabels() {
