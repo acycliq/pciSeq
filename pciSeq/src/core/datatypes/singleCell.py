@@ -140,26 +140,7 @@ class SingleCell(object):
         expr['Zero'] = np.zeros([expr.shape[0], 1])
         me = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")
 
-        # Apply the inefficiency and add the regularization parameter
-        # Note:     04-Feb-2025: The inefficiency is modelled as a Gamma distribution.
-        #           If we denote inefficiency by X then we re-express it
-        #           as X = c * Y, where Y is Gamma with some parameter rGene
-        #           which is set in the config file. Note that the constant
-        #           is also set in the config file too under the name Inefficiency.
-        #           Hence:
-        #               Y ~ Gamma(rGene, rGene)
-        #               X = c * Y => X ~  Gamma(rGene, rGene/c)
-        #           Here the constant c is 'hijacked' and applied directly on
-        #           single cell data to scale them down.
-        #           In the rest of the code, is assumed to be from Gamma(rGene, rGene)
-        #           and this is reflected when the prior for the inefficiency is initialised
-        #           and in the step inside the Variational Bayes that calcs the posterior
-        #           distribution for the inefficiency (eta_upd)
-        #           This also means that the actual gene inefficiency, the one that
-        #           the end-user cares about is:
-        #               the posterior calculated from the eta_upd step
-        #                               times
-        #                       self.config['Inefficiency']
+        # apply the inefficiency
         me = me * self.config['Inefficiency']
 
         # log mean expression
