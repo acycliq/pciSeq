@@ -96,6 +96,7 @@ class VarBayes:
         scRNAseq: Single-cell RNA sequencing reference data
         config: Configuration dictionary containing algorithm parameters
     """
+
     def __init__(self,
                  cells_df: pd.DataFrame,
                  spots_df: pd.DataFrame,
@@ -401,7 +402,10 @@ class VarBayes:
             3. Softmax normalization for final probabilities
         """
 
-        ScaledExp = np.einsum('cgk,g->cgk', self.scaled_exp.compute(), self.genes.eta_bar) + self.config['SpotReg']
+        ScaledExp = (np.einsum('cgk,g->cgk',
+                               self.scaled_exp.compute(),
+                               self.genes.eta_bar)
+                     + self.config['SpotReg'])
         # ScaledExp = self.scaled_exp.compute() * self.genes.eta_bar + self.config['SpotReg']
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
@@ -565,10 +569,10 @@ class VarBayes:
         # misreads, ie exclude the background, hence the relevant indexing below
         # starts at 1
         class_total_counts = oe.contract('ck, gk, c, cgk -> g',
-                                       classProb[1:, :-1],
-                                       mu.values[:, :-1],
-                                       area_factor[1:],
-                                       gamma_bar[1:, :, :-1], optimize='optimal')
+                                         classProb[1:, :-1],
+                                         mu.values[:, :-1],
+                                         area_factor[1:],
+                                         gamma_bar[1:, :, :-1], optimize='optimal')
         background_counts = self.cells.background_counts
 
         # observed (ie actual) gene reads per gene
@@ -648,7 +652,8 @@ class VarBayes:
         # 3. Calculate the adjustment term
         # Difference between current centroids and prior centroids (x_bar - mu_0)
         mean_diff = self.cells.centroid - self.cells.ini_centroids()
-        mean_outer_product = oe.contract('rk, rn -> rkn', mean_diff, mean_diff, optimize='optimal')  # (x_bar - mu_0)(x_bar - mu_0)^T
+        mean_outer_product = oe.contract('rk, rn -> rkn', mean_diff, mean_diff,
+                                         optimize='optimal')  # (x_bar - mu_0)(x_bar - mu_0)^T
 
         # Multiplier for the adjustment term
         multiplier = (k_0 * self.cells.total_counts) / (k_0 + self.cells.total_counts)
@@ -694,7 +699,8 @@ class VarBayes:
         area_factor = self.cells.ini_cell_props['area_factor'][1:]
 
         numer = oe.contract('ck, cg -> gk', classProb, geneCount, optimize='optimal')
-        denom = oe.contract('ck, c, cgk, g -> gk', classProb, area_factor, gamma_bar, self.genes.eta_bar, optimize='optimal')
+        denom = oe.contract('ck, c, cgk, g -> gk', classProb, area_factor, gamma_bar, self.genes.eta_bar,
+                            optimize='optimal')
 
         me, lme = self.single_cell._gene_expressions(numer, denom)
         self.single_cell._mean_expression = me
