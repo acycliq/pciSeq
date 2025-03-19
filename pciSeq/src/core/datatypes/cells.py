@@ -50,8 +50,7 @@ class Cells(object):
         self.classProb = None
         self.class_names = None
         self._cov = self.ini_cov()
-        self._eig_vals = None
-        self._eig_vecs = None
+        self._eig_vals, self._eig_vecs = np.linalg.eigh(self._cov)
         self.nu_0 = config['mean_gene_counts_per_cell']
         self._centroid = self.ini_centroids()
         self._gene_counts = None
