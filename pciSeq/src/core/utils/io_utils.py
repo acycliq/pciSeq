@@ -191,15 +191,12 @@ def write_data(cellData: pd.DataFrame, geneData: pd.DataFrame,
     io_utils_logger.info('Saved at %s', os.path.join(out_dir, 'geneData.tsv'))
 
     # Save boundaries based on InsideCellBonus setting
-    if cfg['InsideCellBonus'] is False:
-        ellipsoidBoundaries = cellData[['Cell_Num', 'gaussian_contour']]
-        ellipsoidBoundaries = ellipsoidBoundaries.rename(
-            columns={"Cell_Num": "cell_id", "gaussian_contour": "coords"})
-        ellipsoidBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'),
-                                   sep='\t', index=False)
-    else:
-        cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'),
-                              sep='\t', index=False)
+    ellipsoidBoundaries = cellData[['Cell_Num', 'gaussian_contour']]
+    ellipsoidBoundaries = ellipsoidBoundaries.rename(
+        columns={"Cell_Num": "cell_id", "gaussian_contour": "coords"})
+    ellipsoidBoundaries.to_csv(os.path.join(out_dir, 'ellipsoidBoundaries.tsv'), sep='\t', index=False)
+
+    cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
     io_utils_logger.info('Saved at %s', os.path.join(out_dir, 'cellBoundaries.tsv'))
 
     # Save debug info
