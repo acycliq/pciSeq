@@ -50,6 +50,8 @@ class Spots(object):
         self._counts_per_gene = None
         [_, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True,
                                                             return_counts=True)
+        self.mvn_loglik_arr = None
+        self.attention = None
 
     def __getstate__(self):
         """

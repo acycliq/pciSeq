@@ -263,15 +263,16 @@ class VarBayes:
                 # 2. calc expected gamma
                 self.gamma_upd()
 
+                print("gaussian_upd removed for easier debugging")
                 # 3 update correlation matrix and variance of the gaussian distribution
-                if self.single_cell.isMissing or (self.config['InsideCellBonus'] is False) or (self.config['is3D']):
-                    self.gaussian_upd()
+                # if self.single_cell.isMissing or (self.config['InsideCellBonus'] is False) or (self.config['is3D']):
+                #     self.gaussian_upd()
 
                 # 4. assign cells to cell types
                 self.cell_to_cellType()
 
                 # 5. assign spots to cells
-                self.spots_to_cell_par()
+                self.spots_to_cell()
 
                 # 6. update gene efficiency
                 self.eta_upd()
@@ -449,6 +450,8 @@ class VarBayes:
 
         # pre-populate last column
         wSpotCell[:, -1] = np.log(misread)
+        mvn_loglik_arr = wSpotCell.copy()
+        attention = wSpotCell.copy()
 
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
         for n in range(nN - 1):
@@ -458,7 +461,8 @@ class VarBayes:
             # get the respective cell type probabilities
             cp = self.cells.classProb[sn]
 
-            # multiply and sum over cells
+            # multiply and sum over cells. In practice this means that when high expected counts
+            # are aligned with high cell class probs this term will be high
             term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
 
             log_gamma_bar = self.spots.log_gamma_bar.compute()
@@ -469,7 +473,8 @@ class VarBayes:
             # wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik[:, n]
             mvn_loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
             wSpotCell[:, n] = term_1 + term_2 + mvn_loglik
-            del term_1
+            mvn_loglik_arr[:, n] = mvn_loglik
+            attention[:, n] = term_1
 
         # apply inside cell bonus
         bonus_mask = self.spots.bonus_mask * self.config['InsideCellBonus']
@@ -477,9 +482,11 @@ class VarBayes:
 
         # update the prob a spot belongs to a neighboring cell
         self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
+        self.spots.mvn_loglik_arr = mvn_loglik_arr
+        self.spots.attention = attention
 
         # Since the spot-to-cell assignments changed you need to update the gene counts now
-        self.geneCount_upd()
+        # self.geneCount_upd()
 
     # -------------------------------------------------------------------- #
     def spots_to_cell_par(self) -> None:
@@ -814,3 +821,6 @@ class VarBayes:
 
     def visualize_fit(self, gene_counts, scaled_means):
         return utils.visualize_fit(gene_counts, scaled_means)
+
+    def check_cell(self, my_label, user_class, top_n=10):
+        return utils.check_cell(self, my_label, user_class, top_n)
