@@ -52,6 +52,7 @@ class Spots(object):
                                                             return_counts=True)
         self.mvn_loglik_arr = None
         self.attention = None
+        self.expr_fluctuations = None
 
     def __getstate__(self):
         """

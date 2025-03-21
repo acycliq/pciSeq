@@ -450,8 +450,9 @@ class VarBayes:
 
         # pre-populate last column
         wSpotCell[:, -1] = np.log(misread)
-        mvn_loglik_arr = wSpotCell.copy()
-        attention = wSpotCell.copy()
+        mvn_loglik_arr = np.zeros(wSpotCell.shape)
+        attention = np.zeros(wSpotCell.shape)
+        expr_fluctuations = np.zeros(wSpotCell.shape)
 
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
         for n in range(nN - 1):
@@ -475,6 +476,7 @@ class VarBayes:
             wSpotCell[:, n] = term_1 + term_2 + mvn_loglik
             mvn_loglik_arr[:, n] = mvn_loglik
             attention[:, n] = term_1
+            expr_fluctuations[:, n] = term_2
 
         # apply inside cell bonus
         bonus_mask = self.spots.bonus_mask * self.config['InsideCellBonus']
@@ -484,6 +486,7 @@ class VarBayes:
         self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
         self.spots.mvn_loglik_arr = mvn_loglik_arr
         self.spots.attention = attention
+        self.spots.expr_fluctuations = expr_fluctuations
 
         # Since the spot-to-cell assignments changed you need to update the gene counts now
         # self.geneCount_upd()
