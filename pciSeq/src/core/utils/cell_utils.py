@@ -216,27 +216,20 @@ def find_labels(label_image):
 
     return result
 
+
 @njit(parallel=True)
-def create_circular_masks_large_scale(array_shape, centroids, radius):
+def create_circular_masks_large_scale(array_shape, centroids, radii):
     """
-    Create circular masks on a 2D array for many centroids, optimized for large arrays.
-    Uses Numba for parallelization and processes only relevant regions of the array.
-
-    Parameters:
-    - array_shape: Tuple (height, width) representing the shape of the array.
-    - centroids: Array of shape (n, 2) with coordinates [(x1, y1), (x2, y2), ...].
-    - radius: Radius of the circles.
-
-    Returns:
-    - A 2D array with the circular masks applied (1s inside the circles, 0s outside).
+    Create circular masks on a 2D array for many centroids, with variable radii.
     """
     h, w = array_shape
     mask = np.zeros(array_shape, dtype=np.int8)
-    radius_squared = radius ** 2
 
     # Process each centroid in parallel
     for i in prange(len(centroids)):
         center_x, center_y = centroids[i]
+        radius = radii[i]
+        radius_squared = radius ** 2
 
         # Calculate bounding box for this circle (with bounds checking)
         x_min = max(0, math.floor(center_x - radius))
@@ -254,31 +247,41 @@ def create_circular_masks_large_scale(array_shape, centroids, radius):
     return mask
 
 
-def create_circular_masks(array_shape, centroids, radius, chunk_size=1000):
+def create_circular_masks(array_shape, centroids, radii, chunk_size=1000):
     """
-    Process centroids in chunks to reduce memory pressure.
-
+    Process centroids in chunks to reduce memory pressure, with flexible radius input.
     Parameters:
     - array_shape: Tuple (height, width) representing the shape of the array.
     - centroids: List of tuples [(x1, y1), (x2, y2), ...] representing the centers.
-    - radius: Radius of the circles.
+    - radii: Single number or list/array of radii corresponding to centroids.
     - chunk_size: Number of centroids to process in each batch.
-
     Returns:
     - A 2D array with the circular masks applied.
     """
     h, w = array_shape
     final_mask = np.zeros(array_shape, dtype=np.int8)
 
-    # Convert centroids to numpy array if not already
+    # Convert inputs to numpy arrays
     centroids_array = np.array(centroids)
+
+    # Handle different radii input types
+    if np.isscalar(radii):
+        # If a single number, create an array of repeated radii
+        radii_array = np.full(len(centroids_array), radii)
+    else:
+        # Convert to numpy array
+        radii_array = np.array(radii)
+
+    # Validate input
+    if len(centroids_array) != len(radii_array):
+        raise ValueError("Number of centroids must match number of radii")
 
     # Process in chunks
     for i in range(0, len(centroids_array), chunk_size):
         chunk = centroids_array[i:i + chunk_size]
-        chunk_mask = create_circular_masks_large_scale(array_shape, chunk, radius)
+        chunk_radii = radii_array[i:i + chunk_size]
+        chunk_mask = create_circular_masks_large_scale(array_shape, chunk, chunk_radii)
         final_mask = np.logical_or(final_mask, chunk_mask).astype(np.int8)
-        print(f"Processed centroids {i} to {min(i + chunk_size, len(centroids_array))}")
 
     return final_mask
 
