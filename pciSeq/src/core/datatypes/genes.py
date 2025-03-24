@@ -8,6 +8,7 @@ import tempfile
 import numpy as np
 import pandas as pd
 import scipy
+from scipy.sparse import csr_matrix
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from shapely.geometry import MultiPoint, Polygon, mapping
@@ -171,18 +172,12 @@ class Genes(object):
 
         # find the mid-plane
         mid_plane = self.config['img_dim']['n_planes']//2
-        plane_shape = (self.config['img_dim']['h'], self.config['img_dim']['w'])
 
-        # get all the cell labels present on the midplane
-        labels = find_labels_by_plane_index(cells.on_planes, mid_plane)
-        centroids = cells.ini_centroids().iloc[labels][['x', 'y']]
+        mask, centroids = self.misread_mask(spots, cells, threshold=3.0)
+        misreads_per_gene, misread_spots = self.misread_counts(mask, spots, mid_plane)
 
         # draw an outline and calc the area
-        poly_area = self.pointcloud_shape_2(centroids, mid_plane, alpha=7)
-
-        # draw circles with radius 3 * mcr
-        radius = 3.0 * cells.mcr
-        mask = create_circular_masks(plane_shape, centroids.values, radius)
+        poly_area, poly = self.pointcloud_shape_2(centroids[['x', 'y']], mid_plane, alpha=7)
 
         # area of the black pixels
         blacks = np.count_nonzero(mask == 0)
@@ -190,11 +185,13 @@ class Genes(object):
         # area of the black pixels within the outline
         area = blacks - (np.prod(mask.shape) - poly_area)
 
-        misreads_per_gene = self.remote_spots(spots, mid_plane, radius)
-
+        # misread density
         misread_df = misreads_per_gene/area
 
-        # get the mean
+        # Tidying up now. If a gene is not in the df above, assign the mean,
+        # allow for user overrides etc...
+
+        # Get the mean
         x = misread_df.mean()
 
         # if misread_df is empty, then the mean is NaN, in which case use the default value
@@ -210,6 +207,53 @@ class Genes(object):
         misread_df.update(user_df)  # in-place operation
 
         return misread_df
+
+    def misread_mask(self, spots, cells, threshold=3.0):
+        mid_plane = self.config['img_dim']['n_planes'] // 2
+        plane_shape = (self.config['img_dim']['h'], self.config['img_dim']['w'])
+
+        # get all the spots on midplane
+        spots_midplane = spots.data[spots.data.plane_id == mid_plane]
+
+        # get the neighboring cells for those spots
+        labels = spots.parent_cell_id[spots_midplane.index]
+        labels = np.unique(labels.ravel())
+
+        # exclude the background from the labels
+        labels = np.delete(labels, 0)
+
+        centroids = cells.ini_centroids().iloc[labels]
+
+        # adjust the midplane by the anisotropy
+        mid_plane_z = mid_plane * self.config['voxel_size'][2] / self.config['voxel_size'][0]
+
+        # calc distance of the centroid to the mid plane
+        centroids = centroids.assign(d=mid_plane_z - centroids.z)
+
+        # get the squared radius of the circle projected on the mid plane
+        # If negative then the cell is too far, doesnt cross the midplane if we
+        # draw a sphere with radius = threshold*mcr around it
+        r_sq = (threshold * cells.mcr) ** 2 - centroids.d ** 2
+        r_sq = r_sq[r_sq > 0]
+
+        # filter the centroids now
+        centroids = centroids.loc[r_sq.index.values]
+        centroids = centroids.assign(r=np.sqrt(r_sq))
+
+        # Create circular masks
+        mask = create_circular_masks(plane_shape, centroids[['x', 'y']].values, centroids.r.values)
+        return mask, centroids
+
+    def misread_counts(self, mask, spots, mid_plane):
+        spots_mid = spots.data[spots.data.plane_id == mid_plane]
+        csr = csr_matrix(mask)
+        is_inside = csr[spots_mid['y'], spots_mid['x']].A1
+
+        # get the spots that are plotted on the background
+        spots_filtered = spots_mid[is_inside == 0]
+        out = spots_filtered['gene_name'].value_counts()
+
+        return out.sort_index(), spots_filtered
 
     def pointcloud_shape(self, points_df, mid_plane, alpha=7):
         """
@@ -347,7 +391,7 @@ class Genes(object):
         area = polygon.area
         print(f"Area of the shape: {area}")
 
-        return area
+        return area, polygon
 
     def remote_spots(self, spots, mid_plane, radius):
         """
