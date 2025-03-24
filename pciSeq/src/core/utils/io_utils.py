@@ -199,6 +199,22 @@ def write_data(cellData: pd.DataFrame, geneData: pd.DataFrame,
     cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
     io_utils_logger.info('Saved at %s', os.path.join(out_dir, 'cellBoundaries.tsv'))
 
+
+    # flatfiles relevant to the cells that appear in the cellBoundaries tsv
+    cellData = cellData.merge(cellBoundaries, left_on='Cell_Num', right_on='cell_id')
+    cell_num_set = set(cellData['Cell_Num'])
+    filtered_geneData = geneData[geneData['neighbour_array'].apply(lambda x: any(neighbour in cell_num_set for neighbour in x))]
+
+    filtered_geneData.to_csv(os.path.join(out_dir, 'geneData_filtered.tsv'), sep='\t', index=False)
+    io_utils_logger.info('Saved at %s', os.path.join(out_dir, 'geneData_filtered.tsv'))
+
+    cellData.iloc[:, -2:].to_csv(os.path.join(out_dir, 'cellBoundaries_filtered.tsv'), sep='\t', index=False)
+    io_utils_logger.info('Saved at %s', os.path.join(out_dir, 'cellBoundaries_filtered.tsv'))
+
+    cellData.iloc[:, :-2].to_csv(os.path.join(out_dir, 'cellData_filtered.tsv'), sep='\t', index=False)
+    io_utils_logger.info('Saved at %s', os.path.join(out_dir, 'cellData_filtered.tsv'))
+
+
     # Save debug info
     serialise(varBayes, os.path.join(out_dir, 'debug'))
 
