@@ -177,7 +177,7 @@ class Genes(object):
         misreads_per_gene, misread_spots = self.misread_counts(mask, spots, mid_plane)
 
         # draw an outline and calc the area
-        poly_area, poly = self.pointcloud_shape_2(centroids[['x', 'y']], mid_plane, alpha=7)
+        poly_area, poly = self.pointcloud_shape_2(centroids[['x', 'y']], alpha=7)
 
         # area of the black pixels
         blacks = np.count_nonzero(mask == 0)
@@ -331,7 +331,7 @@ class Genes(object):
 
         return area
 
-    def pointcloud_shape_2(self, points_df, mid_plane, alpha=50):
+    def pointcloud_shape_2(self, points_df, alpha=50):
         """
         Compute the alpha shape (concave hull) of spot coordinates, plot the results, and save the plot.
 
@@ -354,42 +354,52 @@ class Genes(object):
         Returns:
             float: The area of the polygon defined by the alpha shape.
         """
-        # 2. Scale the coordinates to a normalized range [0, 1].
+        # 1. Scale the coordinates to a normalized range [0, 1].
         scaler = MinMaxScaler()
         points_scaled = scaler.fit_transform(points_df)
 
-        # 3. Compute the alpha shape (concave hull) of the scaled points.
+        # 2. Compute the alpha shape (concave hull) of the scaled points.
         alpha_shape = alphashape.alphashape(points_scaled, alpha)
 
-        # 4. Extract the hull coordinates using shapely.mapping.
+        # 3. Extract the hull coordinates using shapely.mapping.
         mapped_hull = mapping(alpha_shape)
         # For a Polygon, the exterior boundary is the first element of the 'coordinates' list.
         hull_coords_scaled = np.array(mapped_hull['coordinates'][0])
 
-        # 5. Ensure the polygon is closed by appending the first coordinate at the end if necessary.
+        # 4. Ensure the polygon is closed by appending the first coordinate at the end if necessary.
         if not np.allclose(hull_coords_scaled[0], hull_coords_scaled[-1]):
             hull_coords_scaled = np.vstack([hull_coords_scaled, hull_coords_scaled[0]])
 
-        # 6. Convert the scaled hull coordinates back to the original coordinate system.
+        # 5. Convert the scaled hull coordinates back to the original coordinate system.
         hull_coords_original = scaler.inverse_transform(hull_coords_scaled)
 
-        # 7. Plot the data points and the computed polygon.
+        # 6. Plot the data points and the computed polygon.
         plt.figure(figsize=(6, 6 * points_df['y'].max() / points_df['x'].max()))
         plt.scatter(points_df['x'], points_df['y'], color='blue', label="Data Points", s=2)
         plt.plot(hull_coords_original[:, 0], hull_coords_original[:, 1],
                  'r-', linewidth=2, label="Surrounding Polygon")
         plt.legend()
 
-        # Save the plot as a PNG file in the determined folder.
-        file_path = "pointcloud_shape.png"
+        # 7. Determine the output directory:
+        #    Use self.config['output_dir'] if provided; otherwise, default to the system's tmp dir/pciSeq.
+        output_dir = self.config.get('output_path') if hasattr(self, 'config') else None
+        if output_dir == 'default':
+            tmp_dir = tempfile.gettempdir()
+            folder = os.path.join(tmp_dir, "pciSeq")
+        else:
+            folder = output_dir
+        os.makedirs(folder, exist_ok=True)
+
+        # 8. Save the plot as a PNG file in the determined folder.
+        file_path = os.path.join(folder, "pointcloud_shape2.png")
         plt.savefig(file_path)
         plt.close()  # Close the figure to free up memory
-        print(f"saved at {file_path}")
+        genes_logger.info(f"saved at {file_path}")
 
         # 9. Compute the area of the polygon using shapely.
         polygon = Polygon(hull_coords_original)
         area = polygon.area
-        print(f"Area of the shape: {area}")
+        genes_logger.info(f"Area of the shape: {area}")
 
         return area, polygon
 
