@@ -263,7 +263,7 @@ class VarBayes:
                 # 2. calc expected gamma
                 self.gamma_upd()
 
-                print("gaussian_upd removed for easier debugging")
+                # print("gaussian_upd removed for easier debugging")
                 # 3 update correlation matrix and variance of the gaussian distribution
                 # if self.single_cell.isMissing or (self.config['InsideCellBonus'] is False) or (self.config['is3D']):
                 #     self.gaussian_upd()
