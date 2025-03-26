@@ -828,4 +828,7 @@ class VarBayes:
     def check_cell(self, my_label, user_class, top_n=10):
         return utils.check_cell(self, my_label, user_class, top_n)
 
+    def check_spot(self, spot_id):
+        return visualisation.check_spot(self, spot_id)
+
 
