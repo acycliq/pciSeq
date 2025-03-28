@@ -583,7 +583,8 @@ class VarBayes:
                                          mu.values[:, :-1],
                                          area_factor[1:],
                                          gamma_bar[1:, :, :-1], optimize='optimal')
-        background_counts = self.cells.background_counts
+        # background_counts = self.cells.background_counts
+        background_counts = np.bincount(self.spots.gene_id, self.spots.parent_cell_prob[:, -1], minlength=self.nG)
 
         # observed (ie actual) gene reads per gene
         observed = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
