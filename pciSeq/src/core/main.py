@@ -410,7 +410,8 @@ class VarBayes:
                                        mu.values[:, :-1],
                                        area_factor,
                                        gamma_bar[:, :, :-1])
-        background_counts = self.cells.background_counts
+        # background_counts = self.cells.background_counts
+        background_counts = np.bincount(self.spots.gene_id, self.spots.parent_cell_prob[:, -1], minlength=self.nG)
         alpha = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
         beta = self.config['rGene'] + class_total_counts
 
