@@ -55,11 +55,11 @@ class InputValidator:
             If input data is invalid or incompatible
         """
         # Validate spots
-        cls._validate_spots(spots)
+        spots = cls._validate_spots(spots, config)
         spots = cls._process_spots(spots.copy(), scdata, config)
 
         # Validate coo matrix
-        cls._validate_coo(coo)
+        coo = cls._validate_coo(coo)
 
         # Validate single cell data if present
         if scdata is not None:
@@ -72,7 +72,7 @@ class InputValidator:
         return out.spots, out.coo, out.scdata, out.config.to_dict()
 
     @staticmethod
-    def _validate_spots(spots: pd.DataFrame) -> None:
+    def _validate_spots(spots: pd.DataFrame, config: Dict) -> pd.DataFrame:
         """
         Validate spots dataframe structure and content.
 
@@ -91,9 +91,14 @@ class InputValidator:
         if not isinstance(spots, pd.DataFrame):
             raise TypeError("Spots should be passed-in as a dataframe")
 
+        if not config.is3D:
+            spots = spots.rename(columns={"Gene": "gene_name"})
+            spots = spots.assign(z_plane=0)
+
         required_columns = {'gene_name', 'x', 'y', 'z_plane'}
         if not required_columns.issubset(spots.columns):
             raise ValueError(f"Spots dataframe must have columns {required_columns}")
+        return spots
 
     @staticmethod
     def _validate_coo(coo: coo_matrix) -> None:
@@ -112,8 +117,11 @@ class InputValidator:
         ValueError
             If matrices are empty or invalid
         """
+        if isinstance(coo, coo_matrix):
+            coo = [coo]
         if not isinstance(coo, list) or not all(isinstance(item, coo_matrix) for item in coo):
             raise TypeError('The segmentation masks should be passed-in as a List[coo_matrix]')
+        return coo
 
     @staticmethod
     def _validate_scdata(scdata: pd.DataFrame) -> None:

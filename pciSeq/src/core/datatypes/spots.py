@@ -275,9 +275,9 @@ class Spots(object):
             # differ. Still though they should be regarded as valid results
             data = data[:, :-1]
             centroids = centroids[:, :-1]
-            covs = covs[:, :-1, :-1]
-            eig_vals = eig_vals[:, :-1]  # NEEDS TO BE CHECKED
-            eig_vecs = eig_vecs[:, :-1, :-1]  # NEEDS TO BE CHECKED
+            # covs = covs[:, :-1, :-1]
+            # eig_vals = eig_vals[:, :-1]  # NEEDS TO BE CHECKED
+            # eig_vecs = eig_vecs[:, :-1, :-1]  # NEEDS TO BE CHECKED
         out = self.multiple_logpdfs(data, centroids, covs, eig_vals, eig_vecs)
         return out
 
@@ -311,33 +311,33 @@ class Spots(object):
 
         return -0.5 * (dim * log2pi + mahas + logdets)
 
-    # def zero_class_counts(self, geneNo, pCellZero):
-    #     """
-    #     *****************************
-    #      ******** DEPRECATED ++++++++
-    #      ****** TO BE REMOVED *******
-    #      ****************************
-    #     Calculates gene counts for the zero expressing class.
-    #
-    #     Parameters:
-    #         geneNo (np.array): Gene numbers for spots.
-    #         pCellZero (np.array): Probabilities of zero expression for cells.
-    #
-    #     Returns:
-    #         np.array: Total predicted zero counts per gene.
-    #     """
-    #     # for each spot get the ids of the 3 nearest cells
-    #     spotNeighbours = self.parent_cell_id[:, :-1]
-    #
-    #     # get the corresponding probabilities
-    #     neighbourProb = self.parent_cell_prob[:, :-1]
-    #
-    #     # prob that a spot belongs to a zero expressing cell
-    #     pSpotZero = np.sum(neighbourProb * pCellZero[spotNeighbours], axis=1)
-    #
-    #     # aggregate per gene id
-    #     TotPredictedZ = np.bincount(geneNo, pSpotZero)
-    #     return TotPredictedZ
+    def zero_class_counts(self, geneNo, pCellZero):
+        """
+        *****************************
+         ******** DEPRECATED ++++++++
+         ****** TO BE REMOVED *******
+         ****************************
+        Calculates gene counts for the zero expressing class.
+
+        Parameters:
+            geneNo (np.array): Gene numbers for spots.
+            pCellZero (np.array): Probabilities of zero expression for cells.
+
+        Returns:
+            np.array: Total predicted zero counts per gene.
+        """
+        # for each spot get the ids of the 3 nearest cells
+        spotNeighbours = self.parent_cell_id[:, :-1]
+
+        # get the corresponding probabilities
+        neighbourProb = self.parent_cell_prob[:, :-1]
+
+        # prob that a spot belongs to a zero expressing cell
+        pSpotZero = np.sum(neighbourProb * pCellZero[spotNeighbours], axis=1)
+
+        # aggregate per gene id
+        TotPredictedZ = np.bincount(geneNo, pSpotZero)
+        return TotPredictedZ
 
     def gammaExpectation(self, rho, beta):
         """

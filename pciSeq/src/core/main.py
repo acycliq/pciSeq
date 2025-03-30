@@ -479,8 +479,17 @@ class VarBayes:
             expr_fluctuations[:, n] = term_2
 
         # apply inside cell bonus
-        bonus_mask = self.spots.bonus_mask * self.config['InsideCellBonus']
-        wSpotCell += bonus_mask
+        # apply inside cell bonus
+        # NOTE. This is not applied 100% correctly. For example the fourth spot in the demo data. Id2, (x, y) = (0, 4484)
+        # The spots is within the boundaries of cell with label 5 but this is not its closest cell. The closest cell is
+        # cell label = 4. Cell label=5 is the second closest cell and label=4 the first closest. Therefore, the bonus should be
+        # applied when we handle the column for the seconds closest near-by cell. The implementation below implies that if
+        # a spot is inside the cell boundaries then that cell is the closest one.
+        mask = np.greater(self.spots.data.label.values, 0, where=~np.isnan(self.spots.data.label.values))
+        wSpotCell[mask, 0] = wSpotCell[mask, 0] + self.config['InsideCellBonus']
+
+        # bonus_mask = self.spots.bonus_mask * self.config['InsideCellBonus']
+        # wSpotCell += bonus_mask
 
         # update the prob a spot belongs to a neighboring cell
         self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
@@ -489,7 +498,7 @@ class VarBayes:
         self.spots.expr_fluctuations = expr_fluctuations
 
         # Since the spot-to-cell assignments changed you need to update the gene counts now
-        # self.geneCount_upd()
+        self.geneCount_upd()
 
     # -------------------------------------------------------------------- #
     def spots_to_cell_par(self) -> None:
@@ -543,7 +552,7 @@ class VarBayes:
         self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
 
         # Update gene counts
-        # self.geneCount_upd()
+        self.geneCount_upd()
 
     # -------------------------------------------------------------------- #
     def eta_upd(self) -> None:
@@ -570,8 +579,8 @@ class VarBayes:
         gamma_bar = self.spots.gamma_bar.compute()
 
         zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
-        # zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
-        zero_class_counts = oe.contract('c, cg -> g', classProb[:, -1], self.cells.geneCount, optimize='optimal')
+        zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
+        # zero_class_counts = oe.contract('c, cg -> g', classProb[:, -1], self.cells.geneCount, optimize='optimal')
 
         # Calcs the sum in the Gamma distribution (equation 5). The zero class
         # is excluded from the sum, hence the arrays in the einsum below stop at :-1
@@ -579,11 +588,12 @@ class VarBayes:
         # misreads, ie exclude the background, hence the relevant indexing below
         # starts at 1
         class_total_counts = oe.contract('ck, gk, c, cgk -> g',
-                                         classProb[1:, :-1],
+                                         classProb[:, :-1],
                                          mu.values[:, :-1],
-                                         area_factor[1:],
-                                         gamma_bar[1:, :, :-1], optimize='optimal')
-        background_counts = self.cells.background_counts
+                                         area_factor,
+                                         gamma_bar[:, :, :-1], optimize='optimal')
+        # background_counts = self.cells.background_counts
+        background_counts = np.bincount(self.spots.gene_id, self.spots.parent_cell_prob[:, -1], minlength=self.nG)
 
         # observed (ie actual) gene reads per gene
         observed = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts

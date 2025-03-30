@@ -53,6 +53,6 @@ def assign_spot_labels(spots: pd.DataFrame, coo: List[coo_matrix]) -> pd.DataFra
     # Group by 'plane_id', apply the function, and reset the index so the result aligns with df.
     spots['label'] = (spots.groupby('plane_id')
                       .apply(inside_cell, coo)
-                      .reset_index(level=0, drop=True)
+                      .reset_index(level=0, drop=True).squeeze()
                       )
     return spots

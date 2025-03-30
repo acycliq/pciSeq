@@ -10,44 +10,25 @@ import logging
 cell_utils_logger = logging.getLogger(__name__)
 
 
-def read_image_objects(img_obj: pd.DataFrame,
-                       cfg: Dict[str, Any]) -> Tuple[Dict[str, np.ndarray], np.float32]:
-    """Process image objects and calculate cell properties.
+def read_image_objects(img_obj, cfg):
+    meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5
+    relCellRadius = np.sqrt(img_obj.area / np.pi) / meanCellRadius
 
-    Args:
-        img_obj: DataFrame containing cell image objects
-        cfg: Configuration dictionary
-
-    Returns:
-        Tuple containing:
-            - Dict of cell properties (area_factor, rel_radius, area, x0, y0, z0, cell_label)
-            - Mean cell radius as float32
-
-    Notes:
-        Handles special case of misreads by appending dummy cell with label=0
-    """
-    # Calculate mean cell radius
-    meanCellRadius = np.mean(np.sqrt(img_obj.area / np.pi)) * 0.5  # the dapi part is only half of the typical radius
-
-   # relative cell radius: The radius of each cell wrt to the average radius.
-    relCellRadius = np.sqrt(img_obj.area / np.pi) / np.mean(np.sqrt(img_obj.area / np.pi))
-
-    # Append 1 for the misreads
+    # append 1 for the misreads
     relCellRadius = np.append(1, relCellRadius)
 
-    # Calculate cell area factor
-    InsideCellBonus = cfg['InsideCellBonus'] if cfg['InsideCellBonus'] else 0
+    InsideCellBonus = cfg['InsideCellBonus']
+    if not InsideCellBonus:
+        # This is more for clarity. The operation below will work fine even if InsideCellBonus is False
+        InsideCellBonus = 0
 
+    # if InsideCellBonus == 0 then CellAreaFactor will be equal to 1.0
     numer = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(InsideCellBonus)) + np.exp(InsideCellBonus)
     denom = np.exp(-0.5) * (1 - np.exp(InsideCellBonus)) + np.exp(InsideCellBonus)
-
-    # this is area factor relative to that of the average cell
     CellAreaFactor = numer / denom
 
-    # Build output dictionary
     out = {
-        'area_factor': CellAreaFactor.astype(np.float32),
-        'rel_radius': relCellRadius.astype(np.float32),
+        'area_factor': CellAreaFactor.astype(np.float32), 'rel_radius': relCellRadius.astype(np.float32),
         'area': np.append(np.nan, img_obj.area.astype(np.uint32)),
         'x0': np.append(-sys.maxsize, img_obj.x0.values).astype(np.float32),
         'y0': np.append(-sys.maxsize, img_obj.y0.values).astype(np.float32),
@@ -55,9 +36,11 @@ def read_image_objects(img_obj: pd.DataFrame,
         'cell_label': np.append(0, img_obj.label.values).astype(np.uint32)
     }
 
-    # Add old labels if present
     if 'old_label' in img_obj.columns:
         out['cell_label_old'] = np.append(0, img_obj.old_label.values).astype(np.uint32)
+    # First cell is a dummy cell, a super neighbour (ie always a neighbour to any given cell)
+    # and will be used to get all the misreads. It was given the label=0 and some very small
+    # negative coords
 
     return out, meanCellRadius.astype(np.float32)
 
