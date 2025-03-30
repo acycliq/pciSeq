@@ -268,16 +268,8 @@ class Spots(object):
         eig_vals = cells.eig_vals[cell_label]
         eig_vecs = cells.eig_vecs[cell_label]
         if not is3D:
-            # that shouldn't really be necessary. If the data are 2d then the z dimension if just a dummy dimension.
-            # and inference should still hold (with the dummy z dimension)
-            # I am just removing z here for backwards compatibility; To yield the same results as in the 2d case.
-            # Otherwise, the dummy z dimension will get intp the loglikelihood calculations and the results will
-            # differ. Still though they should be regarded as valid results
             data = data[:, :-1]
             centroids = centroids[:, :-1]
-            # covs = covs[:, :-1, :-1]
-            # eig_vals = eig_vals[:, :-1]  # NEEDS TO BE CHECKED
-            # eig_vecs = eig_vecs[:, :-1, :-1]  # NEEDS TO BE CHECKED
         out = self.multiple_logpdfs(data, centroids, covs, eig_vals, eig_vecs)
         return out
 
