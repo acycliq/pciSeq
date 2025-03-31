@@ -56,6 +56,7 @@ class Cells(object):
         self._gene_counts = None
         self._ini_gene_counts = None  # initial gene counts
         self._background_counts = None
+        self.on_planes = dict(zip(_cells_df['label'], _cells_df['values']))
 
     # -------- PROPERTIES -------- #
     @property

@@ -178,7 +178,7 @@ class VarBayes:
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.cells._ini_gene_counts = np.bincount(self.spots.data.label.values, minlength=self.nC)
-        self.genes._misread_density = self.genes.calc_misread_density(self.spots, self.cells.mcr)
+        self.genes._misread_density = self.genes.calc_misread_density(self.spots, self.cells)
 
     def __getstate__(self):
         """
@@ -479,17 +479,8 @@ class VarBayes:
             expr_fluctuations[:, n] = term_2
 
         # apply inside cell bonus
-        # apply inside cell bonus
-        # NOTE. This is not applied 100% correctly. For example the fourth spot in the demo data. Id2, (x, y) = (0, 4484)
-        # The spots is within the boundaries of cell with label 5 but this is not its closest cell. The closest cell is
-        # cell label = 4. Cell label=5 is the second closest cell and label=4 the first closest. Therefore, the bonus should be
-        # applied when we handle the column for the seconds closest near-by cell. The implementation below implies that if
-        # a spot is inside the cell boundaries then that cell is the closest one.
-        mask = np.greater(self.spots.data.label.values, 0, where=~np.isnan(self.spots.data.label.values))
-        wSpotCell[mask, 0] = wSpotCell[mask, 0] + self.config['InsideCellBonus']
-
-        # bonus_mask = self.spots.bonus_mask * self.config['InsideCellBonus']
-        # wSpotCell += bonus_mask
+        bonus_mask = self.spots.bonus_mask * self.config['InsideCellBonus']
+        wSpotCell += bonus_mask
 
         # update the prob a spot belongs to a neighboring cell
         self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
@@ -837,3 +828,8 @@ class VarBayes:
 
     def check_cell(self, my_label, user_class, top_n=10):
         return utils.check_cell(self, my_label, user_class, top_n)
+
+    def check_spot(self, spot_id):
+        return visualisation.check_spot(self, spot_id)
+
+

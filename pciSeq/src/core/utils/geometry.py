@@ -215,14 +215,14 @@ def adjust_for_anisotropy(
     # Create DataFrame with proper column names and types
     return pd.DataFrame(
         data=data_adj,
-        columns=['gene_name', 'x', 'y', 'z', 'z_plane', 'omp_score']
+        columns=['gene_name', 'x', 'y', 'z', 'z_plane', 'score']
     ).astype({
         'gene_name': str,
         'x': np.float32,
         'y': np.float32,
         'z': np.float32,
         'z_plane': np.float32,
-        'omp_score': np.float32
+        'score': np.float32
     })
 
 

@@ -14,6 +14,7 @@ from .utils import log_data_summary
 from .plane_management import plane_quality_control
 from .cell_processing import calculate_cell_properties
 from ..core.utils.geometry import get_img_shape
+from ..core.utils.cell_utils import find_labels
 from .cell_processing import extract_borders
 
 spot_labels_logger = logging.getLogger(__name__)
@@ -53,7 +54,12 @@ def stage_data(spots: pd.DataFrame,
 
     # Process label matrices
     coo, label_map = CellLabelManager.process_label_matrices(coo)
-    cfg['label_map'] = label_map # Dont quite like it here, need to make it more transparent!!
+    cfg['label_map'] = label_map  # Dont quite like it here, need to make it more transparent!!
+
+    img_dim = {'n_planes': len(coo),
+               'w': coo[0].shape[1],
+               'h': coo[0].shape[0]}
+    cfg['img_dim'] = img_dim
 
     # Process spots
     dimensions = get_img_shape(coo)
@@ -75,7 +81,15 @@ def stage_data(spots: pd.DataFrame,
     assert set(spots.label[spots.label > 0]) <= set(props_df.label)
 
     # Prepare output
+    spot_labels_logger.info("find_labels start")
+    labels_dict = find_labels(masks)
+    spot_labels_logger.info("find_labels end")
+    labels_df = pd.DataFrame(labels_dict.items(), columns=['index', 'values']).set_index('index')
+
     cells = props_df.rename(columns={'x_cell': 'x0', 'y_cell': 'y0', 'z_cell': 'z0'})
-    processed_spots = spots[['x', 'y', 'z', 'plane_id', 'label', 'gene_name', 'omp_score']].rename_axis('spot_id')
+
+    assert np.all(labels_df.index.values == cells.label.values)
+    cells = cells.merge(labels_df, how='left', left_on='label', right_on='index')
+    processed_spots = spots[['x', 'y', 'z', 'plane_id', 'label', 'gene_name', 'score']].rename_axis('spot_id')
 
     return cells, cell_boundaries, processed_spots, label_map

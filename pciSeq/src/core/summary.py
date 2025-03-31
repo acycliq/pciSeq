@@ -75,18 +75,20 @@ def spots_summary(spots, is3D):
     out = pd.DataFrame({'gene_name': spots.data.gene_name.tolist(),
                         'gene_id': spots.gene_id.tolist(),
                         'spot_id': spots.data.index.tolist(),
-                        'x': spots.data.x.tolist(),
-                        'y': spots.data.y.tolist(),
+                        'x': ((spots.data.x * 1000).astype(np.int32)/1000).tolist(),
+                        'y': ((spots.data.y * 1000).astype(np.int32)/1000).tolist(),
                         'plane_id': spots.data.plane_id.tolist(),
                         'neighbour': max_nbrs.tolist(),
                         'neighbour_array': nbrs.tolist(),
-                        'neighbour_prob': p.tolist()
+                        'neighbour_prob': p.tolist(),
+                        'omp_score': ((spots.data.score * 1000).astype(np.int32)/1000).tolist()
                         })
     if is3D:
         out['z'] = spots.data.z.tolist()
         out['omp_score'] = spots.data.omp_score.tolist()
         # move column z after x, y
-        out.insert(4, 'z', out.pop('z'))
+        z_pos = out.columns.get_loc('y') + 1
+        out.insert(z_pos, 'z', out.pop('z'))
 
     return out
 
