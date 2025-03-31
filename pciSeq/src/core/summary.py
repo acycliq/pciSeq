@@ -81,11 +81,11 @@ def spots_summary(spots, is3D):
                         'neighbour': max_nbrs.tolist(),
                         'neighbour_array': nbrs.tolist(),
                         'neighbour_prob': p.tolist(),
-                        'omp_score': ((spots.data.score * 1000).astype(np.int32)/1000).tolist()
+                        # 'omp_score': ((spots.data.score * 1000).astype(np.int32)/1000).tolist()
                         })
     if is3D:
         out['z'] = spots.data.z.tolist()
-        out['omp_score'] = spots.data.omp_score.tolist()
+        out['omp_score'] = ((spots.data.score * 1000).astype(np.int32)/1000).tolist()
         # move column z after x, y
         z_pos = out.columns.get_loc('y') + 1
         out.insert(z_pos, 'z', out.pop('z'))
