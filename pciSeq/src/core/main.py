@@ -832,4 +832,7 @@ class VarBayes:
     def check_spot(self, spot_id):
         return visualisation.check_spot(self, spot_id)
 
+    def read_tsv(self, filepath):
+        return utils.read_tsv(filepath)
+
 
