@@ -84,6 +84,7 @@ def spots_summary(spots, is3D):
                         })
     if is3D:
         out['z'] = spots.data.z.tolist()
+        out['omp_score'] = spots.data.omp_score.tolist()
         # move column z after x, y
         out.insert(4, 'z', out.pop('z'))
 
