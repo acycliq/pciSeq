@@ -189,7 +189,6 @@ class Genes(object):
         # update with the user-defined values and return
         misread_df.update(user_df)  # in-place operation
 
-        misread_df[:] = 1e-05
         return misread_df
 
     def pointcloud_shape(self, spots, mid_plane, alpha=7):
