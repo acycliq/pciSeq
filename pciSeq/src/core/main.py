@@ -835,7 +835,7 @@ class VarBayes:
     def read_tsv(self, filepath):
         return utils.read_tsv(filepath)
 
-    def trellis_plot(self, label):
-        return visualisation.trellis_plot(self, label)
+    def trellis_plot(self, label, flatfile_folder):
+        return visualisation.trellis_plot(self, label, flatfile_folder)
 
 
