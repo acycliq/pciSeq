@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 from scipy.special import softmax
 import plotly.graph_objects as go
+from ..utils.io_utils import get_out_dir
+import os
 
 
 def heatmap_counts_per_class(obj):
@@ -337,3 +339,164 @@ def spot_to_cell_score_plot(my_dict):
     )
 
     fig.show()
+
+
+def make_trellis_enh3(df, highlight_label=None):
+    """
+    Create a trellis plot with:
+    - Different colors for each gene
+    - Optional circles highlighting specific neighbors
+
+    Parameters:
+    - df: DataFrame containing spatial gene data
+    - highlight_label: (optional) Draw circles around markers containing this neighbor ID,
+                      with circle size proportional to the neighbor's probability
+    """
+
+    # Sort data by plane_id and gene_name for consistent coloring
+    df = df.sort_values(['plane_id', 'gene_name'])
+
+    # Calculate grid dimensions
+    n_planes = df['plane_id'].nunique()
+    n_cols = 6  # Number of columns in grid
+    subplot_size = 250  # Size for each subplot
+
+    # Create base scatter plot with color by gene_name
+    fig = px.scatter(
+        df,
+        x="x",
+        y="y",
+        color="gene_name",
+        facet_col="plane_id",
+        facet_col_wrap=n_cols,
+        hover_data={
+            "gene_name": True,
+            "x": ":.2f",
+            "y": ":.2f",
+            "z": ":.2f",
+            "neighbour_array": True,
+            "neighbour_prob": True,
+            "plane_id": False
+        },
+        height=max(600, (n_planes // n_cols + 1) * subplot_size),
+        width=n_cols * subplot_size,
+        category_orders={"gene_name": sorted(df['gene_name'].unique())}  # Consistent color mapping
+    )
+
+    # Add highlighting circles if a label is specified
+    if highlight_label is not None:
+        shapes = []
+        for plane_id in df['plane_id'].unique():
+            plane_df = df[df['plane_id'] == plane_id]
+            for _, row in plane_df.iterrows():
+                if highlight_label in row['neighbour_array']:
+                    # Get the probability for this label
+                    idx = row['neighbour_array'].index(highlight_label)
+                    prob = row['neighbour_prob'][idx]
+
+                    # Calculate circle radius proportional to probability (range 10-50 units)
+                    radius = 10 + 40 * prob
+
+                    shapes.append({
+                        'type': 'circle',
+                        'xref': f'x{plane_id + 1}',
+                        'yref': f'y{plane_id + 1}',
+                        'x0': row['x'] - radius,
+                        'y0': row['y'] - radius,
+                        'x1': row['x'] + radius,
+                        'y1': row['y'] + radius,
+                        'line': {
+                            'color': 'black' if prob > 0.5 else 'darkgray',  # High prob = black border
+                            'width': 1 + 2 * prob,
+                            'dash': 'dot' if prob < 0.3 else 'solid'  # Low prob = dotted line
+                        },
+                        'opacity': 0.7
+                    })
+
+        fig.update_layout(shapes=shapes)
+
+    # Custom hover template
+    hover_template = (
+        "<b>%{customdata[0]}</b><br>"
+        "Coord: (%{x:.2f}, %{y:.2f}, %{customdata[1]:.2f})<br>"
+        "Neighbors: %{customdata[2]}<br>"
+        "Probs: %{customdata[3]}"
+    )
+
+    # Add highlight info to hover if specified
+    if highlight_label is not None:
+        hover_template = (
+                "<b>%{customdata[0]}</b><br>"
+                "Coord_xyz: (%{x:.2f}, %{y:.2f}, %{customdata[1]:.2f})<br>"
+                f"Neighbor {highlight_label} prob: " +
+                ("%.3f<br>" % df.loc[df.index, 'neighbour_prob'].apply(
+                    lambda probs, arr=df.loc[df.index, 'neighbour_array']:
+                    probs[arr.index(highlight_label)] if highlight_label in arr else 'N/A'
+                )) +
+                "All neighbors: %{customdata[2]}<br>"
+                "All probs: %{customdata[3]}"
+        )
+
+    # Visual enhancements
+    fig.update_traces(
+        marker=dict(
+            size=8,  # Slightly larger for better color visibility
+            opacity=0.9,
+            line=dict(width=1, color='black')  # Dark outline for contrast
+        ),
+        hovertemplate=hover_template + "<extra></extra>"
+    )
+
+    # Layout adjustments
+    fig.update_layout(
+        margin=dict(l=5, r=5, t=25, b=5),
+        grid=dict(rows=None, columns=n_cols, xgap=0.01, ygap=0.01),
+        # plot_bgcolor='white',
+        # paper_bgcolor='white',
+
+        legend=dict(
+            title_text='Gene',
+            orientation='v',
+            yanchor='middle',
+            y=0.5,  # Centered vertically
+            xanchor='left',
+            x=1.02,  # Closer to plot
+            entrywidthmode='pixels',
+            entrywidth=40  # Fixed width for alignment
+        )
+    )
+
+    # Equal axes and clean annotations
+    fig.update_yaxes(scaleanchor="x", scaleratio=1)
+    for annotation in fig.layout.annotations:
+        annotation.text = f"Plane {annotation.text.split('=')[1]}"
+        annotation.font.size = 9
+
+    fig.show()
+
+
+def trellis_plot(self, label, flatfile_folder):
+
+    cellBoundaries_tsv = os.path.join(flatfile_folder, 'cellBoundaries.tsv')
+    cell_boundaries = self.read_tsv(cellBoundaries_tsv)
+    target_cell = cell_boundaries[cell_boundaries.cell_id == label]
+
+    coords = target_cell.coords.squeeze()
+    min_x = min(x for x, y in coords)
+    min_y = min(y for x, y in coords)
+    max_x = max(x for x, y in coords)
+    max_y = max(y for x, y in coords)
+
+    bbox = [min_x, min_y, max_x, max_y]
+
+    # geneData = self.read_tsv('/tmp/pciSeq/data/geneData.tsv')
+    geneData_tsv = os.path.join(flatfile_folder, 'geneData.tsv')
+    geneData = self.read_tsv(geneData_tsv)
+    mask = (
+            (geneData['x'] >= bbox[0]) &  # x >= x_min
+            (geneData['x'] <= bbox[2]) &  # x <= x_max
+            (geneData['y'] >= bbox[1]) &  # y >= y_min
+            (geneData['y'] <= bbox[3])  # y <= y_max
+    )
+    df = geneData[mask]
+    make_trellis_enh3(df)
