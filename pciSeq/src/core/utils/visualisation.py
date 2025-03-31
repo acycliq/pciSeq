@@ -1,4 +1,5 @@
 import plotly.express as px
+import pandas as pd
 import numpy as np
 from scipy.special import softmax
 import plotly.graph_objects as go
@@ -135,8 +136,15 @@ def check_spot(self, spot_id):
         'labels': labels
     }
 
+    df = pd.DataFrame({'mvn_loglik': mvn_loglik,
+                       'attention': attention,
+                       'expr_fluct': expr_fluct}).set_index(cell_ids)
+    df['sum'] = df[['mvn_loglik', 'attention', 'expr_fluct']].sum(axis=1)
+    df.loc['misread'] = [np.nan, np.nan, np.nan, misread]
+
     spot_to_cell_score_plot(datadict)
     spot_to_cell_prob_plot(datadict)
+    return df
 
 
 def spot_to_cell_prob_plot(data):
