@@ -248,7 +248,7 @@ def visualize_fit(gene_counts, scaled_means):
         fig.show()
 
 
-def check_cell(obj, label, user_class, top_n=10):
+def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     """
     Compare gene expression likelihoods between two classes for a specific cell.
 
@@ -317,23 +317,24 @@ def check_cell(obj, label, user_class, top_n=10):
     )
     gene_expression_data.columns = new_columns
 
-    # Step 7: Plot top and bottom genes as subplots
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    if show_plot:
+        # Step 7: Plot top and bottom genes as subplots
+        fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
-    # Plot top genes
-    my_contr_df.loc[top_genes, 'diff'].plot.bar(ax=axes[0], color='skyblue',
-                                                title=f'Cell: {label} - Top {top_n} contr for class: {pciSeq_class}')
-    axes[0].set_ylabel('Log-Likelihood Difference')
-    axes[0].set_xlabel('Genes')
+        # Plot top genes
+        my_contr_df.loc[top_genes, 'diff'].plot.bar(ax=axes[0], color='skyblue',
+                                                    title=f'Cell: {label} - Top {top_n} contr for class: {pciSeq_class}')
+        axes[0].set_ylabel('Log-Likelihood Difference')
+        axes[0].set_xlabel('Genes')
 
-    # Plot bottom genes
-    my_contr_df.loc[bottom_genes, 'diff'].plot.bar(ax=axes[1], color='lightcoral',
-                                                   title=f'Cell: {label} - Top {top_n} contr for class: {user_class}')
-    axes[1].set_ylabel('Log-Likelihood Difference')
-    axes[1].set_xlabel('Genes')
+        # Plot bottom genes
+        my_contr_df.loc[bottom_genes, 'diff'].plot.bar(ax=axes[1], color='lightcoral',
+                                                       title=f'Cell: {label} - Top {top_n} contr for class: {user_class}')
+        axes[1].set_ylabel('Log-Likelihood Difference')
+        axes[1].set_xlabel('Genes')
 
-    plt.tight_layout()
-    plt.show()
+        plt.tight_layout()
+        plt.show()
 
     return gene_expression_data
 

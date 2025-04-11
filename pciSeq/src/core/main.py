@@ -826,8 +826,8 @@ class VarBayes:
     def visualize_fit(self, gene_counts, scaled_means):
         return utils.visualize_fit(gene_counts, scaled_means)
 
-    def check_cell(self, my_label, user_class, top_n=10):
-        return utils.check_cell(self, my_label, user_class, top_n)
+    def check_cell(self, my_label, user_class, top_n=10, show_plot=True):
+        return utils.check_cell(self, my_label, user_class, top_n, show_plot)
 
     def check_spot(self, spot_id):
         return visualisation.check_spot(self, spot_id)
