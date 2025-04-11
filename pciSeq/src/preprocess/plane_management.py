@@ -31,9 +31,9 @@ def remove_oob(spots: pd.DataFrame, img_shape: List[int]) -> pd.DataFrame:
     pd.DataFrame
         Filtered spots
     """
-    mask_x = (spots.x >= 0) & (spots.x <= img_shape[2])
-    mask_y = (spots.y >= 0) & (spots.y <= img_shape[1])
-    mask_z = (spots.z_plane >= 0) & (spots.z_plane <= img_shape[0])
+    mask_x = (spots.x >= 0) & (spots.x <= img_shape[2] - 1)
+    mask_y = (spots.y >= 0) & (spots.y <= img_shape[1] - 1)
+    mask_z = (spots.z_plane >= 0) & (spots.z_plane <= img_shape[0] - 1)
     return spots[mask_x & mask_y & mask_z]
 
 
