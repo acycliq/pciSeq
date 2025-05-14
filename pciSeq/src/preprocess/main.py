@@ -90,6 +90,6 @@ def stage_data(spots: pd.DataFrame,
 
     assert np.all(labels_df.index.values == cells.label.values)
     cells = cells.merge(labels_df, how='left', left_on='label', right_on='index')
-    processed_spots = spots[['x', 'y', 'z', 'plane_id', 'label', 'gene_name', 'score']].rename_axis('spot_id')
+    processed_spots = spots[['x', 'y', 'z', 'plane_id', 'label', 'gene_name', 'score', 'intensity']].rename_axis('spot_id')
 
     return cells, cell_boundaries, processed_spots, label_map

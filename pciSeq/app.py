@@ -1,4 +1,6 @@
 import pandas as pd
+from scipy.sparse import coo_matrix
+import numpy as np
 from typing import Tuple, Optional, Dict, Any
 from .src.validation.config_manager import ConfigManager
 from .src.validation.input_validation import InputValidator
@@ -166,6 +168,8 @@ def parse_args(*args, **kwargs) -> Tuple[pd.DataFrame, Any, Optional[pd.DataFram
 
     # Get coo from kwargs if present, otherwise from args
     coo = kwargs['coo'] if 'coo' in kwargs else args[1]
+    if isinstance(coo, np.ndarray):
+        coo = [coo_matrix(d) for d in coo]
 
     # Optional arguments
     scRNAseq = kwargs.get('scRNAseq', None)
