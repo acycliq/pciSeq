@@ -197,6 +197,7 @@ def adjust_for_anisotropy(
     gene_col = spots.gene_name.values[:, None]  # Add dimension for hstack
     z_plane = spots.z_plane.values[:, None].astype(np.float32)
     score = spots.score.values[:, None].astype(np.float32)
+    intensity = spots.intensity.values[:, None].astype(np.float32)
 
     # Get coordinates for scaling
     coords = spots[['x', 'y', 'z_plane']].values
@@ -209,20 +210,22 @@ def adjust_for_anisotropy(
         gene_col,  # Gene names
         scaled_coords,  # Scaled coordinates
         z_plane,  # Original z-plane indices
-        score
+        score,
+        intensity
     ])
 
     # Create DataFrame with proper column names and types
     return pd.DataFrame(
         data=data_adj,
-        columns=['gene_name', 'x', 'y', 'z', 'z_plane', 'score']
+        columns=['gene_name', 'x', 'y', 'z', 'z_plane', 'score', 'intensity']
     ).astype({
         'gene_name': str,
         'x': np.float32,
         'y': np.float32,
         'z': np.float32,
         'z_plane': np.float32,
-        'score': np.float32
+        'score': np.float32,
+        'intensity': np.float32,
     })
 
 

@@ -85,7 +85,8 @@ def spots_summary(spots, is3D):
                         })
     if is3D:
         out['z'] = spots.data.z.tolist()
-        out['omp_score'] = ((spots.data.score * 1000).astype(np.int32)/1000).tolist()
+        out['omp_score'] = np.round(spots.data.score.astype("float64"), 3).tolist()
+        out['omp_intensity'] = np.round(spots.data.intensity.astype("float64"), 3).tolist()
         # move column z after x, y
         z_pos = out.columns.get_loc('y') + 1
         out.insert(z_pos, 'z', out.pop('z'))
