@@ -321,22 +321,26 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
         # Step 7: Plot top and bottom genes as subplots
         fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
+        # Calculate the sum of the top n contributions
+        top_contribution_sum = my_contr_df.loc[top_genes, 'diff'].sum()
+        bottom_contribution_sum = my_contr_df.loc[bottom_genes, 'diff'].sum()
+
         # Plot top genes
         my_contr_df.loc[top_genes, 'diff'].plot.bar(ax=axes[0], color='skyblue',
-                                                    title=f'Cell: {label} - Top {top_n} contr for class: {pciSeq_class}')
+                                                    title=f'Cell: {label} - Top {top_n} contr for class: {pciSeq_class} (Sum: {top_contribution_sum:.2f})')
         axes[0].set_ylabel('Log-Likelihood Difference')
         axes[0].set_xlabel('Genes')
 
         # Plot bottom genes
         my_contr_df.loc[bottom_genes, 'diff'].plot.bar(ax=axes[1], color='lightcoral',
-                                                       title=f'Cell: {label} - Top {top_n} contr for class: {user_class}')
+                                                       title=f'Cell: {label} - Top {top_n} contr for class: {user_class} (Sum: {bottom_contribution_sum:.2f})')
         axes[1].set_ylabel('Log-Likelihood Difference')
         axes[1].set_xlabel('Genes')
 
         plt.tight_layout()
         plt.show()
 
-    return gene_expression_data
+    return gene_expression_data, fig if show_plot else None
 
 
 def read_tsv(filepath):
@@ -349,47 +353,47 @@ def read_tsv(filepath):
     return data
 
 
-def softmax(X: np.ndarray, theta: float = 1.0, axis: Optional[int] = None) -> np.ndarray:
-    """Compute the softmax of each element along an axis of X.
-
-    Args:
-        X: Input array (should be floats)
-        theta: Multiplier prior to exponentiation (default: 1.0)
-        axis: Axis to compute values along (default: first non-singleton axis)
-
-    Returns:
-        Array same size as X, normalized along the specified axis
-
-    Notes:
-        From https://nolanbconaway.github.io/blog/2017/softmax-numpy
-    """
-    # Make X at least 2d
-    y = np.atleast_2d(X)
-
-    # Find axis if not specified
-    if axis is None:
-        axis = next(j[0] for j in enumerate(y.shape) if j[1] > 1)
-
-    # Multiply y against the theta parameter
-    y = y * float(theta)
-
-    # Subtract the max for numerical stability
-    y = y - np.expand_dims(np.max(y, axis=axis), axis)
-
-    # Exponentiate y
-    y = np.exp(y)
-
-    # Take the sum along the specified axis
-    ax_sum = np.expand_dims(np.sum(y, axis=axis), axis)
-
-    # Finally: divide elementwise
-    p = y / ax_sum
-
-    # Flatten if X was 1D
-    if len(X.shape) == 1:
-        p = p.flatten()
-
-    return p
+# def softmax(X: np.ndarray, theta: float = 1.0, axis: Optional[int] = None) -> np.ndarray:
+#     """Compute the softmax of each element along an axis of X.
+#
+#     Args:
+#         X: Input array (should be floats)
+#         theta: Multiplier prior to exponentiation (default: 1.0)
+#         axis: Axis to compute values along (default: first non-singleton axis)
+#
+#     Returns:
+#         Array same size as X, normalized along the specified axis
+#
+#     Notes:
+#         From https://nolanbconaway.github.io/blog/2017/softmax-numpy
+#     """
+#     # Make X at least 2d
+#     y = np.atleast_2d(X)
+#
+#     # Find axis if not specified
+#     if axis is None:
+#         axis = next(j[0] for j in enumerate(y.shape) if j[1] > 1)
+#
+#     # Multiply y against the theta parameter
+#     y = y * float(theta)
+#
+#     # Subtract the max for numerical stability
+#     y = y - np.expand_dims(np.max(y, axis=axis), axis)
+#
+#     # Exponentiate y
+#     y = np.exp(y)
+#
+#     # Take the sum along the specified axis
+#     ax_sum = np.expand_dims(np.sum(y, axis=axis), axis)
+#
+#     # Finally: divide elementwise
+#     p = y / ax_sum
+#
+#     # Flatten if X was 1D
+#     if len(X.shape) == 1:
+#         p = p.flatten()
+#
+#     return p
 
 
 def has_converged(
