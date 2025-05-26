@@ -57,6 +57,7 @@ class Cells(object):
         self._ini_gene_counts = None  # initial gene counts
         self._background_counts = None
         self.on_planes = dict(zip(_cells_df['label'], _cells_df['values']))
+        self._nb_contr = None  # placeholder for the genes' contribution to the negative binomial loglik
 
     # -------- PROPERTIES -------- #
     @property
@@ -148,6 +149,15 @@ class Cells(object):
         else:
             r = self._mcr
         return r
+
+    # Property useful only for debugging. Safe to remove
+    @property
+    def nb_contr(self) -> np.ndarray:
+        return self._nb_contr
+
+    @nb_contr.setter
+    def nb_contr(self, val):
+        self._nb_contr = val
 
     # -------- METHODS -------- #
     def ini_centroids(self) -> pd.DataFrame:

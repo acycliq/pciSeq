@@ -411,10 +411,13 @@ class VarBayes:
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
         cgc = self.cells.geneCount
         contr = utils.negative_binomial_loglikelihood(cgc, self.config['rSpot'], pNegBin)
+
+        # populate the genes' contributions to the negative loglik. Property 'nb_contr' is only useful
+        # for debugging, safe to remove in the future
+        self.cells.nb_contr = contr
         contr = np.sum(contr, axis=1)
         wCellClass = contr + self.cellTypes.log_prior
         pCellClass = softmax(wCellClass, axis=1)
-        del contr
 
         self.cells.classProb = pCellClass
 
