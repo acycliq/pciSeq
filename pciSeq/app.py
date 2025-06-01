@@ -80,7 +80,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
         # 6 if labels have been remapped, switch to the original ones
         if label_map is not None:
-            cellData, geneData = recover_original_labels(cellData, geneData, label_map)
+            cellData, geneData, cellBoundaries = recover_original_labels(cellData, geneData, cellBoundaries, label_map)
 
         # 7. Save data and launch viewer if needed
         if cfg['save_data'] or cfg['launch_viewer']:
