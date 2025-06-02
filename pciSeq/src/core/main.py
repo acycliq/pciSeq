@@ -73,7 +73,7 @@ from .datatypes.spots import Spots
 from .datatypes.singleCell import SingleCell
 from .datatypes.cellClass import CellClass
 from .summary import collect_data
-from .analysis import CellExplorer
+# from .analysis import CellExplorer
 from .utils import ops_utils as utils
 from .utils import visualisation
 from ...src.diagnostics.controller.diagnostic_controller import DiagnosticController
@@ -119,7 +119,7 @@ class VarBayes:
 
         # Placeholder for other attributes
         self._scaled_exp = None
-        self._cell_explorer: Optional[CellExplorer] = None
+        # self._cell_explorer: Optional[CellExplorer] = None
 
     @staticmethod
     def _validate_config(config: Dict[str, Any]) -> None:
@@ -200,16 +200,16 @@ class VarBayes:
         """
         return self._scaled_exp
 
-    @property
-    def cell_explorer(self) -> CellExplorer:
-        """
-        Get cell analyzer instance.
-        Returns:
-            CellExplorer: Instance configured for this VarBayes object
-        """
-        if self._cell_explorer is None:
-            self._cell_explorer = CellExplorer(self)
-        return self._cell_explorer
+    # @property
+    # def cell_explorer(self) -> CellExplorer:
+    #     """
+    #     Get cell analyzer instance.
+    #     Returns:
+    #         CellExplorer: Instance configured for this VarBayes object
+    #     """
+    #     if self._cell_explorer is None:
+    #         self._cell_explorer = CellExplorer(self)
+    #     return self._cell_explorer
 
     # -------------------------------------------------------------------- #
     def run(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -800,20 +800,20 @@ class VarBayes:
             main_logger.warning(f"Failed to update diagnostics: {e}")
 
     # -------------------------------------------------------------------- #
-    def cell_analysis(self, cell_num):
-        """
-        Convenience method to analyze a specific cell.
-
-        Parameters
-        ----------
-        cell_num : int
-            The cell number to analyze
-
-        Returns
-        -------
-        Same as cell_explorer.view_cell()
-        """
-        return self.cell_explorer.view_cell(cell_num)
+    # def cell_analysis(self, cell_num):
+    #     """
+    #     Convenience method to analyze a specific cell.
+    #
+    #     Parameters
+    #     ----------
+    #     cell_num : int
+    #         The cell number to analyze
+    #
+    #     Returns
+    #     -------
+    #     Same as cell_explorer.view_cell()
+    #     """
+    #     return self.cell_explorer.view_cell(cell_num)
 
     # -------------------------------------------------------------------- #
     def heatmap_counts_per_class(self):
@@ -823,11 +823,11 @@ class VarBayes:
     def calculate_genes_log_likelihood_contr(self, label):
         return utils.calculate_genes_log_likelihood_contr(self, label)
 
-    def plot_loglik_contr(self, df):
-        return utils.plot_loglik_contr(df)
+    # def plot_loglik_contr(self, df):
+    #     return utils.plot_loglik_contr(df)
 
-    def visualize_fit(self, gene_counts, scaled_means):
-        return utils.visualize_fit(gene_counts, scaled_means)
+    # def visualize_fit(self, gene_counts, scaled_means):
+    #     return utils.visualize_fit(gene_counts, scaled_means)
 
     def check_cell(self, my_label, user_class, top_n=10, show_plot=True):
         return utils.check_cell(self, my_label, user_class, top_n, show_plot)
@@ -838,7 +838,7 @@ class VarBayes:
     def read_tsv(self, filepath):
         return utils.read_tsv(filepath)
 
-    def trellis_plot(self, label, flatfile_folder):
-        return visualisation.trellis_plot(self, label, flatfile_folder)
+    # def trellis_plot(self, label, flatfile_folder):
+    #     return visualisation.trellis_plot(self, label, flatfile_folder)
 
 

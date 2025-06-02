@@ -6,7 +6,7 @@ from pciSeq.app import fit
 from pciSeq.app import cell_type
 from pciSeq.src.preprocess.main import stage_data
 from pciSeq.src.core.logger import attach_to_log, setup_logger
-from pciSeq.src.core.analysis import CellExplorer
+# from pciSeq.src.core.analysis import CellExplorer
 import logging
 
 init_logger = logging.getLogger(__name__)

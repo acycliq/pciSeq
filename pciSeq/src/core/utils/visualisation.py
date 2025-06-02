@@ -475,28 +475,28 @@ def make_trellis_enh3(df, highlight_label=None):
     fig.show()
 
 
-def trellis_plot(self, label, flatfile_folder):
-
-    cellBoundaries_tsv = os.path.join(flatfile_folder, 'cellBoundaries.tsv')
-    cell_boundaries = self.read_tsv(cellBoundaries_tsv)
-    target_cell = cell_boundaries[cell_boundaries.cell_id == label]
-
-    coords = target_cell.coords.squeeze()
-    min_x = min(x for x, y in coords)
-    min_y = min(y for x, y in coords)
-    max_x = max(x for x, y in coords)
-    max_y = max(y for x, y in coords)
-
-    bbox = [min_x, min_y, max_x, max_y]
-
-    # geneData = self.read_tsv('/tmp/pciSeq/data/geneData.tsv')
-    geneData_tsv = os.path.join(flatfile_folder, 'geneData.tsv')
-    geneData = self.read_tsv(geneData_tsv)
-    mask = (
-            (geneData['x'] >= bbox[0]) &  # x >= x_min
-            (geneData['x'] <= bbox[2]) &  # x <= x_max
-            (geneData['y'] >= bbox[1]) &  # y >= y_min
-            (geneData['y'] <= bbox[3])  # y <= y_max
-    )
-    df = geneData[mask]
-    make_trellis_enh3(df)
+# def trellis_plot(self, label, flatfile_folder):
+#
+#     cellBoundaries_tsv = os.path.join(flatfile_folder, 'cellBoundaries.tsv')
+#     cell_boundaries = self.read_tsv(cellBoundaries_tsv)
+#     target_cell = cell_boundaries[cell_boundaries.cell_id == label]
+#
+#     coords = target_cell.coords.squeeze()
+#     min_x = min(x for x, y in coords)
+#     min_y = min(y for x, y in coords)
+#     max_x = max(x for x, y in coords)
+#     max_y = max(y for x, y in coords)
+#
+#     bbox = [min_x, min_y, max_x, max_y]
+#
+#     # geneData = self.read_tsv('/tmp/pciSeq/data/geneData.tsv')
+#     geneData_tsv = os.path.join(flatfile_folder, 'geneData.tsv')
+#     geneData = self.read_tsv(geneData_tsv)
+#     mask = (
+#             (geneData['x'] >= bbox[0]) &  # x >= x_min
+#             (geneData['x'] <= bbox[2]) &  # x <= x_max
+#             (geneData['y'] >= bbox[1]) &  # y >= y_min
+#             (geneData['y'] <= bbox[3])  # y <= y_max
+#     )
+#     df = geneData[mask]
+#     make_trellis_enh3(df)
