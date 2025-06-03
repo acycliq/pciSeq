@@ -26,11 +26,11 @@ def cells_summary(cells, genes, single_cell, is3D):
 
     isCount_nonZero = [d > tol for d in gene_count]
     name_list = [list(gene_names[i][d]) for (i, d) in enumerate(isCount_nonZero)]
-    count_list = [gene_count[i][d].round(3).astype(float).tolist() for i, d in enumerate(isCount_nonZero)]
+    count_list = [((gene_count[i][d] * 1000).astype(np.int32) / 1000).tolist() for i, d in enumerate(isCount_nonZero)]
 
     isProb_nonZero = [d > tol for d in class_prob]
     class_name_list = [list(class_names[i][d]) for (i, d) in enumerate(isProb_nonZero)]
-    prob_list = [class_prob[i][d].round(3).astype(float).tolist() for i, d in enumerate(isProb_nonZero)]
+    prob_list = [((class_prob[i][d] * 1000).astype(np.int32) / 1000).tolist() for i, d in enumerate(isProb_nonZero)]
 
     contour = []
     for i in range(cells.nC):
@@ -41,8 +41,8 @@ def cells_summary(cells, genes, single_cell, is3D):
         contour.append(ellipsis.tolist())
 
     df = pd.DataFrame({'Cell_Num': cells.centroid.index.tolist(),
-                       'X': cells.centroid['x'].round(3).tolist(),
-                       'Y': cells.centroid['y'].round(3).tolist(),
+                       'X': ((cells.centroid['x'] * 1000).astype(np.int32) / 1000).tolist(),
+                       'Y': ((cells.centroid['y'] * 1000).astype(np.int32) / 1000).tolist(),
                        'Genenames': name_list,
                        'CellGeneCount': count_list,
                        'ClassName': class_name_list,
@@ -51,7 +51,7 @@ def cells_summary(cells, genes, single_cell, is3D):
                        })
     if is3D:
         df['sphere_scale'], df['sphere_rotation'] = sphere_props(cells)
-        df['Z'] = cells.centroid['z'].tolist()
+        df['Z'] = ((cells.centroid['z'] * 1000).astype(np.int32) / 1000).tolist()
         # move column Z after X, Y
         df.insert(3, 'Z', df.pop('Z'))
 
@@ -75,8 +75,8 @@ def spots_summary(spots, is3D):
     out = pd.DataFrame({'gene_name': spots.data.gene_name.tolist(),
                         'gene_id': spots.gene_id.tolist(),
                         'spot_id': spots.data.index.tolist(),
-                        'x': ((spots.data.x * 1000).astype(np.int32)/1000).tolist(),
-                        'y': ((spots.data.y * 1000).astype(np.int32)/1000).tolist(),
+                        'x': np.round(spots.data.x.astype('float64'), 3).tolist(),
+                        'y': np.round(spots.data.y.astype('float64'), 3).tolist(),
                         'plane_id': spots.data.plane_id.tolist(),
                         'neighbour': max_nbrs.tolist(),
                         'neighbour_array': nbrs.tolist(),
@@ -84,9 +84,9 @@ def spots_summary(spots, is3D):
                         # 'omp_score': ((spots.data.score * 1000).astype(np.int32)/1000).tolist()
                         })
     if is3D:
-        out['z'] = spots.data.z.tolist()
-        out['omp_score'] = np.round(spots.data.score.astype("float64"), 3).tolist()
-        out['omp_intensity'] = np.round(spots.data.intensity.astype("float64"), 3).tolist()
+        out['z'] = np.round(spots.data.z.astype('float64'), 3).tolist()
+        out['omp_score'] = np.round(spots.data.score.astype('float64'), 3).tolist()
+        out['omp_intensity'] = np.round(spots.data.intensity.astype('float64'), 3).tolist()
         # move column z after x, y
         z_pos = out.columns.get_loc('y') + 1
         out.insert(z_pos, 'z', out.pop('z'))
