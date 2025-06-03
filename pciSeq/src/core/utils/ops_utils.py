@@ -54,30 +54,33 @@ def expected_covariance(scale_matrix, dof):
     return scale_matrix / (dof[:, None, None] - d1 - 1)
 
 
-def negative_binomial_loglikelihood(x: np.ndarray, r: float, p: np.ndarray) -> np.ndarray:
+def negative_binomial_loglikelihood(x: np.ndarray, r: float, q: np.ndarray) -> np.ndarray:
     """Calculate the Negative Binomial log-likelihood for given parameters.
 
-    The Negative Binomial distribution models the number of successes (x) before
-    r failures occur, with probability of success p. The PMF is:
-    P(X=k) = C(k+r-1,k) * p^k * (1-p)^r
+    The Negative Binomial distribution models the number of failures (x) before
+    observing the r-th success, with failure probability q. The PMF is:
+        P(X = x) = C(x + r - 1, x) * q^x * (1 - q)^r
+
+    Here we compute only the terms that depend on q and r:
+        log-likelihood = x * log(q) + r * log(1 - q)
 
     Args:
-        x: Array of observed counts
-        r: Number of failures until stopping (dispersion parameter)
-        p: Probability of success array
+        x: Array of observed failure counts (non-negative integers).
+        r: Number of successes until stopping (dispersion parameter, positive).
+        q: Array of failure probabilities (each between 0 and 1).
 
     Returns:
-        Array of log-likelihood contributions
+        Array of log-likelihood values, broadcast over x and q.
 
     Raises:
-        ValueError: If computation fails due to dimension mismatch or invalid values
+        ValueError: If any q is outside (0, 1) or if x has negative values.
     """
     try:
         x = x[:, :, None]  # Add dimension for broadcasting
 
-        # negative binomial log-likelihood.
-        # Focusing only on the terms that involve p and r (without the binomial coefficient):
-        log_likelihood = x * np.log(p) + r * np.log(1 - p)
+        # Compute the log-likelihood of seeing x failures before the r-th success,
+        # if the failure probability is q
+        log_likelihood = x * np.log(q) + r * np.log(1 - q)
 
         return log_likelihood
 
