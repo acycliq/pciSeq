@@ -65,7 +65,7 @@ def negative_binomial_loglikelihood(x: np.ndarray, r: float, q: np.ndarray) -> n
         log-likelihood = x * log(q) + r * log(1 - q)
 
     Args:
-        x: Array of observed failure counts (non-negative integers).
+        x: Array of observed failure counts (non-negative floats).
         r: Number of successes until stopping (dispersion parameter, positive).
         q: Array of failure probabilities (each between 0 and 1).
 
@@ -79,7 +79,13 @@ def negative_binomial_loglikelihood(x: np.ndarray, r: float, q: np.ndarray) -> n
         x = x[:, :, None]  # Add dimension for broadcasting
 
         # Compute the log-likelihood of seeing x failures before the r-th success,
-        # if the failure probability is q
+        # if the failure probability is q.
+        # In our context, x is the cell gene counts, q is derived from the single cell data
+        # count data and r is a hyperparameter (set by default = 2.0).
+        # Scipy's nbinom object has logpmf(k, n, p) where p is the prob of success, ie p = 1-q
+        # and k, n is what is denoted here by x, r respectively. Also logpmf includes the
+        # combinatorial factor. Finally logpmf will drop an exception if the counts k are not
+        # integers
         log_likelihood = x * np.log(q) + r * np.log(1 - q)
 
         return log_likelihood
