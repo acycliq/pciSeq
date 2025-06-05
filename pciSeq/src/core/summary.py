@@ -48,7 +48,7 @@ def cells_summary(cells, spots, genes, is3D):
                        'Y': ((cells.centroid['y'] * 1000).astype(np.int32) / 1000).tolist(),
                        'Genenames': name_list,
                        'CellGeneCount': count_list,
-                       'spot_id': spot_ids,
+                       'spot_id': spot_ids, # the spot ids that when summed-up will generate CellGeneCount
                        'ClassName': class_name_list,
                        'Prob': prob_list,
                        'gaussian_contour': contour
