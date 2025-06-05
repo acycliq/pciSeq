@@ -6,7 +6,7 @@ import logging
 summary_logger = logging.getLogger(__name__)
 
 
-def cells_summary(cells, genes, single_cell, is3D):
+def cells_summary(cells, spots, genes, is3D):
     '''
     returns a dataframe summarising the main features of each cell, ie gene counts and cell types
     :param spots:
@@ -17,12 +17,15 @@ def cells_summary(cells, genes, single_cell, is3D):
     gene_count = np.take_along_axis(cells.geneCount, iCounts, axis=1)
 
     iProb = np.argsort(-1 * cells.classProb, axis=1)
-    class_names = single_cell.classes[iProb]
+    class_names = cells.class_names[iProb]
     class_prob = np.take_along_axis(cells.classProb, iProb, axis=1)
 
     tol = 0.001
 
     summary_logger.info('Start collecting data ...')
+
+    spot_ids = get_contributing_spots(spots.data.index.values, spots.gene_id, spots.parent_cell_id, spots.parent_cell_prob)
+    spot_ids = [sum(d, []) for d in spot_ids]
 
     isCount_nonZero = [d > tol for d in gene_count]
     name_list = [list(gene_names[i][d]) for (i, d) in enumerate(isCount_nonZero)]
@@ -45,6 +48,7 @@ def cells_summary(cells, genes, single_cell, is3D):
                        'Y': ((cells.centroid['y'] * 1000).astype(np.int32) / 1000).tolist(),
                        'Genenames': name_list,
                        'CellGeneCount': count_list,
+                       'spot_id': spot_ids,
                        'ClassName': class_name_list,
                        'Prob': prob_list,
                        'gaussian_contour': contour
@@ -94,14 +98,14 @@ def spots_summary(spots, is3D):
     return out
 
 
-def collect_data(cells, spots, genes, single_cell, is3D):
+def collect_data(cells, spots, genes, is3D):
     '''
     Collects data for the viewer
     :param cells:
     :param spots:
     :return:
     '''
-    cell_df = cells_summary(cells, genes, single_cell, is3D)
+    cell_df = cells_summary(cells, spots, genes, is3D)
     gene_df = spots_summary(spots, is3D)
     return cell_df, gene_df
 
@@ -115,3 +119,68 @@ def sphere_props(cells):
         sphere_scale.append(scale)
         sphere_rotation.append(rotation)
     return sphere_scale, sphere_rotation
+
+
+def get_contributing_spots(spot_ids, gene_id, parent_cell_id, parent_cell_prob, tol=0.001):
+    """
+    Get only the spot lists for each (cell, gene) combination.
+    Stripped down version of aggregate_cell_gene_with_spots.
+
+    Args:
+        spot_ids: array of shape (n_spots,) - spot identifiers
+        gene_id: array of shape (n_spots,) - gene category for each spot
+        parent_cell_id: array of shape (n_spots, n_assignments) - cell labels
+        parent_cell_prob: array of shape (n_spots, n_assignments) - probabilities
+
+    Returns:
+        spot_lists: array of shape (n_cells, n_genes) - lists of contributing spot_ids (prob > 0.001)
+        cell_ids: array of unique cell IDs (row labels)
+        gene_ids: array of unique gene IDs (column labels)
+    """
+
+    # Get unique cell and gene IDs
+    unique_cells = np.unique(parent_cell_id.ravel())
+    unique_genes = np.unique(gene_id)
+
+    # Create mapping dictionaries
+    cell_to_idx = {cell: idx for idx, cell in enumerate(unique_cells)}
+    gene_to_idx = {gene: idx for idx, gene in enumerate(unique_genes)}
+
+    n_cells = len(unique_cells)
+    n_genes = len(unique_genes)
+
+    # Expand arrays to match flattened structure
+    spot_expanded = np.repeat(spot_ids, parent_cell_id.shape[1])
+    gene_expanded = np.repeat(gene_id, parent_cell_id.shape[1])
+
+    # Flatten the 2D arrays
+    cells_flat = parent_cell_id.ravel()
+    probs_flat = parent_cell_prob.ravel()
+
+    # Filter valid entries (probabilities > 0.001 and valid cells)
+    valid_mask = (probs_flat > tol) & np.isin(cells_flat, unique_cells)
+
+    spot_valid = spot_expanded[valid_mask]
+    gene_valid = gene_expanded[valid_mask]
+    cells_valid = cells_flat[valid_mask]
+
+    # Convert to indices
+    gene_indices = np.array([gene_to_idx[g] for g in gene_valid])
+    cell_indices = np.array([cell_to_idx[c] for c in cells_valid])
+
+    # Create linear group indices
+    group_indices = cell_indices * n_genes + gene_indices
+
+    # Initialize spot lists arrays - REMOVED probability aggregation
+    spot_lists_flat = np.empty(n_cells * n_genes, dtype=object)
+    for i in range(n_cells * n_genes):
+        spot_lists_flat[i] = []
+
+    # Collect spots for each group - ONLY spot collection, no probability aggregation
+    for i, group_id in enumerate(group_indices):
+        spot_lists_flat[group_id].append(spot_valid[i].item())
+
+    # Reshape results - REMOVED cell_gene_matrix and prob_lists
+    spot_lists = spot_lists_flat.reshape(n_cells, n_genes)
+
+    return spot_lists
