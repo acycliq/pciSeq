@@ -102,10 +102,10 @@ def check_spot(self, spot_id):
     tuple: (scores_array, probabilities_array)s
     """
     # Get data for the specified spot
-    gene_name = self.spots.data.iloc[spot_id].gene_name
-    x = self.spots.data.iloc[spot_id].x.astype(np.int32).tolist()
-    y = self.spots.data.iloc[spot_id].y.astype(np.int32).tolist()
-    z = self.spots.data.iloc[spot_id].z.astype(np.int32).tolist()
+    gene_name = self.spots.data.loc[spot_id].gene_name
+    x = self.spots.data.loc[spot_id].x.astype(np.int32).tolist()
+    y = self.spots.data.loc[spot_id].y.astype(np.int32).tolist()
+    z = self.spots.data.loc[spot_id].z.astype(np.int32).tolist()
     n_cells = len(self.spots.parent_cell_id[spot_id]) - 1  # Exclude background
     cell_ids = self.spots.parent_cell_id[spot_id][:-1]
     mvn_loglik = self.spots.mvn_loglik_arr[spot_id][:-1]
