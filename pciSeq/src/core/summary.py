@@ -26,27 +26,22 @@ def cells_summary(cells, spots, genes, is3D):
 
     summary_logger.info('Start collecting data ...')
 
-    # spot_ids = get_contributing_spots(spots.data.index.values, spots.gene_id, spots.parent_cell_id, spots.parent_cell_prob)
-    # spot_ids = [sum(d, []) for d in spot_ids]
-    # spot_ids = get_contributing_spots_2(cells, spots, genes, tol)
-
     isCount_nonZero = [d > tol for d in gene_count]
     name_list = [list(gene_names[i][d]) for (i, d) in enumerate(isCount_nonZero)]
     count_list = [((gene_count[i][d] * 1000).astype(np.int32) / 1000).tolist() for i, d in enumerate(isCount_nonZero)]
 
-    # spot_ids = get_contributing_spots_2(cells, spots, genes)
-    # spot_ids = np.take_along_axis(spot_ids, iCounts, axis=1)
-    # spot_id_list = []
-    # for i, counts in enumerate(cells.geneCount):
-    #     # mask = counts > tol
-    # #     spot_id_list = agg[i][mask].tolist()
-    #     temp = spot_ids[i].tolist()
-    #     print(i)
-    #     print(temp)
-    #     # temp = [list(d) for d in temp]
-    #     temp = [list(d) for d in temp] if isinstance(temp, Iterable) else temp
-    #     spot_id_list.append(temp)
-    # spot_id_list = [list(spot_id_list[i][d]) for (i, d) in enumerate(isCount_nonZero)]
+    # get spot IDs grouped by cell and gene
+    spot_ids = get_contributing_spots_2(cells, spots, genes)
+
+    # reorder each row so spots for genes with higher read counts come first
+    spot_ids = np.take_along_axis(spot_ids, iCounts, axis=1)
+
+    # keep only spots with counts above the threshold, and convert each to a plain list
+    spot_id_list = [
+        [d.tolist() for d in row[mask]]
+        for row, mask in zip(spot_ids, isCount_nonZero)
+    ]
+
 
     isProb_nonZero = [d > tol for d in class_prob]
     class_name_list = [list(class_names[i][d]) for (i, d) in enumerate(isProb_nonZero)]
@@ -65,7 +60,7 @@ def cells_summary(cells, spots, genes, is3D):
                        'Y': ((cells.centroid['y'] * 1000).astype(np.int32) / 1000).tolist(),
                        'Genenames': name_list,
                        'CellGeneCount': count_list,
-                       # 'spot_id': spot_id_list, # the spot ids that when summed-up will generate CellGeneCount
+                       'spot_id': spot_id_list, # the spot ids that when summed-up will generate CellGeneCount
                        'ClassName': class_name_list,
                        'Prob': prob_list,
                        'gaussian_contour': contour
@@ -212,13 +207,14 @@ def get_contributing_spots_2(cells, spots, genes):
     spot_ids = np.tile(spots.data.index.values, (nN, 1)).T
     spot_ids = spot_ids.ravel()
 
-    agg = npg.aggregate_np(group_idx, spot_ids, size=(cells.nC, genes.nG), func=list, dtype=object)
+    agg = npg.aggregate_np(group_idx, spot_ids, size=(cells.nC, genes.nG), func=list, fill_value=[], dtype=object)
 
-    # assert cells.geneCount.shape == agg.shape
+    # # assert cells.geneCount.shape == agg.shape
     # out = []
-    # for i, counts in enumerate(cells.geneCount):
-    #     # mask = counts > tol
-    # #     spot_id_list = agg[i][mask].tolist()
-    #     spot_id_list = agg[i].tolist()
-    #     out.append(spot_id_list)
+    # for i, counts in enumerate(agg):
+    #     counts = [list(d) for d in counts]
+    #     out.append(counts)
+    # # #     spot_id_list = agg[i][mask].tolist()
+    # #     spot_id_list = agg[i].tolist()
+    # #     out.append(counts)
     return agg
