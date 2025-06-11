@@ -214,12 +214,7 @@ def adjust_for_anisotropy(
         intensity
     ])
 
-    # Create DataFrame with correct column names and data types.
-    # Note for future: consider preserving the original index from the input 'spots' DataFrame.
-    # Keeping the index can be useful for filtering spots before calling pciSeq.fit().
-    # The line below creates a new index, which can make it harder to exclude spots
-    # if they were removed or cleaned earlier in the codebase.
-    # Should be safe, but worth testing.
+
     return pd.DataFrame(
         data=data_adj,
         columns=['gene_name', 'x', 'y', 'z', 'z_plane', 'score', 'intensity']
@@ -231,7 +226,7 @@ def adjust_for_anisotropy(
         'z_plane': np.float32,
         'score': np.float32,
         'intensity': np.float32,
-    })
+    }).set_index(spots.index)
 
 
 def anisotropy_calc(data: np.ndarray,
