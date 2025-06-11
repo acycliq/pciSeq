@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+import numpy_groupies as npg
+from collections.abc import Iterable
 from ...src.core.utils.geometry import gaussian_ellipsoid_props, gaussian_contour
 import logging
 
@@ -24,12 +26,27 @@ def cells_summary(cells, spots, genes, is3D):
 
     summary_logger.info('Start collecting data ...')
 
-    spot_ids = get_contributing_spots(spots.data.index.values, spots.gene_id, spots.parent_cell_id, spots.parent_cell_prob)
-    spot_ids = [sum(d, []) for d in spot_ids]
+    # spot_ids = get_contributing_spots(spots.data.index.values, spots.gene_id, spots.parent_cell_id, spots.parent_cell_prob)
+    # spot_ids = [sum(d, []) for d in spot_ids]
+    # spot_ids = get_contributing_spots_2(cells, spots, genes, tol)
 
     isCount_nonZero = [d > tol for d in gene_count]
     name_list = [list(gene_names[i][d]) for (i, d) in enumerate(isCount_nonZero)]
     count_list = [((gene_count[i][d] * 1000).astype(np.int32) / 1000).tolist() for i, d in enumerate(isCount_nonZero)]
+
+    # spot_ids = get_contributing_spots_2(cells, spots, genes)
+    # spot_ids = np.take_along_axis(spot_ids, iCounts, axis=1)
+    # spot_id_list = []
+    # for i, counts in enumerate(cells.geneCount):
+    #     # mask = counts > tol
+    # #     spot_id_list = agg[i][mask].tolist()
+    #     temp = spot_ids[i].tolist()
+    #     print(i)
+    #     print(temp)
+    #     # temp = [list(d) for d in temp]
+    #     temp = [list(d) for d in temp] if isinstance(temp, Iterable) else temp
+    #     spot_id_list.append(temp)
+    # spot_id_list = [list(spot_id_list[i][d]) for (i, d) in enumerate(isCount_nonZero)]
 
     isProb_nonZero = [d > tol for d in class_prob]
     class_name_list = [list(class_names[i][d]) for (i, d) in enumerate(isProb_nonZero)]
@@ -48,7 +65,7 @@ def cells_summary(cells, spots, genes, is3D):
                        'Y': ((cells.centroid['y'] * 1000).astype(np.int32) / 1000).tolist(),
                        'Genenames': name_list,
                        'CellGeneCount': count_list,
-                       'spot_id': spot_ids, # the spot ids that when summed-up will generate CellGeneCount
+                       # 'spot_id': spot_id_list, # the spot ids that when summed-up will generate CellGeneCount
                        'ClassName': class_name_list,
                        'Prob': prob_list,
                        'gaussian_contour': contour
@@ -184,3 +201,24 @@ def get_contributing_spots(spot_ids, gene_id, parent_cell_id, parent_cell_prob, 
     spot_lists = spot_lists_flat.reshape(n_cells, n_genes)
 
     return spot_lists
+
+
+def get_contributing_spots_2(cells, spots, genes):
+    nN = spots.parent_cell_id.shape[1]
+    cell_ids = spots.parent_cell_id.ravel()
+    gene_ids = np.tile(spots.gene_id, (nN, 1)).T.ravel()
+    group_idx =  np.vstack((cell_ids, gene_ids))
+
+    spot_ids = np.tile(spots.data.index.values, (nN, 1)).T
+    spot_ids = spot_ids.ravel()
+
+    agg = npg.aggregate_np(group_idx, spot_ids, size=(cells.nC, genes.nG), func=list, dtype=object)
+
+    # assert cells.geneCount.shape == agg.shape
+    # out = []
+    # for i, counts in enumerate(cells.geneCount):
+    #     # mask = counts > tol
+    # #     spot_id_list = agg[i][mask].tolist()
+    #     spot_id_list = agg[i].tolist()
+    #     out.append(spot_id_list)
+    return agg
