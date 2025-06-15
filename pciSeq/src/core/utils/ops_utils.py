@@ -272,13 +272,15 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
 
     # If original labels have been renumbered find the label it's been mapped to.
     if obj.config['label_map']:
-        label = obj.config['label_map'][label]
+        pciSeq_label = obj.config['label_map'][label]
+    else:
+        pciSeq_label = label
 
     # Step 1: Calculate gene log-likelihood contributions
     contr_df, gene_counts, _ = obj.calculate_genes_log_likelihood_contr(label)
 
     # Step 2: Get the cell's class from cellData
-    pciSeq_class = obj.cells.class_names[obj.cells.classProb[label].argmax()]
+    pciSeq_class = obj.cells.class_names[obj.cells.classProb[pciSeq_label].argmax()]
 
     # Step 3: Check if classes exist in contr_df
     if pciSeq_class not in contr_df.columns or user_class not in contr_df.columns:
