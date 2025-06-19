@@ -102,15 +102,18 @@ def check_spot(self, spot_id):
     tuple: (scores_array, probabilities_array)s
     """
     # Get data for the specified spot
-    gene_name = self.spots.data.loc[spot_id].gene_name
-    x = self.spots.data.loc[spot_id].x.astype(np.int32).tolist()
-    y = self.spots.data.loc[spot_id].y.astype(np.int32).tolist()
-    z = self.spots.data.loc[spot_id].z.astype(np.int32).tolist()
-    n_cells = len(self.spots.parent_cell_id[spot_id]) - 1  # Exclude background
-    cell_ids = self.spots.parent_cell_id[spot_id][:-1]
-    mvn_loglik = self.spots.mvn_loglik_arr[spot_id][:-1]
-    attention = self.spots.attention[spot_id][:-1]
-    expr_fluct = self.spots.expr_fluctuations[spot_id][:-1]
+    # First find the row position of the spot_id
+    row_pos = self.spots.data.index.get_loc(spot_id)
+
+    gene_name = self.spots.data.iloc[row_pos].gene_name # I could have used loc[spot_id] here too
+    x = self.spots.data.iloc[row_pos].x.astype(np.int32).tolist()
+    y = self.spots.data.iloc[row_pos].y.astype(np.int32).tolist()
+    z = self.spots.data.iloc[row_pos].z.astype(np.int32).tolist()
+    n_cells = len(self.spots.parent_cell_id[row_pos]) - 1  # Exclude background
+    cell_ids = self.spots.parent_cell_id[row_pos][:-1]
+    mvn_loglik = self.spots.mvn_loglik_arr[row_pos][:-1]
+    attention = self.spots.attention[row_pos][:-1]
+    expr_fluct = self.spots.expr_fluctuations[row_pos][:-1]
     misread = np.log(self.genes.misread_density[gene_name])
 
     # Calculate scores and probabilities
@@ -118,7 +121,11 @@ def check_spot(self, spot_id):
     scores = np.append(scores, misread)
     probabilities = softmax(scores)
 
-    # Create labels
+    # Create labels. If the segmentation has been relabelled, map the labels back to the original ones.
+    if self.config['label_map']:
+        reverse_map = {v:k for k, v in self.config['label_map'].items()}
+        cell_ids = [reverse_map[d] for d in cell_ids]
+
     labels = [f'Cell {cid}' for cid in cell_ids] + ['Misread']
 
     datadict = {
