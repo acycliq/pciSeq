@@ -380,7 +380,7 @@ class VarBayes:
         self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
                                                     self.single_cell.mean_expression_adj.values))
 
-        beta = self.scaled_exp.compute() + cfg['rSpot']
+        beta = self.scaled_exp.compute() * self.genes.eta_bar[:, None] + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
         self.spots._log_gamma_bar = delayed(self.spots.logGammaExpectation(rho, beta))
