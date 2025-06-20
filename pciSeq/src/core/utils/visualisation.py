@@ -145,11 +145,14 @@ def check_spot(self, spot_id):
         'labels': labels
     }
 
-    df = pd.DataFrame({'mvn_loglik': mvn_loglik,
-                       'attention': attention,
-                       'expr_fluct': expr_fluct}).set_index(cell_ids)
+    df = pd.DataFrame({
+        'row_position':self.spots.parent_cell_id[row_pos][:-1],
+        'cell_label': cell_ids,
+        'mvn_loglik': mvn_loglik,
+        'attention': attention,
+        'expr_fluct': expr_fluct}).set_index('row_position')
     df['sum'] = df[['mvn_loglik', 'attention', 'expr_fluct']].sum(axis=1)
-    df.loc['misread'] = [np.nan, np.nan, np.nan, misread]
+    df.loc['misread'] = ['misread', np.nan, np.nan, np.nan, misread]
 
     spot_to_cell_score_plot(datadict)
     spot_to_cell_prob_plot(datadict)
