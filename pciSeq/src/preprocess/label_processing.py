@@ -46,6 +46,7 @@ class CellLabelManager:
 
     def restore_original_labels(self, normalized_labels: np.ndarray) -> np.ndarray:
         """Restore original label numbering"""
+        " This is not used, either find  way to use it or remove it."
         if self.label_map is None:
             return normalized_labels
         reverse_map = {v: k for k, v in self.label_map.items()}
