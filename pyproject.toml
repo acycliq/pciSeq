@@ -1,0 +1,126 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pciSeq"
+dynamic = ["version"]
+description = "Probabilistic cell typing for spatial transcriptomics"
+readme = "README.md"
+license = {text = "BSD"}
+authors = [
+    {name = "Dimitris Nicoloutsopoulos", email = "dimitris.nicoloutsopoulos@gmail.com"}
+]
+maintainers = [
+    {name = "Dimitris Nicoloutsopoulos", email = "dimitris.nicoloutsopoulos@gmail.com"}
+]
+keywords = ["spatial transcriptomics", "cell typing", "bioinformatics", "single-cell"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy_groupies",
+    "pandas",
+    "dask",
+    "scipy",
+    "streamlit",
+    "altair",
+    "scikit-image",
+    "scikit-learn",
+    "tqdm",
+    "flask",
+    "fastremap",
+    "numexpr",
+    "diplib",
+    "pyvips",
+    "natsort",
+    "redis",
+    "matplotlib",
+    "laspy",
+    "tomlkit",
+    "colorlog",
+    "shapely",
+    "alphashape",
+    "opt_einsum",
+    "plotly",
+    "numba",
+]
+
+[project.optional-dependencies]
+interactive = [
+    "matplotlib>=2.2.0",
+    "jupyter",
+]
+dev = [
+    "pytest>=6.0",
+    "pytest-cov",
+    "black",
+    "flake8",
+    "mypy",
+    "pre-commit",
+]
+docs = [
+    "sphinx",
+    "sphinx-rtd-theme",
+    "myst-parser",
+]
+
+[project.urls]
+Homepage = "https://github.com/acycliq/pciSeq"
+Documentation = "https://github.com/acycliq/pciSeq#readme"
+Repository = "https://github.com/acycliq/pciSeq.git"
+Issues = "https://github.com/acycliq/pciSeq/issues"
+Changelog = "https://github.com/acycliq/pciSeq/releases"
+
+[tool.hatch.version]
+path = "pciSeq/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["pciSeq"]
+
+[tool.hatch.build.targets.wheel.sources]
+"pciSeq" = "pciSeq"
+
+# Include static files in the package
+[tool.hatch.build.targets.wheel.include]
+"pciSeq/static/**/*.html" = "pciSeq/static"
+"pciSeq/static/**/*.js" = "pciSeq/static"
+"pciSeq/static/**/*.css" = "pciSeq/static"
+"pciSeq/static/**/*.msi" = "pciSeq/static"
+"pciSeq/static/**/*.so" = "pciSeq/static"
+"pciSeq/static/**/*.json" = "pciSeq/static"
+"pciSeq/static/**/PotreeConverter" = "pciSeq/static"
+
+# Development tools configuration
+[tool.black]
+line-length = 88
+target-version = ['py38']
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=pciSeq --cov-report=term-missing" 

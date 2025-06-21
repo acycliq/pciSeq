@@ -1,0 +1,24 @@
+include README.md
+include LICENSE
+include pciSeq/_version.py
+
+# Include static files
+recursive-include pciSeq/static *.html
+recursive-include pciSeq/static *.js
+recursive-include pciSeq/static *.css
+recursive-include pciSeq/static *.msi
+recursive-include pciSeq/static *.so
+recursive-include pciSeq/static *.json
+recursive-include pciSeq/static PotreeConverter
+
+# Include data files
+recursive-include pciSeq/data *
+recursive-include tests/data *
+
+# Exclude development files
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude __pycache__
+global-exclude .git*
+global-exclude .DS_Store
+global-exclude *.egg-info 
