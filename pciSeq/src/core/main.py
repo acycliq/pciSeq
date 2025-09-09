@@ -76,6 +76,7 @@ from .summary import collect_data
 # from .analysis import CellExplorer
 from .utils import ops_utils as utils
 from .utils import visualisation
+from .utils.geometry import anisotropy_calc
 from ...src.diagnostics.controller.diagnostic_controller import DiagnosticController
 import joblib
 
@@ -175,6 +176,7 @@ class VarBayes:
         self.cellTypes.ini_prior()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
         self.genes.init_eta(self.config['rGene'], self.config['rGene'])
+        self.genes.init_depth_adjustment(self.spots)
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.cells._ini_gene_counts = np.bincount(self.spots.data.label.values, minlength=self.nC)
@@ -377,10 +379,20 @@ class VarBayes:
         cells = self.cells
         cfg = self.config
 
+        cell_coords = anisotropy_calc(cells.centroid, voxel_size=self.config['voxel_size'], inverse=True)
+        z = np.floor(cell_coords[1:,-1]).astype(np.int32)
+        w = self.genes.depth_adj[z]
+        w = np.vstack([np.ones(self.nG), w])
+
         self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
                                                     self.single_cell.mean_expression_adj.values))
 
-        beta = self.scaled_exp.compute() * self.genes.eta_bar[:, None] + cfg['rSpot']
+        beta = (np.einsum('cgk,g,cg->cgk',
+                          self.scaled_exp.compute(),
+                          self.genes.eta_bar,
+                           w)
+                 + cfg['rSpot'])
+        # beta = self.scaled_exp.compute() * self.genes.eta_bar[:, None] + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
         self.spots._log_gamma_bar = delayed(self.spots.logGammaExpectation(rho, beta))
@@ -401,9 +413,18 @@ class VarBayes:
             3. Softmax normalization for final probabilities
         """
 
-        ScaledExp = (np.einsum('cgk,g->cgk',
+        # get the weight per plane
+        cell_coords = anisotropy_calc(self.cells.centroid, voxel_size=self.config['voxel_size'], inverse=True)
+        z = np.floor(cell_coords[1:,-1]).astype(np.int32)
+        w = self.genes.depth_adj[z]
+        w = np.vstack([np.ones(self.nG), w])
+
+
+
+        ScaledExp = (np.einsum('cgk,g,cg->cgk',
                                self.scaled_exp.compute(),
-                               self.genes.eta_bar)
+                               self.genes.eta_bar,
+                               w)
                      + self.config['SpotReg'])
         # ScaledExp = self.scaled_exp.compute() * self.genes.eta_bar + self.config['SpotReg']
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
@@ -441,6 +462,9 @@ class VarBayes:
         nN = self.nN
         nS = self.spots.data.gene_name.shape[0]
 
+        # cell coords, (x, y, plane_num)
+        cell_coords = anisotropy_calc(self.cells.centroid, voxel_size=self.config['voxel_size'], inverse=True)
+
         wSpotCell = np.zeros([nS, nN], dtype=np.float64)
         gn = self.spots.data.gene_name.values
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
@@ -463,6 +487,14 @@ class VarBayes:
             # get the respective cell type probabilities
             cp = self.cells.classProb[sn]
 
+            # find the plane id of the spot's parent cell
+            z = np.floor(cell_coords[:,-1]).astype(np.int64)
+            plane_num = z[sn]
+
+            # get the depth adjustment for the spot evaluated at its parent cell plane
+            log_w = np.log(self.genes.depth_adj[plane_num, self.spots.gene_id])
+
+
             # multiply and sum over cells. In practice this means that when high expected counts
             # are aligned with high cell class probs this term will be high
             term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
@@ -474,7 +506,7 @@ class VarBayes:
 
             # wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik[:, n]
             mvn_loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
-            wSpotCell[:, n] = term_1 + term_2 + mvn_loglik
+            wSpotCell[:, n] = term_1 + term_2 + mvn_loglik + log_w
             mvn_loglik_arr[:, n] = mvn_loglik
             attention[:, n] = term_1
             expr_fluctuations[:, n] = term_2
@@ -566,6 +598,8 @@ class VarBayes:
         #     'The sum of the background spots and the total gene counts should be equal to the number of spots'
 
         classProb = self.cells.classProb
+        cell_coords = anisotropy_calc(self.cells.centroid, voxel_size=self.config['voxel_size'], inverse=True)
+        cell_plane = np.floor(cell_coords[1:, -1]).astype(np.int32)
         mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
@@ -574,16 +608,21 @@ class VarBayes:
         zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
         # zero_class_counts = oe.contract('c, cg -> g', classProb[:, -1], self.cells.geneCount, optimize='optimal')
 
+        w = self.genes.depth_adj[cell_plane]
+        w = np.vstack([np.ones(self.nG), w])
+
+
         # Calcs the sum in the Gamma distribution (equation 5). The zero class
         # is excluded from the sum, hence the arrays in the einsum below stop at :-1
         # Note. We should exclude the "cell" that is meant to keep the
         # misreads, ie exclude the background, hence the relevant indexing below
         # starts at 1
-        class_total_counts = oe.contract('ck, gk, c, cgk -> g',
+        expected_counts = oe.contract('ck, gk, c, cgk, cg -> g',
                                          classProb[:, :-1],
                                          mu.values[:, :-1],
                                          area_factor,
-                                         gamma_bar[:, :, :-1], optimize='optimal')
+                                         gamma_bar[:, :, :-1],
+                                         w, optimize='optimal')
         # background_counts = self.cells.background_counts
         background_counts = np.bincount(self.spots.gene_id, self.spots.parent_cell_prob[:, -1], minlength=self.nG)
 
@@ -591,7 +630,7 @@ class VarBayes:
         observed = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
 
         # expected (ie predicted) gene reads per gene
-        expected = self.config['rGene'] + class_total_counts
+        expected = self.config['rGene'] + expected_counts
 
         # Finally, update gene_gamma. It will basically divide observed by expected
         # and gene inefficiency will eventually express how well a gene is detected.

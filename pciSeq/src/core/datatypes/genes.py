@@ -45,6 +45,10 @@ class Genes(object):
         self._misread_density = None
         self.config = config
 
+        # This will be the plane inefficiency. An array of shape [nG, n_planes]. For now it is set to 1.
+        self._depth_adj = None #np.ones([self.config['img_dim']['n_planes'], self.nG], dtype=np.float32)
+
+
     @property
     def eta_bar(self):
         """Returns the eta bar values for genes."""
@@ -73,6 +77,11 @@ class Genes(object):
         and are also on the background
         """
         return self._misread_density
+
+    @property
+    def depth_adj(self):
+        """Returns the depth adjustment array."""
+        return self._depth_adj
 
     def init_eta(self, a, b):
         """
@@ -164,6 +173,28 @@ class Genes(object):
         misread_dict.pop('default', None)
 
         return pd.Series(misread_dict)
+
+    def init_depth_adjustment(self, spots):
+        data = spots.data.assign(gene_id = spots.gene_id)
+
+        df = data.groupby(["plane_id", "gene_id"]).size().reset_index(name="count")
+        pvt = df.pivot(index="plane_id", columns="gene_id", values="count").fillna(0)
+        pvt = pvt.reindex(index=np.arange(self.config['img_dim']['n_planes']), fill_value=0)
+
+        arr = pvt.to_numpy()                     # num_planes x num_genes
+        # row_sums = pvt.sum(axis=0).to_numpy()
+        row_means = pvt.mean(axis=0).to_numpy()
+
+        den = row_means
+
+        out = np.divide(
+            arr, den,
+            out=np.zeros_like(arr, dtype=np.float32),
+            where=den != 0
+        )
+        regularisation_factor = out[out>0].min() / 20
+        self._depth_adj = out + regularisation_factor # num_planes x num_genes
+
 
     # def misread_mask(self, spots, cells, threshold=3.0):
     #     mid_plane = self.config['img_dim']['n_planes'] // 2
