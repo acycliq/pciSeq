@@ -76,7 +76,7 @@ from .summary import collect_data
 # from .analysis import CellExplorer
 from .utils import ops_utils as utils
 from .utils import visualisation
-from .utils.geometry import anisotropy_calc
+# from .utils.geometry import anisotropy_calc
 from ...src.diagnostics.controller.diagnostic_controller import DiagnosticController
 import joblib
 
@@ -155,7 +155,7 @@ class VarBayes:
         self.cells = Cells(cells_df, self.config)
         self.spots = Spots(spots_df, self.config)
         self.genes = Genes(self.spots, self.config)
-        self.single_cell = SingleCell(scRNAseq, self.genes.gene_panel, self.config)
+        self.single_cell = SingleCell(scRNAseq, self.genes.gene_panel, self.spots, self.config)
         self.cellTypes = CellClass(self.single_cell, self.config)
         self.cells.class_names = self.single_cell.classes
 
@@ -176,7 +176,7 @@ class VarBayes:
         self.cellTypes.ini_prior()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
         self.genes.init_eta(self.config['rGene'], self.config['rGene'])
-        self.genes.init_depth_adjustment(self.spots)
+        # self.genes.init_depth_adjustment(self.spots)
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.cells._ini_gene_counts = np.bincount(self.spots.data.label.values, minlength=self.nC)
@@ -379,18 +379,27 @@ class VarBayes:
         cells = self.cells
         cfg = self.config
 
-        cell_coords = anisotropy_calc(cells.centroid, voxel_size=self.config['voxel_size'], inverse=True)
-        z = np.floor(cell_coords[1:,-1]).astype(np.int32)
-        w = self.genes.depth_adj[z]
-        w = np.vstack([np.ones(self.nG), w])
+        # # apply the reverse anisotropy correction to the cell coordinates to get the plane
+        # cell_coords = anisotropy_calc(cells.centroid.values, voxel_size=self.config['voxel_size'], inverse=True)
+        #
+        # # ignore position 0, it is the background. The last position is the plane number
+        # z = np.floor(cell_coords[1:,-1]).astype(np.int32)
+        #
+        # # get the (plane-indexed) mean expression values for each cell
+        # mean_expression_adj = self.single_cell.mean_expression_adj[z].values
+        #
+        # # for the background use the mean expression without plane adjustment
+        # zero_cell_expr = self.single_cell.mean_expression * self.config['Inefficiency']
+        #
+        # # stack it at the beginning of the array
+        # mean_expression_adj = np.vstack([zero_cell_expr.values[None, :, :], mean_expression_adj]) # nC x nG x nK
+        mean_expression_adj = utils.get_mean_expression_adj(self.single_cell, cells, cfg)
 
-        self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
-                                                    self.single_cell.mean_expression_adj.values))
+        self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'], mean_expression_adj))
 
-        beta = (np.einsum('cgk,g,cg->cgk',
+        beta = (np.einsum('cgk,g->cgk',
                           self.scaled_exp.compute(),
-                          self.genes.eta_bar,
-                           w)
+                          self.genes.eta_bar)
                  + cfg['rSpot'])
         # beta = self.scaled_exp.compute() * self.genes.eta_bar[:, None] + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
@@ -413,18 +422,9 @@ class VarBayes:
             3. Softmax normalization for final probabilities
         """
 
-        # get the weight per plane
-        cell_coords = anisotropy_calc(self.cells.centroid, voxel_size=self.config['voxel_size'], inverse=True)
-        z = np.floor(cell_coords[1:,-1]).astype(np.int32)
-        w = self.genes.depth_adj[z]
-        w = np.vstack([np.ones(self.nG), w])
-
-
-
-        ScaledExp = (np.einsum('cgk,g,cg->cgk',
+        ScaledExp = (np.einsum('cgk,g->cgk',
                                self.scaled_exp.compute(),
-                               self.genes.eta_bar,
-                               w)
+                               self.genes.eta_bar)
                      + self.config['SpotReg'])
         # ScaledExp = self.scaled_exp.compute() * self.genes.eta_bar + self.config['SpotReg']
         pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
@@ -463,11 +463,12 @@ class VarBayes:
         nS = self.spots.data.gene_name.shape[0]
 
         # cell coords, (x, y, plane_num)
-        cell_coords = anisotropy_calc(self.cells.centroid, voxel_size=self.config['voxel_size'], inverse=True)
+        cell_coords = utils.anisotropy_calc(self.cells.centroid.values, voxel_size=self.config['voxel_size'], inverse=True)
 
         wSpotCell = np.zeros([nS, nN], dtype=np.float64)
         gn = self.spots.data.gene_name.values
-        expected_counts = self.single_cell.log_mean_expression.loc[gn].values
+        # expected_counts = self.single_cell.log_mean_expression.loc[gn].values
+        # expected_counts = utils.get_mean_expression_adj(self.single_cell, self.cells, self.config)
         logeta_bar = self.genes.logeta_bar[self.spots.gene_id]
 
         # misread = self.spot_misread_density()
@@ -491,22 +492,20 @@ class VarBayes:
             z = np.floor(cell_coords[:,-1]).astype(np.int64)
             plane_num = z[sn]
 
-            # get the depth adjustment for the spot evaluated at its parent cell plane
-            log_w = np.log(self.genes.depth_adj[plane_num, self.spots.gene_id])
-
-
             # multiply and sum over cells. In practice this means that when high expected counts
             # are aligned with high cell class probs this term will be high
+            expected_counts = utils.get_mean_expression_adj(self.single_cell, self.cells, self.config)
+            expected_counts = expected_counts[sn, self.spots.gene_id]
             term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
 
             log_gamma_bar = self.spots.log_gamma_bar.compute()
-            log_gamma_bar = log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
+            log_gamma_bar = log_gamma_bar[sn, self.spots.gene_id]
 
             term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
 
             # wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik[:, n]
             mvn_loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
-            wSpotCell[:, n] = term_1 + term_2 + mvn_loglik + log_w
+            wSpotCell[:, n] = term_1 + term_2 + mvn_loglik
             mvn_loglik_arr[:, n] = mvn_loglik
             attention[:, n] = term_1
             expr_fluctuations[:, n] = term_2
@@ -598,9 +597,8 @@ class VarBayes:
         #     'The sum of the background spots and the total gene counts should be equal to the number of spots'
 
         classProb = self.cells.classProb
-        cell_coords = anisotropy_calc(self.cells.centroid, voxel_size=self.config['voxel_size'], inverse=True)
-        cell_plane = np.floor(cell_coords[1:, -1]).astype(np.int32)
-        mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
+        mu = utils.get_mean_expression_adj(self.single_cell, self.cells, self.config) + self.config['SpotReg']
+        # mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
 
@@ -608,21 +606,16 @@ class VarBayes:
         zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
         # zero_class_counts = oe.contract('c, cg -> g', classProb[:, -1], self.cells.geneCount, optimize='optimal')
 
-        w = self.genes.depth_adj[cell_plane]
-        w = np.vstack([np.ones(self.nG), w])
-
-
         # Calcs the sum in the Gamma distribution (equation 5). The zero class
         # is excluded from the sum, hence the arrays in the einsum below stop at :-1
         # Note. We should exclude the "cell" that is meant to keep the
         # misreads, ie exclude the background, hence the relevant indexing below
         # starts at 1
-        expected_counts = oe.contract('ck, gk, c, cgk, cg -> g',
+        expected_counts = oe.contract('ck, cgk, c, cgk -> g',
                                          classProb[:, :-1],
-                                         mu.values[:, :-1],
+                                         mu[:, :, :-1],
                                          area_factor,
-                                         gamma_bar[:, :, :-1],
-                                         w, optimize='optimal')
+                                         gamma_bar[:, :, :-1], optimize='optimal')
         # background_counts = self.cells.background_counts
         background_counts = np.bincount(self.spots.gene_id, self.spots.parent_cell_prob[:, -1], minlength=self.nG)
 
