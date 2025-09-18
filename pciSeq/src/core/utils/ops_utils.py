@@ -7,7 +7,6 @@ import logging
 import opt_einsum as oe
 from pandas import DataFrame, Series
 import matplotlib.pyplot as plt
-from .geometry import anisotropy_calc
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -433,10 +432,7 @@ def has_converged(
         p0 = np.zeros_like(p1)
 
     try:
-        arr = np.abs(p1 - p0)
-        delta = np.max(arr)
-        pos = np.unravel_index(np.argmax(arr), arr.shape) # Find its position (row, column)
-        print(pos)
+        delta = np.max(np.abs(p1 - p0))
         converged = (delta < tol)
         return converged, delta
     except Exception as e:
@@ -455,7 +451,7 @@ def scaled_exp(cell_area_factor: np.ndarray,
     Returns:
         Scaled expression array
     """
-    subscripts = 'c,cgk->cgk'
+    subscripts = 'c,gk->cgk'
     operands = [cell_area_factor, sc_mean_expressions]
 
     return oe.contract(subscripts, *operands, optimize='optimal')
@@ -507,43 +503,4 @@ def empirical_mean(spots, cells):
     # use the fitted centroids where possible otherwise use the initial ones
     xyz_bar[np.isfinite(x_bar)] = xyz_bar_fitted[np.isfinite(x_bar)]
     return pd.DataFrame(xyz_bar, columns=['x', 'y', 'z'], dtype=np.float32)
-
-
-def gene_density(spots, config) -> pd.DataFrame:
-    data = spots.data.assign(gene_id=spots.gene_id)
-
-    # Count spots per plane/gene_name and pivot
-    counts = data.groupby(["plane_id", "gene_name"]).size().unstack(fill_value=0)
-
-    # Ensure all planes are represented
-    all_planes = np.arange(config['img_dim']['n_planes'])
-    counts = counts.reindex(index=all_planes, columns=sorted(counts.columns), fill_value=0)
-
-    # Calculate means over non-zero values only
-    gene_means = counts.replace(0, np.nan).mean(axis=0)
-
-    # Normalize by gene means (density calculation)
-    density = counts.div(gene_means, axis=1).fillna(0).astype(np.float32)
-
-    return density # num_planes x num_genes
-
-
-def get_mean_expression_adj(single_cell_obj, cells_obj, config):
-    # apply the reverse anisotropy correction to the cell coordinates to get the plane
-    cell_coords = anisotropy_calc(cells_obj.centroid.values, voxel_size=config['voxel_size'], inverse=True)
-
-    # ignore position 0, it is the background. The last position is the plane number
-    z = np.floor(cell_coords[1:,-1]).astype(np.int32)
-
-    # get the (plane-indexed) mean expression values for each cell
-    mean_expression_adj = single_cell_obj.mean_expression_adj[z].values
-
-    # for the background use the mean expression without plane adjustment
-    zero_cell_expr = single_cell_obj.mean_expression * config['Inefficiency']
-
-    # stack it at the beginning of the array
-    mean_expression_adj = np.vstack([zero_cell_expr.values[None, :, :], mean_expression_adj]) # nC x nG x nK
-
-    return mean_expression_adj
-
 

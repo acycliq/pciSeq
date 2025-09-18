@@ -5,13 +5,11 @@ from typing import Tuple, Dict
 # Third party imports
 import numpy as np
 import pandas as pd
-import xarray as xr
 import scipy
 from natsort import natsort_keygen
 
 # Local imports
 from ..utils.cell_utils import read_image_objects, keep_labels_unique
-from ..utils.ops_utils import gene_density
 
 singleCell_logger = logging.getLogger(__name__)
 
@@ -29,7 +27,7 @@ class SingleCell(object):
         _log_mean_expression (pd.DataFrame): Log mean expression levels.
     """
 
-    def __init__(self, scdata: pd.DataFrame, genes: np.ndarray, spots, config: Dict):
+    def __init__(self, scdata: pd.DataFrame, genes: np.ndarray, config: Dict):
         """
         Initializes the SingleCell object with single-cell data and configuration.
 
@@ -43,11 +41,9 @@ class SingleCell(object):
         # try to estimate them
         # self.raw_data = self._raw_data(scdata, genes)
         self.config = config
-        self.spots = spots
-        self._mean_expression_adj, self._log_mean_expression_adj, self._mean_expression = self._setup(scdata, genes, self.config)
+        self._mean_expression_adj, self._log_mean_expression_adj = self._setup(scdata, genes, self.config)
 
-
-    def _setup(self, scdata: pd.DataFrame, genes: np.ndarray, config: Dict) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def _setup(self, scdata: pd.DataFrame, genes: np.ndarray, config: Dict) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Sets up the mean and log mean expression levels.
 
@@ -73,29 +69,29 @@ class SingleCell(object):
 
         # get the mean (and log-mean) expression data by cell type.
         # Figures have been scaled by the gene inefficiency
-        me_adj, lme_adj, mean_expr = self._helper(expr.copy())
+        me_adj, lme_adj = self._helper(expr.copy())
 
-        assert me_adj.class_name.values[-1] == 'Zero', "Last column should be the Zero class"
-        assert lme_adj.class_name.values[-1] == 'Zero', "Last column should be the Zero class"
-        return me_adj.astype(np.float32), lme_adj.astype(np.float32), mean_expr.astype(np.float32)
+        assert me_adj.columns[-1] == 'Zero', "Last column should be the Zero class"
+        assert lme_adj.columns[-1] == 'Zero', "Last column should be the Zero class"
+        return me_adj.astype(np.float32), lme_adj.astype(np.float32)
 
     # -------- PROPERTIES -------- #
     @property
     def mean_expression_adj(self):
         """Returns the mean expression levels adjusted by the initial gene inefficiency."""
-        assert self._mean_expression_adj.class_name.values[-1] == 'Zero', "Last column should be the Zero class"
+        assert self._mean_expression_adj.columns[-1] == 'Zero', "Last column should be the Zero class"
         return self._mean_expression_adj
 
     @property
     def log_mean_expression(self):
         """Returns the log mean expression levels adjusted by the initial gene inefficiency."""
-        assert self._log_mean_expression_adj.class_name.values[-1] == 'Zero', "Last column should be the Zero class"
+        assert self._log_mean_expression_adj.columns[-1] == 'Zero', "Last column should be the Zero class"
         return self._log_mean_expression_adj
 
     @property
     def mean_expression(self):
         """Returns the mean gene counts per cell class"""
-        return self._mean_expression
+        return self.mean_expression_adj / self.config['Inefficiency']
 
     @property
     def genes(self):
@@ -109,7 +105,7 @@ class SingleCell(object):
     @property
     def classes(self):
         """Returns the class names."""
-        return self.mean_expression_adj.class_name.values
+        return self.mean_expression_adj.columns.values
 
     # Helper functions #
     def _set_axes(self, df):
@@ -126,7 +122,7 @@ class SingleCell(object):
         out = df.loc[:, (df != 0).any(axis=0)]
         return out
 
-    def _helper(self, expr_in):
+    def _helper(self, expr):
         """
         Helper function to process expression data.
 
@@ -138,42 +134,18 @@ class SingleCell(object):
         """
 
         # order by column name
-        expr = expr_in.copy().sort_index(axis=0).sort_index(axis=1, key=natsort_keygen(key=lambda y: y.str.lower()))
+        expr = expr.copy().sort_index(axis=0).sort_index(axis=1, key=natsort_keygen(key=lambda y: y.str.lower()))
 
         # append at the end the Zero class
         expr['Zero'] = np.zeros([expr.shape[0], 1])
-        expr = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")
+        me = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")
 
         # apply the inefficiency
-        me = expr * self.config['Inefficiency']
-
-        # plane adjustment. This is the gene density in each plane.
-        # It will be used to scale the single cell data depending on the location of the cell centroid
-        plane_adj = gene_density(self.spots, self.config)
-
-        # print("***** REMOVE THIS REMOVE THIS REMOVE THIS REMOVE THIS *****")
-        # plane_adj = np.ones(plane_adj.shape) # REMOVE THIS REMOVE THIS REMOVE THIS REMOVE THIS
-
-        # if an element is zero, set it to 1. Effectively that means that if the gene is not present on that plane,
-        # then dont make any adjustment to the single cell data
-        plane_adj[plane_adj == 0] = 1
-
-        me = np.einsum('gk,pg->pgk', me, plane_adj)
-
-        me = xr.DataArray(
-            me,
-            dims=['plane', 'gene_name', 'class_name'],
-            coords={
-                'plane': np.arange(len(me)),
-                'gene_name': expr.index.values,
-                'class_name': expr.columns.values
-            }
-        )
-
+        me = me * self.config['Inefficiency']
 
         # log mean expression
         lme = np.log(me + self.config['SpotReg'])
-        return me, lme, expr
+        return me, lme
 
     def _gene_expressions(self, fitted, scale):
         """
