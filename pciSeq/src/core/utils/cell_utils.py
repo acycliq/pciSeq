@@ -33,9 +33,9 @@ def read_image_objects(img_obj, cfg):
     out = {
         'area_factor': CellAreaFactor.astype(np.float32), 'rel_radius': relCellRadius.astype(np.float32),
         'area': np.append(np.nan, img_obj.area.astype(np.uint32)),
-        'x0': np.append(-sys.maxsize, img_obj.x0.values).astype(np.float32),
-        'y0': np.append(-sys.maxsize, img_obj.y0.values).astype(np.float32),
-        'z0': np.append(-sys.maxsize, img_obj.z0.values).astype(np.float32),
+        'x0': np.append(np.iinfo(np.int32).min, img_obj.x0.values).astype(np.float32),
+        'y0': np.append(np.iinfo(np.int32).min, img_obj.y0.values).astype(np.float32),
+        'z0': np.append(np.iinfo(np.int32).min, img_obj.z0.values).astype(np.float32),
         'cell_label': np.append(0, img_obj.label.values).astype(np.uint32)
     }
 
