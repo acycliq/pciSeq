@@ -8,6 +8,8 @@ import pandas as pd
 import scipy
 import opt_einsum as oe
 
+from ..utils.ops_utils import gene_density
+
 spots_logger = logging.getLogger(__name__)
 
 
@@ -50,6 +52,7 @@ class Spots(object):
         self._counts_per_gene = None
         [_, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True,
                                                             return_counts=True)
+        self._plane_adj = None
         self.mvn_loglik_arr = None
         self.attention = None
         self.expr_fluctuations = None
@@ -151,6 +154,10 @@ class Spots(object):
         bonus_mask[:, -1] = False
 
         return bonus_mask
+
+    @property
+    def plane_adj(self):
+        return self._plane_adj
 
     # ---------------- METHODS ---------------- #
     def read(self, spots_df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -388,4 +395,37 @@ class Spots(object):
         v = np.array(list(misread_dict.values()))
         v = v[self.gene_id]  # Align with spots
         return v
+
+
+    def calc_plane_adj(self, cells, config):
+        """
+        Returns an array of shape (nS, nN) where each row corresponds to the
+        adjustment factor that needs to be applied to the single cell data for
+        given spot and neighboring cell.
+        The experimental data are not uniformly distributed across the z-stack.
+        You might have cases where the lower planes contain very few gene reads
+        but the higher planes contain a lot of gene reads for the same gene.
+        Hence we need to adjust the single cell data for each gene depending on
+        the plane and the likely parent cell it belongs to.
+        Parameters
+        ----------
+        cells
+        config
+
+        Returns
+        -------
+
+        """
+        density = gene_density(self, config)
+
+        parent_cell_id = self.parent_cell_id
+
+        nN = self.config['nNeighbors']
+        out = np.nan * np.ones((self.nS, nN))
+        for i in range(nN):
+            plane_id = cells.plane_id[parent_cell_id[:, i]]
+            dens = density.iloc[plane_id].values
+            out[:, i] = dens[np.arange(self.nS), self.gene_id]
+
+        return out
 

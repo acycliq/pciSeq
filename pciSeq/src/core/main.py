@@ -174,9 +174,11 @@ class VarBayes:
         """
         self.cellTypes.ini_prior()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
+        self.cells._plane_adj = self.cells.calc_plane_adj(self.spots, self.config)
         self.genes.init_eta(self.config['rGene'], self.config['rGene'])
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
+        self.spots._plane_adj = self.spots.calc_plane_adj(self.cells, self.config)
         self.cells._ini_gene_counts = np.bincount(self.spots.data.label.values, minlength=self.nC)
         self.genes._misread_density = self.genes.calc_misread_density()
 
@@ -381,6 +383,10 @@ class VarBayes:
                                                     self.single_cell.mean_expression_adj.values))
 
         beta = self.scaled_exp.compute() * self.genes.eta_bar[:, None] + cfg['rSpot']
+
+        # adjust by plane depth
+        beta = np.einsum('cg,cgk->cgk', self.cells.plane_adj.values, beta)
+
         rho = cfg['rSpot'] + cells.geneCount
 
         self.spots._log_gamma_bar = delayed(self.spots.logGammaExpectation(rho, beta))
@@ -401,8 +407,9 @@ class VarBayes:
             3. Softmax normalization for final probabilities
         """
 
-        ScaledExp = (np.einsum('cgk,g->cgk',
+        ScaledExp = (np.einsum('cgk, cg, g->cgk',
                                self.scaled_exp.compute(),
+                               self.cells.plane_adj.values,
                                self.genes.eta_bar)
                      + self.config['SpotReg'])
         # ScaledExp = self.scaled_exp.compute() * self.genes.eta_bar + self.config['SpotReg']
@@ -463,9 +470,13 @@ class VarBayes:
             # get the respective cell type probabilities
             cp = self.cells.classProb[sn]
 
+            # adjust the single cell data based on the plane of the cell
+            spot_plane_adj = self.spots.plane_adj[:, n]  # shape: (nS,)
+            expected_counts_adj = expected_counts + np.log(spot_plane_adj[:, None])  # broadcast to (nS, nK)
+
             # multiply and sum over cells. In practice this means that when high expected counts
             # are aligned with high cell class probs this term will be high
-            term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
+            term_1 = np.einsum('ij, ij -> i', expected_counts_adj, cp)
 
             log_gamma_bar = self.spots.log_gamma_bar.compute()
             log_gamma_bar = log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
@@ -569,6 +580,7 @@ class VarBayes:
         mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
+        plane_adj = self.cells.plane_adj.values
 
         zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
         zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
@@ -579,9 +591,10 @@ class VarBayes:
         # Note. We should exclude the "cell" that is meant to keep the
         # misreads, ie exclude the background, hence the relevant indexing below
         # starts at 1
-        class_total_counts = oe.contract('ck, gk, c, cgk -> g',
+        class_total_counts = oe.contract('ck, gk, cg, c, cgk -> g',
                                          classProb[:, :-1],
                                          mu.values[:, :-1],
+                                         plane_adj,
                                          area_factor,
                                          gamma_bar[:, :, :-1], optimize='optimal')
         # background_counts = self.cells.background_counts

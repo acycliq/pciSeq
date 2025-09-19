@@ -504,3 +504,53 @@ def empirical_mean(spots, cells):
     xyz_bar[np.isfinite(x_bar)] = xyz_bar_fitted[np.isfinite(x_bar)]
     return pd.DataFrame(xyz_bar, columns=['x', 'y', 'z'], dtype=np.float32)
 
+
+def gene_density(spots, config) -> pd.DataFrame:
+    """
+    Calculate gene density adjustment values across imaging planes.
+
+    PROBLEM: In our pipeline gene detection efficiency varies
+    across z-planes. Some planes may have very few reads for certain genes
+    while others have abundant reads for the same genes, creating detection bias
+    that can lead to incorrect cell type classification.
+
+    SOLUTION: Compute plane-specific adjustment values for each gene by
+    comparing the gene's expression in each plane to its average expression across
+    all planes. The resulting density matrix can be used to adjust single-cell
+    expression data to account for plane-specific detection efficiency variations.
+
+    The normalization process:
+    1. Counts spots per (plane, gene) combination
+    2. Calculates mean counts per gene across planes (excluding zeros)
+    3. Normalizes each plane's counts by the gene's mean
+    4. Sets density to 1.0 for genes absent in a plane (no adjustment)
+
+    A value of 1.o means that no adjustment is applied to the single-cell data.
+    The value post-adjustment is the same as the original value
+
+    COMMENT to myself:Maybe I should also introduce a regularisation parameter too
+    """
+
+    data = spots.data.assign(gene_id=spots.gene_id)
+
+    # Count spots per plane/gene_name and pivot
+    counts = data.groupby(["plane_id", "gene_name"]).size().unstack(fill_value=0)
+
+    # Ensure all planes are represented
+    all_planes = np.arange(config['img_dim']['n_planes'])
+    counts = counts.reindex(index=all_planes, columns=sorted(counts.columns), fill_value=0)
+
+    # Calculate means over non-zero values only
+    gene_means = counts.replace(0, np.nan).mean(axis=0)
+
+    # Normalize by gene means (density calculation).
+    # if an element is zero, set it to 1. Effectively that means that if the gene is not present on that plane,
+    # then dont make any adjustment to the single cell data
+    density = counts.div(gene_means, axis=1).fillna(0).astype(np.float32)
+    density[density == 0] = 1
+
+    # print("REMOVE THIS - REMOVE THIS")
+    # density = pd.DataFrame(np.ones(density.shape)) # REMOVE THIS - REMOVE THIS
+    return density # num_planes x num_genes
+
+

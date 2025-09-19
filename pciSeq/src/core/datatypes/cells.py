@@ -13,6 +13,8 @@ import opt_einsum as oe
 
 # Local imports
 from ..utils.cell_utils import read_image_objects, keep_labels_unique
+from ..utils import ops_utils as utils
+from ..utils.geometry import anisotropy_calc
 
 cells_logger = logging.getLogger(__name__)
 
@@ -58,6 +60,7 @@ class Cells(object):
         self._background_counts = None
         self.on_planes = dict(zip(_cells_df['label'], _cells_df['values']))
         self._nb_contr = None  # placeholder for the genes' contribution to the negative binomial loglik
+        self._plane_adj = None
 
     # -------- PROPERTIES -------- #
     @property
@@ -158,6 +161,16 @@ class Cells(object):
     @nb_contr.setter
     def nb_contr(self, val):
         self._nb_contr = val
+
+    @property
+    def plane_id(self) -> np.ndarray:
+        cell_coords = anisotropy_calc(self.centroid.values, voxel_size=self.config['voxel_size'], inverse=True)
+        return np.floor(cell_coords[:,-1]).astype(np.int32)
+
+    @property
+    def plane_adj(self) -> pd.DataFrame:
+        return self._plane_adj
+
 
     # -------- METHODS -------- #
     def ini_centroids(self) -> pd.DataFrame:
@@ -260,6 +273,29 @@ class Cells(object):
         out[:, 2, 1] = agg_12
 
         return out.astype(np.float32)
+
+
+    def calc_plane_adj(self, spots, config):
+        """
+        Returns an array of shape (n_planes, n_genes) where each row
+        represents a plane and each column represents a gene. The first row
+        corresponds to the background plane (with negative plane_id) and contains
+        all 1.0 values. Subsequent rows correspond to image planes and contain
+        computed adjustment factors for the single cell data.
+        """
+
+        background_plane_id = self.plane_id[0]  # negative index for background
+        regular_plane_ids = self.plane_id[1:]   # actual plane indices
+
+        density = utils.gene_density(spots, config)
+        out = density.iloc[regular_plane_ids]
+
+        # Add background row (all 1s - no adjustment)
+        background_row = pd.DataFrame(1.0, index=[background_plane_id], columns=out.columns)
+        out = pd.concat([background_row, out], axis=0)
+
+        return out
+
 
     # -------------------------- CONVENIENCE METHODS ----------------------- #
     def gene_reads_per_class(self):
