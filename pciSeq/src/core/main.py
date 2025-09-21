@@ -401,14 +401,8 @@ class VarBayes:
             3. Softmax normalization for final probabilities
         """
 
-        ScaledExp = (np.einsum('cgk,g->cgk',
-                               self.scaled_exp.compute(),
-                               self.genes.eta_bar)
-                     + self.config['SpotReg'])
-        # ScaledExp = self.scaled_exp.compute() * self.genes.eta_bar + self.config['SpotReg']
-        pNegBin = ScaledExp / (self.config['rSpot'] + ScaledExp)
-        cgc = self.cells.geneCount
-        contr = utils.negative_binomial_loglikelihood(cgc, self.config['rSpot'], pNegBin)
+        # Get the full log-likelihood matrix using shared computation
+        contr = utils.compute_gene_loglikelihood_matrix(self)
 
         # populate the genes' contributions to the negative loglik. Property 'nb_contr' is only useful
         # for debugging, safe to remove in the future

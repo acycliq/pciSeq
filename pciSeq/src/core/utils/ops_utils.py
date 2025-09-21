@@ -95,6 +95,44 @@ def negative_binomial_loglikelihood(x: np.ndarray, r: float, q: np.ndarray) -> n
         raise ValueError("Failed to compute log-likelihood. Check input dimensions and values.")
 
 
+def compute_gene_loglikelihood_matrix(obj) -> np.ndarray:
+    """
+    Compute the full gene log-likelihood contribution matrix for all cells and cell types.
+
+    This function performs the core computation shared between cell_to_cellType and
+    calculate_genes_log_likelihood_contr, eliminating code duplication and improving performance.
+
+    Args:
+        obj: VarBayes object containing the following attributes:
+            - scaled_exp: A delayed or computed array of scaled expression values (shape: nC x nG x nK)
+            - genes.eta_bar: Gene efficiency parameters (shape: nG)
+            - config['SpotReg']: Regularization parameter for spot-level noise
+            - config['rSpot']: Dispersion parameter for the negative binomial distribution
+            - cells.geneCount: Observed gene counts for all cells (shape: nC x nG)
+
+    Returns:
+        np.ndarray: Log-likelihood contributions matrix of shape (nC, nG, nK)
+                   where element [c,g,k] is the log-likelihood contribution of
+                   gene g in cell c for cell type k
+    """
+    # Compute scaled expression (expensive operation done once)
+    scaled_means = obj.scaled_exp.compute()
+
+    # Calculate scaled expression adjusted by gene efficiency and regularization
+    ScaledExp = np.einsum('cgk,g->cgk', scaled_means, obj.genes.eta_bar) + obj.config['SpotReg']
+
+    # Calculate negative binomial probabilities
+    pNegBin = ScaledExp / (obj.config['rSpot'] + ScaledExp)
+
+    # Get gene counts for all cells
+    cgc = obj.cells.geneCount
+
+    # Calculate log-likelihood contributions for all cells
+    contr = negative_binomial_loglikelihood(cgc, obj.config['rSpot'], pNegBin)
+
+    return contr
+
+
 def calculate_genes_log_likelihood_contr(obj, label: int) -> Tuple[DataFrame, Series, DataFrame]:
     """
     Calculate the log-likelihood contributions, gene counts, and scaled expression values
@@ -125,20 +163,12 @@ def calculate_genes_log_likelihood_contr(obj, label: int) -> Tuple[DataFrame, Se
     if obj.config['label_map']:
         label = obj.config['label_map'][label]
 
-    # Compute scaled expression values for all cells
+    # Get the full log-likelihood matrix using shared computation
+    contr = compute_gene_loglikelihood_matrix(obj)
+
+    # Get scaled expression and gene counts
     scaled_means = obj.scaled_exp.compute()
-
-    # Calculate scaled expression values adjusted by gene efficiency and regularization
-    ScaledExp = np.einsum('cgk,g->cgk', scaled_means, obj.genes.eta_bar) + obj.config['SpotReg']
-
-    # Calculate negative binomial probabilities
-    pNegBin = ScaledExp / (obj.config['rSpot'] + ScaledExp)
-
-    # Get gene counts for all cells
     cgc = obj.cells.geneCount
-
-    # Calculate log-likelihood contributions for all cells
-    contr = negative_binomial_loglikelihood(cgc, obj.config['rSpot'], pNegBin)
 
     # Return values for the specified cell
     contr_df = pd.DataFrame(contr[label], columns=obj.cells.class_names).set_index(obj.genes.gene_panel)
