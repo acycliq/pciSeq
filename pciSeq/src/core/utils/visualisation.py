@@ -485,6 +485,117 @@ def make_trellis_enh3(df, highlight_label=None):
     fig.show()
 
 
+
+
+def cell_class_stacked_bar(obj, class_col='top_class'):
+    """
+    Create a stacked bar chart where:
+    - X-axis: Integer Z values
+    - Y-axis: Count of cells
+    - Stacking: Classes ordered by count (highest at bottom, lowest at top)
+    - Zero class is colored black
+    - Tooltips show individual counts (not cumulative)
+    """
+
+    from .geometry import anisotropy_calc
+
+    centroids = obj.cells.centroid.values
+    voxel_size = obj.config['voxel_size']
+    data = anisotropy_calc(centroids, voxel_size, inverse=True)
+    plane_id = data[:, -1].astype(int)
+
+    idx = np.argmax(obj.cells.classProb, axis=1)
+    cell_class = obj.cells.class_names[idx]
+
+    df = pd.DataFrame({'plane_id': plane_id,
+                       'top_class': cell_class})
+
+    # Get counts for each class at each Z level
+    z_class_counts = {}
+    for z in sorted(df['plane_id'].unique()):
+        z_data = df[df['plane_id'] == z]
+        class_counts = z_data[class_col].value_counts().to_dict()
+        z_class_counts[z] = class_counts
+
+    # Get all unique classes
+    all_classes = set()
+    for counts in z_class_counts.values():
+        all_classes.update(counts.keys())
+    all_classes = list(all_classes)
+
+    # Sort classes globally by total frequency for consistent colors
+    global_totals = {}
+    for cls in all_classes:
+        global_totals[cls] = sum(z_counts.get(cls, 0) for z_counts in z_class_counts.values())
+
+    classes_by_total = sorted(all_classes, key=lambda x: global_totals[x], reverse=True)
+
+    # Create the plot
+    fig = go.Figure()
+    z_values = sorted(z_class_counts.keys())
+
+    # Calculate cumulative heights for proper stacking
+    cumulative_data = {z: {} for z in z_values}
+
+    for z in z_values:
+        # Sort classes by count for this Z value (highest first)
+        z_counts = z_class_counts[z]
+        sorted_classes = sorted(z_counts.items(), key=lambda x: x[1], reverse=True)
+
+        cumulative = 0
+        for cls, count in sorted_classes:
+            cumulative_data[z][cls] = {
+                'bottom': cumulative,
+                'height': count
+            }
+            cumulative += count
+
+    # Add traces in the order that ensures proper stacking
+    for cls in classes_by_total:
+        y_values = []
+        base_values = []
+        hover_texts = []
+
+        for z in z_values:
+            if cls in cumulative_data[z]:
+                height = cumulative_data[z][cls]['height']
+                bottom = cumulative_data[z][cls]['bottom']
+            else:
+                height = 0
+                bottom = 0
+
+            y_values.append(height)
+            base_values.append(bottom)
+
+            # Custom hover text showing individual count
+            hover_texts.append(f"Z-Plane: {z}<br>Class: {cls}<br>Count: {height}")
+
+        if any(y > 0 for y in y_values):
+            # Set color for Zero class to black
+            color = 'black' if cls == 'Zero' else None
+
+            fig.add_trace(go.Bar(
+                x=z_values,
+                y=y_values,
+                base=base_values,
+                name=cls,
+                offsetgroup=1,
+                marker_color=color,
+                hovertemplate='%{hovertext}<extra></extra>',
+                hovertext=hover_texts
+            ))
+
+    fig.update_layout(
+        title='Cell Class Distribution by Z-Plane',
+        xaxis_title='Z-Plane (Integer)',
+        yaxis_title='Cell Count',
+        barmode='group',
+        showlegend=True,
+        height = 700
+    )
+
+    return fig
+
 # def trellis_plot(self, label, flatfile_folder):
 #
 #     cellBoundaries_tsv = os.path.join(flatfile_folder, 'cellBoundaries.tsv')

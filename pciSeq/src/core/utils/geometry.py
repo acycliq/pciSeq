@@ -235,7 +235,8 @@ def adjust_for_anisotropy(
 
 
 def anisotropy_calc(data: np.ndarray,
-                    voxel_size: Tuple[float, float, float]) -> np.ndarray:
+                    voxel_size: Tuple[float, float, float],
+                    inverse = False) -> np.ndarray:
     """Calculate anisotropic scaling for spot coordinates.
 
     Adjusts coordinates to account for different voxel dimensions in x, y, and z.
@@ -244,6 +245,7 @@ def anisotropy_calc(data: np.ndarray,
     Args:
         data: Array of shape (N, 3) containing spot coordinates [x, y, z]
         voxel_size: Physical dimensions of voxels as (x, y, z) in same units
+        inverse: If True, return the original coordinates. If False, return the scaled coordinates. Default is False.
 
     Returns:
         np.ndarray: Scaled coordinates of shape (N, 3)
@@ -269,10 +271,25 @@ def anisotropy_calc(data: np.ndarray,
         [0, 0, Sz]
     ], dtype=np.float32)
 
-    # Apply scaling: matrix multiplication then transpose back
-    # data.T converts from (N,3) to (3,N) for matrix multiplication
-    # final .T converts back to (N,3)
-    return scaling_matrix.dot(data.T).T
+    if not inverse:
+        # Apply scaling: matrix multiplication then transpose back
+        # data.T converts from (N,3) to (3,N) for matrix multiplication
+        # final .T converts back to (N,3)
+        return scaling_matrix.dot(data.T).T
+    elif inverse:
+        # does the inverse of the above.
+        # Coordinates are already scaled relative to x dimension, and
+        # we want to return the original coordinates.
+        # In most cases where the voxel size differs only on z (ie Sx=Sy but Sz!=Sx)
+        # that will be equivalent as dividing z by Sz/Sx
+        S = scaling_matrix
+        W = np.linalg.inv(S.T.dot(S)).dot(S.T)
+        return W.dot(data.T).T
+    else:
+        raise ValueError('inverse must be True or False')
+
+
+
 
 
 def get_img_shape(coo: List[coo_matrix]) -> List[int]:
