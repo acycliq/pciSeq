@@ -31,14 +31,34 @@ install_deps = ['numpy_groupies', 'pandas', 'dask', 'scipy', 'streamlit', 'altai
                 'shapely', 'alphashape', 'opt_einsum', 'plotly',
                 'numba']
 
-version = None
-with open(os.path.join('pciSeq', '_version.py'), 'r') as fid:
-    for line in (line.strip() for line in fid):
-        if line.startswith('__version__'):
-            version = line.split('=')[1].strip().strip('\'')
-            break
-if version is None:
-    raise RuntimeError('Could not determine version')
+def get_version():
+    """Get version from _version.py and append git commit hash if available."""
+    version = None
+    with open(os.path.join('pciSeq', '_version.py'), 'r') as fid:
+        for line in (line.strip() for line in fid):
+            if line.startswith('__version__'):
+                version = line.split('=')[1].strip().strip('\'')
+                break
+
+    if version is None:
+        raise RuntimeError('Could not determine version')
+
+    # Try to append git commit hash
+    try:
+        import subprocess
+        commit = subprocess.check_output(
+            ['git', 'rev-parse', '--short', 'HEAD'],
+            stderr=subprocess.DEVNULL,
+            text=True
+        ).strip()
+        version = f"{version}+g{commit}"
+    except Exception:
+        # No git or not in a git repo - use version as is
+        pass
+
+    return version
+
+version = get_version()
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
