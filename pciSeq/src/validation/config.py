@@ -1,8 +1,5 @@
 """
-Simplified configuration management for pciSeq.
-
-This module provides a simpler dict-based Config class that replaces
-the verbose 37-attribute dataclass ConfigManager.
+configuration management for pciSeq.
 """
 from typing import Dict, Any, Optional
 from pciSeq import config
