@@ -101,9 +101,6 @@ class Config(dict):
         """
         Validate all config parameters against type specifications.
 
-        Replicates the type validation from old ConfigManager which used
-        get_type_hints() on the dataclass to validate every parameter.
-
         Raises:
             TypeError: If any parameter has incorrect type
         """
