@@ -2,8 +2,7 @@ import pandas as pd
 from scipy.sparse import coo_matrix
 import numpy as np
 from typing import Tuple, Optional, Dict, Any
-from .src.validation.config_manager import ConfigManager
-from .src.validation.input_validation import InputValidator
+from .src.validation import validate_inputs
 from .src.core.main import VarBayes
 from .src.core.utils.cell_utils import recover_original_labels
 from .src.core.utils.io_utils import write_data
@@ -65,10 +64,8 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         # 1. parse/check the arguments
         spots, coo, scRNAseq, opts = parse_args(*args, **kwargs)
 
-        # 2. Create and validate config
-        cfg_man = ConfigManager.from_opts(opts)
-        cfg_man.set_runtime_attributes(coo)
-        spots, coo, scdata, cfg = InputValidator.validate(spots, coo, scRNAseq, cfg_man)
+        # 2. Validate all inputs (spots, coo, scRNA, config)
+        spots, coo, scdata, cfg = validate_inputs(spots, coo, scRNAseq, opts)
 
         # 3. Use validated inputs and prepare the data
         app_logger.info('Preprocessing data')
