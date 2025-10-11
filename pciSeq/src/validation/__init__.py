@@ -51,25 +51,6 @@ def validate_inputs(
     Raises:
         TypeError: If inputs have incorrect types
         ValueError: If inputs have invalid values or structure
-
-    Example:
-        >>> import pandas as pd
-        >>> from scipy.sparse import coo_matrix
-        >>>
-        >>> # Prepare inputs
-        >>> spots = pd.DataFrame({
-        ...     'gene_name': ['Gad1', 'Slc17a7'],
-        ...     'x': [100.5, 200.3],
-        ...     'y': [150.2, 250.8],
-        ... })
-        >>> label_image = coo_matrix(...)  # Your segmentation
-        >>> scdata = pd.read_csv('reference.csv', index_col=0)
-        >>>
-        >>> # Validate everything
-        >>> spots, coo, scdata, cfg = validate_inputs(
-        ...     spots, label_image, scdata,
-        ...     opts={'max_iter': 500, 'nNeighbors': 10}
-        ... )
     """
     # Step 1: Create and configure Config
     config = Config(opts)
@@ -80,5 +61,5 @@ def validate_inputs(
     return validator.validate_all()
 
 
-# Convenience imports for backward compatibility
-__all__ = ['validate_inputs', 'Config', 'Validator']
+# Convenience imports
+__all__ = ['validate_inputs']
