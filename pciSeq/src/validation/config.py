@@ -11,6 +11,36 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+# Type specifications for validation
+_TYPE_SPECS = {
+    'exclude_genes': list,
+    'max_iter': int,
+    'CellCallTolerance': float,
+    'rGene': int,
+    'Inefficiency': float,
+    'InsideCellBonus': (bool, int, float),
+    'MisreadDensity': (float, dict),
+    'cell_centroid_prior': (int, float, dict),
+    'cell_cov_prior': (int, float, dict),
+    'SpotReg': float,
+    'nNeighbors': int,
+    'rSpot': (int, float),
+    'save_data': bool,
+    'output_path': str,
+    'launch_viewer': (bool, str),
+    'launch_diagnostics': bool,
+    'is_redis_running': bool,
+    'cell_radius': (type(None), float),
+    'cell_type_prior': str,
+    'voxel_size': list,
+    'exclude_planes': (type(None), list),
+    'is3D': (type(None), bool),
+    'remove_flat_cells': bool,
+    'mean_gene_counts_per_class': int,
+    'mean_gene_counts_per_cell': int,
+}
+
+
 class Config(dict):
     """
     Simple dict-based configuration with validation.
@@ -32,6 +62,9 @@ class Config(dict):
         Args:
             user_opts: Optional dictionary of user configuration overrides.
                       Unknown keys will generate warnings but won't fail.
+
+        Raises:
+            TypeError: If any config parameter has incorrect type
         """
         # Start with defaults
         super().__init__(config.DEFAULT.copy())
@@ -39,6 +72,9 @@ class Config(dict):
         # Merge user options
         if user_opts:
             self._merge_user_opts(user_opts)
+
+        # Validate types
+        self._validate_types()
 
         # Setup logging
         self._setup_logging()
@@ -62,6 +98,39 @@ class Config(dict):
                 logger.warning(
                     f"Unrecognized config key: '{key}'. "
                     f"Valid keys: {', '.join(sorted(valid_keys))}"
+                )
+
+    def _validate_types(self) -> None:
+        """
+        Validate all config parameters against type specifications.
+
+        Replicates the type validation from old ConfigManager which used
+        get_type_hints() on the dataclass to validate every parameter.
+
+        Raises:
+            TypeError: If any parameter has incorrect type
+        """
+        for param_name, allowed_types in _TYPE_SPECS.items():
+            # Skip if not in config (runtime params set later)
+            if param_name not in self:
+                continue
+
+            value = self[param_name]
+
+            # Normalize to tuple for isinstance()
+            if not isinstance(allowed_types, tuple):
+                allowed_types = (allowed_types,)
+
+            # Check type
+            if not isinstance(value, allowed_types):
+                # Format error message
+                type_names = ' or '.join(
+                    t.__name__ if hasattr(t, '__name__') else str(t)
+                    for t in allowed_types
+                )
+                raise TypeError(
+                    f"Config parameter '{param_name}' must be {type_names}, "
+                    f"got {type(value).__name__}"
                 )
 
     def _setup_logging(self) -> None:
