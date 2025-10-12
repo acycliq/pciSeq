@@ -218,11 +218,11 @@ def write_arrow(geneData:pd.DataFrame, cellData:pd.DataFrame, cellBoundaries:pd.
     # boundaries_to_arrow_old(cellBoundaries, out_dir)
     # io_utils_logger.info('boundaries_to_arrow_old - Ending')
 
-    io_utils_logger.info('boundaries_to_arrow - Starting')
+    # io_utils_logger.info('boundaries_to_arrow - Starting')
     boundaries_to_arrow(cellBoundaries, out_dir)
-    io_utils_logger.info('boundaries_to_arrow - Ending')
+    # io_utils_logger.info('boundaries_to_arrow - Ending')
 
-    io_utils_logger.info('Saved at %s', os.path.join(out_dir, 'cellBoundaries.tsv'))
+    # io_utils_logger.info('Saved at %s', os.path.join(out_dir, 'cellBoundaries.tsv'))
 
 
 def geneData_to_arrow(df_in: pd.DataFrame, out_dir: str = None) -> None:
@@ -296,7 +296,8 @@ def geneData_to_arrow(df_in: pd.DataFrame, out_dir: str = None) -> None:
     # Write gene dictionary (id -> name) using data collected during chunking
     (out_dir / "gene_dict.json").write_text(json.dumps(gene_dict_data, indent=2))
 
-    io_utils_logger.info(f"Saved {total_rows} rows in {len(shards)} shards at {out_dir}")
+    # io_utils_logger.info(f"Saved {total_rows} rows in {len(shards)} shards at {out_dir}")
+    io_utils_logger.info(f"Saved at {out_dir}")
 
 
 
@@ -357,7 +358,8 @@ def cellData_to_arrow(df_in: pd.DataFrame, out_dir: str = None) -> None:
     manifest = {"format": "arrow-feather", "total_rows": int(total_rows), "shards": shards}
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
 
-    io_utils_logger.info(f"Saved {total_rows} rows in {len(shards)} shards at {out_dir}")
+    # io_utils_logger.info(f"Saved {total_rows} rows in {len(shards)} shards at {out_dir}")
+    io_utils_logger.info(f"Saved at {out_dir}")
 
 
 def parse_coords(cell: str) -> List[Tuple[float, float]]:
@@ -658,7 +660,8 @@ def boundaries_to_arrow(dfs_in: List[pd.DataFrame], out_dir: str, compression: s
         "shards": sorted(shards, key=lambda s: s['plane']),  # Sort shards by plane number
     }
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
-    io_utils_logger.info(f"Done. Total polys: {total_polys}. Total points: {total_points}. Files: {len(shards)}. Output: {out_dir}")
+    # io_utils_logger.info(f"Done. Total polys: {total_polys}. Total points: {total_points}. Files: {len(shards)}. Output: {out_dir}")
+    io_utils_logger.info(f"Saved at: {out_dir}")
 
 
 
