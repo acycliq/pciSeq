@@ -214,9 +214,9 @@ def write_tsv(cellData: pd.DataFrame, geneData: pd.DataFrame, cellBoundaries: pd
 def write_arrow(geneData:pd.DataFrame, cellData:pd.DataFrame, cellBoundaries:pd.DataFrame, out_dir: str = None) -> None:
     geneData_to_arrow(geneData, out_dir)
     cellData_to_arrow(cellData, out_dir)
-    io_utils_logger.info('boundaries_to_arrow_XXX - Starting')
-    boundaries_to_arrow_XXX(cellBoundaries, out_dir)
-    io_utils_logger.info('boundaries_to_arrow_XXX - Ending')
+    # io_utils_logger.info('boundaries_to_arrow_old - Starting')
+    # boundaries_to_arrow_old(cellBoundaries, out_dir)
+    # io_utils_logger.info('boundaries_to_arrow_old - Ending')
 
     io_utils_logger.info('boundaries_to_arrow - Starting')
     boundaries_to_arrow(cellBoundaries, out_dir)
@@ -399,7 +399,7 @@ def validate_df_structure(df):
     except Exception as e:
         raise SystemExit(f"validation failed: {e}")
 
-def boundaries_to_arrow_XXX(df_in: pd.DataFrame, out_dir: str = None) -> None:
+def boundaries_to_arrow_old(df_in: pd.DataFrame, out_dir: str = None) -> None:
     out_dir = Path(out_dir) / "arrow" / 'arrow_boundaries'
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -588,30 +588,41 @@ def boundaries_to_arrow(dfs_in: List[pd.DataFrame], out_dir: str, compression: s
     ])
 
     # Process each DataFrame in the input list
-    for df_plane in dfs_in:
-        if df_plane.empty:
-            continue
-
+    for idx, df_plane in enumerate(dfs_in):
         # Check for required columns
         required_cols = ['plane_id', 'cell_id', 'coords']
         if not all(col in df_plane.columns for col in required_cols):
-            print("Warning: A DataFrame is missing required columns. Skipping.")
+            io_utils_logger.info("Warning: A DataFrame is missing required columns. Skipping.")
             continue
 
-        # Get the plane ID from the first row of the DataFrame
-        current_plane_id = int(df_plane['plane_id'].iloc[0])
+        # Get the plane ID - use index as fallback for empty DataFrames
+        if df_plane.empty:
+            # Empty plane - use the list index as plane_id
+            current_plane_id = idx
+        else:
+            # Non-empty plane - get plane_id from first row
+            current_plane_id = int(df_plane['plane_id'].iloc[0])
+
+            # Validate: plane_id from data should match list index
+            if current_plane_id != idx:
+                raise ValueError(
+                    f"Plane ID mismatch: DataFrame at index {idx} has plane_id={current_plane_id}. "
+                    f"Expected plane_id to match index. Check that dfs_in is ordered correctly by plane."
+                )
+
         shard_name = f"boundaries_plane_{current_plane_id:02d}.feather"
 
-        # Filter out rows with empty coordinate lists
-        df_plane = df_plane.copy()
-        df_plane = df_plane[df_plane["coords"].str.len() > 0]
+        # Filter out rows with empty coordinate lists (skip if already empty)
+        if not df_plane.empty:
+            df_plane = df_plane.copy()
+            df_plane = df_plane[df_plane["coords"].str.len() > 0]
 
         if df_plane.empty:
             # If plane has no valid polygons, write an empty Feather file
             empty_table = schema.empty_table()
             feather.write_feather(empty_table, (out_dir / shard_name).as_posix(), compression=comp)
             shards.append({"url": shard_name, "rows": 0, "plane": current_plane_id})
-            print(f"Wrote empty shard {shard_name} for plane {current_plane_id}")
+            # io_utils_logger.info(f"Wrote empty shard {shard_name} for plane {current_plane_id}")
             continue
 
         # Prepare data for Arrow, using the 'coords' column directly
