@@ -85,6 +85,10 @@ class SingleCell(object):
     @property
     def log_mean_expression(self):
         """Returns the log mean expression levels adjusted by the initial gene inefficiency."""
+        """Note: this is redundant in the current implementation where we adjust the mean expression levels 
+        by the plane depth. The log of the single cell data is used in the code only once: in the gaussian loglikehood. 
+        We construct the log of the mean expression in the spot-to-cell step, hence this property isnt needed.
+        """
         assert self._log_mean_expression_adj.columns[-1] == 'Zero', "Last column should be the Zero class"
         return self._log_mean_expression_adj
 

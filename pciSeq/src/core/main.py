@@ -382,10 +382,10 @@ class VarBayes:
         self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
                                                     self.single_cell.mean_expression_adj.values))
 
-        beta = self.scaled_exp.compute() * self.genes.eta_bar[:, None] + cfg['rSpot']
-
-        # adjust by plane depth
-        beta = np.einsum('cg,cgk->cgk', self.cells.plane_adj.values, beta)
+        # adjust by plane depth and gene inefficiency
+        beta = (np.einsum('cgk,cg,g->cgk',
+                         self.scaled_exp.compute(), self.cells.plane_adj.values, self.genes.eta_bar)
+                + cfg['rSpot'])
 
         rho = cfg['rSpot'] + cells.geneCount
 
