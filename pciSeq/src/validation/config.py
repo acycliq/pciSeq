@@ -35,6 +35,7 @@ _TYPE_SPECS = {
     'remove_flat_cells': bool,
     'mean_gene_counts_per_class': int,
     'mean_gene_counts_per_cell': int,
+    'plane_adj': bool,
 }
 
 

@@ -600,9 +600,11 @@ def gene_density(spots, config) -> pd.DataFrame:
     # density = density + 0.00001
     # density[density == 0] = 1
 
+    if not config['plane_adj']:
+        # if you don't want to apply plane-specific adjustments, set all values to 1.0
+        # Review this, can be rewritten in a more elegant way
+        density = pd.DataFrame(np.ones(density.shape))
 
-    # print("REMOVE THIS - REMOVE THIS")
-    # density = pd.DataFrame(np.ones(density.shape)) # REMOVE THIS - REMOVE THIS
     return density  # num_planes x num_genes
 
 
