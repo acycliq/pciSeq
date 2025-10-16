@@ -287,7 +287,7 @@ class Cells(object):
         background_plane_id = self.plane_id[0]  # negative index for background
         regular_plane_ids = self.plane_id[1:]   # actual plane indices
 
-        density = utils.gene_density(spots)
+        density = utils.gene_density(spots, config)
         out = density.iloc[regular_plane_ids]
 
         # Add background row (all 1s - no adjustment)

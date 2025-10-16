@@ -416,7 +416,7 @@ class Spots(object):
         -------
         out: array of shape (nS, nN)
         """
-        density = gene_density(self)
+        density = gene_density(self, config)
 
         parent_cell_id = self.parent_cell_id
 

@@ -539,7 +539,7 @@ def empirical_mean(spots, cells):
     return pd.DataFrame(xyz_bar, columns=['x', 'y', 'z'], dtype=np.float32)
 
 
-def gene_density(spots, n_bins=None) -> pd.DataFrame:
+def gene_density(spots, config) -> pd.DataFrame:
     """
     Calculate gene density adjustment values across imaging planes.
 
@@ -566,36 +566,37 @@ def gene_density(spots, n_bins=None) -> pd.DataFrame:
     """
 
     data = spots.data.assign(gene_id=spots.gene_id)
-    n_planes = int(data.plane_id.nunique())
-
-    # each plane as bin if n_bins is None
-    _n_bins = n_planes if n_bins is None else int(n_bins)
-
-    min_plane = data.plane_id.min()
+    n_planes = int(config['img_dim']['n_planes'])
 
     # assign bins (even width across planes)
     data = data.assign(
-        # bin_id=(data.plane_id * _n_bins) // n_planes
-        bin_id = ((data.plane_id - min_plane) * _n_bins) // n_planes
-
+        bin_id = data.plane_id.astype(np.int32)
     )
 
     # Count spots per plane/gene_name and pivot
     counts = data.groupby(["bin_id", "gene_name"]).size().unstack(fill_value=0)
 
-    # smooth counts across bins (per gene) ----
+    # make sure the index has all the planes
+    counts = counts.reindex(index=np.arange(n_planes), fill_value=0)
+
+    # smooth counts across bins (per gene)
     counts = lowess(counts, frac=0.25, it=1)
 
+    # smoothing can possibly create negative values, set them to 0
+    counts[counts <= 0.0] = 0
+
+    # find the mean across planes for each gene
     gene_means = counts.replace(0, np.nan).mean(axis=0)
 
     density = counts.div(gene_means, axis=1).fillna(0).astype(np.float32)
     density.index.name = "bin_id"
 
-    df = pd.DataFrame({
-        'plane_id': np.arange(n_planes),
-        'bin_id': (np.arange(n_planes) * _n_bins) // n_planes
-    })
-    density = density.merge(df, how='left', on=['bin_id']).drop(columns=['bin_id', 'plane_id'])
+    # df = pd.DataFrame({
+    #     'plane_id': np.arange(n_planes),
+    #     'bin_id': data.plane_id.astype(np.int32)
+    # })
+    # density = density.merge(df, how='left', on=['bin_id']).drop(columns=['bin_id', 'plane_id'])
+    #
     # density = density + 0.00001
     # density[density == 0] = 1
 
