@@ -443,7 +443,7 @@ class VarBayes:
 
         wSpotCell = np.zeros([nS, nN], dtype=np.float64)
         gn = self.spots.data.gene_name.values
-        expected_counts = self.single_cell.log_mean_expression.loc[gn].values
+        # expected_counts = self.single_cell.log_mean_expression.loc[gn].values
         logeta_bar = self.genes.logeta_bar[self.spots.gene_id]
 
         # misread = self.spot_misread_density()
@@ -463,9 +463,15 @@ class VarBayes:
             # get the respective cell type probabilities
             cp = self.cells.classProb[sn]
 
-            # adjust the single cell data based on the plane of the cell
+            # # adjust the single cell data based on the plane of the cell
+            # spot_plane_adj = self.spots.plane_adj[:, n]  # shape: (nS,)
+            # expected_counts_adj = expected_counts + np.log(spot_plane_adj[:, None])  # broadcast to (nS, nK)
+
+            # get the plane adj for the gene read and the candidate parent cell
             spot_plane_adj = self.spots.plane_adj[:, n]  # shape: (nS,)
-            expected_counts_adj = expected_counts + np.log(spot_plane_adj[:, None])  # broadcast to (nS, nK)
+
+            # adjust the single cell data (based on the plane of the cell)
+            expected_counts_adj = np.log(self.single_cell.mean_expression_adj.loc[gn] * spot_plane_adj[:,None] + self.config['SpotReg'])
 
             # multiply and sum over cells. In practice this means that when high expected counts
             # are aligned with high cell class probs this term will be high
