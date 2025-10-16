@@ -171,7 +171,7 @@ DEFAULT = {
     # Runtime attribute (automatically set during execution)
     'is3D': None,
 
-    'plane_adj': True,
+    'plane_adj': False,
 
     # *******************************************************************************
     # Hyperparameters below come into action **ONLY** if single cell data are missing
