@@ -51,6 +51,7 @@ def read_image_objects(img_obj, cfg):
 def recover_original_labels(cellData: pd.DataFrame,
                             geneData: pd.DataFrame,
                             cellBoundaries: pd.DataFrame,
+                            cellBoundaries_list: pd.DataFrame,
                             label_map: Optional[Dict[int, int]]) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Restore original cell labels using label mapping.
 
@@ -70,7 +71,7 @@ def recover_original_labels(cellData: pd.DataFrame,
 
     # Update cell numbers
     cellData = cellData.assign(
-        Cell_Num=cellData.Cell_Num.map(lambda x: reverse_map.get(x, x))
+        Cell_Num=cellData.Cell_Num.map(lambda x: reverse_map.get(x))
     )
 
     # Update gene data neighbors
@@ -80,11 +81,13 @@ def recover_original_labels(cellData: pd.DataFrame,
     )
 
     cellBoundaries = cellBoundaries.assign(
-        cell_id=cellBoundaries.cell_id.map(lambda x: reverse_map.get(x, x))
+        cell_id=cellBoundaries.cell_id.map(lambda x: reverse_map.get(x))
     )
 
+    cellBoundaries_list = [d.assign(cell_id=d.cell_id.map(lambda x: reverse_map.get(x))) for d in cellBoundaries_list]
+
     cell_utils_logger.info("Restored original cell segmentation labels")
-    return cellData, geneData, cellBoundaries
+    return cellData, geneData, cellBoundaries, cellBoundaries_list
 
 
 def fetch_label(x: Union[Number, List[Number]],

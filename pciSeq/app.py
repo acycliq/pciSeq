@@ -2,8 +2,7 @@ import pandas as pd
 from scipy.sparse import coo_matrix
 import numpy as np
 from typing import Tuple, Optional, Dict, Any
-from .src.validation.config_manager import ConfigManager
-from .src.validation.input_validation import InputValidator
+from .src.validation import validate_inputs
 from .src.core.main import VarBayes
 from .src.core.utils.cell_utils import recover_original_labels
 from .src.core.utils.io_utils import write_data
@@ -65,14 +64,12 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         # 1. parse/check the arguments
         spots, coo, scRNAseq, opts = parse_args(*args, **kwargs)
 
-        # 2. Create and validate config
-        cfg_man = ConfigManager.from_opts(opts)
-        cfg_man.set_runtime_attributes(coo)
-        spots, coo, scdata, cfg = InputValidator.validate(spots, coo, scRNAseq, cfg_man)
+        # 2. Validate all inputs (spots, coo, scRNA, config)
+        spots, coo, scdata, cfg = validate_inputs(spots, coo, scRNAseq, opts)
 
         # 3. Use validated inputs and prepare the data
         app_logger.info('Preprocessing data')
-        _cells, cellBoundaries, _spots, label_map = stage_data(spots, coo, cfg)
+        _cells, cellBoundaries, cellBoundaries_list, _spots, label_map = stage_data(spots, coo, cfg)
         cfg['remapping'] = label_map
 
         # 5. cell typing (diagnostics are now handled inside VarBayes)
@@ -80,11 +77,11 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
         # 6 if labels have been remapped, switch to the original ones
         if label_map is not None:
-            cellData, geneData, cellBoundaries = recover_original_labels(cellData, geneData, cellBoundaries, label_map)
+            cellData, geneData, cellBoundaries, cellBoundaries_list = recover_original_labels(cellData, geneData, cellBoundaries, cellBoundaries_list, label_map)
 
         # 7. Save data and launch viewer if needed
         if cfg['save_data'] or cfg['launch_viewer']:
-            write_data(cellData, geneData, cellBoundaries, varBayes, cfg)
+            write_data(cellData, geneData, cellBoundaries, cellBoundaries_list, varBayes, cfg)
 
             if cfg['launch_viewer']:
                 dst = pre_launch(cellData, geneData, coo, scRNAseq, cfg)

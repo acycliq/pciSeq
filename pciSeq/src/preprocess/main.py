@@ -76,6 +76,13 @@ def stage_data(spots: pd.DataFrame,
     cell_boundaries = extract_borders(coo[mid_plane].toarray().astype(np.uint32))
     cell_boundaries = cell_boundaries.rename(columns={'label': 'cell_id'})
 
+    cell_boundaries_list = []
+    for i, d in enumerate(coo):
+        temp = extract_borders(d.toarray().astype(np.uint32))
+        temp = temp.rename(columns={'label': 'cell_id'}) # you must keep consistent naming! looks waste to toggle label <-> cell_id
+        temp.insert(0, 'plane_id', i)
+        cell_boundaries_list.append(temp)
+
     # Validate results
     assert props_df.shape[0] == len(set(np.concatenate(get_unique_labels(coo))))
     assert set(spots.label[spots.label > 0]) <= set(props_df.label)
@@ -92,4 +99,4 @@ def stage_data(spots: pd.DataFrame,
     cells = cells.merge(labels_df, how='left', left_on='label', right_on='index')
     processed_spots = spots[['x', 'y', 'z', 'plane_id', 'label', 'gene_name', 'score', 'intensity']].rename_axis('spot_id')
 
-    return cells, cell_boundaries, processed_spots, label_map
+    return cells, cell_boundaries, cell_boundaries_list, processed_spots, label_map
