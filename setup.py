@@ -29,7 +29,7 @@ install_deps = ['numpy_groupies', 'pandas', 'dask', 'scipy', 'streamlit', 'altai
                 'numexpr', 'diplib', 'pyvips', 'natsort', 'redis',
                 'matplotlib', 'laspy', 'tomlkit', 'colorlog',
                 'shapely', 'alphashape', 'opt_einsum', 'plotly',
-                'numba', 'pyarrow']
+                'numba', 'pyarrow', 'statsmodels']
 
 def get_version():
     """Get version from _version.py and append git commit hash if available."""
