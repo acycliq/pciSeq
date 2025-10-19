@@ -356,9 +356,9 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
 
     # Add the MultiIndex header
     new_columns = pd.MultiIndex.from_tuples([
-        (f'Cells typed as {pciSeq_class}', 'mean counts'),
-        (f'Cells typed as {user_class}', 'mean counts'),
-        (f'This cell: ({label})', 'counts')
+        (f'Cells typed as {pciSeq_class}', 'mean counts (across all planes)'),
+        (f'Cells typed as {user_class}', 'mean counts (across all planes)'),
+        (f'This cell: {label}', 'counts')
     ])
     gene_expression_data.columns = new_columns
 
