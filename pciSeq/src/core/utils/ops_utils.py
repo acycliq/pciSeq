@@ -385,7 +385,7 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
         plt.tight_layout()
         plt.show()
 
-    return gene_expression_data, fig if show_plot else None
+    return gene_expression_data, my_contr_df, fig if show_plot else None
 
 
 def read_tsv(filepath):
