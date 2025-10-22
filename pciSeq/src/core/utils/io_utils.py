@@ -302,64 +302,84 @@ def geneData_to_arrow(df_in: pd.DataFrame, out_dir: str = None) -> None:
 
 
 def cellData_to_arrow(df_in: pd.DataFrame, out_dir: str = None) -> None:
-    out_dir = Path(out_dir) / "arrow" / 'arrow_cells'
+    """
+    Convert cell data DataFrame to Arrow Feather shards for JavaScript viewer.
+
+    Output schema (8 columns):
+      - cell_id: int32 (cell identifier)
+      - X, Y, Z: float32 (cell centroid coordinates)
+      - class_name: list<string> (predicted cell types, ordered by probability)
+      - prob: list<float32> (classification probabilities)
+      - gene_names: list<string> (detected genes, ordered by expression)
+      - gene_counts: list<float32> (gene expression counts)
+
+    Args:
+        df_in: Cell data DataFrame from cells_summary()
+        out_dir: Base output directory (arrow/arrow_cells/ will be appended)
+
+    Raises:
+        ValueError: If required source columns are missing
+    """
+    out_dir = Path(out_dir) / "arrow" / "arrow_cells"
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Validate required source columns - fail fast if missing
+    required_source_cols = ["Cell_Num", "X", "Y", "Z", "ClassName", "Prob", "Genenames", "CellGeneCount"]
+    missing = [col for col in required_source_cols if col not in df_in.columns]
+    if missing:
+        raise ValueError(
+            f"cellData_to_arrow: Missing required source columns: {missing}. "
+            f"Cannot generate Arrow files for viewer. Check cells_summary() output."
+        )
+
+    # Output schema: source column -> (output name, arrow type)
+    schema_map = [
+        ("Cell_Num", "cell_id", pa.int32()),
+        ("X", "X", pa.float32()),
+        ("Y", "Y", pa.float32()),
+        ("Z", "Z", pa.float32()),
+        ("ClassName", "class_name", pa.list_(pa.string())),
+        ("Prob", "prob", pa.list_(pa.float32())),
+        ("Genenames", "gene_names", pa.list_(pa.string())),
+        ("CellGeneCount", "gene_counts", pa.list_(pa.float32())),
+    ]
 
     shards = []
     total_rows = 0
     shard_index = 0
+    chunk_size = 100_000
 
-    chunk_size = 100000  # Match the working cell converter chunk size
     for start in range(0, len(df_in), chunk_size):
-        df = df_in.iloc[start:start+chunk_size]
-
-        # Create arrays with exact schema matching working cell converter
-        # Expected columns: ['cell_id', 'X', 'Y', 'Z', 'class_name', 'prob', 'gaussian_contour', 'sphere_scale', 'sphere_rotation']
-        arrays = {}
-
-        # Map Cell_Num to cell_id with int32 type
-        if "Cell_Num" in df.columns:
-            arrays["cell_id"] = pa.array(df["Cell_Num"].astype("int32"))
-
-        # Coordinate columns as float32
-        if "X" in df.columns:
-            arrays["X"] = pa.array(df["X"].astype("float32"))
-        if "Y" in df.columns:
-            arrays["Y"] = pa.array(df["Y"].astype("float32"))
-        if "Z" in df.columns:
-            arrays["Z"] = pa.array(df["Z"].astype("float32"))
-
-        # List columns for cell classification - map from ClassName/Prob to class_name/prob
-        if "ClassName" in df.columns:
-            arrays["class_name"] = pa.array(df["ClassName"].tolist(), type=pa.list_(pa.string()))
-        if "Prob" in df.columns:
-            arrays["prob"] = pa.array(df["Prob"].tolist(), type=pa.list_(pa.float32()))
-
-        # String columns (not nested lists like the bad files had)
-        if "gaussian_contour" in df.columns:
-            arrays["gaussian_contour"] = pa.array(df["gaussian_contour"].astype("string"))
-        if "sphere_scale" in df.columns:
-            arrays["sphere_scale"] = pa.array(df["sphere_scale"].astype("string"))
-        if "sphere_rotation" in df.columns:
-            arrays["sphere_rotation"] = pa.array(df["sphere_rotation"].astype("string"))
-
-        # NOTE: Exclude columns that aren't in the working schema:
-        # - Genenames, CellGeneCount, spot_id (these are not in the working cell files)
-
-        table = pa.table(arrays)
-        shard_name = f"cells_shard_{shard_index:03d}.feather"
-        feather.write_feather(table, (out_dir / shard_name).as_posix(), compression='uncompressed')
+        df = df_in.iloc[start:start + chunk_size]
         n = len(df)
+
+        # Build arrays in fixed column order
+        arrays = {}
+        for src_col, out_col, arrow_type in schema_map:
+            if isinstance(arrow_type, pa.ListType):
+                # List columns: convert DataFrame lists to Arrow list arrays
+                arrays[out_col] = pa.array(df[src_col].tolist(), type=arrow_type)
+            else:
+                # Scalar columns: explicit type casting
+                arrays[out_col] = pa.array(df[src_col], type=arrow_type)
+
+        # Create table with fixed column order
+        col_names = [out_col for _, out_col, _ in schema_map]
+        table = pa.table({col: arrays[col] for col in col_names})
+
+        # Write shard
+        shard_name = f"cells_shard_{shard_index:03d}.feather"
+        feather.write_feather(table, (out_dir / shard_name).as_posix(), compression="uncompressed")
+
         shards.append({"url": shard_name, "rows": int(n)})
         total_rows += n
         shard_index += 1
 
-    # Manifest only - no class dict needed since class names are in the Arrow files
+    # Write manifest
     manifest = {"format": "arrow-feather", "total_rows": int(total_rows), "shards": shards}
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
 
-    # io_utils_logger.info(f"Saved {total_rows} rows in {len(shards)} shards at {out_dir}")
-    io_utils_logger.info(f"Saved at {out_dir}")
+    io_utils_logger.info(f"Saved {total_rows} cell records in {len(shards)} shards at {out_dir}")
 
 
 def parse_coords(cell: str) -> List[Tuple[float, float]]:
