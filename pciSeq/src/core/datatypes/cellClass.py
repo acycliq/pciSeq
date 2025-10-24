@@ -108,3 +108,30 @@ class CellClass(object):
         """
         ones = np.ones(self.nK - 1)
         return np.append(ones, sum(ones)).astype(np.float32)
+
+    def calc_prior(self, total_counts, midpoint=60, steepness=0.15):
+        """
+        Calculate prior probabilities for all cell classes based on total gene counts.
+
+        Uses a sigmoid function to assign higher Zero class probability to low-count cells
+        and distributes remaining probability uniformly across non-Zero classes.
+
+        Parameters:
+        - total_counts: array of total counts per cell
+        - midpoint: count value where Zero class probability = 0.5
+        - steepness: how sharp the transition is (higher = sharper)
+
+        Returns:
+        - Array of shape (numCells, numClasses) with prior probabilities for all classes
+        """
+        zero_prob = 1 / (1 + np.exp((total_counts - midpoint) * steepness))
+
+        # non-Zero cell types equally likely: uniform distribution across cell types (ex Zero class)
+        cell_class_prob = (1-zero_prob) / (self.nK - 1)
+        prob = np.column_stack([np.tile(cell_class_prob[:, None], self.nK-1), zero_prob])
+
+        # assertion to verify probabilities sum to 1
+        assert np.allclose(prob.sum(axis=1), 1.0), "Probabilities must sum to 1"
+
+        return prob.astype(np.float32)
+

@@ -172,8 +172,8 @@ class VarBayes:
         Keep in mind also that there is also the config['Inefficiency'] parameter that has
         been applied directly to the expression data from scRNAseq
         """
-        self.cellTypes.ini_prior()
-        self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
+        # self.cellTypes.ini_prior()
+        # self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
         self.genes.init_eta(self.config['rGene'], self.config['rGene'])
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
@@ -408,7 +408,8 @@ class VarBayes:
         # for debugging, safe to remove in the future
         self.cells.nb_contr = contr
         contr = np.sum(contr, axis=1)
-        wCellClass = contr + self.cellTypes.log_prior
+        class_prior = self.cellTypes.calc_prior(self.cells.geneCount.sum(axis=1))
+        wCellClass = contr + np.log(class_prior)
         pCellClass = softmax(wCellClass, axis=1)
 
         self.cells.classProb = pCellClass
