@@ -133,6 +133,19 @@ def cell_type(
         app_logger.info('Initializing VarBayes model')
         varBayes = VarBayes(cells, spots, scRNAseq, config)
 
+        # Wire real-time viewer callback if provided in config
+        if 'realtime_viewer_callback' in config:
+            callback = config['realtime_viewer_callback']
+
+            # If callback is a bound method (e.g., viewer.send_update),
+            # set the VarBayes reference so it can access cells data
+            if hasattr(callback, '__self__'):
+                viewer_instance = callback.__self__
+                viewer_instance._varbayes_ref = varBayes
+
+            varBayes.on_iteration_callback = callback
+            app_logger.info('Real-time viewer callback enabled')
+
         app_logger.info('Starting cell typing algorithm')
         cellData, geneData = varBayes.run()
 

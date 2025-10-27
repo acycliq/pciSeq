@@ -81,6 +81,7 @@ class Config(dict):
         Merge user options with defaults.
 
         Logs each override and warns about unrecognized keys.
+        Unrecognized keys are still preserved (e.g., for callbacks).
 
         Args:
             opts: User configuration dictionary
@@ -92,10 +93,9 @@ class Config(dict):
                 self[key] = value
                 logger.info(f'Config override: {key} = {value}')
             else:
-                logger.warning(
-                    f"Unrecognized config key: '{key}'. "
-                    f"Valid keys: {', '.join(sorted(valid_keys))}"
-                )
+                # Preserve unknown keys (e.g., callbacks, plugins)
+                self[key] = value
+                logger.debug(f"Non-standard config key preserved: '{key}'")
 
     def _validate_types(self) -> None:
         """

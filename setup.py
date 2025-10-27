@@ -25,7 +25,7 @@ def get_static_files(root):
 
 
 install_deps = ['numpy_groupies', 'pandas', 'dask', 'scipy', 'streamlit', 'altair',
-                'scikit-image', 'scikit-learn', 'tqdm', 'flask', 'fastremap',
+                'scikit-image', 'scikit-learn', 'tqdm', 'flask', 'flask-socketio', 'fastremap',
                 'numexpr', 'diplib', 'pyvips', 'natsort', 'redis',
                 'matplotlib', 'laspy', 'tomlkit', 'colorlog',
                 'shapely', 'alphashape', 'opt_einsum', 'plotly',

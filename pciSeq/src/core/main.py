@@ -109,6 +109,7 @@ class VarBayes:
         self.iter_num = None
         self.iter_delta = []
         self.has_converged = False
+        self.on_iteration_callback = None  # Optional callback for real-time visualization
 
         # Initialize components
         self._validate_config(config)
@@ -292,6 +293,13 @@ class VarBayes:
 
                 # Update diagnostics using controller
                 self.diagnostics_upd()
+
+                # Call real-time viewer callback if provided
+                if self.on_iteration_callback is not None:
+                    try:
+                        self.on_iteration_callback(self.cells.classProb, i, delta)
+                    except Exception as e:
+                        main_logger.warning(f"Real-time viewer callback failed: {e}")
 
                 # keep track of the deltas
                 self.iter_delta.append(delta)
