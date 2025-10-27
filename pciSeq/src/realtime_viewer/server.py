@@ -61,6 +61,7 @@ class RealtimeViewerServer:
         self._varbayes_ref = None  # Will be set by app.py when callback is wired
         self._geometry_sent = False
         self._geometry_cache = None
+        self._num_cells_expected = None  # Track expected number of cells from first iteration
 
         # Get static folder path (same directory as this file)
         self.static_folder = Path(__file__).parent / 'static'
@@ -236,6 +237,15 @@ class RealtimeViewerServer:
             # Round to 1 decimal to reduce payload size
             radii = np.round(np.sqrt(areas / np.pi).astype(np.float32), 1)
 
+            # Skip the first cell (index 0) which is the background
+            cell_classes = cell_classes[1:]
+            confidence = confidence[1:]
+            centroids_x = centroids_x[1:]
+            centroids_y = centroids_y[1:]
+            radii = radii[1:]
+
+            logger.info(f"[ITERATION {iteration}] Skipped background cell (index 0), sending {len(cell_classes)} real cells")
+
             # Apply fixed radius if requested
             if self.fixed_radius is not None:
                 radii = np.full_like(centroids_x, float(self.fixed_radius), dtype=np.float32)
@@ -280,9 +290,40 @@ class RealtimeViewerServer:
                     'centroids_y': centroids_y.tolist(),
                     'radii': radii.tolist(),
                 }
+                self._num_cells_expected = num_cells
+                logger.info(f"Geometry cached: {num_cells} cells")
+
+            # CRITICAL FIX: Ensure num_cells matches geometry cache
+            # If num_cells differs from the geometry we sent, we need to adjust the data
+            if self._geometry_cache is not None:
+                cached_num_cells = self._geometry_cache['num_cells']
+                if num_cells != cached_num_cells:
+                    logger.error(f"CRITICAL BUG DETECTED! Iteration {iteration}: num_cells={num_cells} but geometry_cache has {cached_num_cells} cells!")
+                    logger.error(f"Attempting to fix by truncating/padding to match geometry...")
+
+                    # Adjust arrays to match cached geometry size
+                    if num_cells < cached_num_cells:
+                        # cell_classes/confidence are too small - pad with zeros
+                        logger.warning(f"Padding cell_classes from {num_cells} to {cached_num_cells}")
+                        padded_classes = np.zeros(cached_num_cells, dtype=np.uint8)
+                        padded_classes[:num_cells] = cell_classes
+                        cell_classes = padded_classes
+
+                        padded_confidence = np.zeros(cached_num_cells, dtype=np.float32)
+                        padded_confidence[:num_cells] = confidence
+                        confidence = padded_confidence
+
+                        num_cells = cached_num_cells
+                    elif num_cells > cached_num_cells:
+                        # cell_classes/confidence are too large - truncate
+                        logger.warning(f"Truncating cell_classes from {num_cells} to {cached_num_cells}")
+                        cell_classes = cell_classes[:cached_num_cells]
+                        confidence = confidence[:cached_num_cells]
+                        num_cells = cached_num_cells
 
             # Stream classes/confidence each iteration (smaller payload)
             chunk_size = 5000 if num_cells > 10000 else num_cells
+
             self.socketio.emit('classes_update_begin', {
                 'iteration': int(iteration),
                 'delta': float(delta),

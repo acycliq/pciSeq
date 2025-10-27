@@ -115,6 +115,13 @@ socket.on('classes_update_end', (msg) => {
         return;
     }
     const N = state.stream.total;
+
+    console.log(`=== CLASSES_UPDATE_END (iter ${state.stream.iteration}) ===`);
+    console.log(`N=${N}, geom arrays length: centroids_x=${state.geom.centroids_x.length}, centroids_y=${state.geom.centroids_y.length}, radii=${state.geom.radii.length}`);
+    console.log(`Sample centroids (first 3): x=[${state.geom.centroids_x[0]}, ${state.geom.centroids_x[1]}, ${state.geom.centroids_x[2]}], y=[${state.geom.centroids_y[0]}, ${state.geom.centroids_y[1]}, ${state.geom.centroids_y[2]}]`);
+    console.log(`Sample radii (first 3): [${state.geom.radii[0]}, ${state.geom.radii[1]}, ${state.geom.radii[2]}]`);
+    console.log(`Sample classes (first 3): [${state.stream.cell_classes[0]}, ${state.stream.cell_classes[1]}, ${state.stream.cell_classes[2]}]`);
+
     const cells = new Array(N);
     for (let i = 0; i < N; i++) {
         cells[i] = {
@@ -125,6 +132,9 @@ socket.on('classes_update_end', (msg) => {
             confidence: state.stream.confidence[i]
         };
     }
+
+    console.log(`Created ${cells.length} cells, sample cells (first 3):`);
+    console.log(cells.slice(0, 3));
 
     state.cells = cells;
     state.numCells = N;
@@ -175,7 +185,7 @@ function initializeDeck() {
 
     state.deckgl = new DeckGL({
         container: 'deck-container',
-        views: [new OrthographicView({id: 'ortho'})],
+        views: [new OrthographicView({id: 'ortho', controller: true})],
         initialViewState: {
             target: [3200, 2200, 0],  // Center of typical image
             zoom: -1  // Start zoomed out
@@ -199,6 +209,10 @@ function initializeDeck() {
                 };
             }
             return null;
+        },
+        onViewStateChange: ({viewState}) => {
+            // Optional: store view state if needed
+            return viewState;
         }
     });
 
@@ -297,8 +311,13 @@ function updateLegend() {
 
 function render() {
     if (!state.deckgl || state.cells.length === 0) {
+        console.warn(`render() skipped: deckgl=${!!state.deckgl}, cells.length=${state.cells.length}`);
         return;
     }
+
+    console.log(`=== RENDER (iter ${state.iteration}) ===`);
+    console.log(`Rendering ${state.cells.length} cells`);
+    console.log(`Sample cell data (first 3):`, state.cells.slice(0, 3));
 
     const {ScatterplotLayer} = deck;
 
@@ -328,6 +347,8 @@ function render() {
         }
     });
 
+    console.log(`Created layer with ${state.cells.length} data points`);
+
     // Update deck.gl with new layer
     state.deckgl.setProps({
         layers: [layer]
@@ -335,12 +356,15 @@ function render() {
 
     // Auto-fit view on first render
     if (state.iteration === 1) {
+        console.log('Calling autoFitView because iteration === 1');
         autoFitView();
     }
 }
 
 function autoFitView() {
     if (state.cells.length === 0) return;
+
+    console.log('=== AUTO FIT VIEW ===');
 
     // Calculate bounds
     let minX = Infinity, minY = Infinity;
@@ -352,6 +376,8 @@ function autoFitView() {
         maxX = Math.max(maxX, cell.x);
         maxY = Math.max(maxY, cell.y);
     });
+
+    console.log(`Bounds: minX=${minX}, maxX=${maxX}, minY=${minY}, maxY=${maxY}`);
 
     // Add 10% padding
     const width = maxX - minX;
@@ -377,11 +403,14 @@ function autoFitView() {
     const zoomY = Math.log2(containerHeight / dataHeight);
     const zoom = Math.min(zoomX, zoomY);
 
-    // Update view
+    console.log(`Calculated view: center=[${centerX}, ${centerY}], zoom=${zoom}`);
+
+    // Update view to fit all cells
     state.deckgl.setProps({
         initialViewState: {
             target: [centerX, centerY, 0],
-            zoom: zoom
+            zoom: zoom,
+            transitionDuration: 1000
         }
     });
 }
