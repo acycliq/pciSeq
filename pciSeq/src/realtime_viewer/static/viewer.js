@@ -308,15 +308,18 @@ function hslToRgb(h, s, l) {
 function updateConnectionStatus(connected) {
     const dot = document.getElementById('connection-dot');
     const status = document.getElementById('connection-status');
+    const hudDot = document.getElementById('hud-connection-dot');
 
     if (connected) {
         dot.classList.add('connected');
         status.textContent = 'Connected';
         status.style.color = '#00ff00';
+        if (hudDot) hudDot.classList.add('connected');
     } else {
         dot.classList.remove('connected');
         status.textContent = 'Disconnected';
         status.style.color = '#ff0000';
+        if (hudDot) hudDot.classList.remove('connected');
     }
 }
 
@@ -324,6 +327,14 @@ function updateStatus() {
     document.getElementById('iteration-value').textContent = state.iteration;
     document.getElementById('delta-value').textContent = state.delta.toFixed(6);
     document.getElementById('cells-value').textContent = state.numCells.toLocaleString();
+
+    // Also update the minimal HUD if present
+    const hIter = document.getElementById('hud-iteration-value');
+    const hDelta = document.getElementById('hud-delta-value');
+    const hCells = document.getElementById('hud-cells-value');
+    if (hIter) hIter.textContent = state.iteration;
+    if (hDelta) hDelta.textContent = state.delta.toFixed(6);
+    if (hCells) hCells.textContent = state.numCells.toLocaleString();
 }
 
 function updateCellClassCounts() {
