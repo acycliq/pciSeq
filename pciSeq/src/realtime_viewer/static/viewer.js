@@ -14,6 +14,13 @@ const state = {
     cellClassNames: {},  // Maps class index to class name
     cellClassVisible: {},  // Maps class index to visibility (true/false)
     pendingColorScheme: null,  // Store color scheme loaded before class names arrive
+
+    // Changes view state
+    viewMode: 'all',  // 'all' or 'changes'
+    changeThreshold: 1.0,  // Percentage threshold for significant change
+    previousConfidence: null,  // Store previous iteration's confidence values
+    changedCells: new Set(),  // Set of cell indices that changed
+
     connected: false,
     deckgl: null,
     stream: null,  // holds buffers during chunked transfer
@@ -155,11 +162,19 @@ socket.on('classes_update_end', (msg) => {
     console.log(`Created ${cells.length} cells, sample cells (first 3):`);
     console.log(cells.slice(0, 3));
 
+    // Save OLD cells confidence as previous BEFORE updating to new iteration
+    if (state.cells && state.cells.length > 0) {
+        state.previousConfidence = state.cells.map(cell => cell.confidence);
+    }
+
     state.cells = cells;
     state.numCells = N;
     state.iteration = state.stream.iteration;
     state.delta = state.stream.delta;
     state.stream = null;
+
+    // Detect changed cells for changes view (pass false since we already saved previous)
+    detectChangedCells(false);
 
     updateStatus();
     updateCellClassCounts();
@@ -393,17 +408,69 @@ function hideAllClasses() {
     render();
 }
 
+function detectChangedCells(updatePrevious = true) {
+    // Clear changed cells set
+    state.changedCells.clear();
+
+    // On first iteration (no previous data to compare), all cells are "changed"
+    if (!state.previousConfidence) {
+        for (let i = 0; i < state.cells.length; i++) {
+            state.changedCells.add(i);
+        }
+        console.log(`First iteration (no previous data): marked all ${state.cells.length} cells as changed`);
+    } else {
+        // Compare with previous iteration
+        const threshold = state.changeThreshold / 100; // Convert percentage to decimal
+
+        for (let i = 0; i < state.cells.length; i++) {
+            const currentConf = state.cells[i].confidence;
+            const prevConf = state.previousConfidence[i];
+
+            // Calculate absolute change in confidence
+            const change = Math.abs(currentConf - prevConf);
+
+            // Mark as changed if exceeds threshold
+            if (change >= threshold) {
+                state.changedCells.add(i);
+            }
+        }
+
+        console.log(`Detected ${state.changedCells.size}/${state.cells.length} changed cells (threshold: ${state.changeThreshold}%)`);
+    }
+
+    // Only store current confidence when new iteration arrives, not when threshold changes
+    if (updatePrevious) {
+        state.previousConfidence = state.cells.map(cell => cell.confidence);
+    }
+
+    // Update changes count display
+    updateChangesCount();
+}
+
+function updateChangesCount() {
+    const countEl = document.getElementById('changes-count');
+    if (countEl) {
+        countEl.textContent = state.changedCells.size.toLocaleString();
+    }
+}
+
 function render() {
     if (!state.deckgl || state.cells.length === 0) {
         console.warn(`render() skipped: deckgl=${!!state.deckgl}, cells.length=${state.cells.length}`);
         return;
     }
 
-    // Filter cells based on visibility
-    const visibleCells = state.cells.filter(cell => state.cellClassVisible[cell.class]);
+    // Filter cells based on visibility and view mode
+    let visibleCells = state.cells.filter(cell => state.cellClassVisible[cell.class]);
+
+    // Further filter by changes if in changes mode
+    if (state.viewMode === 'changes') {
+        visibleCells = visibleCells.filter((cell, idx) => state.changedCells.has(idx));
+    }
 
     console.log(`=== RENDER (iter ${state.iteration}) ===`);
-    console.log(`Rendering ${visibleCells.length}/${state.cells.length} cells (some classes hidden)`);
+    const modeText = state.viewMode === 'changes' ? 'changes mode' : 'all cells mode';
+    console.log(`Rendering ${visibleCells.length}/${state.cells.length} cells (${modeText})`);
     console.log(`Sample cell data (first 3):`, visibleCells.slice(0, 3));
 
     const {ScatterplotLayer} = deck;
@@ -653,6 +720,32 @@ window.addEventListener('load', () => {
 
     if (hideAllBtn) {
         hideAllBtn.addEventListener('click', hideAllClasses);
+    }
+
+    // Setup Changes View controls
+    const viewModeRadios = document.querySelectorAll('input[name="viewMode"]');
+    viewModeRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            state.viewMode = e.target.value;
+            console.log(`View mode changed to: ${state.viewMode}`);
+            render();
+        });
+    });
+
+    const thresholdSlider = document.getElementById('threshold-slider');
+    const thresholdValueDisplay = document.getElementById('threshold-value');
+
+    if (thresholdSlider && thresholdValueDisplay) {
+        thresholdSlider.addEventListener('input', (e) => {
+            state.changeThreshold = parseFloat(e.target.value);
+            thresholdValueDisplay.textContent = state.changeThreshold.toFixed(1);
+
+            // Recalculate changed cells with new threshold, but DON'T update previous confidence
+            if (state.cells.length > 0 && state.previousConfidence) {
+                detectChangedCells(false);  // false = don't update previousConfidence
+                render();
+            }
+        });
     }
 });
 
