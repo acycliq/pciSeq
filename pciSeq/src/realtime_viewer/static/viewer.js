@@ -283,17 +283,7 @@ function updateConnectionStatus(connected) {
 function updateStatus() {
     document.getElementById('iteration-value').textContent = state.iteration;
     document.getElementById('delta-value').textContent = state.delta.toFixed(6);
-
-    // Calculate visible cells count
-    const visibleCount = state.cells.filter(cell => state.cellClassVisible[cell.class]).length;
-    const totalCount = state.numCells;
-
-    // Show "visible / total" if some classes are hidden
-    if (visibleCount < totalCount) {
-        document.getElementById('cells-value').textContent = `${visibleCount.toLocaleString()} / ${totalCount.toLocaleString()}`;
-    } else {
-        document.getElementById('cells-value').textContent = totalCount.toLocaleString();
-    }
+    document.getElementById('cells-value').textContent = state.numCells.toLocaleString();
 }
 
 function updateCellClassCounts() {
