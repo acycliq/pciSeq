@@ -130,13 +130,15 @@ def cell_type(
         If cell typing algorithm fails to converge
     """
     try:
+        # Extract callback from config BEFORE creating VarBayes
+        # This prevents the callback from being stored in VarBayes.config
+        callback = config.pop('realtime_viewer_callback', None)
+
         app_logger.info('Initializing VarBayes model')
         varBayes = VarBayes(cells, spots, scRNAseq, config)
 
-        # Wire real-time viewer callback if provided in config
-        if 'realtime_viewer_callback' in config:
-            callback = config['realtime_viewer_callback']
-
+        # Wire real-time viewer callback if provided
+        if callback is not None:
             # If callback is a bound method (e.g., viewer.send_update),
             # set the VarBayes reference so it can access cells data
             if hasattr(callback, '__self__'):

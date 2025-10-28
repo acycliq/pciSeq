@@ -189,6 +189,8 @@ class VarBayes:
         attributes = self.__dict__.copy()
         if 'diagnostic_controller' in attributes:
             del attributes['diagnostic_controller']
+        if 'on_iteration_callback' in attributes:
+            del attributes['on_iteration_callback']
         return attributes
 
     @property
