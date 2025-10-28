@@ -7,6 +7,17 @@
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
     <style>
+        :root {
+            --bg: #111111;
+            --surface: #1b1b1b;
+            --border: #2a2a2a;
+            --text: #e5e5e5;
+            --muted: #9aa0a6;
+            --accent: #22c55e;
+            --accent-strong: #16a34a;
+            --accent-weak: rgba(34, 197, 94, 0.08);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -15,8 +26,8 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #1a1a1a;
-            color: #e0e0e0;
+            background: var(--bg);
+            color: var(--text);
             overflow: hidden;
         }
 
@@ -27,16 +38,17 @@
         }
 
         #header {
-            background: #2a2a2a;
-            padding: 15px 20px;
-            border-bottom: 2px solid #00ff00;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            background: var(--surface);
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
         }
 
         #header h1 {
-            font-size: 20px;
-            color: #00ff00;
-            margin-bottom: 5px;
+            font-size: 18px;
+            color: var(--accent);
+            margin-bottom: 4px;
+            font-weight: 600;
         }
 
         #status {
@@ -52,32 +64,18 @@
             gap: 8px;
         }
 
-        .status-label {
-            color: #888;
-        }
+        .status-label { color: var(--muted); }
 
-        .status-value {
-            font-weight: bold;
-            font-family: 'Courier New', monospace;
-            color: #00ff00;
-        }
+        .status-value { font-weight: 600; font-family: 'Courier New', monospace; color: var(--accent); }
 
         .status-dot {
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            background: #ff0000;
-            animation: pulse 2s infinite;
+            background: #555;
         }
 
-        .status-dot.connected {
-            background: #00ff00;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
+        .status-dot.connected { background: var(--accent); }
 
         #main-content {
             flex: 1;
@@ -97,25 +95,13 @@
             position: relative;
         }
 
-        #sidebar {
-            width: 300px;
-            background: #2a2a2a;
-            border-left: 1px solid #444;
-            overflow-y: auto;
-            padding: 20px;
-        }
+        #sidebar { width: 300px; background: var(--surface); border-left: 1px solid var(--border); overflow-y: auto; padding: 16px; }
 
         #legend {
             margin-bottom: 30px;
         }
 
-        #legend h3 {
-            font-size: 14px;
-            color: #00ff00;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
+        #legend h3 { font-size: 13px; color: var(--accent); margin-bottom: 12px; font-weight: 600; }
 
         #legend-items {
             max-height: 500px;
@@ -128,15 +114,9 @@
             width: 8px;
         }
 
-        #legend-items::-webkit-scrollbar-track {
-            background: #1a1a1a;
-            border-radius: 4px;
-        }
+        #legend-items::-webkit-scrollbar-track { background: var(--bg); border-radius: 4px; }
 
-        #legend-items::-webkit-scrollbar-thumb {
-            background: #00ff00;
-            border-radius: 4px;
-        }
+        #legend-items::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 4px; }
 
         #legend-items::-webkit-scrollbar-thumb:hover {
             background: #00cc00;
@@ -179,9 +159,7 @@
             transition: opacity 0.2s;
         }
 
-        .legend-item:hover {
-            background: rgba(0, 255, 0, 0.05);
-        }
+        .legend-item:hover { background: var(--accent-weak); }
 
         .legend-checkbox {
             width: 16px;
@@ -196,40 +174,12 @@
             margin-bottom: 12px;
         }
 
-        .legend-control-btn {
-            flex: 1;
-            padding: 6px 10px;
-            background: #333;
-            color: #00ff00;
-            border: 1px solid #00ff00;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 11px;
-            font-weight: bold;
-            text-transform: uppercase;
-            transition: all 0.2s;
-        }
+        .legend-control-btn { flex: 1; padding: 6px 10px; background: transparent; color: var(--accent); border: 1px solid var(--accent); border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 600; transition: all 0.15s; }
+        .legend-control-btn:hover { background: var(--accent); color: #0b0b0b; }
 
-        .legend-control-btn:hover {
-            background: #00ff00;
-            color: #1a1a1a;
-        }
+        #color-controls { margin-bottom: 16px; padding: 12px; background: var(--bg); border-radius: 6px; border: 1px solid var(--border); }
 
-        #color-controls {
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #1a1a1a;
-            border-radius: 5px;
-            border: 1px solid #444;
-        }
-
-        #color-controls h4 {
-            font-size: 12px;
-            color: #00ff00;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
+        #color-controls h4 { font-size: 12px; color: var(--accent); margin-bottom: 8px; font-weight: 600; }
 
         .file-input-wrapper {
             position: relative;
@@ -243,22 +193,8 @@
             left: -9999px;
         }
 
-        .file-input-label {
-            display: block;
-            padding: 8px 12px;
-            background: #00ff00;
-            color: #1a1a1a;
-            text-align: center;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: bold;
-            transition: background 0.2s;
-        }
-
-        .file-input-label:hover {
-            background: #00cc00;
-        }
+        .file-input-label { display: block; padding: 8px 12px; background: var(--accent); color: #0b0b0b; text-align: center; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: background 0.2s; }
+        .file-input-label:hover { background: var(--accent-strong); }
 
         .file-status {
             margin-top: 8px;
@@ -267,29 +203,15 @@
             text-align: center;
         }
 
-        .file-status.success {
-            color: #00ff00;
-        }
+        .file-status.success { color: var(--accent); }
 
         .file-status.error {
             color: #ff4444;
         }
 
-        #changes-controls {
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #1a1a1a;
-            border-radius: 5px;
-            border: 1px solid #444;
-        }
+        #changes-controls { margin-bottom: 16px; padding: 12px; background: var(--bg); border-radius: 6px; border: 1px solid var(--border); }
 
-        #changes-controls h4 {
-            font-size: 12px;
-            color: #00ff00;
-            margin-bottom: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
+        #changes-controls h4 { font-size: 12px; color: var(--accent); margin-bottom: 10px; font-weight: 600; }
 
         .view-mode-selector {
             display: flex;
@@ -308,14 +230,9 @@
             transition: background 0.2s;
         }
 
-        .radio-option:hover {
-            background: rgba(0, 255, 0, 0.05);
-        }
+        .radio-option:hover { background: var(--accent-weak); }
 
-        .radio-option input[type="radio"] {
-            cursor: pointer;
-            accent-color: #00ff00;
-        }
+        .radio-option input[type="radio"] { cursor: pointer; accent-color: var(--accent); }
 
         .radio-option span {
             font-size: 12px;
@@ -333,10 +250,7 @@
             margin-bottom: 6px;
         }
 
-        #threshold-value {
-            color: #00ff00;
-            font-weight: bold;
-        }
+        #threshold-value { color: var(--accent); font-weight: 600; }
 
         #threshold-slider {
             width: 100%;
@@ -347,24 +261,9 @@
             cursor: pointer;
         }
 
-        #threshold-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 16px;
-            height: 16px;
-            background: #00ff00;
-            border-radius: 50%;
-            cursor: pointer;
-        }
+        #threshold-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; background: var(--accent); border-radius: 50%; cursor: pointer; }
 
-        #threshold-slider::-moz-range-thumb {
-            width: 16px;
-            height: 16px;
-            background: #00ff00;
-            border-radius: 50%;
-            cursor: pointer;
-            border: none;
-        }
+        #threshold-slider::-moz-range-thumb { width: 16px; height: 16px; background: var(--accent); border-radius: 50%; cursor: pointer; border: none; }
 
         .changes-info {
             display: flex;
@@ -380,12 +279,7 @@
             color: #888;
         }
 
-        .changes-count {
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-            font-weight: bold;
-            color: #00ff00;
-        }
+        .changes-count { font-family: 'Courier New', monospace; font-size: 13px; font-weight: 600; color: var(--accent); }
 
         #info {
             font-size: 12px;
@@ -412,23 +306,13 @@
             display: none;
         }
 
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid #333;
-            border-top-color: #00ff00;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
+        .spinner { width: 50px; height: 50px; border: 4px solid #333; border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
 
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
 
-        .loading-text {
-            font-size: 16px;
-            color: #00ff00;
-        }
+        .loading-text { font-size: 16px; color: var(--accent); }
     </style>
 </head>
 <body>
