@@ -363,25 +363,14 @@ function updateLegend() {
 
     sortedClasses.forEach(([classIdx, count]) => {
         const item = document.createElement('div');
-        item.className = 'legend-item';
+        item.className = 'chip';
         const isVisible = state.cellClassVisible[classIdx];
+        if (!isVisible) item.classList.add('dim');
 
-        // Add hidden class if not visible
-        if (!isVisible) {
-            item.classList.add('hidden');
-        }
-
-        // Checkbox
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.className = 'legend-checkbox';
-        checkbox.checked = isVisible;
-        checkbox.dataset.classIdx = classIdx;
-
-        // Color box
+        // Color swatch
         const colorBox = document.createElement('div');
         colorBox.className = 'legend-color';
-        const color = state.cellClassColors[classIdx];
+        const color = state.cellClassColors[classIdx] || [128,128,128];
         colorBox.style.background = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
 
         // Label
@@ -390,30 +379,19 @@ function updateLegend() {
         const className = state.cellClassNames[classIdx] || `Class ${classIdx}`;
         label.textContent = className;
 
-        // Count
+        // Count (muted, with tooltip)
         const countSpan = document.createElement('span');
         countSpan.className = 'legend-count';
         countSpan.textContent = count.toLocaleString();
+        item.title = `${className}: ${count.toLocaleString()} cells`;
 
         // Assemble
-        item.appendChild(checkbox);
         item.appendChild(colorBox);
         item.appendChild(label);
         item.appendChild(countSpan);
 
-        // Click handler for entire item (toggle visibility)
-        item.addEventListener('click', (e) => {
-            // Don't toggle if clicking directly on checkbox (it handles itself)
-            if (e.target !== checkbox) {
-                toggleClassVisibility(classIdx);
-            }
-        });
-
-        // Checkbox change handler
-        checkbox.addEventListener('change', (e) => {
-            e.stopPropagation(); // Prevent item click
-            toggleClassVisibility(classIdx);
-        });
+        // Click toggles visibility
+        item.addEventListener('click', () => toggleClassVisibility(classIdx));
 
         legendItems.appendChild(item);
     });
