@@ -11,6 +11,7 @@ const state = {
     delta: 0,
     cellClassColors: {},
     cellClassCounts: {},
+    cellClassNames: {},  // Maps class index to class name
     connected: false,
     deckgl: null,
     stream: null,  // holds buffers during chunked transfer
@@ -65,6 +66,15 @@ socket.on('geometry_init_begin', (meta) => {
         centroids_y: new Float32Array(meta.num_cells),
         radii: new Float32Array(meta.num_cells)
     };
+
+    // Store class names mapping (index to name)
+    if (meta.class_names) {
+        state.cellClassNames = {};
+        meta.class_names.forEach((name, idx) => {
+            state.cellClassNames[idx] = name;
+        });
+        console.log('Loaded class names:', state.cellClassNames);
+    }
 });
 
 socket.on('geometry_init_chunk', (chunk) => {
@@ -194,9 +204,10 @@ function initializeDeck() {
         layers: [],
         getTooltip: ({object}) => {
             if (object) {
+                const className = state.cellClassNames[object.class] || `Class ${object.class}`;
                 return {
                     html: `<div style="font-family: monospace; font-size: 12px;">
-                        Cell Class: ${object.class}<br/>
+                        Cell Class: ${className}<br/>
                         Position: (${Math.round(object.x)}, ${Math.round(object.y)})<br/>
                         Confidence: ${(object.confidence * 100).toFixed(1)}%
                     </div>`,
@@ -296,7 +307,9 @@ function updateLegend() {
 
         const label = document.createElement('span');
         label.className = 'legend-label';
-        label.textContent = `Class ${classIdx}`;
+        // Use class name if available, otherwise fall back to index
+        const className = state.cellClassNames[classIdx] || `Class ${classIdx}`;
+        label.textContent = className;
 
         const countSpan = document.createElement('span');
         countSpan.className = 'legend-count';

@@ -107,10 +107,12 @@ class RealtimeViewerServer:
                     geom = self._geometry_cache
                     n = geom['num_cells']
                     chunk_size = geom.get('chunk_size', 5000)
+                    class_names = geom.get('class_names', [])
                     # send geometry init in chunks
                     self.socketio.emit('geometry_init_begin', {
                         'num_cells': int(n),
-                        'chunk_size': int(chunk_size)
+                        'chunk_size': int(chunk_size),
+                        'class_names': class_names
                     }, namespace='/')
                     for start in range(0, n, chunk_size):
                         end = min(start + chunk_size, n)
@@ -268,9 +270,13 @@ class RealtimeViewerServer:
             # Send geometry once per session and cache
             if not self._geometry_sent:
                 chunk_size = 5000
+                # Get class names from VarBayes
+                class_names = varbayes.cells.class_names.tolist() if hasattr(varbayes.cells.class_names, 'tolist') else list(varbayes.cells.class_names)
+
                 self.socketio.emit('geometry_init_begin', {
                     'num_cells': int(num_cells),
-                    'chunk_size': int(chunk_size)
+                    'chunk_size': int(chunk_size),
+                    'class_names': class_names
                 }, namespace='/')
                 for start in range(0, num_cells, chunk_size):
                     end = min(start + chunk_size, num_cells)
@@ -289,6 +295,7 @@ class RealtimeViewerServer:
                     'centroids_x': centroids_x.tolist(),
                     'centroids_y': centroids_y.tolist(),
                     'radii': radii.tolist(),
+                    'class_names': class_names,
                 }
                 self._num_cells_expected = num_cells
                 logger.info(f"Geometry cached: {num_cells} cells")
