@@ -428,8 +428,121 @@ function autoFitView() {
     });
 }
 
+// Custom color scheme import
+function hexToRgb(hex) {
+    // Remove # if present
+    hex = hex.replace(/^#/, '');
+
+    // Parse hex values
+    const bigint = parseInt(hex, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+
+    return [r, g, b];
+}
+
+function loadCustomColors(colorScheme) {
+    const statusEl = document.getElementById('file-status');
+    let appliedCount = 0;
+    let notFoundClasses = [];
+
+    // Create reverse mapping: class name -> class index
+    const nameToIndex = {};
+    Object.entries(state.cellClassNames).forEach(([idx, name]) => {
+        nameToIndex[name] = parseInt(idx);
+    });
+
+    // Apply custom colors
+    Object.entries(colorScheme).forEach(([className, hexColor]) => {
+        const classIdx = nameToIndex[className];
+
+        if (classIdx !== undefined) {
+            try {
+                const rgb = hexToRgb(hexColor);
+                state.cellClassColors[classIdx] = rgb;
+                appliedCount++;
+            } catch (err) {
+                console.warn(`Invalid color format for ${className}: ${hexColor}`);
+            }
+        } else {
+            notFoundClasses.push(className);
+        }
+    });
+
+    // Update UI
+    if (appliedCount > 0) {
+        statusEl.textContent = `Applied ${appliedCount} custom colors`;
+        statusEl.className = 'file-status success';
+
+        // Refresh legend and visualization
+        updateLegend();
+        render();
+
+        if (notFoundClasses.length > 0) {
+            console.warn(`Classes not found in data: ${notFoundClasses.join(', ')}`);
+        }
+    } else {
+        statusEl.textContent = 'No matching classes found';
+        statusEl.className = 'file-status error';
+    }
+
+    // Clear status after 5 seconds
+    setTimeout(() => {
+        statusEl.textContent = '';
+        statusEl.className = 'file-status';
+    }, 5000);
+}
+
+function handleColorFileUpload(event) {
+    const file = event.target.files[0];
+    const statusEl = document.getElementById('file-status');
+
+    if (!file) return;
+
+    statusEl.textContent = 'Loading...';
+    statusEl.className = 'file-status';
+
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+        try {
+            const colorScheme = JSON.parse(e.target.result);
+
+            // Validate JSON structure
+            if (typeof colorScheme !== 'object' || Array.isArray(colorScheme)) {
+                throw new Error('Invalid JSON format. Expected object with class_name: hex_color pairs');
+            }
+
+            loadCustomColors(colorScheme);
+        } catch (err) {
+            statusEl.textContent = `Error: ${err.message}`;
+            statusEl.className = 'file-status error';
+            console.error('Failed to load color scheme:', err);
+        }
+    };
+
+    reader.onerror = () => {
+        statusEl.textContent = 'Failed to read file';
+        statusEl.className = 'file-status error';
+    };
+
+    reader.readAsText(file);
+
+    // Reset file input so same file can be uploaded again
+    event.target.value = '';
+}
+
 // Initialize when page loads
-window.addEventListener('load', initialize);
+window.addEventListener('load', () => {
+    initialize();
+
+    // Setup color file upload handler
+    const fileInput = document.getElementById('color-file-input');
+    if (fileInput) {
+        fileInput.addEventListener('change', handleColorFileUpload);
+    }
+});
 
 // Handle window resize
 window.addEventListener('resize', () => {

@@ -166,6 +166,66 @@
             color: #888;
         }
 
+        #color-controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #1a1a1a;
+            border-radius: 5px;
+            border: 1px solid #444;
+        }
+
+        #color-controls h4 {
+            font-size: 12px;
+            color: #00ff00;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 8px 12px;
+            background: #00ff00;
+            color: #1a1a1a;
+            text-align: center;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .file-input-label:hover {
+            background: #00cc00;
+        }
+
+        .file-status {
+            margin-top: 8px;
+            font-size: 11px;
+            color: #888;
+            text-align: center;
+        }
+
+        .file-status.success {
+            color: #00ff00;
+        }
+
+        .file-status.error {
+            color: #ff4444;
+        }
+
         #info {
             font-size: 12px;
             color: #666;
@@ -245,6 +305,17 @@
             </div>
 
             <div id="sidebar">
+                <div id="color-controls">
+                    <h4>Custom Colors</h4>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="color-file-input" accept=".json">
+                        <label for="color-file-input" class="file-input-label">
+                            Import Color Scheme
+                        </label>
+                    </div>
+                    <div id="file-status" class="file-status"></div>
+                </div>
+
                 <div id="legend">
                     <h3>Cell Classes</h3>
                     <div id="legend-items"></div>
