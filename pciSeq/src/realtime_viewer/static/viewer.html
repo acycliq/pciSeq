@@ -123,6 +123,20 @@
             margin-bottom: 30px;
         }
 
+        /* Quick legend filter (appears on demand) */
+        #legend-filter-container { position: sticky; top: 0; background: var(--surface); padding-bottom: 6px; margin-bottom: 8px; }
+        #legend-filter-input {
+            width: 100%;
+            padding: 6px 8px;
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 12px;
+            outline: none;
+        }
+        #legend-filter-input::placeholder { color: var(--muted); }
+
         #legend h3 { font-size: 13px; color: var(--accent); margin-bottom: 12px; font-weight: 600; }
 
         #legend-items {
@@ -370,6 +384,10 @@
                     <div class="legend-controls">
                         <button class="legend-control-btn" id="show-all-btn">Show All</button>
                         <button class="legend-control-btn" id="hide-all-btn">Hide All</button>
+                    </div>
+                    <!-- Quick filter (press '/' to focus) -->
+                    <div id="legend-filter-container">
+                        <input id="legend-filter-input" type="text" placeholder="Filter classes…" autocomplete="off" spellcheck="false" />
                     </div>
                     <div id="legend-items"></div>
                 </div>

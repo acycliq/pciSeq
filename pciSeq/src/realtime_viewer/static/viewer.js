@@ -32,7 +32,9 @@ const state = {
         stream: null
     },
     // Has the view been auto-fitted once?
-    viewFitted: false
+    viewFitted: false,
+    // Quick legend filter text (appears on demand)
+    legendFilter: ''
 };
 
 // Socket.IO connection
@@ -357,9 +359,16 @@ function updateLegend() {
     const legendItems = document.getElementById('legend-items');
     legendItems.innerHTML = '';
 
-    // Sort classes by count (descending)
-    const sortedClasses = Object.entries(state.cellClassCounts)
-        .sort((a, b) => b[1] - a[1]);
+    // Filter and sort classes
+    let entries = Object.entries(state.cellClassCounts);
+    const filterText = (state.legendFilter || '').trim().toLowerCase();
+    if (filterText) {
+        entries = entries.filter(([idx]) => {
+            const name = state.cellClassNames[idx] || `Class ${idx}`;
+            return String(name).toLowerCase().includes(filterText);
+        });
+    }
+    const sortedClasses = entries.sort((a, b) => b[1] - a[1]);
 
     sortedClasses.forEach(([classIdx, count]) => {
         const item = document.createElement('div');
@@ -841,6 +850,37 @@ window.addEventListener('load', () => {
             if (state.cells.length > 0 && state.previousConfidence) {
                 detectChangedCells(false);  // false = don't update previousConfidence
                 render();
+            }
+        });
+    }
+
+    // Quick legend filter: toggle with '/', filter on input, hide on Esc/blur
+    const legendFilterContainer = document.getElementById('legend-filter-container');
+    const legendFilterInput = document.getElementById('legend-filter-input');
+
+    // Shortcut: '/' focuses the filter input
+    window.addEventListener('keydown', (e) => {
+        if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            const tag = document.activeElement && document.activeElement.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+            e.preventDefault();
+            if (legendFilterInput) {
+                legendFilterInput.focus();
+                legendFilterInput.select();
+            }
+        }
+    });
+
+    if (legendFilterInput) {
+        legendFilterInput.addEventListener('input', () => {
+            state.legendFilter = legendFilterInput.value;
+            updateLegend();
+        });
+        legendFilterInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                legendFilterInput.value = '';
+                state.legendFilter = '';
+                updateLegend();
             }
         });
     }
