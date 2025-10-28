@@ -235,26 +235,12 @@
 
         #changes-controls h4 { font-size: 12px; color: var(--accent); margin-bottom: 10px; font-weight: 600; }
 
-        .view-mode-selector {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-bottom: 15px;
-        }
-
-        .radio-option {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            padding: 6px 8px;
-            border-radius: 3px;
-            transition: background 0.2s;
-        }
-
-        .radio-option:hover { background: var(--accent-weak); }
-
-        .radio-option input[type="radio"] { cursor: pointer; accent-color: var(--accent); }
+        /* Compact segmented control for view mode */
+        .segmented { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+        .seg-btn { flex: 1; padding: 6px 10px; background: transparent; color: var(--text); border: none; cursor: pointer; font-size: 12px; }
+        .seg-btn:not(.active):hover { background: var(--accent-weak); }
+        .seg-btn.active { background: var(--accent); color: #0b0b0b; }
+        .hidden { display: none; }
 
         .radio-option span {
             font-size: 12px;
@@ -394,21 +380,15 @@
 
                 <div id="changes-controls">
                     <h4>Changes View</h4>
-                    <div class="view-mode-selector">
-                        <label class="radio-option">
-                            <input type="radio" name="viewMode" value="all" checked>
-                            <span>All Cells</span>
-                        </label>
-                        <label class="radio-option">
-                            <input type="radio" name="viewMode" value="changes">
-                            <span>Show Changes Only</span>
-                        </label>
+                    <div class="segmented" id="view-mode-segment">
+                        <button type="button" class="seg-btn active" id="mode-all">All</button>
+                        <button type="button" class="seg-btn" id="mode-changes">Changes</button>
                     </div>
-                    <div class="threshold-control">
+                    <div class="threshold-control hidden" id="threshold-section">
                         <label for="threshold-slider">Change Threshold: <span id="threshold-value">1.0</span>%</label>
                         <input type="range" id="threshold-slider" min="0" max="100" step="0.5" value="1.0">
                     </div>
-                    <div class="changes-info">
+                    <div class="changes-info hidden" id="changes-info">
                         <span class="changes-label">Changed Cells:</span>
                         <span class="changes-count" id="changes-count">-</span>
                     </div>

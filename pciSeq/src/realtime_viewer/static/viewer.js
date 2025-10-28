@@ -817,15 +817,39 @@ window.addEventListener('load', () => {
         hideAllBtn.addEventListener('click', hideAllClasses);
     }
 
-    // Setup Changes View controls
-    const viewModeRadios = document.querySelectorAll('input[name="viewMode"]');
-    viewModeRadios.forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            state.viewMode = e.target.value;
-            console.log(`View mode changed to: ${state.viewMode}`);
-            render();
-        });
-    });
+    // Setup compact Changes View segmented control
+    const modeAllBtn = document.getElementById('mode-all');
+    const modeChangesBtn = document.getElementById('mode-changes');
+    const thresholdSection = document.getElementById('threshold-section');
+    const changesInfo = document.getElementById('changes-info');
+
+    function setViewMode(mode) {
+        if (!mode || (mode !== 'all' && mode !== 'changes')) return;
+        state.viewMode = mode;
+        if (modeAllBtn && modeChangesBtn) {
+            if (mode === 'all') {
+                modeAllBtn.classList.add('active');
+                modeChangesBtn.classList.remove('active');
+            } else {
+                modeAllBtn.classList.remove('active');
+                modeChangesBtn.classList.add('active');
+            }
+        }
+        // Show/hide threshold and changes count based on mode
+        if (thresholdSection) thresholdSection.classList.toggle('hidden', mode !== 'changes');
+        if (changesInfo) changesInfo.classList.toggle('hidden', mode !== 'changes');
+
+        // If switching to changes, ensure changed set is computed with current threshold
+        if (mode === 'changes' && state.cells.length > 0) {
+            detectChangedCells(false);
+        }
+        render();
+    }
+
+    if (modeAllBtn) modeAllBtn.addEventListener('click', () => setViewMode('all'));
+    if (modeChangesBtn) modeChangesBtn.addEventListener('click', () => setViewMode('changes'));
+    // Initialize UI to current state.viewMode
+    setViewMode(state.viewMode);
 
     const thresholdSlider = document.getElementById('threshold-slider');
     const thresholdValueDisplay = document.getElementById('threshold-value');
