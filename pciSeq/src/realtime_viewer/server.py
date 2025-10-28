@@ -180,7 +180,7 @@ class RealtimeViewerServer:
     def stop(self):
         """Stop server."""
         if self._is_running:
-            logger.info("Realtime viewer server stopped")
+            # logger.info("Realtime viewer server stopped")
             self._is_running = False
 
     def send_update(self, cells_classProb, iteration, delta):

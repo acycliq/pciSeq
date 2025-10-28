@@ -60,6 +60,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     The function can be called either with positional arguments (spots, coo)
     or with keyword arguments. If both are provided, keyword arguments take precedence.
     """
+    viewer = None  # Track realtime viewer for cleanup
     try:
         # 1. parse/check the arguments
         spots, coo, scRNAseq, opts = parse_args(*args, **kwargs)
@@ -67,7 +68,23 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         # 2. Validate all inputs (spots, coo, scRNA, config)
         spots, coo, scdata, cfg = validate_inputs(spots, coo, scRNAseq, opts)
 
-        # 3. Use validated inputs and prepare the data
+        # 3. Start realtime viewer if requested
+        if cfg.get('realtime_viewer', False):
+            from .src.realtime_viewer import RealtimeViewerServer
+            port = cfg.get('realtime_viewer_port', 5001)
+            max_cells = cfg.get('realtime_viewer_max_cells', None)
+            fixed_radius = cfg.get('realtime_viewer_fixed_radius', None)
+
+            viewer = RealtimeViewerServer(
+                port=port,
+                max_cells=max_cells,
+                fixed_radius=fixed_radius
+            )
+            viewer.start()
+            cfg['realtime_viewer_callback'] = viewer.send_update
+            app_logger.info(f'Started realtime viewer on port {port}')
+
+        # 4. Use validated inputs and prepare the data
         app_logger.info('Preprocessing data')
         _cells, cellBoundaries, cellBoundaries_list, _spots, label_map = stage_data(spots, coo, cfg)
         cfg['remapping'] = label_map
@@ -93,6 +110,14 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     except Exception as e:
         app_logger.error(f"Error in fit function: {str(e)}")
         raise
+    finally:
+        # Cleanup realtime viewer if it was started
+        if viewer is not None:
+            try:
+                viewer.stop()
+                app_logger.info('Stopped realtime viewer')
+            except Exception as e:
+                app_logger.warning(f'Failed to stop realtime viewer: {e}')
 
 
 def cell_type(
