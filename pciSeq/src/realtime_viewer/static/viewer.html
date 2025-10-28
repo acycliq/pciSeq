@@ -166,6 +166,55 @@
             color: #888;
         }
 
+        .legend-item.hidden {
+            opacity: 0.4;
+        }
+
+        .legend-item.hidden .legend-label {
+            text-decoration: line-through;
+        }
+
+        .legend-item {
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .legend-item:hover {
+            background: rgba(0, 255, 0, 0.05);
+        }
+
+        .legend-checkbox {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+
+        .legend-controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .legend-control-btn {
+            flex: 1;
+            padding: 6px 10px;
+            background: #333;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+
+        .legend-control-btn:hover {
+            background: #00ff00;
+            color: #1a1a1a;
+        }
+
         #color-controls {
             margin-bottom: 20px;
             padding: 15px;
@@ -318,6 +367,10 @@
 
                 <div id="legend">
                     <h3>Cell Classes</h3>
+                    <div class="legend-controls">
+                        <button class="legend-control-btn" id="show-all-btn">Show All</button>
+                        <button class="legend-control-btn" id="hide-all-btn">Hide All</button>
+                    </div>
                     <div id="legend-items"></div>
                 </div>
 

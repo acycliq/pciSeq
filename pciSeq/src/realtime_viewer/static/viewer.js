@@ -12,6 +12,8 @@ const state = {
     cellClassColors: {},
     cellClassCounts: {},
     cellClassNames: {},  // Maps class index to class name
+    cellClassVisible: {},  // Maps class index to visibility (true/false)
+    pendingColorScheme: null,  // Store color scheme loaded before class names arrive
     connected: false,
     deckgl: null,
     stream: null,  // holds buffers during chunked transfer
@@ -74,6 +76,13 @@ socket.on('geometry_init_begin', (meta) => {
             state.cellClassNames[idx] = name;
         });
         console.log('Loaded class names:', state.cellClassNames);
+
+        // Apply pending color scheme if one was loaded before class names arrived
+        if (state.pendingColorScheme) {
+            console.log('Applying pending color scheme...');
+            applyColorScheme(state.pendingColorScheme);
+            state.pendingColorScheme = null;
+        }
     }
 });
 
@@ -274,7 +283,17 @@ function updateConnectionStatus(connected) {
 function updateStatus() {
     document.getElementById('iteration-value').textContent = state.iteration;
     document.getElementById('delta-value').textContent = state.delta.toFixed(6);
-    document.getElementById('cells-value').textContent = state.numCells.toLocaleString();
+
+    // Calculate visible cells count
+    const visibleCount = state.cells.filter(cell => state.cellClassVisible[cell.class]).length;
+    const totalCount = state.numCells;
+
+    // Show "visible / total" if some classes are hidden
+    if (visibleCount < totalCount) {
+        document.getElementById('cells-value').textContent = `${visibleCount.toLocaleString()} / ${totalCount.toLocaleString()}`;
+    } else {
+        document.getElementById('cells-value').textContent = totalCount.toLocaleString();
+    }
 }
 
 function updateCellClassCounts() {
@@ -285,6 +304,11 @@ function updateCellClassCounts() {
     state.cells.forEach(cell => {
         const classIdx = cell.class;
         state.cellClassCounts[classIdx] = (state.cellClassCounts[classIdx] || 0) + 1;
+
+        // Initialize visibility to true for new classes
+        if (!(classIdx in state.cellClassVisible)) {
+            state.cellClassVisible[classIdx] = true;
+        }
     });
 }
 
@@ -299,27 +323,84 @@ function updateLegend() {
     sortedClasses.forEach(([classIdx, count]) => {
         const item = document.createElement('div');
         item.className = 'legend-item';
+        const isVisible = state.cellClassVisible[classIdx];
 
+        // Add hidden class if not visible
+        if (!isVisible) {
+            item.classList.add('hidden');
+        }
+
+        // Checkbox
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'legend-checkbox';
+        checkbox.checked = isVisible;
+        checkbox.dataset.classIdx = classIdx;
+
+        // Color box
         const colorBox = document.createElement('div');
         colorBox.className = 'legend-color';
         const color = state.cellClassColors[classIdx];
         colorBox.style.background = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
 
+        // Label
         const label = document.createElement('span');
         label.className = 'legend-label';
-        // Use class name if available, otherwise fall back to index
         const className = state.cellClassNames[classIdx] || `Class ${classIdx}`;
         label.textContent = className;
 
+        // Count
         const countSpan = document.createElement('span');
         countSpan.className = 'legend-count';
         countSpan.textContent = count.toLocaleString();
 
+        // Assemble
+        item.appendChild(checkbox);
         item.appendChild(colorBox);
         item.appendChild(label);
         item.appendChild(countSpan);
+
+        // Click handler for entire item (toggle visibility)
+        item.addEventListener('click', (e) => {
+            // Don't toggle if clicking directly on checkbox (it handles itself)
+            if (e.target !== checkbox) {
+                toggleClassVisibility(classIdx);
+            }
+        });
+
+        // Checkbox change handler
+        checkbox.addEventListener('change', (e) => {
+            e.stopPropagation(); // Prevent item click
+            toggleClassVisibility(classIdx);
+        });
+
         legendItems.appendChild(item);
     });
+}
+
+function toggleClassVisibility(classIdx) {
+    state.cellClassVisible[classIdx] = !state.cellClassVisible[classIdx];
+    updateLegend();
+    updateStatus();
+    render();
+}
+
+function showAllClasses() {
+    Object.keys(state.cellClassVisible).forEach(classIdx => {
+        state.cellClassVisible[classIdx] = true;
+    });
+    updateLegend();
+    updateStatus();
+    render();
+}
+
+function hideAllClasses() {
+    Object.keys(state.cellClassVisible).forEach(classIdx => {
+        state.cellClassVisible[classIdx] = false;
+    });
+    updateLegend();
+    updateStatus();
+    render();
 }
 
 function render() {
@@ -328,16 +409,19 @@ function render() {
         return;
     }
 
+    // Filter cells based on visibility
+    const visibleCells = state.cells.filter(cell => state.cellClassVisible[cell.class]);
+
     console.log(`=== RENDER (iter ${state.iteration}) ===`);
-    console.log(`Rendering ${state.cells.length} cells`);
-    console.log(`Sample cell data (first 3):`, state.cells.slice(0, 3));
+    console.log(`Rendering ${visibleCells.length}/${state.cells.length} cells (some classes hidden)`);
+    console.log(`Sample cell data (first 3):`, visibleCells.slice(0, 3));
 
     const {ScatterplotLayer} = deck;
 
-    // Create scatterplot layer with cells
+    // Create scatterplot layer with visible cells only
     const layer = new ScatterplotLayer({
         id: 'cells-layer',
-        data: state.cells,
+        data: visibleCells,
         pickable: true,
         opacity: 1.0,
         stroked: true,
@@ -356,11 +440,12 @@ function render() {
         },
         getLineColor: [255, 255, 255, 60],
         updateTriggers: {
-            getFillColor: [state.iteration]  // Update colors when iteration changes
+            getFillColor: [state.iteration],  // Update colors when iteration changes
+            data: [Object.values(state.cellClassVisible)]  // Update when visibility changes
         }
     });
 
-    console.log(`Created layer with ${state.cells.length} data points`);
+    console.log(`Created layer with ${visibleCells.length} visible data points`);
 
     // Update deck.gl with new layer
     state.deckgl.setProps({
@@ -442,10 +527,9 @@ function hexToRgb(hex) {
     return [r, g, b];
 }
 
-function loadCustomColors(colorScheme) {
-    const statusEl = document.getElementById('file-status');
+function applyColorScheme(colorScheme) {
     let appliedCount = 0;
-    let notFoundClasses = [];
+    const notFoundClasses = [];
 
     // Create reverse mapping: class name -> class index
     const nameToIndex = {};
@@ -470,6 +554,36 @@ function loadCustomColors(colorScheme) {
         }
     });
 
+    if (notFoundClasses.length > 0) {
+        console.warn(`Classes not found in data: ${notFoundClasses.join(', ')}`);
+    }
+
+    return { appliedCount, notFoundClasses };
+}
+
+function loadCustomColors(colorScheme) {
+    const statusEl = document.getElementById('file-status');
+
+    // Check if class names have been loaded yet
+    const hasClassNames = Object.keys(state.cellClassNames).length > 0;
+
+    if (!hasClassNames) {
+        // Store color scheme for later application
+        state.pendingColorScheme = colorScheme;
+        statusEl.textContent = `Color scheme loaded (${Object.keys(colorScheme).length} classes). Will apply when algorithm starts.`;
+        statusEl.className = 'file-status success';
+
+        // Clear status after 5 seconds
+        setTimeout(() => {
+            statusEl.textContent = '';
+            statusEl.className = 'file-status';
+        }, 5000);
+        return;
+    }
+
+    // Apply colors immediately
+    const { appliedCount, notFoundClasses } = applyColorScheme(colorScheme);
+
     // Update UI
     if (appliedCount > 0) {
         statusEl.textContent = `Applied ${appliedCount} custom colors`;
@@ -478,10 +592,6 @@ function loadCustomColors(colorScheme) {
         // Refresh legend and visualization
         updateLegend();
         render();
-
-        if (notFoundClasses.length > 0) {
-            console.warn(`Classes not found in data: ${notFoundClasses.join(', ')}`);
-        }
     } else {
         statusEl.textContent = 'No matching classes found';
         statusEl.className = 'file-status error';
@@ -541,6 +651,18 @@ window.addEventListener('load', () => {
     const fileInput = document.getElementById('color-file-input');
     if (fileInput) {
         fileInput.addEventListener('change', handleColorFileUpload);
+    }
+
+    // Setup Show/Hide All buttons
+    const showAllBtn = document.getElementById('show-all-btn');
+    const hideAllBtn = document.getElementById('hide-all-btn');
+
+    if (showAllBtn) {
+        showAllBtn.addEventListener('click', showAllClasses);
+    }
+
+    if (hideAllBtn) {
+        hideAllBtn.addEventListener('click', hideAllClasses);
     }
 });
 
