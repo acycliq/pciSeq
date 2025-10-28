@@ -246,7 +246,7 @@ class RealtimeViewerServer:
             centroids_y = centroids_y[1:]
             radii = radii[1:]
 
-            logger.info(f"[ITERATION {iteration}] Skipped background cell (index 0), sending {len(cell_classes)} real cells")
+            # logger.info(f"[ITERATION {iteration}] Skipped background cell (index 0), sending {len(cell_classes)} real cells")
 
             # Apply fixed radius if requested
             if self.fixed_radius is not None:
