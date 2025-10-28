@@ -30,7 +30,9 @@ const state = {
         centroids_y: null,
         radii: null,
         stream: null
-    }
+    },
+    // Has the view been auto-fitted once?
+    viewFitted: false
 };
 
 // Socket.IO connection
@@ -119,6 +121,18 @@ socket.on('geometry_init_end', () => {
     state.geom.radii = gs.radii;
     state.geom.ready = true;
     state.geom.stream = null;
+
+    // Fit the view once as soon as geometry is ready, so the
+    // initial chart is centered and justified before the first update.
+    if (!state.viewFitted) {
+        // Defer to the next frame to ensure deck.gl is initialized
+        requestAnimationFrame(() => {
+            if (!state.viewFitted && state.deckgl) {
+                autoFitView();
+                state.viewFitted = true;
+            }
+        });
+    }
 });
 
 // Classes/confidence streaming per iteration
@@ -561,15 +575,20 @@ function render() {
         layers: [layer]
     });
 
-    // Auto-fit view on first render
-    if (state.iteration === 1) {
-        console.log('Calling autoFitView because iteration === 1');
+    // Auto-fit view on the very first render if it hasn't been fitted yet
+    if (!state.viewFitted) {
+        console.log('Auto-fitting view on first render');
         autoFitView();
+        state.viewFitted = true;
     }
 }
 
 function autoFitView() {
-    if (state.cells.length === 0) return;
+    // Compute bounds either from current cells or, if not set yet,
+    // from the geometry centroids received during initialization.
+    const useCells = state.cells && state.cells.length > 0;
+    const useGeom = !useCells && state.geom && state.geom.ready && state.geom.centroids_x && state.geom.centroids_x.length > 0;
+    if (!useCells && !useGeom) return;
 
     console.log('=== AUTO FIT VIEW ===');
 
@@ -577,12 +596,25 @@ function autoFitView() {
     let minX = Infinity, minY = Infinity;
     let maxX = -Infinity, maxY = -Infinity;
 
-    state.cells.forEach(cell => {
-        minX = Math.min(minX, cell.x);
-        minY = Math.min(minY, cell.y);
-        maxX = Math.max(maxX, cell.x);
-        maxY = Math.max(maxY, cell.y);
-    });
+    if (useCells) {
+        state.cells.forEach(cell => {
+            minX = Math.min(minX, cell.x);
+            minY = Math.min(minY, cell.y);
+            maxX = Math.max(maxX, cell.x);
+            maxY = Math.max(maxY, cell.y);
+        });
+    } else if (useGeom) {
+        const xs = state.geom.centroids_x;
+        const ys = state.geom.centroids_y;
+        for (let i = 0; i < xs.length; i++) {
+            const x = xs[i];
+            const y = ys[i];
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+        }
+    }
 
     console.log(`Bounds: minX=${minX}, maxX=${maxX}, minY=${minY}, maxY=${maxY}`);
 
