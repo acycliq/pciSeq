@@ -16,6 +16,7 @@
             --accent: #22c55e;
             --accent-strong: #16a34a;
             --accent-weak: rgba(34, 197, 94, 0.08);
+            --danger: #ef4444; /* red for disconnected */
         }
 
         * {
@@ -70,10 +71,13 @@
         .status-value { font-weight: 600; font-family: 'Courier New', monospace; color: var(--accent); }
 
         .status-dot {
+            display: inline-block; /* ensure width/height apply */
+            vertical-align: middle;
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            background: #555;
+            background: var(--danger); /* red by default (disconnected) */
+            margin-left: 6px;
         }
 
         .status-dot.connected { background: var(--accent); }
@@ -94,7 +98,7 @@
         .hud {
             position: absolute;
             top: 12px;
-            right: 12px;
+            left: 12px;
             display: inline-flex;
             align-items: center;
             gap: 10px;
@@ -314,8 +318,8 @@
             <h1>pciSeq Real-Time Algorithm Viewer - Spatial View</h1>
             <div id="status">
                 <div class="status-item">
+                    <span class="status-label">Connected</span>
                     <span class="status-dot" id="connection-dot"></span>
-                    <span class="status-label">Connection:</span>
                     <span class="status-value" id="connection-status">Connecting...</span>
                 </div>
                 <div class="status-item">
@@ -323,7 +327,7 @@
                     <span class="status-value" id="iteration-value">-</span>
                 </div>
                 <div class="status-item">
-                    <span class="status-label">Convergence Δ:</span>
+                    <span class="status-label">Convergence:</span>
                     <span class="status-value" id="delta-value">-</span>
                 </div>
                 <div class="status-item">
@@ -338,10 +342,10 @@
                 <div id="deck-container"></div>
                 <!-- Minimal status HUD (keeps focus on the canvas) -->
                 <div class="hud" id="hud">
-                    <span class="status-dot" id="hud-connection-dot"></span>
+                    <span class="hud-item">Connected <span class="status-dot" id="hud-connection-dot"></span></span>
                     <span class="hud-item">Iter <span id="hud-iteration-value">-</span></span>
                     <span class="hud-sep">•</span>
-                    <span class="hud-item">Δ <span id="hud-delta-value">-</span></span>
+                    <span class="hud-item">Convergence <span id="hud-delta-value">-</span></span>
                     <span class="hud-sep">•</span>
                     <span class="hud-item"><span id="hud-cells-value">-</span> cells</span>
                 </div>
@@ -394,11 +398,11 @@
 
                 <div id="info">
                     <p><strong>About:</strong></p>
-                    <p>This viewer shows cells at their actual spatial positions, colored by cell type assignment.</p>
-                    <br>
-                    <p>Each circle represents a cell (size = cell area). Colors update in real-time as the algorithm iterates.</p>
-                    <br>
-                    <p><strong>GPU Accelerated:</strong> Rendering powered by deck.gl WebGL engine.</p>
+                    <p>This viewer shows cells at their spatial positions, colored by cell type assignment.</p>
+<!--                    <br>-->
+<!--                    <p>Each circle represents a cell (size = cell area). Colors update in real-time as the algorithm iterates.</p>-->
+<!--                    <br>-->
+<!--                    <p><strong>GPU Accelerated:</strong> Rendering powered by deck.gl WebGL engine.</p>-->
                 </div>
             </div>
         </div>

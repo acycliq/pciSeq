@@ -311,23 +311,33 @@ function updateConnectionStatus(connected) {
     const dot = document.getElementById('connection-dot');
     const status = document.getElementById('connection-status');
     const hudDot = document.getElementById('hud-connection-dot');
+    // Read CSS variables for consistent colors
+    const cssVars = getComputedStyle(document.documentElement);
+    const accent = (cssVars.getPropertyValue('--accent') || '#22c55e').trim();
+    const danger = (cssVars.getPropertyValue('--danger') || '#ef4444').trim();
 
     if (connected) {
         dot.classList.add('connected');
         status.textContent = 'Connected';
-        status.style.color = '#00ff00';
-        if (hudDot) hudDot.classList.add('connected');
+        status.style.color = accent;
+        if (hudDot) {
+            hudDot.classList.add('connected');
+            hudDot.style.background = accent; // force green
+        }
     } else {
         dot.classList.remove('connected');
         status.textContent = 'Disconnected';
-        status.style.color = '#ff0000';
-        if (hudDot) hudDot.classList.remove('connected');
+        status.style.color = danger;
+        if (hudDot) {
+            hudDot.classList.remove('connected');
+            hudDot.style.background = danger; // force red
+        }
     }
 }
 
 function updateStatus() {
     document.getElementById('iteration-value').textContent = state.iteration;
-    document.getElementById('delta-value').textContent = state.delta.toFixed(6);
+    document.getElementById('delta-value').textContent = state.delta.toFixed(3);
     document.getElementById('cells-value').textContent = state.numCells.toLocaleString();
 
     // Also update the minimal HUD if present
@@ -335,7 +345,7 @@ function updateStatus() {
     const hDelta = document.getElementById('hud-delta-value');
     const hCells = document.getElementById('hud-cells-value');
     if (hIter) hIter.textContent = state.iteration;
-    if (hDelta) hDelta.textContent = state.delta.toFixed(6);
+    if (hDelta) hDelta.textContent = state.delta.toFixed(3);
     if (hCells) hCells.textContent = state.numCells.toLocaleString();
 }
 
