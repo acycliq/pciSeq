@@ -257,14 +257,14 @@ function initializeDeck() {
             if (object) {
                 const className = state.cellClassNames[object.class] || `Class ${object.class}`;
                 return {
-                    html: `<div style="font-family: monospace; font-size: 12px;">
+                    html: `<div style="font-size: 12px;">
                         Cell Class: ${className}<br/>
                         Position: (${Math.round(object.x)}, ${Math.round(object.y)})<br/>
                         Confidence: ${(object.confidence * 100).toFixed(1)}%
                     </div>`,
                     style: {
-                        backgroundColor: '#2a2a2a',
-                        color: '#00ff00',
+                        backgroundColor: '#1b1b1b',
+                        color: '#e5e5e5',
                         padding: '8px',
                         borderRadius: '4px'
                     }
