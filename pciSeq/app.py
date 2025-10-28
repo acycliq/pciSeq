@@ -78,8 +78,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
             viewer = RealtimeViewerServer(
                 port=port,
                 max_cells=max_cells,
-                fixed_radius=fixed_radius,
-                auto_open_browser=False
+                fixed_radius=fixed_radius
             )
             viewer.start()
             cfg['realtime_viewer_callback'] = viewer.send_update
@@ -217,6 +216,7 @@ def parse_args(*args, **kwargs) -> Tuple[pd.DataFrame, Any, Optional[pd.DataFram
         raise ValueError("Both 'spots' and 'coo' must be provided")
 
     return spots, coo, scRNAseq, opts
+
 
 
 
