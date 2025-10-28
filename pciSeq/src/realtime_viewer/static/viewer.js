@@ -76,6 +76,15 @@ socket.on('geometry_init_begin', (meta) => {
         radii: new Float32Array(meta.num_cells)
     };
 
+    // Reset change tracking at the start of a new run/session.
+    // This prevents comparing the new run against old data after reconnects or restarts.
+    state.previousConfidence = null;   // No previous step yet for the new run
+    state.changedCells.clear();        // Start with an empty set of changed cells
+    updateChangesCount();              // Reflect the reset in the UI counter
+    // Hide any previous informational banner, if present
+    const prevNotice = document.getElementById('user-notice');
+    if (prevNotice) prevNotice.style.display = 'none';
+
     // Store class names mapping (index to name)
     if (meta.class_names) {
         state.cellClassNames = {};
@@ -151,6 +160,7 @@ socket.on('classes_update_end', (msg) => {
     const cells = new Array(N);
     for (let i = 0; i < N; i++) {
         cells[i] = {
+            id: i,  // Stable cell ID for tracking across filtering operations
             x: state.geom.centroids_x[i],
             y: state.geom.centroids_y[i],
             radius: state.geom.radii[i],
@@ -188,6 +198,7 @@ function applyClassesUpdate(iteration, delta, numCells, classes, confidence) {
     const cells = new Array(N);
     for (let i = 0; i < N; i++) {
         cells[i] = {
+            id: i,  // Stable cell ID for tracking across filtering operations
             x: state.geom.centroids_x[i],
             y: state.geom.centroids_y[i],
             radius: state.geom.radii[i],
@@ -412,6 +423,20 @@ function detectChangedCells(updatePrevious = true) {
     // Clear changed cells set
     state.changedCells.clear();
 
+    // Safety guard: if the number of cells changed between steps,
+    // pause change detection for this step and reset the baseline.
+    if (state.previousConfidence && state.previousConfidence.length !== state.cells.length) {
+        const prevN = state.previousConfidence.length;
+        const currN = state.cells.length;
+        const msg = `Paused the "Changes" view for this step because the number of cells changed (${prevN} → ${currN}). This can happen after reconnecting or restarting. The view will resume automatically on the next step.`;
+        console.warn(msg);
+        showUserNotice(msg);
+        // Reset baseline to current values and skip diffing for this step
+        state.previousConfidence = state.cells.map(cell => cell.confidence);
+        updateChangesCount();
+        return;
+    }
+
     // On first iteration (no previous data to compare), all cells are "changed"
     if (!state.previousConfidence) {
         for (let i = 0; i < state.cells.length; i++) {
@@ -447,6 +472,32 @@ function detectChangedCells(updatePrevious = true) {
     updateChangesCount();
 }
 
+// Simple user-facing notice (non-technical) shown as a small banner
+function showUserNotice(message) {
+    let el = document.getElementById('user-notice');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'user-notice';
+        el.style.position = 'fixed';
+        el.style.bottom = '20px';
+        el.style.left = '20px';
+        el.style.maxWidth = '420px';
+        el.style.padding = '10px 12px';
+        el.style.background = '#2a2a2a';
+        el.style.color = '#e0e0e0';
+        el.style.border = '1px solid #00ff00';
+        el.style.borderRadius = '4px';
+        el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.4)';
+        el.style.fontSize = '12px';
+        el.style.zIndex = 2000;
+        document.body.appendChild(el);
+    }
+    el.textContent = message;
+    el.style.display = 'block';
+    clearTimeout(el._hideTimer);
+    el._hideTimer = setTimeout(() => { el.style.display = 'none'; }, 7000);
+}
+
 function updateChangesCount() {
     const countEl = document.getElementById('changes-count');
     if (countEl) {
@@ -465,7 +516,8 @@ function render() {
 
     // Further filter by changes if in changes mode
     if (state.viewMode === 'changes') {
-        visibleCells = visibleCells.filter((cell, idx) => state.changedCells.has(idx));
+        // Use original cell id for membership test, not filtered index
+        visibleCells = visibleCells.filter(cell => state.changedCells.has(cell.id));
     }
 
     console.log(`=== RENDER (iter ${state.iteration}) ===`);
