@@ -117,6 +117,31 @@
             letter-spacing: 1px;
         }
 
+        #legend-items {
+            max-height: 500px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        /* Custom scrollbar styling */
+        #legend-items::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #legend-items::-webkit-scrollbar-track {
+            background: #1a1a1a;
+            border-radius: 4px;
+        }
+
+        #legend-items::-webkit-scrollbar-thumb {
+            background: #00ff00;
+            border-radius: 4px;
+        }
+
+        #legend-items::-webkit-scrollbar-thumb:hover {
+            background: #00cc00;
+        }
+
         .legend-item {
             display: flex;
             align-items: center;
