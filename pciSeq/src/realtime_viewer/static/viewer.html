@@ -226,6 +226,12 @@
         .legend-count { font-family: inherit; font-size: 11px; color: var(--muted); }
         .chip:hover .legend-count { color: var(--text); }
 
+        /* Subtle eye icon at right edge of chip */
+        .chip-eye { width: 16px; height: 16px; opacity: 0.6; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; }
+        .chip:hover .chip-eye { opacity: 0.85; }
+        .chip.dim .chip-eye { opacity: 0.35; }
+        .chip-eye svg { display: block; width: 100%; height: 100%; fill: currentColor; color: var(--text); }
+
         /* Remove legacy legend-item/checkbox visuals in favor of chips */
 
         .legend-controls {

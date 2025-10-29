@@ -458,10 +458,28 @@ function updateLegend() {
         countSpan.textContent = count.toLocaleString();
         item.title = `${className}: ${count.toLocaleString()} cells`;
 
+        // Subtle eye/eye-off icon (visual cue)
+        const eyeWrap = document.createElement('span');
+        eyeWrap.className = 'chip-eye';
+        // Minimal inline SVGs to avoid external assets
+        const eyeOpenSvg = `
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 5c-7 0-11 7-11 7s4 7 11 7 11-7 11-7-4-7-11-7z" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <circle cx="12" cy="12" r="3" fill="currentColor"/>
+            </svg>`;
+        const eyeOffSvg = `
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 5c-7 0-11 7-11 7s4 7 11 7 11-7 11-7-4-7-11-7z" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <circle cx="12" cy="12" r="3" fill="currentColor"/>
+              <line x1="4" y1="4" x2="20" y2="20" stroke="currentColor" stroke-width="1.5"/>
+            </svg>`;
+        eyeWrap.innerHTML = isVisible ? eyeOpenSvg : eyeOffSvg;
+
         // Assemble
         item.appendChild(colorBox);
         item.appendChild(label);
         item.appendChild(countSpan);
+        item.appendChild(eyeWrap);
 
         // Click toggles visibility
         item.addEventListener('click', () => toggleClassVisibility(classIdx));
