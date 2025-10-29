@@ -28,12 +28,20 @@ const state = {
         ready: false,
         centroids_x: null,
         centroids_y: null,
+        centroids_z: null,
         radii: null,
         stream: null,
-        mcr: null
+        mcr: null,
+        is3D: false,
+        voxelSize: null,
+        planeId: null
     },
     // Has the view been auto-fitted once?
     viewFitted: false,
+    // Plane filter (3D)
+    planeFilterEnabled: false,
+    selectedPlane: null,
+    planeRange: null,
     // Quick legend filter text (appears on demand)
     legendFilter: ''
 };
@@ -78,12 +86,22 @@ socket.on('geometry_init_begin', (meta) => {
         received: 0,
         centroids_x: new Float32Array(meta.num_cells),
         centroids_y: new Float32Array(meta.num_cells),
+        centroids_z: new Float32Array(meta.num_cells),
         radii: new Float32Array(meta.num_cells)
     };
 
-    // Store mean cell radius if provided
+    // Store meta
     if (meta.mcr !== undefined && meta.mcr !== null) {
         state.geom.mcr = Number(meta.mcr);
+    }
+    state.geom.is3D = !!meta.is3D;
+    if (meta.voxel_size && Array.isArray(meta.voxel_size) && meta.voxel_size.length === 3) {
+        state.geom.voxelSize = meta.voxel_size.map(Number);
+    }
+    // Enable/disable Plane toggle based on 3D meta
+    const planeToggleEl = document.getElementById('plane-toggle');
+    if (planeToggleEl) {
+        planeToggleEl.disabled = !state.geom.is3D;
     }
 
     // Reset change tracking at the start of a new run/session.
@@ -117,6 +135,9 @@ socket.on('geometry_init_chunk', (chunk) => {
     const {start, end} = chunk;
     state.geom.stream.centroids_x.set(chunk.centroids_x, start);
     state.geom.stream.centroids_y.set(chunk.centroids_y, start);
+    if (chunk.centroids_z) {
+        state.geom.stream.centroids_z.set(chunk.centroids_z, start);
+    }
     state.geom.stream.radii.set(chunk.radii, start);
     state.geom.stream.received = end;
 });
@@ -126,9 +147,33 @@ socket.on('geometry_init_end', () => {
     const gs = state.geom.stream;
     state.geom.centroids_x = gs.centroids_x;
     state.geom.centroids_y = gs.centroids_y;
+    state.geom.centroids_z = gs.centroids_z;
     state.geom.radii = gs.radii;
     state.geom.ready = true;
     state.geom.stream = null;
+
+    // Compute plane indices if 3D
+    if (state.geom.is3D && state.geom.voxelSize && state.geom.centroids_z) {
+        try {
+            const dx = Number(state.geom.voxelSize[0]);
+            const dz = Number(state.geom.voxelSize[2]);
+            const Sz = dz / dx; // isotropic z = original_z * (dz/dx)
+            const N = state.geom.centroids_z.length;
+            const planeId = new Uint16Array(N);
+            let minP = Infinity, maxP = -Infinity;
+            for (let i = 0; i < N; i++) {
+                const p = Math.round(state.geom.centroids_z[i] / Sz);
+                planeId[i] = p;
+                if (p < minP) minP = p;
+                if (p > maxP) maxP = p;
+            }
+            state.geom.planeId = planeId;
+            state.planeRange = { min: minP, max: maxP };
+        } catch (e) {
+            console.warn('Failed to compute plane indices:', e);
+            state.geom.planeId = null;
+        }
+    }
 
     // Fit the view once as soon as geometry is ready, so the
     // initial chart is centered and justified before the first update.
@@ -548,6 +593,11 @@ function render() {
         visibleCells = visibleCells.filter(cell => state.changedCells.has(cell.id));
     }
 
+    // Further filter by plane if enabled
+    if (state.planeFilterEnabled && state.geom && state.geom.planeId && state.selectedPlane !== null) {
+        visibleCells = visibleCells.filter(cell => state.geom.planeId[cell.id] === state.selectedPlane);
+    }
+
     console.log(`=== RENDER (iter ${state.iteration}) ===`);
     const modeText = state.viewMode === 'changes' ? 'changes mode' : 'all cells mode';
     console.log(`Rendering ${visibleCells.length}/${state.cells.length} cells (${modeText})`);
@@ -824,6 +874,7 @@ window.addEventListener('load', () => {
     // Setup compact Changes View segmented control
     const modeAllBtn = document.getElementById('mode-all');
     const modeChangesBtn = document.getElementById('mode-changes');
+    const planeToggleBtn = document.getElementById('plane-toggle');
     const thresholdSection = document.getElementById('threshold-section');
     const changesInfo = document.getElementById('changes-info');
 
@@ -854,6 +905,55 @@ window.addEventListener('load', () => {
     if (modeChangesBtn) modeChangesBtn.addEventListener('click', () => setViewMode('changes'));
     // Initialize UI to current state.viewMode
     setViewMode(state.viewMode);
+
+    // Plane filter footer controls (3D only)
+    const planeFooter = document.getElementById('plane-footer');
+    const planeSlider = document.getElementById('plane-slider');
+    const planeValue = document.getElementById('plane-value');
+
+    function updatePlaneFooterVisibility() {
+        if (!planeFooter) return;
+        const show = state.geom.is3D && state.planeFilterEnabled && state.geom.planeId;
+        planeFooter.style.display = show ? 'block' : 'none';
+    }
+
+    function setPlaneFilter(enabled) {
+        state.planeFilterEnabled = !!enabled;
+        if (planeToggleBtn) planeToggleBtn.classList.toggle('active', state.planeFilterEnabled);
+        if (state.planeFilterEnabled && state.geom.planeId) {
+            const r = state.planeRange || { min: 0, max: 0 };
+            if (planeSlider) {
+                planeSlider.min = String(r.min);
+                planeSlider.max = String(r.max);
+                if (state.selectedPlane === null) state.selectedPlane = r.min;
+                planeSlider.value = String(state.selectedPlane);
+            }
+            if (planeValue) planeValue.textContent = String(state.selectedPlane);
+        } else {
+            state.selectedPlane = null;
+        }
+        updatePlaneFooterVisibility();
+        render();
+    }
+
+    if (planeToggleBtn) {
+        planeToggleBtn.addEventListener('click', () => {
+            if (!state.geom.is3D || !state.geom.planeId) {
+                showUserNotice('Plane filter is available only for 3D data.');
+                return;
+            }
+            setPlaneFilter(!state.planeFilterEnabled);
+        });
+        // Always show the toggle; disable it when not 3D
+        planeToggleBtn.disabled = !(state.geom.is3D);
+    }
+    if (planeSlider) {
+        planeSlider.addEventListener('input', (e) => {
+            state.selectedPlane = parseInt(e.target.value, 10);
+            if (planeValue) planeValue.textContent = String(state.selectedPlane);
+            render();
+        });
+    }
 
     const thresholdSlider = document.getElementById('threshold-slider');
     const thresholdValueDisplay = document.getElementById('threshold-value');

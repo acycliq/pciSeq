@@ -121,6 +121,53 @@
             position: relative;
         }
 
+        /* Bottom plane filter footer */
+        #plane-footer {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            padding: 8px 16px;
+            display: none; /* shown only in 3D when enabled */
+            z-index: 1100;
+        }
+        #plane-footer .inner {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            max-width: 960px;
+            margin: 0 auto;
+        }
+        #plane-slider { flex: 1; }
+        #plane-label { color: var(--text); font-size: 12px; }
+        /* Slider styling (adapted from pciSeq_viewer) */
+        #plane-slider {
+            width: 280px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 2px;
+            appearance: none;
+            outline: none;
+        }
+        #plane-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        #plane-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
         #sidebar { width: 300px; background: var(--surface); border-left: 1px solid var(--border); overflow-y: auto; padding: 16px; }
 
         #legend {
@@ -230,6 +277,7 @@
         .seg-btn:not(.active):hover { background: var(--accent-weak); }
         .seg-btn.active { background: var(--accent); color: #0b0b0b; }
         .hidden { display: none; }
+        .seg-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
 
         .radio-option span {
             font-size: 12px;
@@ -373,6 +421,10 @@
                         <button type="button" class="seg-btn active" id="mode-all" title="Show every cell">All Cells</button>
                         <button type="button" class="seg-btn" id="mode-changes" title="Show only cells that changed since last step">Updated Only</button>
                     </div>
+                    <!-- Plane filter toggle (always visible; disabled when not 3D) -->
+                    <div class="segmented" id="plane-toggle-row">
+                        <button type="button" class="seg-btn" id="plane-toggle" title="Filter by z-plane">Plane</button>
+                    </div>
                     <div class="threshold-control hidden" id="threshold-section">
                         <label for="threshold-slider">Minimum change: <span id="threshold-value">1.0</span>%</label>
                         <input type="range" id="threshold-slider" min="0" max="100" step="0.5" value="1.0">
@@ -405,6 +457,14 @@
 <!--                    <p><strong>GPU Accelerated:</strong> Rendering powered by deck.gl WebGL engine.</p>-->
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Bottom footer for plane slider (3D only) -->
+    <div id="plane-footer">
+        <div class="inner">
+            <span id="plane-label">Plane: <span id="plane-value">-</span></span>
+            <input type="range" id="plane-slider" min="0" max="0" step="1" value="0">
         </div>
     </div>
 

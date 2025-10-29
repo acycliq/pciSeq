@@ -113,7 +113,9 @@ class RealtimeViewerServer:
                         'num_cells': int(n),
                         'chunk_size': int(chunk_size),
                         'class_names': class_names,
-                        'mcr': geom.get('mcr')
+                        'mcr': geom.get('mcr'),
+                        'is3D': bool(geom.get('is3D', False)),
+                        'voxel_size': geom.get('voxel_size')
                     }, namespace='/')
                     for start in range(0, n, chunk_size):
                         end = min(start + chunk_size, n)
@@ -122,6 +124,7 @@ class RealtimeViewerServer:
                             'end': int(end),
                             'centroids_x': geom['centroids_x'][start:end],
                             'centroids_y': geom['centroids_y'][start:end],
+                            'centroids_z': geom.get('centroids_z', [0]*n)[start:end],
                             'radii': geom['radii'][start:end],
                         }, namespace='/')
                     self.socketio.emit('geometry_init_end', {}, namespace='/')
@@ -272,12 +275,23 @@ class RealtimeViewerServer:
                 chunk_size = 5000
                 # Get class names from VarBayes
                 class_names = varbayes.cells.class_names.tolist() if hasattr(varbayes.cells.class_names, 'tolist') else list(varbayes.cells.class_names)
+                is3d = bool(varbayes.config.get('is3D', False))
+                voxel_size = varbayes.config.get('voxel_size', None)
+
+                # z centroids if present, otherwise zeros
+                if centroids.shape[1] >= 3:
+                    cz_full = np.round(centroids[:, 2].astype(np.float32), 3)
+                    centroids_z = cz_full[1:]
+                else:
+                    centroids_z = np.zeros_like(centroids_x)
 
                 self.socketio.emit('geometry_init_begin', {
                     'num_cells': int(num_cells),
                     'chunk_size': int(chunk_size),
                     'class_names': class_names,
-                    'mcr': float(varbayes.cells.mcr)
+                    'mcr': float(varbayes.cells.mcr),
+                    'is3D': is3d,
+                    'voxel_size': voxel_size,
                 }, namespace='/')
                 for start in range(0, num_cells, chunk_size):
                     end = min(start + chunk_size, num_cells)
@@ -286,6 +300,7 @@ class RealtimeViewerServer:
                         'end': int(end),
                         'centroids_x': centroids_x[start:end].tolist(),
                         'centroids_y': centroids_y[start:end].tolist(),
+                        'centroids_z': centroids_z[start:end].tolist(),
                         'radii': radii[start:end].tolist(),
                     }, namespace='/')
                 self.socketio.emit('geometry_init_end', {}, namespace='/')
@@ -295,9 +310,12 @@ class RealtimeViewerServer:
                     'chunk_size': int(chunk_size),
                     'centroids_x': centroids_x.tolist(),
                     'centroids_y': centroids_y.tolist(),
+                    'centroids_z': centroids_z.tolist(),
                     'radii': radii.tolist(),
                     'class_names': class_names,
                     'mcr': float(varbayes.cells.mcr),
+                    'is3D': is3d,
+                    'voxel_size': voxel_size,
                 }
                 self._num_cells_expected = num_cells
                 logger.info(f"Geometry cached: {num_cells} cells")
