@@ -1,219 +1,188 @@
-# Real-Time Viewer Module
+# Real-time Viewer
 
-Self-contained web-based visualization for watching pciSeq algorithm convergence in real-time.
+A small, self-contained web viewer that shows pciSeq (VarBayes) progress while it runs.
 
-## Overview
+The viewer consists of two parts:
+- A lightweight Python server (Flask-SocketIO) that streams updates
+- A static web page (HTML + JS) that renders cells using deck.gl
 
-This module provides a complete real-time visualization system for the VarBayes algorithm. It includes:
-- **Flask-SocketIO server** for streaming updates
-- **Web-based viewer** with interactive visualization
-- **Automatic browser launch** for convenience
-- **Zero dependency on external viewers**
+No external viewer is required.
 
-All components are self-contained within the pciSeq package.
+## Components and Responsibilities
 
-## Features
+- app.py
+  - Reads options and, if `realtime_viewer` is true, starts the viewer server.
+  - Wires a callback so VarBayes can push updates after each iteration.
 
-- ✅ **Self-contained**: Complete viewer included (HTML/CSS/JS)
-- ✅ **Zero impact when disabled**: No overhead if not used
-- ✅ **Auto-launch**: Opens browser automatically
-- ✅ **Real-time updates**: See cell assignments change as algorithm iterates
-- ✅ **Performance metrics**: Monitor iteration number, convergence delta
-- ✅ **Cell class distribution**: Live legend with counts per class
-- ✅ **Thread-safe**: Runs in background without blocking
+- RealtimeViewerServer (server.py)
+  - Serves the static files `viewer.html` and `viewer.js`.
+  - Streams two types of messages to the browser:
+    - Geometry (sent once): centroids, radii, class names, mean cell radius (mcr)
+    - Per-iteration classes: class index per cell and probability (prob)
+  - Caches geometry and the last update so a new browser tab can catch up.
 
-## Quick Start
+- viewer.html + viewer.js
+  - Connects to the server via Socket.IO.
+  - Receives geometry once, then receives class/prob arrays each iteration.
+  - Renders cells with deck.gl; shows a minimal HUD and a compact legend.
 
-```python
-from pciSeq.app import fit
-from pciSeq.src.realtime_viewer import RealtimeViewerServer
-import pandas as pd
-from scipy.sparse import load_npz
+## How It Fits Together
 
-# Load data
-spots = pd.read_csv('spots.csv')
-coo = load_npz('segmentation.coo.npz')
-scRNAseq = pd.read_csv('scRNAseq.csv.gz', compression='gzip')
+Sequence at a high level:
 
-# Start viewer (automatically opens browser)
-viewer = RealtimeViewerServer(port=5001)
-viewer.start()
+1) VarBayes runs one iteration
+2) VarBayes calls the callback with: classProb, iteration, delta
+3) Server extracts:
+   - cell_classes = argmax(classProb, axis=1)
+   - prob = max(classProb, axis=1)
+   - geometry (centroids, radii) from VarBayes.cells (only once)
+4) Server emits messages to the browser
+5) Browser updates the visualization
 
-# Run analysis with real-time visualization
+ASCII diagram of the workflow:
+
+  Python (VarBayes)               RealtimeViewerServer                 Browser (viewer.js)
+  -------------------             ----------------------               --------------------
+  main_loop() iter i  --->  send_update(classProb, i, delta)  --->  classes_update_* events
+         |                          |                                   |
+         |                    first iteration only                      |
+         |------------------->  geometry_init_* events  --------------->|
+
+## Message Protocol
+
+Geometry (sent once to each client):
+- geometry_init_begin
+  - num_cells: int
+  - chunk_size: int
+  - class_names: list[str]
+  - mcr: float (mean cell radius)
+- geometry_init_chunk (repeated)
+  - start, end: int
+  - centroids_x: list[float]
+  - centroids_y: list[float]
+  - radii: list[float]
+- geometry_init_end
+
+Per-iteration updates:
+- classes_update_begin
+  - iteration: int
+  - delta: float (convergence)
+  - num_cells: int
+  - chunk_size: int
+- classes_update_chunk (repeated)
+  - start, end: int
+  - cell_classes: list[uint8]
+  - prob: list[float]
+- classes_update_end
+
+### Geometry: what it is and why we send it once
+
+The viewer needs a small amount of static information before it can draw anything. We call this the geometry. It contains:
+
+- Centroids: x and y (and z in 3D) for every cell. These set the position of each circle.
+- Radii: one radius per cell, derived from area. The client currently prefers to draw all circles with the mean cell radius (mcr) for a clean look, but the per‑cell radii are still sent for completeness.
+- Class names: human‑readable labels for the legend and tooltips.
+- Mean cell radius (mcr): a single value from `VarBayes.cells.mcr` that the client uses as the fixed display radius.
+- Sizes: number of cells and a chunk size so the browser can preallocate arrays and stream the payload in parts.
+
+Why send it only once:
+
+- It does not change as the algorithm iterates. Positions stay the same.
+- Keeping it out of the per‑iteration messages makes those messages small and fast to process.
+- The array indices the browser uses match the original cell order. That lets the server send only two arrays per iteration: class index per cell and probability per cell.
+
+Conventions:
+- Background cell (index 0) is excluded on the server before streaming.
+- Cell indices in the stream start at 0 for the first real cell.
+
+## Configuration
+
+Defaults:
+- Port: 5001 (do not pass it unless overriding)
+- Auto-open browser: off (open http://127.0.0.1:5001 manually)
+- Fixed radius: the client uses `mcr` by default for circle size; server also sends per-cell radii
+
+Common options (in `opts` passed to `fit`):
+- `realtime_viewer`: bool (enable/disable)
+- `realtime_viewer_port`: int (default 5001)
+- `realtime_viewer_fixed_radius`: float or None
+
+Call-site options (fit) quick reference:
+
+- Enable viewer:
+  - Pass `opts={'realtime_viewer': True}` to `fit(...)`.
+  - Do not pass any callback; `fit` wires it internally.
+- Override port (optional):
+  - Pass `opts={'realtime_viewer': True, 'realtime_viewer_port': 5002}`.
+  - Default is 5001 if omitted.
+- Fixed radius (optional):
+  - Pass `realtime_viewer_fixed_radius` to force a display radius.
+  - The viewer uses `mcr` by default for a consistent circle size.
+
+Example (automatic startup from app.py):
+
+```
 cellData, geneData = fit(
     spots=spots,
     coo=coo,
     scRNAseq=scRNAseq,
     opts={
-        'realtime_viewer_callback': viewer.send_update,
-        'max_iter': 100,
+        'realtime_viewer': True,
+        # 'realtime_viewer_port': 5001,         # optional; defaults to 5001
+        # 'realtime_viewer_fixed_radius': None, # optional
     }
 )
+```
 
-# Cleanup
+Example (manual server control):
+
+```
+from pciSeq.src.realtime_viewer import RealtimeViewerServer
+
+viewer = RealtimeViewerServer(port=5001, auto_open_browser=False)
+viewer.start()
+
+cellData, geneData = fit(
+    spots=spots,
+    coo=coo,
+    scRNAseq=scRNAseq,
+    opts={'realtime_viewer_callback': viewer.send_update}
+)
+
 viewer.stop()
 ```
 
-## What You'll See
+## Rendering Details (viewer.js)
 
-The viewer opens automatically in your browser showing:
-- **Grid visualization**: Each cell colored by its current class assignment
-- **Status bar**: Connection status, iteration number, convergence delta, cell count
-- **Live legend**: Cell classes with counts, updated each iteration
-- **Real-time updates**: Colors change as algorithm reassigns cells
-
-## Architecture
-
-```
-┌─────────────────────────────────────────┐
-│  Python (pciSeq backend)                │
-│                                         │
-│  VarBayes.main_loop()                   │
-│    ↓ each iteration                     │
-│  viewer.send_update(classProb, i, δ)    │
-│    ↓                                    │
-│  Flask-SocketIO Server (port 5001)     │
-│  - Serves static viewer HTML/JS        │
-│  - Streams updates via WebSocket       │
-└─────────────────┬───────────────────────┘
-                  │ WebSocket
-                  ↓
-┌─────────────────────────────────────────┐
-│  Browser (Auto-launched)                │
-│                                         │
-│  viewer.html (self-contained)           │
-│  - Socket.IO client                     │
-│  - Canvas visualization                 │
-│  - Live status updates                  │
-└─────────────────────────────────────────┘
-```
+- Deck.gl ScatterplotLayer renders one circle per cell.
+- Radius: uses `mcr` (mean cell radius) if available; otherwise uses per-cell radius derived from area.
+- Color: class-based palette; opacity is a function of `prob` (higher prob = more opaque).
+- HUD: shows Connected, Iteration, Convergence, Cells.
+- Legend: class chips with counts; click to toggle visibility; filter box to search by name.
 
 ## File Structure
 
 ```
 pciSeq/src/realtime_viewer/
-├── __init__.py          # Exports RealtimeViewerServer
-├── server.py            # Flask-SocketIO server
-├── README.md            # This file
-└── static/
-    ├── viewer.html      # Web viewer UI
-    └── viewer.js        # Visualization logic
+  __init__.py            # exports RealtimeViewerServer
+  server.py              # Flask-SocketIO streaming server
+  README.md              # this document
+  static/
+    viewer.html          # UI layout and styles
+    viewer.js            # Socket client + deck.gl renderer
 ```
-
-## Advanced Usage
-
-### Disable Auto-launch
-
-```python
-viewer = RealtimeViewerServer(
-    port=5001,
-    auto_open_browser=False  # Don't open browser
-)
-viewer.start()
-# Manually navigate to http://localhost:5001
-```
-
-### Context Manager
-
-```python
-with RealtimeViewerServer(port=5001) as viewer:
-    cellData, geneData = fit(
-        spots=spots,
-        coo=coo,
-        scRNAseq=scRNAseq,
-        opts={'realtime_viewer_callback': viewer.send_update}
-    )
-# Automatically stops server on exit
-```
-
-### Custom Port
-
-```python
-viewer = RealtimeViewerServer(port=8080)
-```
-
-## Data Flow
-
-1. **Algorithm iterates**: `VarBayes.main_loop()` runs
-2. **Callback invoked**: After each iteration, calls `viewer.send_update(classProb, i, delta)`
-3. **Data serialized**: Converts classProb to uint8 array (class indices)
-4. **WebSocket emit**: Broadcasts to all connected clients
-5. **Browser updates**: Redraws visualization with new assignments
-6. **Legend refreshes**: Updates cell class counts
-
-## Performance
-
-- **Data size**: ~100-500 KB per iteration (for 100K cells)
-- **Frequency**: Once per iteration (1-10 seconds typical)
-- **Overhead**: < 0.1% of iteration time
-- **Memory**: Negligible (no accumulation)
-- **Network**: Local only (127.0.0.1)
-
-## Data Format (WebSocket)
-
-Each `iteration_update` event:
-
-```javascript
-{
-    iteration: 42,                    // Current iteration
-    cell_classes: [0, 1, 2, ..., 5],  // uint8: class per cell
-    confidence: [0.95, 0.87, ...],    // float32: max prob per cell
-    delta: 0.0234,                    // Convergence metric
-    num_cells: 100000                 // Total cells
-}
-```
-
-## Visualization
-
-- **Grid layout**: Cells arranged in optimal grid (maintains aspect ratio)
-- **Color mapping**: Each class gets distinct HSL color
-- **Opacity**: Based on confidence (high confidence = more opaque)
-- **Updates**: Smooth transitions as assignments change
-
-## Requirements
-
-- `flask-socketio` (installed with pciSeq)
-- Modern browser with JavaScript enabled
 
 ## Troubleshooting
 
-### Port Already in Use
+- Port already in use: start with another port, e.g. 5002.
+- Multiple tabs: each tab is a client. Close stale tabs to reduce noise.
+- No updates: check Python logs for exceptions and browser console for connection errors.
 
-```bash
-# Check what's using the port
-lsof -i :5001
+## Notes for Refactoring
 
-# Use different port
-viewer = RealtimeViewerServer(port=5002)
-```
-
-### Browser Doesn't Open
-
-Set `auto_open_browser=False` and manually navigate to `http://localhost:5001`
-
-### Connection Issues
-
-- Check firewall settings
-- Ensure no VPN/proxy blocking localhost
-- Try different browser
-
-### No Updates Appearing
-
-- Verify `realtime_viewer_callback` is in opts
-- Check Python console for errors
-- Check browser console (F12) for WebSocket errors
-
-## Example Script
-
-See `example_realtime_viewer.py` in the repository root for a complete working example.
-
-## Comparison with Main Viewer
-
-| Feature | Real-Time Viewer | Main pciSeq_viewer |
-|---------|-----------------|-------------------|
-| Purpose | Watch algorithm run | Explore final results |
-| When | During execution | After completion |
-| Data | Live updates | Static files |
-| Location | Inside pciSeq repo | Separate repo |
-| Launch | Automatic | Manual |
-| Performance | Minimal overhead | Full-featured |
+- Server responsibilities are limited to:
+  - serve static files
+  - extract geometry once and cache it
+  - stream per-iteration class/prob arrays
+- Client owns all rendering and UI; protocol is documented above.
+- The message names and payload shapes are the contract between server and client.
