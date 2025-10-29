@@ -5,7 +5,7 @@
 
 // State
 const state = {
-    cells: [],  // Array of {x, y, radius, class, confidence}
+    cells: [],  // Array of {x, y, radius, class, prob}
     numCells: 0,
     iteration: 0,
     delta: 0,
@@ -18,7 +18,7 @@ const state = {
     // Changes view state
     viewMode: 'all',  // 'all' or 'changes'
     changeThreshold: 1.0,  // Percentage threshold for significant change
-    previousConfidence: null,  // Store previous iteration's confidence values
+    previousProb: null,  // Store previous iteration's probability values
     changedCells: new Set(),  // Set of cell indices that changed
 
     connected: false,
@@ -63,7 +63,7 @@ socket.on('iteration_update', (data) => {
             state.geom.centroids_y = new Float32Array(data.centroids_y);
             state.geom.radii = new Float32Array(data.radii);
         }
-        applyClassesUpdate(data.iteration, data.delta, data.num_cells, data.cell_classes, data.confidence);
+        applyClassesUpdate(data.iteration, data.delta, data.num_cells, data.cell_classes, data.prob);
     } catch (err) {
         console.error('ERROR compat iteration_update:', err);
     }
@@ -82,7 +82,7 @@ socket.on('geometry_init_begin', (meta) => {
 
     // Reset change tracking at the start of a new run/session.
     // This prevents comparing the new run against old data after reconnects or restarts.
-    state.previousConfidence = null;   // No previous step yet for the new run
+    state.previousProb = null;   // No previous step yet for the new run
     state.changedCells.clear();        // Start with an empty set of changed cells
     updateChangesCount();              // Reflect the reset in the UI counter
     // Hide any previous informational banner, if present
@@ -137,7 +137,7 @@ socket.on('geometry_init_end', () => {
     }
 });
 
-// Classes/confidence streaming per iteration
+// Classes/probability streaming per iteration
 socket.on('classes_update_begin', (meta) => {
     console.log('=== BEGIN classes_update ===', meta);
     document.getElementById('loading-overlay').classList.add('hidden');
@@ -147,7 +147,7 @@ socket.on('classes_update_begin', (meta) => {
         total: meta.num_cells,
         received: 0,
         cell_classes: new Uint8Array(meta.num_cells),
-        confidence: new Float32Array(meta.num_cells)
+        prob: new Float32Array(meta.num_cells)
     };
 });
 
@@ -155,7 +155,7 @@ socket.on('classes_update_chunk', (chunk) => {
     if (!state.stream) return;
     const {start, end} = chunk;
     state.stream.cell_classes.set(chunk.cell_classes, start);
-    state.stream.confidence.set(chunk.confidence, start);
+    state.stream.prob.set(chunk.prob, start);
     state.stream.received = end;
 });
 
@@ -181,16 +181,16 @@ socket.on('classes_update_end', (msg) => {
             y: state.geom.centroids_y[i],
             radius: state.geom.radii[i],
             class: state.stream.cell_classes[i],
-            confidence: state.stream.confidence[i]
+            prob: state.stream.prob[i]
         };
     }
 
     console.log(`Created ${cells.length} cells, sample cells (first 3):`);
     console.log(cells.slice(0, 3));
 
-    // Save OLD cells confidence as previous BEFORE updating to new iteration
+    // Save OLD cells probability as previous BEFORE updating to new iteration
     if (state.cells && state.cells.length > 0) {
-        state.previousConfidence = state.cells.map(cell => cell.confidence);
+        state.previousProb = state.cells.map(cell => cell.prob);
     }
 
     state.cells = cells;
@@ -208,7 +208,7 @@ socket.on('classes_update_end', (msg) => {
     render();
 });
 
-function applyClassesUpdate(iteration, delta, numCells, classes, confidence) {
+function applyClassesUpdate(iteration, delta, numCells, classes, prob) {
     if (!state.geom.ready) return;
     const N = numCells;
     const cells = new Array(N);
@@ -219,7 +219,7 @@ function applyClassesUpdate(iteration, delta, numCells, classes, confidence) {
             y: state.geom.centroids_y[i],
             radius: state.geom.radii[i],
             class: classes[i],
-            confidence: confidence ? confidence[i] : 1.0
+            prob: prob ? prob[i] : 1.0
         };
     }
     state.cells = cells;
@@ -260,7 +260,7 @@ function initializeDeck() {
                     html: `<div style="font-size: 12px;">
                         Cell Class: ${className}<br/>
                         Position: (${Math.round(object.x)}, ${Math.round(object.y)})<br/>
-                        Confidence: ${(object.confidence * 100).toFixed(1)}%
+                        Prob: ${(object.prob * 100).toFixed(1)}%
                     </div>`,
                     style: {
                         backgroundColor: '#1b1b1b',
@@ -447,22 +447,22 @@ function detectChangedCells(updatePrevious = true) {
 
     // Safety guard: if the number of cells changed between steps,
     // pause change detection for this step and reset the baseline.
-    if (state.previousConfidence && state.previousConfidence.length !== state.cells.length) {
-        const prevN = state.previousConfidence.length;
+    if (state.previousProb && state.previousProb.length !== state.cells.length) {
+        const prevN = state.previousProb.length;
         const currN = state.cells.length;
         const msg = `Paused the "Changes" view for this step because the number of cells changed (${prevN} → ${currN}). This can happen after reconnecting or restarting. The view will resume automatically on the next step.`;
         console.warn(msg);
         showUserNotice(msg);
         // Reset baseline to current values and skip diffing for this step
-        state.previousConfidence = state.cells.map(cell => cell.confidence);
+        state.previousProb = state.cells.map(cell => cell.prob);
         updateChangesCount();
         return;
     }
 
     // On first iteration (no previous data to compare), all cells are "changed"
-    if (!state.previousConfidence) {
+    if (!state.previousProb) {
         for (let i = 0; i < state.cells.length; i++) {
-            state.changedCells.add(i);
+            state.changedCells.add(state.cells[i].id);
         }
         console.log(`First iteration (no previous data): marked all ${state.cells.length} cells as changed`);
     } else {
@@ -470,24 +470,24 @@ function detectChangedCells(updatePrevious = true) {
         const threshold = state.changeThreshold / 100; // Convert percentage to decimal
 
         for (let i = 0; i < state.cells.length; i++) {
-            const currentConf = state.cells[i].confidence;
-            const prevConf = state.previousConfidence[i];
+            const currentProb = state.cells[i].prob;
+            const prevProb = state.previousProb[i];
 
-            // Calculate absolute change in confidence
-            const change = Math.abs(currentConf - prevConf);
+            // Calculate absolute change in probability
+            const change = Math.abs(currentProb - prevProb);
 
             // Mark as changed if exceeds threshold
             if (change >= threshold) {
-                state.changedCells.add(i);
+                state.changedCells.add(state.cells[i].id);
             }
         }
 
         console.log(`Detected ${state.changedCells.size}/${state.cells.length} changed cells (threshold: ${state.changeThreshold}%)`);
     }
 
-    // Only store current confidence when new iteration arrives, not when threshold changes
+    // Only store current probability when new iteration arrives, not when threshold changes
     if (updatePrevious) {
-        state.previousConfidence = state.cells.map(cell => cell.confidence);
+        state.previousProb = state.cells.map(cell => cell.prob);
     }
 
     // Update changes count display
@@ -566,7 +566,7 @@ function render() {
         getFillColor: d => {
             const color = state.cellClassColors[d.class] || [128, 128, 128];
             // Make all cells clearly visible: clamp alpha to [0.7, 1.0]
-            const alpha = Math.round((0.7 + d.confidence * 0.3) * 255);
+            const alpha = Math.round((0.7 + d.prob * 0.3) * 255);
             return [color[0], color[1], color[2], alpha];
         },
         getLineColor: [255, 255, 255, 60],
@@ -856,9 +856,9 @@ window.addEventListener('load', () => {
             state.changeThreshold = parseFloat(e.target.value);
             thresholdValueDisplay.textContent = state.changeThreshold.toFixed(1);
 
-            // Recalculate changed cells with new threshold, but DON'T update previous confidence
-            if (state.cells.length > 0 && state.previousConfidence) {
-                detectChangedCells(false);  // false = don't update previousConfidence
+            // Recalculate changed cells with new threshold, but DON'T update previous prob
+            if (state.cells.length > 0 && state.previousProb) {
+                detectChangedCells(false);  // false = don't update previousProb
                 render();
             }
         });

@@ -141,7 +141,7 @@ class RealtimeViewerServer:
                             'start': int(start),
                             'end': int(end),
                             'cell_classes': cached['cell_classes'][start:end],
-                            'confidence': cached['confidence'][start:end],
+                            'prob': cached['prob'][start:end],
                         }, namespace='/')
                     self.socketio.emit('classes_update_end', {'iteration': int(cached['iteration'])}, namespace='/')
             except Exception as e:
@@ -217,9 +217,8 @@ class RealtimeViewerServer:
             # Extract argmax (assigned class per cell) - most efficient format
             cell_classes = np.argmax(cells_classProb, axis=1).astype(np.uint8)
 
-            # Optional: include confidence (max probability per cell)
-            # Round to 3 decimals to reduce payload size
-            confidence = np.round(np.max(cells_classProb, axis=1).astype(np.float32), 3)
+            # Probability (max over classes per cell). Round to 3 decimals to reduce payload size
+            prob = np.round(np.max(cells_classProb, axis=1).astype(np.float32), 3)
 
             # Extract spatial data (centroids and radii)
             # Centroids might be DataFrame or ndarray, handle both cases
@@ -241,7 +240,7 @@ class RealtimeViewerServer:
 
             # Skip the first cell (index 0) which is the background
             cell_classes = cell_classes[1:]
-            confidence = confidence[1:]
+            prob = prob[1:]
             centroids_x = centroids_x[1:]
             centroids_y = centroids_y[1:]
             radii = radii[1:]
@@ -256,11 +255,11 @@ class RealtimeViewerServer:
             if self.max_cells is not None and len(cell_classes) > self.max_cells:
                 k = int(self.max_cells)
                 # Use argpartition for efficiency, then sort those top-k indices by value desc
-                idx_part = np.argpartition(confidence, -k)[-k:]
-                idx_sorted = idx_part[np.argsort(confidence[idx_part])[::-1]]
+                idx_part = np.argpartition(prob, -k)[-k:]
+                idx_sorted = idx_part[np.argsort(prob[idx_part])[::-1]]
 
                 cell_classes = cell_classes[idx_sorted]
-                confidence = confidence[idx_sorted]
+                prob = prob[idx_sorted]
                 centroids_x = centroids_x[idx_sorted]
                 centroids_y = centroids_y[idx_sorted]
                 radii = radii[idx_sorted]
@@ -310,25 +309,25 @@ class RealtimeViewerServer:
 
                     # Adjust arrays to match cached geometry size
                     if num_cells < cached_num_cells:
-                        # cell_classes/confidence are too small - pad with zeros
+                        # cell_classes/prob are too small - pad with zeros
                         logger.warning(f"Padding cell_classes from {num_cells} to {cached_num_cells}")
                         padded_classes = np.zeros(cached_num_cells, dtype=np.uint8)
                         padded_classes[:num_cells] = cell_classes
                         cell_classes = padded_classes
 
-                        padded_confidence = np.zeros(cached_num_cells, dtype=np.float32)
-                        padded_confidence[:num_cells] = confidence
-                        confidence = padded_confidence
+                        padded_prob = np.zeros(cached_num_cells, dtype=np.float32)
+                        padded_prob[:num_cells] = prob
+                        prob = padded_prob
 
                         num_cells = cached_num_cells
                     elif num_cells > cached_num_cells:
-                        # cell_classes/confidence are too large - truncate
+                        # cell_classes/prob are too large - truncate
                         logger.warning(f"Truncating cell_classes from {num_cells} to {cached_num_cells}")
                         cell_classes = cell_classes[:cached_num_cells]
-                        confidence = confidence[:cached_num_cells]
+                        prob = prob[:cached_num_cells]
                         num_cells = cached_num_cells
 
-            # Stream classes/confidence each iteration (smaller payload)
+            # Stream classes/prob each iteration (smaller payload)
             chunk_size = 5000 if num_cells > 10000 else num_cells
 
             self.socketio.emit('classes_update_begin', {
@@ -343,18 +342,18 @@ class RealtimeViewerServer:
                     'start': int(start),
                     'end': int(end),
                     'cell_classes': cell_classes[start:end].tolist(),
-                    'confidence': confidence[start:end].tolist(),
+                    'prob': prob[start:end].tolist(),
                 }, namespace='/')
             self.socketio.emit('classes_update_end', {'iteration': int(iteration)}, namespace='/')
 
-            # Cache last classes/confidence for late-joining clients
+            # Cache last classes/prob for late-joining clients
             self._last_update = {
                 'iteration': int(iteration),
                 'delta': float(delta),
                 'num_cells': int(num_cells),
                 'chunk_size': int(chunk_size),
                 'cell_classes': cell_classes.tolist(),
-                'confidence': confidence.tolist(),
+                'prob': prob.tolist(),
             }
 
             logger.info(f"Sent update for iteration {iteration} to all clients (delta={delta:.6f}, cells={len(cell_classes)})")
