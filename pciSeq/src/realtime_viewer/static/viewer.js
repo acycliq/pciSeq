@@ -94,7 +94,7 @@ socket.on('geometry_init_begin', (meta) => {
     if (meta.mcr !== undefined && meta.mcr !== null) {
         state.geom.mcr = Number(meta.mcr);
     }
-    state.geom.is3D = !!meta.is3D;
+    state.geom.is3D = !!meta.is_3d;
     if (meta.voxel_size && Array.isArray(meta.voxel_size) && meta.voxel_size.length === 3) {
         state.geom.voxelSize = meta.voxel_size.map(Number);
     }

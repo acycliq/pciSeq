@@ -114,7 +114,7 @@ class RealtimeViewerServer:
                         'chunk_size': int(chunk_size),
                         'class_names': class_names,
                         'mcr': geom.get('mcr'),
-                        'is3D': bool(geom.get('is3D', False)),
+                        'is_3d': bool(geom.get('is_3d', False)),
                         'voxel_size': geom.get('voxel_size'),
                         'img_dim': geom.get('img_dim')
                     }, namespace='/')
@@ -291,7 +291,7 @@ class RealtimeViewerServer:
                     'chunk_size': int(chunk_size),
                     'class_names': class_names,
                     'mcr': float(varbayes.cells.mcr),
-                    'is3D': is3d,
+                    'is_3d': is3d,
                     'voxel_size': voxel_size,
                     'img_dim': varbayes.config.get('img_dim', None),
                 }, namespace='/')
@@ -316,7 +316,7 @@ class RealtimeViewerServer:
                     'radii': radii.tolist(),
                     'class_names': class_names,
                     'mcr': float(varbayes.cells.mcr),
-                    'is3D': is3d,
+                    'is_3d': is3d,
                     'voxel_size': voxel_size,
                     'img_dim': varbayes.config.get('img_dim', None),
                 }
