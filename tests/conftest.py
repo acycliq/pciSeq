@@ -1,83 +1,60 @@
 import os
-import pytest
-import tempfile
+from pathlib import Path
+import numpy as np
 import pandas as pd
-from scipy.sparse import load_npz
-from pciSeq.src.core.utils.io_utils import load_from_url
-import logging
-
-main_logger = logging.getLogger(__name__)
+import pytest
 
 
-bbox = [
-    (4238, 364),  # bottomleft, [x0, y0]
-    (5160, 933)  # topright, [x1, y1]
-]
+@pytest.fixture(scope="session")
+def rng():
+    return np.random.default_rng(42)
 
 
-def pytest_configure():
-    """
-    https://docs.pytest.org/en/7.1.x/deprecations.html#pytest-namespace
-    """
-    pytest.fspots = None
-    pytest.fcells = None
-    pytest.fscData = None
+@pytest.fixture(scope="session")
+def scref_df():
+    # Prefer vendored data, fall back to env var
+    vendored = Path(__file__).parent / "data" / "scRNAseq_final.csv"
+    env_path = os.environ.get("SCREF_PATH")
+    if vendored.exists():
+        df = pd.read_csv(vendored)
+    elif env_path and Path(env_path).exists():
+        df = pd.read_csv(env_path)
+    else:
+        pytest.skip(
+            "Missing scRNA reference CSV (tests/data/scRNAseq_final.csv or SCREF_PATH)"
+        )
+
+    # Expect index column named 'Unnamed: 0' like in reference_data.py
+    if "Unnamed: 0" in df.columns:
+        df = df.set_index("Unnamed: 0")
+    # Set axis names for clarity
+    df.index.name = "gene_name"
+    df.columns.name = "class_name"
+    # Remove duplicate genes by keeping max total, like reference_data.keep_labels_unique
+    if df.index.duplicated().any():
+        tmp = df.copy().assign(total=df.sum(axis=1))
+        tmp = (
+            tmp.sort_values(["gene_name", "total"], ascending=[True, False])
+            .groupby("gene_name")
+            .head(1)
+            .drop(columns=["total"])
+        )
+        df = tmp
+    # Drop all-zero columns
+    df = df.loc[:, (df != 0).any(axis=0)]
+    return df
 
 
-def get_out_dir():
-    out_dir = os.path.join(tempfile.gettempdir(), 'pciSeq', 'tests')
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-    return out_dir
-
-
-@pytest.fixture(scope='module')
-def read_demo_data(bbox=None):
-    ROOT = r'https://github.com/acycliq/pciSeq/raw/master'
-    path_str = "{}".format("/".join([ROOT, 'pciSeq', 'data', 'mouse', 'ca1', 'iss', 'spots.csv']))
-    spots = pd.read_csv(os.path.join(path_str))
-
-    coo_file = load_from_url(
-        'https://github.com/acycliq/pciSeq/blob/dev/pciSeq/data/mouse/ca1/segmentation/label_image.coo.npz?raw=true')
-    label_image = load_npz(coo_file)
-
-    path_str = "{}".format("/".join([ROOT, 'tests', 'data', 'test_scRNAseq.csv']))
-    scData = pd.read_csv(path_str).set_index('gene_name')
-    if bbox is not None:
-        spots, label_image = clip_data(spots.copy(), label_image.copy, bbox)
-    return spots, label_image, scData
-
-
-def clip_data(spots, img, bbox):
-    spots_out = clip_spots(spots, bbox)
-    img_out = clip_label_image(img, bbox)
-    return spots_out, img_out
-
-
-def clip_spots(spots, bbox):
-    spots = clip_dataframe(spots.copy(), bbox)
-
-    # Save the test spots
-    x0, y0 = bbox[0]
-    spots.x = spots.x - x0
-    spots.y = spots.y - y0
-    return spots
-
-
-def clip_dataframe(df, bbox):
-    x0, y0 = bbox[0]
-    x1, y1 = bbox[1]
-    idx_x = (df.x >= x0) & (df.x <= x1)
-    idx_y = (df.y >= y0) & (df.y <= y1)
-
-    idx = idx_x & idx_y
-    return df[idx]
-
-
-def clip_label_image(im, bbox):
-    x0, y0 = bbox[0]
-    x1, y1 = bbox[1]
-    return im[y0:y1, x0:x1]
-
-
-
+@pytest.fixture(scope="session")
+def base_opts():
+    # Match main.py defaults for Case 1 (no inefficiency, no misreads)
+    return {
+        "Inefficiency": 1.0,
+        "SpotReg": 0.1,
+        "rSpot": 2,
+        "InsideCellBonus": 0,
+        "MisreadDensity": 0.0,
+        "nNeighbors": 6,
+        "CellCallTolerance": 0.5,
+        "voxel_size": [1, 1, 1],
+    }
