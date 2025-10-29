@@ -65,7 +65,7 @@ def get_version():
     with open(os.path.join("pciSeq", "_version.py"), "r") as fid:
         for line in (line.strip() for line in fid):
             if line.startswith("__version__"):
-                version = line.split("=")[1].strip().strip("'")
+                version = line.split("=")[1].strip().strip("'\"")  # Strip both ' and "
                 break
 
     if version is None:
