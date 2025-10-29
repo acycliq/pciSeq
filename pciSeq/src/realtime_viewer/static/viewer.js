@@ -29,7 +29,8 @@ const state = {
         centroids_x: null,
         centroids_y: null,
         radii: null,
-        stream: null
+        stream: null,
+        mcr: null
     },
     // Has the view been auto-fitted once?
     viewFitted: false,
@@ -79,6 +80,11 @@ socket.on('geometry_init_begin', (meta) => {
         centroids_y: new Float32Array(meta.num_cells),
         radii: new Float32Array(meta.num_cells)
     };
+
+    // Store mean cell radius if provided
+    if (meta.mcr !== undefined && meta.mcr !== null) {
+        state.geom.mcr = Number(meta.mcr);
+    }
 
     // Reset change tracking at the start of a new run/session.
     // This prevents comparing the new run against old data after reconnects or restarts.
@@ -562,7 +568,8 @@ function render() {
         radiusMaxPixels: 100,
         lineWidthMinPixels: 1,
         getPosition: d => [d.x, d.y],
-        getRadius: d => d.radius,
+        // Use fixed mean cell radius (mcr) if provided; else fall back to per-cell radius
+        getRadius: d => (state.geom && state.geom.mcr ? state.geom.mcr : d.radius),
         getFillColor: d => {
             const color = state.cellClassColors[d.class] || [128, 128, 128];
             // Make all cells clearly visible: clamp alpha to [0.7, 1.0]

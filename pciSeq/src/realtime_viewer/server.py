@@ -112,7 +112,8 @@ class RealtimeViewerServer:
                     self.socketio.emit('geometry_init_begin', {
                         'num_cells': int(n),
                         'chunk_size': int(chunk_size),
-                        'class_names': class_names
+                        'class_names': class_names,
+                        'mcr': geom.get('mcr')
                     }, namespace='/')
                     for start in range(0, n, chunk_size):
                         end = min(start + chunk_size, n)
@@ -275,7 +276,8 @@ class RealtimeViewerServer:
                 self.socketio.emit('geometry_init_begin', {
                     'num_cells': int(num_cells),
                     'chunk_size': int(chunk_size),
-                    'class_names': class_names
+                    'class_names': class_names,
+                    'mcr': float(varbayes.cells.mcr)
                 }, namespace='/')
                 for start in range(0, num_cells, chunk_size):
                     end = min(start + chunk_size, num_cells)
@@ -295,6 +297,7 @@ class RealtimeViewerServer:
                     'centroids_y': centroids_y.tolist(),
                     'radii': radii.tolist(),
                     'class_names': class_names,
+                    'mcr': float(varbayes.cells.mcr),
                 }
                 self._num_cells_expected = num_cells
                 logger.info(f"Geometry cached: {num_cells} cells")
