@@ -909,15 +909,15 @@ window.addEventListener('load', () => {
     // Initialize UI to current state.viewMode
     setViewMode(state.viewMode);
 
-    // Plane filter footer controls (3D only)
-    const planeFooter = document.getElementById('plane-footer');
-    const planeSlider = document.getElementById('plane-slider');
-    const planeValue = document.getElementById('plane-value');
+    // Bottom-centered plane controls (3D only)
+    const planeControls = document.getElementById('plane-controls');
+    const planeSlider = document.getElementById('planeSlider');
+    const planeLabel = document.getElementById('planeLabel');
 
     function updatePlaneFooterVisibility() {
-        if (!planeFooter) return;
-        const show = state.geom.is3D && state.planeFilterEnabled && state.geom.planeId;
-        planeFooter.style.display = show ? 'block' : 'none';
+        if (!planeControls) return;
+        const show = state.geom.is3D && state.planeFilterEnabled;
+        planeControls.style.display = show ? 'flex' : 'none';
     }
 
     function setPlaneFilter(enabled) {
@@ -943,7 +943,7 @@ window.addEventListener('load', () => {
                 }
                 planeSlider.value = String(state.selectedPlane);
             }
-            if (planeValue) planeValue.textContent = String(state.selectedPlane);
+            if (planeLabel) planeLabel.textContent = `Plane: ${state.selectedPlane}`;
         } else {
             state.selectedPlane = null;
         }
@@ -965,7 +965,7 @@ window.addEventListener('load', () => {
     if (planeSlider) {
         planeSlider.addEventListener('input', (e) => {
             state.selectedPlane = parseInt(e.target.value, 10);
-            if (planeValue) planeValue.textContent = String(state.selectedPlane);
+            if (planeLabel) planeLabel.textContent = `Plane: ${state.selectedPlane}`;
             render();
         });
     }
