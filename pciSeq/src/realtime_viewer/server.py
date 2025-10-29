@@ -115,7 +115,8 @@ class RealtimeViewerServer:
                         'class_names': class_names,
                         'mcr': geom.get('mcr'),
                         'is3D': bool(geom.get('is3D', False)),
-                        'voxel_size': geom.get('voxel_size')
+                        'voxel_size': geom.get('voxel_size'),
+                        'img_dim': geom.get('img_dim')
                     }, namespace='/')
                     for start in range(0, n, chunk_size):
                         end = min(start + chunk_size, n)
@@ -292,6 +293,7 @@ class RealtimeViewerServer:
                     'mcr': float(varbayes.cells.mcr),
                     'is3D': is3d,
                     'voxel_size': voxel_size,
+                    'img_dim': varbayes.config.get('img_dim', None),
                 }, namespace='/')
                 for start in range(0, num_cells, chunk_size):
                     end = min(start + chunk_size, num_cells)
@@ -316,6 +318,7 @@ class RealtimeViewerServer:
                     'mcr': float(varbayes.cells.mcr),
                     'is3D': is3d,
                     'voxel_size': voxel_size,
+                    'img_dim': varbayes.config.get('img_dim', None),
                 }
                 self._num_cells_expected = num_cells
                 logger.info(f"Geometry cached: {num_cells} cells")

@@ -98,6 +98,9 @@ socket.on('geometry_init_begin', (meta) => {
     if (meta.voxel_size && Array.isArray(meta.voxel_size) && meta.voxel_size.length === 3) {
         state.geom.voxelSize = meta.voxel_size.map(Number);
     }
+    if (meta.img_dim && typeof meta.img_dim === 'object') {
+        state.geom.imgDim = meta.img_dim;
+    }
     // Enable/disable Plane toggle based on 3D meta
     const planeToggleEl = document.getElementById('plane-toggle');
     if (planeToggleEl) {
@@ -920,12 +923,24 @@ window.addEventListener('load', () => {
     function setPlaneFilter(enabled) {
         state.planeFilterEnabled = !!enabled;
         if (planeToggleBtn) planeToggleBtn.classList.toggle('active', state.planeFilterEnabled);
-        if (state.planeFilterEnabled && state.geom.planeId) {
-            const r = state.planeRange || { min: 0, max: 0 };
+        if (state.planeFilterEnabled) {
+            // Prefer full plane range from img_dim.n_planes; fallback to computed range
+            let minP = 0, maxP = 0;
+            if (state.geom && state.geom.imgDim && typeof state.geom.imgDim.n_planes === 'number') {
+                const n = Math.max(0, parseInt(state.geom.imgDim.n_planes, 10) || 0);
+                minP = 0;
+                maxP = Math.max(0, n - 1);
+            } else if (state.geom && state.geom.planeId && state.planeRange) {
+                minP = state.planeRange.min;
+                maxP = state.planeRange.max;
+            }
             if (planeSlider) {
-                planeSlider.min = String(r.min);
-                planeSlider.max = String(r.max);
-                if (state.selectedPlane === null) state.selectedPlane = r.min;
+                planeSlider.min = String(minP);
+                planeSlider.max = String(maxP);
+                if (state.selectedPlane === null) {
+                    // Default to middle plane when enabling
+                    state.selectedPlane = Math.floor((minP + maxP) / 2);
+                }
                 planeSlider.value = String(state.selectedPlane);
             }
             if (planeValue) planeValue.textContent = String(state.selectedPlane);
