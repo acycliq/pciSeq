@@ -124,7 +124,7 @@
         /* Bottom-centered plane slider (match pciSeq_viewer) */
         .main-controls {
             position: absolute;
-            bottom: 15px;
+            bottom: 45px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 1100;
@@ -139,7 +139,7 @@
             font-size: 13px;
         }
         #planeSlider {
-            width: 250px;
+            width: 400px;
             height: 4px;
             background: rgba(255, 255, 255, 0.3);
             border-radius: 2px;
@@ -390,6 +390,11 @@
         <div id="main-content">
             <div id="visualization">
                 <div id="deck-container"></div>
+                <!-- Bottom-centered plane slider (3D only), centered within visualization area -->
+                <div class="main-controls" id="plane-controls">
+                    <input type="range" id="planeSlider" min="0" max="0" value="0">
+                    <span id="planeLabel">Plane: 0</span>
+                </div>
                 <!-- Minimal status HUD (keeps focus on the canvas) -->
                 <div class="hud" id="hud">
                     <span class="hud-item">Connected <span class="status-dot" id="hud-connection-dot"></span></span>
@@ -462,11 +467,7 @@
         </div>
     </div>
 
-    <!-- Bottom-centered plane slider (3D only) -->
-    <div class="main-controls" id="plane-controls">
-        <input type="range" id="planeSlider" min="0" max="0" value="0">
-        <span id="planeLabel">Plane: 0</span>
-    </div>
+    
 
     <script src="viewer.js"></script>
 </body>
