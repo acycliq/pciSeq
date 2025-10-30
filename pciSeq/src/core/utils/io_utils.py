@@ -379,7 +379,8 @@ def cellData_to_arrow(df_in: pd.DataFrame, out_dir: str = None) -> None:
     manifest = {"format": "arrow-feather", "total_rows": int(total_rows), "shards": shards}
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
 
-    io_utils_logger.info(f"Saved {total_rows} cell records in {len(shards)} shards at {out_dir}")
+    # io_utils_logger.info(f"Saved {total_rows} cell records in {len(shards)} shards at {out_dir}")
+    io_utils_logger.info(f"Saved at {out_dir}")
 
 
 def parse_coords(cell: str) -> List[Tuple[float, float]]:
