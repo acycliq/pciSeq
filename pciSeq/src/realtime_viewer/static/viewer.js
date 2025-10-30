@@ -25,7 +25,7 @@ const state = {
     previousClass: null,  // Store previous iteration's class assignments
     classChangedCells: new Map(),  // Map of cell_id -> timestamp for cells that changed class
     animationFrameId: null,  // Track animation loop
-    highlightFadeDuration: 3000,  // Fade duration in milliseconds (1 second)
+    highlightFadeDuration: 2000,  // Fade duration in milliseconds (1 second)
     highlightColor: [0, 217, 255],  // Soft cyan RGB
 
     connected: false,
@@ -724,7 +724,26 @@ function render() {
         lineWidthMinPixels: 1,
         getPosition: d => [d.x, d.y],
         // Use fixed mean cell radius (mcr) if provided; else fall back to per-cell radius
-        getRadius: d => (state.geom && state.geom.mcr ? state.geom.mcr : d.radius),
+        getRadius: d => {
+            const baseRadius = state.geom && state.geom.mcr ? state.geom.mcr : d.radius;
+
+            // Check if this cell changed class and should be scaled up
+            const changeTime = state.classChangedCells.get(d.id);
+            if (changeTime) {
+                const elapsed = now - changeTime;
+                const fadeDuration = state.highlightFadeDuration;
+                const fadeProgress = elapsed / fadeDuration; // 0 to 1
+                const opacity = Math.max(0, 1 - fadeProgress); // 1 to 0
+
+                if (opacity > 0) {
+                    // Scale from 120% to 100% as it fades
+                    const scale = 1.0 + (opacity * 0.2); // 1.2 → 1.0
+                    return baseRadius * scale;
+                }
+            }
+
+            return baseRadius;
+        },
         getFillColor: d => {
             const color = state.cellClassColors[d.class] || [128, 128, 128];
             // Make all cells clearly visible: clamp alpha to [0.7, 1.0]
@@ -768,6 +787,7 @@ function render() {
         },
         updateTriggers: {
             getFillColor: [state.iteration],  // Update colors when iteration changes
+            getRadius: [state.iteration, state.classChangedCells.size],  // Update when class changes detected (for scaling animation)
             getLineColor: [state.iteration, state.classChangedCells.size],  // Update when class changes detected
             getLineWidth: [state.iteration, state.classChangedCells.size],  // Update when class changes detected
             data: [Object.values(state.cellClassVisible)]  // Update when visibility changes
