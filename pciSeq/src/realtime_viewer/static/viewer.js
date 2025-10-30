@@ -21,6 +21,13 @@ const state = {
     previousProb: null,  // Store previous iteration's probability values
     changedCells: new Set(),  // Set of cell indices that changed
 
+    // Class change highlighting (fade-out effect)
+    previousClass: null,  // Store previous iteration's class assignments
+    classChangedCells: new Map(),  // Map of cell_id -> timestamp for cells that changed class
+    animationFrameId: null,  // Track animation loop
+    highlightFadeDuration: 3000,  // Fade duration in milliseconds (1 second)
+    highlightColor: [0, 217, 255],  // Soft cyan RGB
+
     connected: false,
     deckgl: null,
     stream: null,  // holds buffers during chunked transfer
@@ -245,6 +252,8 @@ socket.on('classes_update_end', (msg) => {
     // Save OLD cells probability as previous BEFORE updating to new iteration
     if (state.cells && state.cells.length > 0) {
         state.previousProb = state.cells.map(cell => cell.prob);
+        // Also save previous class assignments for highlight detection
+        state.previousClass = state.cells.map(cell => cell.class);
     }
 
     state.cells = cells;
@@ -255,6 +264,9 @@ socket.on('classes_update_end', (msg) => {
 
     // Detect changed cells for changes view (pass false since we already saved previous)
     detectChangedCells(false);
+
+    // Detect cells that changed CLASS (not just probability) for highlighting
+    detectClassChanges();
 
     updateStatus();
     updateCellClassCounts();
@@ -566,6 +578,75 @@ function detectChangedCells(updatePrevious = true) {
     updateChangesCount();
 }
 
+// Detect cells that changed CLASS (not just probability) for highlighting with fade-out
+function detectClassChanges() {
+    // Safety: if no previous class data or cell count mismatch, skip detection
+    if (!state.previousClass || state.previousClass.length !== state.cells.length) {
+        if (state.previousClass) {
+            console.log(`Skipping class change detection: cell count mismatch (${state.previousClass.length} → ${state.cells.length})`);
+        }
+        return;
+    }
+
+    const now = Date.now();
+    let changedCount = 0;
+
+    // Compare current class with previous class
+    for (let i = 0; i < state.cells.length; i++) {
+        const currentClass = state.cells[i].class;
+        const prevClass = state.previousClass[i];
+
+        // If class changed, add to highlight map with current timestamp
+        if (currentClass !== prevClass) {
+            state.classChangedCells.set(state.cells[i].id, now);
+            changedCount++;
+        }
+    }
+
+    console.log(`Detected ${changedCount} cells that changed class (iteration ${state.iteration})`);
+
+    // Start animation loop if there are cells to animate and loop isn't already running
+    if (state.classChangedCells.size > 0 && !state.animationFrameId) {
+        startHighlightAnimation();
+    }
+}
+
+// Animation loop for fade-out highlight effect
+function startHighlightAnimation() {
+    function animationLoop() {
+        const now = Date.now();
+        let activeAnimations = 0;
+
+        // Clean up expired animations
+        for (const [cellId, timestamp] of state.classChangedCells.entries()) {
+            const elapsed = now - timestamp;
+            if (elapsed >= state.highlightFadeDuration) {
+                state.classChangedCells.delete(cellId);
+            } else {
+                activeAnimations++;
+            }
+        }
+
+        // Re-render to update border colors/widths
+        if (state.deckgl && state.cells.length > 0) {
+            render();
+        }
+
+        // Continue animation if there are still active animations
+        if (activeAnimations > 0) {
+            state.animationFrameId = requestAnimationFrame(animationLoop);
+        } else {
+            // Stop animation loop
+            state.animationFrameId = null;
+            console.log('Highlight animation complete');
+        }
+    }
+
+    // Start the loop
+    state.animationFrameId = requestAnimationFrame(animationLoop);
+    console.log(`Starting highlight animation for ${state.classChangedCells.size} cells`);
+}
+
 // Simple user-facing notice (non-technical) shown as a small banner
 function showUserNotice(message) {
     let el = document.getElementById('user-notice');
@@ -626,6 +707,9 @@ function render() {
 
     const {ScatterplotLayer} = deck;
 
+    // Get current timestamp for fade calculations
+    const now = Date.now();
+
     // Create scatterplot layer with visible cells only
     const layer = new ScatterplotLayer({
         id: 'cells-layer',
@@ -647,9 +731,45 @@ function render() {
             const alpha = Math.round((0.7 + d.prob * 0.3) * 255);
             return [color[0], color[1], color[2], alpha];
         },
-        getLineColor: [255, 255, 255, 60],
+        getLineColor: d => {
+            // Check if this cell changed class and should be highlighted
+            const changeTime = state.classChangedCells.get(d.id);
+            if (changeTime) {
+                const elapsed = now - changeTime;
+                const fadeDuration = state.highlightFadeDuration;
+                const fadeProgress = elapsed / fadeDuration; // 0 to 1
+                const opacity = Math.max(0, 1 - fadeProgress); // 1 to 0
+
+                if (opacity > 0) {
+                    // Bright highlight color (soft cyan) with fading opacity
+                    const alpha = Math.round(opacity * 255);
+                    return [state.highlightColor[0], state.highlightColor[1], state.highlightColor[2], alpha];
+                }
+            }
+            // Default: subtle white border
+            return [255, 255, 255, 60];
+        },
+        getLineWidth: d => {
+            // Check if this cell changed class and should have thick border
+            const changeTime = state.classChangedCells.get(d.id);
+            if (changeTime) {
+                const elapsed = now - changeTime;
+                const fadeDuration = state.highlightFadeDuration;
+                const fadeProgress = elapsed / fadeDuration; // 0 to 1
+                const opacity = Math.max(0, 1 - fadeProgress); // 1 to 0
+
+                if (opacity > 0) {
+                    // Thick border that fades: 5px -> 1px
+                    return 1 + (opacity * 4); // 5 → 1
+                }
+            }
+            // Default: thin border
+            return 1;
+        },
         updateTriggers: {
             getFillColor: [state.iteration],  // Update colors when iteration changes
+            getLineColor: [state.iteration, state.classChangedCells.size],  // Update when class changes detected
+            getLineWidth: [state.iteration, state.classChangedCells.size],  // Update when class changes detected
             data: [Object.values(state.cellClassVisible)]  // Update when visibility changes
         }
     });
