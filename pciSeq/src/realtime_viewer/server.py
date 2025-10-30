@@ -4,13 +4,13 @@ Optional real-time viewer server for algorithm visualization.
 This module provides a self-contained Flask-SocketIO server that streams
 cell assignment updates during VarBayes algorithm execution.
 """
+
 from flask import Flask, send_from_directory
 from flask_socketio import SocketIO
 import numpy as np
 import threading
 import logging
 import webbrowser
-import os
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -50,8 +50,14 @@ class RealtimeViewerServer:
         host (str): Host address (default: '127.0.0.1')
     """
 
-    def __init__(self, port=5001, host='127.0.0.1', auto_open_browser=True,
-                 max_cells: int = None, fixed_radius: float = None):
+    def __init__(
+        self,
+        port=5001,
+        host="127.0.0.1",
+        auto_open_browser=True,
+        max_cells: int = None,
+        fixed_radius: float = None,
+    ):
         self.port = port
         self.host = host
         self.auto_open_browser = auto_open_browser
@@ -61,10 +67,12 @@ class RealtimeViewerServer:
         self._varbayes_ref = None  # Will be set by app.py when callback is wired
         self._geometry_sent = False
         self._geometry_cache = None
-        self._num_cells_expected = None  # Track expected number of cells from first iteration
+        self._num_cells_expected = (
+            None  # Track expected number of cells from first iteration
+        )
 
         # Get static folder path (same directory as this file)
-        self.static_folder = Path(__file__).parent / 'static'
+        self.static_folder = Path(__file__).parent / "static"
 
         self.app = Flask(__name__, static_folder=str(self.static_folder))
         # Increase max_http_buffer_size to accommodate larger iteration payloads
@@ -72,7 +80,7 @@ class RealtimeViewerServer:
         self.socketio = SocketIO(
             self.app,
             cors_allowed_origins="*",
-            async_mode='threading',
+            async_mode="threading",
             max_http_buffer_size=20_000_000,  # allow up to ~20MB per message
             ping_interval=25,
             ping_timeout=60,
@@ -80,81 +88,104 @@ class RealtimeViewerServer:
         self.server_thread = None
         self._is_running = False
         self._setup_routes()
-        logger.info(f"RealtimeViewerServer initialized (not started yet)")
+        logger.info("RealtimeViewerServer initialized (not started yet)")
 
     def _setup_routes(self):
         """Setup Flask routes for serving the viewer and handling connections."""
-        @self.app.route('/')
+
+        @self.app.route("/")
         def index():
             """Serve the main viewer page."""
-            return send_from_directory(self.static_folder, 'viewer.html')
+            return send_from_directory(self.static_folder, "viewer.html")
 
-        @self.app.route('/<path:filename>')
+        @self.app.route("/<path:filename>")
         def serve_static(filename):
             """Serve static files (JS, CSS, etc.)."""
             return send_from_directory(self.static_folder, filename)
 
-        @self.app.route('/health')
+        @self.app.route("/health")
         def health():
-            return {'status': 'running', 'port': self.port}
+            return {"status": "running", "port": self.port}
 
-        @self.socketio.on('connect')
+        @self.socketio.on("connect")
         def handle_connect():
-            logger.info('Client connected to realtime viewer')
+            logger.info("Client connected to realtime viewer")
             # Send cached geometry and last classes update if available
             try:
                 if self._geometry_cache is not None:
                     geom = self._geometry_cache
-                    n = geom['num_cells']
-                    chunk_size = geom.get('chunk_size', 5000)
-                    class_names = geom.get('class_names', [])
+                    n = geom["num_cells"]
+                    chunk_size = geom.get("chunk_size", 5000)
+                    class_names = geom.get("class_names", [])
                     # send geometry init in chunks
-                    self.socketio.emit('geometry_init_begin', {
-                        'num_cells': int(n),
-                        'chunk_size': int(chunk_size),
-                        'class_names': class_names,
-                        'mcr': geom.get('mcr'),
-                        'is_3d': bool(geom.get('is_3d', False)),
-                        'voxel_size': geom.get('voxel_size'),
-                        'img_dim': geom.get('img_dim')
-                    }, namespace='/')
+                    self.socketio.emit(
+                        "geometry_init_begin",
+                        {
+                            "num_cells": int(n),
+                            "chunk_size": int(chunk_size),
+                            "class_names": class_names,
+                            "mcr": geom.get("mcr"),
+                            "is_3d": bool(geom.get("is_3d", False)),
+                            "voxel_size": geom.get("voxel_size"),
+                            "img_dim": geom.get("img_dim"),
+                        },
+                        namespace="/",
+                    )
                     for start in range(0, n, chunk_size):
                         end = min(start + chunk_size, n)
-                        self.socketio.emit('geometry_init_chunk', {
-                            'start': int(start),
-                            'end': int(end),
-                            'centroids_x': geom['centroids_x'][start:end],
-                            'centroids_y': geom['centroids_y'][start:end],
-                            'centroids_z': geom.get('centroids_z', [0]*n)[start:end],
-                            'radii': geom['radii'][start:end],
-                        }, namespace='/')
-                    self.socketio.emit('geometry_init_end', {}, namespace='/')
+                        self.socketio.emit(
+                            "geometry_init_chunk",
+                            {
+                                "start": int(start),
+                                "end": int(end),
+                                "centroids_x": geom["centroids_x"][start:end],
+                                "centroids_y": geom["centroids_y"][start:end],
+                                "centroids_z": geom.get("centroids_z", [0] * n)[
+                                    start:end
+                                ],
+                                "radii": geom["radii"][start:end],
+                            },
+                            namespace="/",
+                        )
+                    self.socketio.emit("geometry_init_end", {}, namespace="/")
 
-                if hasattr(self, '_last_update') and self._last_update:
+                if hasattr(self, "_last_update") and self._last_update:
                     cached = self._last_update
-                    n = cached.get('num_cells', 0)
-                    chunk_size = cached.get('chunk_size', 5000)
-                    self.socketio.emit('classes_update_begin', {
-                        'iteration': int(cached['iteration']),
-                        'delta': float(cached['delta']),
-                        'num_cells': int(n),
-                        'chunk_size': int(chunk_size)
-                    }, namespace='/')
+                    n = cached.get("num_cells", 0)
+                    chunk_size = cached.get("chunk_size", 5000)
+                    self.socketio.emit(
+                        "classes_update_begin",
+                        {
+                            "iteration": int(cached["iteration"]),
+                            "delta": float(cached["delta"]),
+                            "num_cells": int(n),
+                            "chunk_size": int(chunk_size),
+                        },
+                        namespace="/",
+                    )
                     for start in range(0, n, chunk_size):
                         end = min(start + chunk_size, n)
-                        self.socketio.emit('classes_update_chunk', {
-                            'start': int(start),
-                            'end': int(end),
-                            'cell_classes': cached['cell_classes'][start:end],
-                            'prob': cached['prob'][start:end],
-                        }, namespace='/')
-                    self.socketio.emit('classes_update_end', {'iteration': int(cached['iteration'])}, namespace='/')
+                        self.socketio.emit(
+                            "classes_update_chunk",
+                            {
+                                "start": int(start),
+                                "end": int(end),
+                                "cell_classes": cached["cell_classes"][start:end],
+                                "prob": cached["prob"][start:end],
+                            },
+                            namespace="/",
+                        )
+                    self.socketio.emit(
+                        "classes_update_end",
+                        {"iteration": int(cached["iteration"])},
+                        namespace="/",
+                    )
             except Exception as e:
                 logger.warning(f"Failed to send cached state: {e}")
 
-        @self.socketio.on('disconnect')
+        @self.socketio.on("disconnect")
         def handle_disconnect():
-            logger.info('Client disconnected from realtime viewer')
+            logger.info("Client disconnected from realtime viewer")
 
     def start(self):
         """Start server in background thread and optionally open browser."""
@@ -169,7 +200,7 @@ class RealtimeViewerServer:
                 port=self.port,
                 debug=False,
                 use_reloader=False,
-                allow_unsafe_werkzeug=True  # Safe for local development
+                allow_unsafe_werkzeug=True,  # Safe for local development
             )
         )
         self.server_thread.daemon = True
@@ -213,7 +244,7 @@ class RealtimeViewerServer:
             # Get VarBayes instance from the callback context
             # We need to pass the VarBayes instance to access cells data
             # For now, we'll store it as an instance variable
-            if not hasattr(self, '_varbayes_ref'):
+            if not hasattr(self, "_varbayes_ref"):
                 logger.warning("VarBayes reference not set - cannot send spatial data")
                 return
 
@@ -228,7 +259,7 @@ class RealtimeViewerServer:
             # Extract spatial data (centroids and radii)
             # Centroids might be DataFrame or ndarray, handle both cases
             centroids = varbayes.cells.centroid
-            if hasattr(centroids, 'values'):
+            if hasattr(centroids, "values"):
                 centroids = centroids.values  # DataFrame
 
             # Round to 1 decimal to reduce payload size while preserving visual fidelity
@@ -236,8 +267,8 @@ class RealtimeViewerServer:
             centroids_y = np.round(centroids[:, 1].astype(np.float32), 1)
 
             # Calculate radii from cell area (radius = sqrt(area / π))
-            areas = varbayes.cells.ini_cell_props['area']
-            if hasattr(areas, 'values'):
+            areas = varbayes.cells.ini_cell_props["area"]
+            if hasattr(areas, "values"):
                 areas = areas.values  # Series
 
             # Round to 1 decimal to reduce payload size
@@ -254,7 +285,9 @@ class RealtimeViewerServer:
 
             # Apply fixed radius if requested
             if self.fixed_radius is not None:
-                radii = np.full_like(centroids_x, float(self.fixed_radius), dtype=np.float32)
+                radii = np.full_like(
+                    centroids_x, float(self.fixed_radius), dtype=np.float32
+                )
 
             # If limiting cells, select top-N by confidence
             if self.max_cells is not None and len(cell_classes) > self.max_cells:
@@ -275,9 +308,13 @@ class RealtimeViewerServer:
             if not self._geometry_sent:
                 chunk_size = 5000
                 # Get class names from VarBayes
-                class_names = varbayes.cells.class_names.tolist() if hasattr(varbayes.cells.class_names, 'tolist') else list(varbayes.cells.class_names)
-                is3d = bool(varbayes.config.get('is3D', False))
-                voxel_size = varbayes.config.get('voxel_size', None)
+                class_names = (
+                    varbayes.cells.class_names.tolist()
+                    if hasattr(varbayes.cells.class_names, "tolist")
+                    else list(varbayes.cells.class_names)
+                )
+                is3d = bool(varbayes.config.get("is3D", False))
+                voxel_size = varbayes.config.get("voxel_size", None)
 
                 # z centroids if present, otherwise zeros
                 if centroids.shape[1] >= 3:
@@ -286,39 +323,47 @@ class RealtimeViewerServer:
                 else:
                     centroids_z = np.zeros_like(centroids_x)
 
-                self.socketio.emit('geometry_init_begin', {
-                    'num_cells': int(num_cells),
-                    'chunk_size': int(chunk_size),
-                    'class_names': class_names,
-                    'mcr': float(varbayes.cells.mcr),
-                    'is_3d': is3d,
-                    'voxel_size': voxel_size,
-                    'img_dim': varbayes.config.get('img_dim', None),
-                }, namespace='/')
+                self.socketio.emit(
+                    "geometry_init_begin",
+                    {
+                        "num_cells": int(num_cells),
+                        "chunk_size": int(chunk_size),
+                        "class_names": class_names,
+                        "mcr": float(varbayes.cells.mcr),
+                        "is_3d": is3d,
+                        "voxel_size": voxel_size,
+                        "img_dim": varbayes.config.get("img_dim", None),
+                    },
+                    namespace="/",
+                )
                 for start in range(0, num_cells, chunk_size):
                     end = min(start + chunk_size, num_cells)
-                    self.socketio.emit('geometry_init_chunk', {
-                        'start': int(start),
-                        'end': int(end),
-                        'centroids_x': centroids_x[start:end].tolist(),
-                        'centroids_y': centroids_y[start:end].tolist(),
-                        'centroids_z': centroids_z[start:end].tolist(),
-                        'radii': radii[start:end].tolist(),
-                    }, namespace='/')
-                self.socketio.emit('geometry_init_end', {}, namespace='/')
+                    self.socketio.emit(
+                        "geometry_init_chunk",
+                        {
+                            "start": int(start),
+                            "end": int(end),
+                            "centroids_x": centroids_x[start:end].tolist(),
+                            "centroids_y": centroids_y[start:end].tolist(),
+                            "centroids_z": centroids_z[start:end].tolist(),
+                            "radii": radii[start:end].tolist(),
+                        },
+                        namespace="/",
+                    )
+                self.socketio.emit("geometry_init_end", {}, namespace="/")
                 self._geometry_sent = True
                 self._geometry_cache = {
-                    'num_cells': int(num_cells),
-                    'chunk_size': int(chunk_size),
-                    'centroids_x': centroids_x.tolist(),
-                    'centroids_y': centroids_y.tolist(),
-                    'centroids_z': centroids_z.tolist(),
-                    'radii': radii.tolist(),
-                    'class_names': class_names,
-                    'mcr': float(varbayes.cells.mcr),
-                    'is_3d': is3d,
-                    'voxel_size': voxel_size,
-                    'img_dim': varbayes.config.get('img_dim', None),
+                    "num_cells": int(num_cells),
+                    "chunk_size": int(chunk_size),
+                    "centroids_x": centroids_x.tolist(),
+                    "centroids_y": centroids_y.tolist(),
+                    "centroids_z": centroids_z.tolist(),
+                    "radii": radii.tolist(),
+                    "class_names": class_names,
+                    "mcr": float(varbayes.cells.mcr),
+                    "is_3d": is3d,
+                    "voxel_size": voxel_size,
+                    "img_dim": varbayes.config.get("img_dim", None),
                 }
                 self._num_cells_expected = num_cells
                 logger.info(f"Geometry cached: {num_cells} cells")
@@ -326,15 +371,21 @@ class RealtimeViewerServer:
             # CRITICAL FIX: Ensure num_cells matches geometry cache
             # If num_cells differs from the geometry we sent, we need to adjust the data
             if self._geometry_cache is not None:
-                cached_num_cells = self._geometry_cache['num_cells']
+                cached_num_cells = self._geometry_cache["num_cells"]
                 if num_cells != cached_num_cells:
-                    logger.error(f"CRITICAL BUG DETECTED! Iteration {iteration}: num_cells={num_cells} but geometry_cache has {cached_num_cells} cells!")
-                    logger.error(f"Attempting to fix by truncating/padding to match geometry...")
+                    logger.error(
+                        f"CRITICAL BUG DETECTED! Iteration {iteration}: num_cells={num_cells} but geometry_cache has {cached_num_cells} cells!"
+                    )
+                    logger.error(
+                        "Attempting to fix by truncating/padding to match geometry..."
+                    )
 
                     # Adjust arrays to match cached geometry size
                     if num_cells < cached_num_cells:
                         # cell_classes/prob are too small - pad with zeros
-                        logger.warning(f"Padding cell_classes from {num_cells} to {cached_num_cells}")
+                        logger.warning(
+                            f"Padding cell_classes from {num_cells} to {cached_num_cells}"
+                        )
                         padded_classes = np.zeros(cached_num_cells, dtype=np.uint8)
                         padded_classes[:num_cells] = cell_classes
                         cell_classes = padded_classes
@@ -346,7 +397,9 @@ class RealtimeViewerServer:
                         num_cells = cached_num_cells
                     elif num_cells > cached_num_cells:
                         # cell_classes/prob are too large - truncate
-                        logger.warning(f"Truncating cell_classes from {num_cells} to {cached_num_cells}")
+                        logger.warning(
+                            f"Truncating cell_classes from {num_cells} to {cached_num_cells}"
+                        )
                         cell_classes = cell_classes[:cached_num_cells]
                         prob = prob[:cached_num_cells]
                         num_cells = cached_num_cells
@@ -354,33 +407,43 @@ class RealtimeViewerServer:
             # Stream classes/prob each iteration (smaller payload)
             chunk_size = 5000 if num_cells > 10000 else num_cells
 
-            self.socketio.emit('classes_update_begin', {
-                'iteration': int(iteration),
-                'delta': float(delta),
-                'num_cells': int(num_cells),
-                'chunk_size': int(chunk_size)
-            }, namespace='/')
+            self.socketio.emit(
+                "classes_update_begin",
+                {
+                    "iteration": int(iteration),
+                    "delta": float(delta),
+                    "num_cells": int(num_cells),
+                    "chunk_size": int(chunk_size),
+                },
+                namespace="/",
+            )
             for start in range(0, num_cells, chunk_size):
                 end = min(start + chunk_size, num_cells)
-                self.socketio.emit('classes_update_chunk', {
-                    'start': int(start),
-                    'end': int(end),
-                    'cell_classes': cell_classes[start:end].tolist(),
-                    'prob': prob[start:end].tolist(),
-                }, namespace='/')
-            self.socketio.emit('classes_update_end', {'iteration': int(iteration)}, namespace='/')
+                self.socketio.emit(
+                    "classes_update_chunk",
+                    {
+                        "start": int(start),
+                        "end": int(end),
+                        "cell_classes": cell_classes[start:end].tolist(),
+                        "prob": prob[start:end].tolist(),
+                    },
+                    namespace="/",
+                )
+            self.socketio.emit(
+                "classes_update_end", {"iteration": int(iteration)}, namespace="/"
+            )
 
             # Cache last classes/prob for late-joining clients
             self._last_update = {
-                'iteration': int(iteration),
-                'delta': float(delta),
-                'num_cells': int(num_cells),
-                'chunk_size': int(chunk_size),
-                'cell_classes': cell_classes.tolist(),
-                'prob': prob.tolist(),
+                "iteration": int(iteration),
+                "delta": float(delta),
+                "num_cells": int(num_cells),
+                "chunk_size": int(chunk_size),
+                "cell_classes": cell_classes.tolist(),
+                "prob": prob.tolist(),
             }
 
-            logger.info(f"Sent update for iteration {iteration} to all clients (delta={delta:.6f}, cells={len(cell_classes)})")
+            # logger.info(f"Sent update for iteration {iteration} to all clients (delta={delta:.6f}, cells={len(cell_classes)})")
 
         except Exception as e:
             logger.error(f"Failed to send update: {e}")
