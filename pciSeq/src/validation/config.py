@@ -1,6 +1,7 @@
 """
 configuration management for pciSeq.
 """
+
 from typing import Dict, Any, Optional
 from pciSeq import config
 import logging
@@ -10,31 +11,35 @@ logger = logging.getLogger(__name__)
 
 # Type specifications for validation
 _TYPE_SPECS = {
-    'exclude_genes': list,
-    'max_iter': int,
-    'CellCallTolerance': float,
-    'rGene': int,
-    'Inefficiency': float,
-    'InsideCellBonus': (bool, int, float),
-    'MisreadDensity': (float, dict),
-    'cell_centroid_prior': (int, float, dict),
-    'cell_cov_prior': (int, float, dict),
-    'SpotReg': float,
-    'nNeighbors': int,
-    'rSpot': (int, float),
-    'save_data': bool,
-    'output_path': str,
-    'launch_viewer': (bool, str),
-    'launch_diagnostics': bool,
-    'is_redis_running': bool,
-    'cell_radius': (type(None), float),
-    'cell_type_prior': str,
-    'voxel_size': list,
-    'exclude_planes': (type(None), list),
-    'is3D': (type(None), bool),
-    'remove_flat_cells': bool,
-    'mean_gene_counts_per_class': int,
-    'mean_gene_counts_per_cell': int,
+    "exclude_genes": list,
+    "max_iter": int,
+    "CellCallTolerance": float,
+    "rGene": int,
+    "Inefficiency": float,
+    "InsideCellBonus": (bool, int, float),
+    "MisreadDensity": (float, dict),
+    "cell_centroid_prior": (int, float, dict),
+    "cell_cov_prior": (int, float, dict),
+    "SpotReg": float,
+    "nNeighbors": int,
+    "rSpot": (int, float),
+    "save_data": bool,
+    "output_path": str,
+    "launch_viewer": (bool, str),
+    "launch_diagnostics": bool,
+    "is_redis_running": bool,
+    "cell_radius": (type(None), float),
+    "cell_type_prior": str,
+    "voxel_size": list,
+    "exclude_planes": (type(None), list),
+    "is3D": (type(None), bool),
+    "remove_flat_cells": bool,
+    "realtime_viewer": bool,
+    "realtime_viewer_port": int,
+    "realtime_viewer_max_cells": (type(None), int),
+    "realtime_viewer_fixed_radius": (type(None), float),
+    "mean_gene_counts_per_class": int,
+    "mean_gene_counts_per_cell": int,
 }
 
 
@@ -91,7 +96,7 @@ class Config(dict):
         for key, value in opts.items():
             if key in valid_keys:
                 self[key] = value
-                logger.info(f'Config override: {key} = {value}')
+                logger.info(f"Config override: {key} = {value}")
             else:
                 # Preserve unknown keys (e.g., callbacks, plugins)
                 self[key] = value
@@ -118,8 +123,8 @@ class Config(dict):
             # Check type
             if not isinstance(value, allowed_types):
                 # Format error message
-                type_names = ' or '.join(
-                    t.__name__ if hasattr(t, '__name__') else str(t)
+                type_names = " or ".join(
+                    t.__name__ if hasattr(t, "__name__") else str(t)
                     for t in allowed_types
                 )
                 raise TypeError(
@@ -130,6 +135,7 @@ class Config(dict):
     def _setup_logging(self) -> None:
         """Setup file handler for logging."""
         from pciSeq.src.core.utils.io_utils import log_file
+
         log_file(self)
 
     def set_runtime_attrs(self, coo) -> None:
@@ -146,9 +152,9 @@ class Config(dict):
         """
         from pciSeq.src.diagnostics.utils import check_redis_server
 
-        self['is3D'] = self._detect_3d(coo)
-        self['is_redis_running'] = check_redis_server()
-        self['exclude_planes'] = self['exclude_planes'] or []
+        self["is3D"] = self._detect_3d(coo)
+        self["is_redis_running"] = check_redis_server()
+        self["exclude_planes"] = self["exclude_planes"] or []
 
     def _detect_3d(self, coo) -> bool:
         """
@@ -176,6 +182,6 @@ class Config(dict):
             if len(coo) == 1:
                 return False  # Single plane = 2D
             elif len(coo) > 1:
-                return True   # Multiple planes = 3D
+                return True  # Multiple planes = 3D
 
         raise TypeError("coo must be coo_matrix or list of coo_matrices")
