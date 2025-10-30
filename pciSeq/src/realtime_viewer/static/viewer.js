@@ -165,7 +165,7 @@ socket.on('geometry_init_end', () => {
             const planeId = new Uint16Array(N);
             let minP = Infinity, maxP = -Infinity;
             for (let i = 0; i < N; i++) {
-                const p = Math.round(state.geom.centroids_z[i] / Sz);
+                const p = Math.floor(state.geom.centroids_z[i] / Sz);
                 planeId[i] = p;
                 if (p < minP) minP = p;
                 if (p > maxP) maxP = p;
