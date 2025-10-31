@@ -410,10 +410,300 @@
         }
 
         .loading-text { font-size: 16px; color: var(--accent); }
+
+        /* Setup View Styles */
+        #setup-view {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: var(--bg);
+            padding: 20px;
+        }
+
+        #setup-container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 32px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+        }
+
+        #setup-container h1 {
+            font-size: 24px;
+            color: var(--accent);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        #setup-container .subtitle {
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 32px;
+        }
+
+        .form-section {
+            margin-bottom: 28px;
+        }
+
+        .form-section h3 {
+            font-size: 14px;
+            color: var(--accent);
+            margin-bottom: 16px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text);
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .form-group label .required {
+            color: #ff4444;
+        }
+
+        .path-input-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .path-input-group input[type="text"] {
+            flex: 1;
+            padding: 8px 12px;
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .path-input-group input[type="text"]:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .browse-btn {
+            padding: 8px 16px;
+            background: var(--bg);
+            color: var(--accent);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.15s;
+        }
+
+        .browse-btn:hover {
+            background: var(--accent);
+            color: #0b0b0b;
+        }
+
+        .param-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .param-grid input[type="number"],
+        .param-grid input[type="text"],
+        .param-grid select {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .param-grid input:focus,
+        .param-grid select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .checkbox-group label {
+            font-size: 12px;
+            color: var(--text);
+            cursor: pointer;
+            margin: 0;
+        }
+
+        .start-btn-container {
+            margin-top: 32px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .start-btn {
+            padding: 12px 32px;
+            background: var(--accent);
+            color: #0b0b0b;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .start-btn:hover:not(:disabled) {
+            background: var(--accent-strong);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+        }
+
+        .start-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            color: #ff4444;
+            font-size: 11px;
+            margin-top: 4px;
+        }
+
+        /* View state management */
+        .view-hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
-    <div id="container">
+    <!-- Setup View -->
+    <div id="setup-view">
+        <div id="setup-container">
+            <h1>pciSeq Configuration</h1>
+            <p class="subtitle">Configure and launch cell type assignment analysis</p>
+
+            <form id="setup-form">
+                <!-- Data Inputs -->
+                <div class="form-section">
+                    <h3>Data Inputs</h3>
+
+                    <div class="form-group">
+                        <label>Spots CSV <span class="required">*</span></label>
+                        <div class="path-input-group">
+                            <input type="text" id="spots-path" placeholder="/path/to/spots.csv" />
+                            <button type="button" class="browse-btn" onclick="document.getElementById('spots-file').click()">Browse</button>
+                            <input type="file" id="spots-file" accept=".csv" style="display: none;" />
+                        </div>
+                        <div class="error-message" id="spots-error"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Single Cell RNA-seq CSV <span class="required">*</span></label>
+                        <div class="path-input-group">
+                            <input type="text" id="scrna-path" placeholder="/path/to/scRNAseq.csv" />
+                            <button type="button" class="browse-btn" onclick="document.getElementById('scrna-file').click()">Browse</button>
+                            <input type="file" id="scrna-file" accept=".csv" style="display: none;" />
+                        </div>
+                        <div class="error-message" id="scrna-error"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Cell Masks (.npy) <span class="required">*</span></label>
+                        <div class="path-input-group">
+                            <input type="text" id="coo-path" placeholder="/path/to/cell_masks.npy" />
+                            <button type="button" class="browse-btn" onclick="document.getElementById('coo-file').click()">Browse</button>
+                            <input type="file" id="coo-file" accept=".npy" style="display: none;" />
+                        </div>
+                        <div class="error-message" id="coo-error"></div>
+                    </div>
+                </div>
+
+                <!-- Parameters -->
+                <div class="form-section">
+                    <h3>Algorithm Parameters</h3>
+                    <div class="param-grid">
+                        <div class="form-group">
+                            <label>Inefficiency</label>
+                            <input type="number" id="param-inefficiency" value="0.2" step="0.1" min="0" />
+                        </div>
+                        <div class="form-group">
+                            <label>nNeighbors</label>
+                            <input type="number" id="param-nneighbors" value="6" step="1" min="1" />
+                        </div>
+                        <div class="form-group">
+                            <label>CellCallTolerance</label>
+                            <input type="number" id="param-tolerance" value="0.02" step="0.01" min="0" />
+                        </div>
+                        <div class="form-group">
+                            <label>rSpot</label>
+                            <input type="number" id="param-rspot" value="2" step="0.5" min="0" />
+                        </div>
+                        <div class="form-group">
+                            <label>Max Iterations</label>
+                            <input type="number" id="param-maxiter" value="1000" step="1" min="1" />
+                        </div>
+                        <div class="form-group">
+                            <label>MisreadDensity</label>
+                            <input type="number" id="param-misread" value="0.00001" step="0.00001" min="0" />
+                        </div>
+                        <div class="form-group">
+                            <label>Voxel Size (x,y,z)</label>
+                            <input type="text" id="param-voxelsize" value="1,1,1" placeholder="x,y,z" />
+                        </div>
+                        <div class="form-group">
+                            <label>Output Path</label>
+                            <input type="text" id="param-output" value="default" placeholder="default or /path/to/output" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Options -->
+                <div class="form-section">
+                    <h3>Options</h3>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="opt-save" checked />
+                        <label for="opt-save">Save Results</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="opt-remove-flat" checked />
+                        <label for="opt-remove-flat">Remove Flat Cells (3D)</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="opt-diagnostics" />
+                        <label for="opt-diagnostics">Launch Diagnostics</label>
+                    </div>
+                </div>
+
+                <div class="start-btn-container">
+                    <button type="submit" class="start-btn" id="start-btn">Start Analysis</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Visualization View (hidden initially) -->
+    <div id="container" class="view-hidden">
         <div id="header">
             <h1>pciSeq Real-Time Algorithm Viewer - Spatial View</h1>
             <div id="status">
@@ -527,6 +817,7 @@
     <script src="js/chart.js"></script>
     <script src="js/socket-handlers.js"></script>
     <script src="js/ui-controls.js"></script>
+    <script src="js/setup.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>

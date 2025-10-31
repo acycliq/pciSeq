@@ -5,13 +5,15 @@ This module provides a self-contained Flask-SocketIO server that streams
 cell assignment updates during VarBayes algorithm execution.
 """
 
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, request, jsonify
 from flask_socketio import SocketIO
 import numpy as np
+import pandas as pd
 import threading
 import logging
 import webbrowser
 from pathlib import Path
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -87,8 +89,40 @@ class RealtimeViewerServer:
         )
         self.server_thread = None
         self._is_running = False
+        self._setup_error_handlers()
         self._setup_routes()
         logger.info("RealtimeViewerServer initialized (not started yet)")
+
+    def _setup_error_handlers(self):
+        """Setup Flask error handlers to return JSON instead of HTML for API endpoints."""
+
+        @self.app.errorhandler(404)
+        def not_found(error):
+            # Return JSON for API endpoints, HTML for others
+            if request.path.startswith("/api/"):
+                return jsonify({"error": "Endpoint not found"}), 404
+            # For non-API routes, return normal 404
+            return error
+
+        @self.app.errorhandler(500)
+        def internal_error(error):
+            # Always return JSON for 500 errors to help with debugging
+            logger.error(f"Internal server error: {error}", exc_info=True)
+            return (
+                jsonify({"error": "Internal server error", "details": str(error)}),
+                500,
+            )
+
+        @self.app.errorhandler(Exception)
+        def handle_exception(error):
+            # Catch any unhandled exceptions and return JSON
+            logger.error(f"Unhandled exception: {error}", exc_info=True)
+            if request.path.startswith("/api/"):
+                return (
+                    jsonify({"error": "Internal server error", "details": str(error)}),
+                    500,
+                )
+            raise error
 
     def _setup_routes(self):
         """Setup Flask routes for serving the viewer and handling connections."""
@@ -106,6 +140,148 @@ class RealtimeViewerServer:
         @self.app.route("/health")
         def health():
             return {"status": "running", "port": self.port}
+
+        @self.app.route("/api/start_job", methods=["POST"])
+        def start_job():
+            """
+            API endpoint to start a pciSeq analysis job from the GUI.
+            Receives configuration, validates inputs, and launches fit() in background.
+            """
+            try:
+                config = request.json
+
+                # Check if request has valid JSON body
+                if config is None:
+                    return jsonify({"error": "Request body must be valid JSON"}), 400
+
+                logger.info(f"Received job start request with config: {config}")
+
+                # Validate required fields
+                required_fields = ["spots_path", "scrna_path", "coo_path"]
+                for field in required_fields:
+                    if not config.get(field):
+                        return (
+                            jsonify({"error": f"Missing required field: {field}"}),
+                            400,
+                        )
+
+                # Get file paths from config (expand ~ but keep paths as provided)
+                spots_path = os.path.expanduser(config["spots_path"])
+                scrna_path = os.path.expanduser(config["scrna_path"])
+                coo_path = os.path.expanduser(config["coo_path"])
+
+                # Log the paths for debugging
+                logger.info(f"Spots path: {spots_path}")
+                logger.info(f"scRNA path: {scrna_path}")
+                logger.info(f"Coo path: {coo_path}")
+
+                # Check if files exist
+                if not os.path.exists(spots_path):
+                    return (
+                        jsonify({"error": f"Spots file not found: {spots_path}"}),
+                        400,
+                    )
+                if not os.path.exists(scrna_path):
+                    return (
+                        jsonify({"error": f"scRNAseq file not found: {scrna_path}"}),
+                        400,
+                    )
+                if not os.path.exists(coo_path):
+                    return (
+                        jsonify({"error": f"Cell masks file not found: {coo_path}"}),
+                        400,
+                    )
+
+                # Load data in background thread
+                def run_job():
+                    try:
+                        logger.info("Starting pciSeq analysis job...")
+
+                        # Import fit here to avoid circular imports
+                        from pciSeq.app import fit
+                        from scipy.sparse import coo_matrix
+
+                        # Load data
+                        logger.info(f"Loading spots from: {spots_path}")
+                        spots = pd.read_csv(spots_path)
+
+                        # ============================================================
+                        # TODO: REMOVE THIS TEMPORARY FIX LATER!
+                        # This renames columns to match expected schema
+                        # Should be removed once data files are standardized
+                        # ============================================================
+                        spots = spots.rename(
+                            columns={"z_stack": "z_plane", "Gene": "gene_name"}
+                        )
+                        # ============================================================
+
+                        logger.info(f"Loading scRNAseq from: {scrna_path}")
+                        scRNAseq = pd.read_csv(scrna_path)
+                        if "Unnamed: 0" in scRNAseq.columns:
+                            scRNAseq = scRNAseq.set_index("Unnamed: 0")
+
+                        logger.info(f"Loading cell masks from: {coo_path}")
+                        coo_data = np.load(coo_path, allow_pickle=True)
+                        # Convert to list of sparse matrices if needed
+                        if isinstance(coo_data, np.ndarray):
+                            coo = [
+                                coo_matrix(d) if not hasattr(d, "tocoo") else d
+                                for d in coo_data
+                            ]
+                        else:
+                            coo = coo_data
+
+                        # Build opts dict
+                        # IMPORTANT: Use realtime_viewer_callback instead of realtime_viewer: True
+                        # to avoid creating a new server (we're already running one!)
+                        opts = {
+                            "Inefficiency": config.get("Inefficiency", 0.2),
+                            "nNeighbors": config.get("nNeighbors", 6),
+                            "CellCallTolerance": config.get("CellCallTolerance", 0.02),
+                            "rSpot": config.get("rSpot", 2),
+                            "max_iter": config.get("max_iter", 1000),
+                            "MisreadDensity": config.get("MisreadDensity", 0.00001),
+                            "voxel_size": config.get("voxel_size", [1, 1, 1]),
+                            "output_path": config.get("output_path", "default"),
+                            "save_data": config.get("save_data", True),
+                            "remove_flat_cells": config.get("remove_flat_cells", True),
+                            "launch_diagnostics": config.get(
+                                "launch_diagnostics", False
+                            ),
+                            "launch_viewer": False,  # Don't launch separate viewer
+                            # Use the existing server's callback (this server!)
+                            "realtime_viewer_callback": self.send_update,
+                        }
+
+                        logger.info(f"Starting fit() with opts: {opts}")
+
+                        # Run fit
+                        cellData, geneData = fit(
+                            spots=spots, coo=coo, scRNAseq=scRNAseq, opts=opts
+                        )
+
+                        logger.info("pciSeq analysis completed successfully")
+
+                    except Exception as e:
+                        logger.error(f"Error running pciSeq job: {e}", exc_info=True)
+
+                # Start job in background thread
+                job_thread = threading.Thread(target=run_job, daemon=True)
+                job_thread.start()
+
+                return (
+                    jsonify(
+                        {
+                            "status": "started",
+                            "message": "pciSeq analysis started successfully",
+                        }
+                    ),
+                    200,
+                )
+
+            except Exception as e:
+                logger.error(f"Error starting job: {e}", exc_info=True)
+                return jsonify({"error": str(e)}), 500
 
         @self.socketio.on("connect")
         def handle_connect():
