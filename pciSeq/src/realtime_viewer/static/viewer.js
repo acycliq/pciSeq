@@ -283,7 +283,8 @@ socket.on('classes_update_end', (msg) => {
 
     // Extend X-axis if needed
     if (state.iteration > state.chartXMax) {
-        state.chartXMax = Math.ceil(state.iteration / 50) * 50; // Extend by chunks of 50
+        // state.chartXMax = Math.ceil(state.iteration / 50) * 50; // Extend by chunks of 50
+        state.chartXMax = state.iteration + 2
     }
 
     updateStatus();
@@ -1159,163 +1160,240 @@ window.addEventListener('load', () => {
     }
 });
 
-// Convergence chart rendering (Canvas 2D)
+// Convergence chart rendering with d3.js
+let chartSvg = null;
+let chartScales = { x: null, y: null };
+let chartTooltip = null;
+
 function renderConvergenceChart() {
-    const canvas = document.getElementById('convergence-canvas');
-    if (!canvas) return;
+    const container = document.getElementById('convergence-svg-container');
+    if (!container) return;
 
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
 
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height);
+    // Margins for axes and labels
+    const margin = { top: 15, right: 15, bottom: 30, left: 45 };
+    const width = containerWidth - margin.left - margin.right;
+    const height = containerHeight - margin.top - margin.bottom;
+
+    // Initialize SVG on first call
+    if (!chartSvg) {
+        // Create tooltip
+        chartTooltip = d3.select('body')
+            .append('div')
+            .attr('class', 'chart-tooltip');
+
+        // Create SVG
+        chartSvg = d3.select(container)
+            .append('svg')
+            .attr('width', '100%')
+            .attr('height', '100%')
+            .append('g')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
+
+        // Add grid group (drawn first, behind everything)
+        chartSvg.append('g').attr('class', 'grid');
+
+        // Add threshold line group
+        chartSvg.append('g').attr('class', 'threshold-line');
+
+        // Add line path group
+        chartSvg.append('g').attr('class', 'line-group');
+
+        // Add dots group
+        chartSvg.append('g').attr('class', 'dots');
+
+        // Add axes groups
+        chartSvg.append('g').attr('class', 'x-axis');
+        chartSvg.append('g').attr('class', 'y-axis');
+
+        // Add axis labels
+        chartSvg.append('text')
+            .attr('class', 'x-axis-label')
+            .attr('text-anchor', 'middle')
+            .attr('x', width / 2)
+            .attr('y', height + 28)
+            .style('fill', '#e5e5e5')
+            .style('font-size', '11px')
+            .text('Iteration');
+
+        chartSvg.append('text')
+            .attr('class', 'y-axis-label')
+            .attr('text-anchor', 'middle')
+            .attr('transform', `translate(-35, ${height / 2}) rotate(-90)`)
+            .style('fill', '#e5e5e5')
+            .style('font-size', '11px')
+            .text('Delta (Convergence)');
+    }
 
     // No data yet
     if (state.deltaHistory.length === 0) {
-        ctx.fillStyle = '#9aa0a6';
-        ctx.font = '11px "Segoe UI", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('Waiting for data...', width / 2, height / 2);
+        chartSvg.selectAll('.waiting-text').remove();
+        chartSvg.append('text')
+            .attr('class', 'waiting-text')
+            .attr('x', width / 2)
+            .attr('y', height / 2)
+            .attr('text-anchor', 'middle')
+            .style('fill', '#9aa0a6')
+            .style('font-size', '11px')
+            .text('Waiting for data...');
         return;
+    } else {
+        chartSvg.selectAll('.waiting-text').remove();
     }
 
-    // Chart padding
-    const padding = { top: 15, right: 15, bottom: 25, left: 40 };
-    const chartWidth = width - padding.left - padding.right;
-    const chartHeight = height - padding.top - padding.bottom;
+    // Update scales
+    const xScale = d3.scaleLinear()
+        .domain([0, state.chartXMax])
+        .range([0, width]);
 
-    // Axes ranges
-    const xMin = 0;
-    const xMax = state.chartXMax;
-    const yMin = 0;
-    const yMax = 1.0;
+    const yScale = d3.scaleLinear()
+        .domain([0, 1.0])
+        .range([height, 0]);
 
-    // Helper functions
-    const scaleX = (iter) => padding.left + ((iter - xMin) / (xMax - xMin)) * chartWidth;
-    const scaleY = (delta) => padding.top + chartHeight - ((delta - yMin) / (yMax - yMin)) * chartHeight;
+    chartScales.x = xScale;
+    chartScales.y = yScale;
 
-    // Draw grid (subtle)
-    ctx.strokeStyle = '#2a2a2a';
-    ctx.lineWidth = 1;
+    // Update grid
+    const grid = chartSvg.select('.grid');
+    grid.selectAll('*').remove();
 
-    // Horizontal grid lines (at 0.2, 0.4, 0.6, 0.8, 1.0)
+    // Horizontal grid lines
     for (let y = 0; y <= 1.0; y += 0.2) {
-        const py = scaleY(y);
-        ctx.beginPath();
-        ctx.moveTo(padding.left, py);
-        ctx.lineTo(padding.left + chartWidth, py);
-        ctx.stroke();
+        grid.append('line')
+            .attr('x1', 0)
+            .attr('x2', width)
+            .attr('y1', yScale(y))
+            .attr('y2', yScale(y))
+            .style('stroke', '#2a2a2a')
+            .style('stroke-width', 1);
     }
 
-    // Vertical grid lines (every 25 iterations)
-    for (let x = 0; x <= xMax; x += 25) {
-        const px = scaleX(x);
-        ctx.beginPath();
-        ctx.moveTo(px, padding.top);
-        ctx.lineTo(px, padding.top + chartHeight);
-        ctx.stroke();
+    // Vertical grid lines
+    const xStep = state.chartXMax <= 100 ? 25 : 50;
+    for (let x = 0; x <= state.chartXMax; x += xStep) {
+        grid.append('line')
+            .attr('x1', xScale(x))
+            .attr('x2', xScale(x))
+            .attr('y1', 0)
+            .attr('y2', height)
+            .style('stroke', '#2a2a2a')
+            .style('stroke-width', 1);
     }
 
-    // Draw CellCallTolerance threshold line (dashed amber/yellow)
-    const toleranceY = scaleY(state.cellCallTolerance);
-    ctx.strokeStyle = '#FFD54F';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.moveTo(padding.left, toleranceY);
-    ctx.lineTo(padding.left + chartWidth, toleranceY);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    // Update threshold line
+    const threshold = chartSvg.select('.threshold-line');
+    threshold.selectAll('*').remove();
 
-    // Draw tolerance label
-    ctx.fillStyle = '#FFD54F';
-    ctx.font = '10px "Segoe UI", sans-serif';
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(`Tolerance (${state.cellCallTolerance.toFixed(2)})`, width - padding.right, toleranceY - 3);
+    threshold.append('line')
+        .attr('x1', 0)
+        .attr('x2', width)
+        .attr('y1', yScale(state.cellCallTolerance))
+        .attr('y2', yScale(state.cellCallTolerance))
+        .style('stroke', '#FFD54F')
+        .style('stroke-width', 1.5)
+        .style('stroke-dasharray', '4,4');
 
-    // Draw convergence line (smooth gradient from green to cyan)
-    if (state.deltaHistory.length > 1) {
-        const gradient = ctx.createLinearGradient(padding.left, 0, padding.left + chartWidth, 0);
-        gradient.addColorStop(0, '#22c55e');  // Green (start)
-        gradient.addColorStop(1, '#00D9FF');  // Cyan (end)
+    threshold.append('text')
+        .attr('x', width - 2)
+        .attr('y', yScale(state.cellCallTolerance) - 3)
+        .attr('text-anchor', 'end')
+        .style('fill', '#FFD54F')
+        .style('font-size', '10px')
+        .text(`Tolerance (${state.cellCallTolerance.toFixed(2)})`);
 
-        ctx.strokeStyle = gradient;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
+    // Update line path
+    const line = d3.line()
+        .x(d => xScale(d.iteration))
+        .y(d => yScale(d.delta))
+        .curve(d3.curveMonotoneX); // Smooth curve
 
-        state.deltaHistory.forEach((point, idx) => {
-            const px = scaleX(point.iteration);
-            const py = scaleY(point.delta);
+    const lineGroup = chartSvg.select('.line-group');
+    const path = lineGroup.selectAll('.convergence-line').data([state.deltaHistory]);
 
-            if (idx === 0) {
-                ctx.moveTo(px, py);
-            } else {
-                ctx.lineTo(px, py);
-            }
-        });
+    path.enter()
+        .append('path')
+        .attr('class', 'convergence-line')
+        .style('fill', 'none')
+        .style('stroke', '#22c55e')
+        .style('stroke-width', 2)
+        .merge(path)
+        .transition()
+        .duration(300)
+        .ease(d3.easeLinear)
+        .attr('d', line);
 
-        ctx.stroke();
+    // Update dots
+    const dots = chartSvg.select('.dots')
+        .selectAll('.dot')
+        .data(state.deltaHistory, d => d.iteration);
 
-        // Draw points on the line
-        ctx.fillStyle = '#22c55e';
-        state.deltaHistory.forEach((point) => {
-            const px = scaleX(point.iteration);
-            const py = scaleY(point.delta);
-            ctx.beginPath();
-            ctx.arc(px, py, 2.5, 0, 2 * Math.PI);
-            ctx.fill();
-        });
-    }
+    // Enter new dots with animation
+    dots.enter()
+        .append('circle')
+        .attr('class', 'dot')
+        .attr('cx', d => xScale(d.iteration))
+        .attr('cy', d => yScale(d.delta))
+        .attr('r', 0)
+        .style('fill', '#22c55e')
+        .style('cursor', 'pointer')
+        .on('mouseover', function(event, d) {
+            d3.select(this)
+                .transition()
+                .duration(100)
+                .attr('r', 5);
 
-    // Draw axes
-    ctx.strokeStyle = '#e5e5e5';
-    ctx.lineWidth = 1.5;
-    // Y-axis
-    ctx.beginPath();
-    ctx.moveTo(padding.left, padding.top);
-    ctx.lineTo(padding.left, padding.top + chartHeight);
-    ctx.stroke();
-    // X-axis
-    ctx.beginPath();
-    ctx.moveTo(padding.left, padding.top + chartHeight);
-    ctx.lineTo(padding.left + chartWidth, padding.top + chartHeight);
-    ctx.stroke();
+            chartTooltip
+                .classed('visible', true)
+                .html(`<strong>Iteration ${d.iteration}</strong><br/>Delta: ${d.delta.toFixed(4)}`)
+                .style('left', (event.pageX + 10) + 'px')
+                .style('top', (event.pageY - 10) + 'px');
+        })
+        .on('mouseout', function() {
+            d3.select(this)
+                .transition()
+                .duration(100)
+                .attr('r', 3);
 
-    // Y-axis labels
-    ctx.fillStyle = '#9aa0a6';
-    ctx.font = '10px "Segoe UI", sans-serif';
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    for (let y = 0; y <= 1.0; y += 0.2) {
-        const py = scaleY(y);
-        ctx.fillText(y.toFixed(1), padding.left - 5, py);
-    }
+            chartTooltip.classed('visible', false);
+        })
+        .transition()
+        .duration(300)
+        .attr('r', 3);
 
-    // X-axis labels
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    const xStep = xMax <= 100 ? 25 : 50;
-    for (let x = 0; x <= xMax; x += xStep) {
-        const px = scaleX(x);
-        ctx.fillText(x.toString(), px, padding.top + chartHeight + 5);
-    }
+    // Update existing dots
+    dots.transition()
+        .duration(300)
+        .attr('cx', d => xScale(d.iteration))
+        .attr('cy', d => yScale(d.delta));
 
-    // Axis titles
-    ctx.fillStyle = '#e5e5e5';
-    ctx.font = '11px "Segoe UI", sans-serif';
-    // Y-axis title (rotated)
-    ctx.save();
-    ctx.translate(10, height / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.textAlign = 'center';
-    ctx.fillText('Delta (Convergence)', 0, 0);
-    ctx.restore();
-    // X-axis title
-    ctx.textAlign = 'center';
-    ctx.fillText('Iteration', width / 2, height - 5);
+    // Remove old dots
+    dots.exit().remove();
+
+    // Update axes
+    const xAxis = d3.axisBottom(xScale)
+        .ticks(state.chartXMax <= 100 ? 5 : 10)
+        .tickFormat(d3.format('d'));
+
+    const yAxis = d3.axisLeft(yScale)
+        .ticks(5)
+        .tickFormat(d3.format('.1f'));
+
+    chartSvg.select('.x-axis')
+        .attr('transform', `translate(0, ${height})`)
+        .call(xAxis)
+        .style('color', '#9aa0a6')
+        .style('font-size', '10px');
+
+    chartSvg.select('.y-axis')
+        .call(yAxis)
+        .style('color', '#9aa0a6')
+        .style('font-size', '10px');
+
+    // Style axis lines and ticks
+    chartSvg.selectAll('.x-axis line, .y-axis line, .x-axis path, .y-axis path')
+        .style('stroke', '#9aa0a6');
 }
 
 // Handle window resize

@@ -6,6 +6,7 @@
     <title>pciSeq Real-Time Algorithm Viewer</title>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         :root {
             --bg: #111111;
@@ -348,11 +349,33 @@
             margin-bottom: 10px;
             font-weight: 600;
         }
-        #convergence-canvas {
+        #convergence-svg-container {
+            width: 100%;
+            height: 160px;
+            position: relative;
+        }
+        #convergence-svg-container svg {
             display: block;
             width: 100%;
-            height: auto;
+            height: 100%;
+        }
+        /* D3 tooltip styles */
+        .chart-tooltip {
+            position: absolute;
+            background: var(--surface);
+            border: 1px solid var(--border);
             border-radius: 4px;
+            padding: 8px;
+            font-size: 11px;
+            color: var(--text);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            z-index: 1000;
+        }
+        .chart-tooltip.visible {
+            opacity: 1;
         }
 
         #info {
@@ -484,7 +507,7 @@
 
                 <div id="convergence-chart">
                     <h3>Convergence</h3>
-                    <canvas id="convergence-canvas" width="280" height="150"></canvas>
+                    <div id="convergence-svg-container"></div>
                 </div>
 
                 <div id="info">
