@@ -334,6 +334,27 @@
 
         .changes-count { font-family: inherit; font-size: 13px; font-weight: 600; color: var(--accent); }
 
+        /* Convergence chart styles */
+        #convergence-chart {
+            margin-bottom: 20px;
+            padding: 12px;
+            background: var(--bg);
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+        #convergence-chart h3 {
+            font-size: 12px;
+            color: var(--accent);
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        #convergence-canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+
         #info {
             font-size: 12px;
             color: #666;
@@ -459,6 +480,11 @@
                         <input id="legend-filter-input" type="text" placeholder="Filter classes…" autocomplete="off" spellcheck="false" />
                     </div>
                     <div id="legend-items"></div>
+                </div>
+
+                <div id="convergence-chart">
+                    <h3>Convergence</h3>
+                    <canvas id="convergence-canvas" width="280" height="150"></canvas>
                 </div>
 
                 <div id="info">

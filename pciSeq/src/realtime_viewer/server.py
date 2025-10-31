@@ -128,6 +128,7 @@ class RealtimeViewerServer:
                             "is_3d": bool(geom.get("is_3d", False)),
                             "voxel_size": geom.get("voxel_size"),
                             "img_dim": geom.get("img_dim"),
+                            "cell_call_tolerance": geom.get("cell_call_tolerance", 0.2),
                         },
                         namespace="/",
                     )
@@ -333,6 +334,9 @@ class RealtimeViewerServer:
                         "is_3d": is3d,
                         "voxel_size": voxel_size,
                         "img_dim": varbayes.config.get("img_dim", None),
+                        "cell_call_tolerance": float(
+                            varbayes.config.get("CellCallTolerance", 0.2)
+                        ),
                     },
                     namespace="/",
                 )
@@ -364,6 +368,9 @@ class RealtimeViewerServer:
                     "is_3d": is3d,
                     "voxel_size": voxel_size,
                     "img_dim": varbayes.config.get("img_dim", None),
+                    "cell_call_tolerance": float(
+                        varbayes.config.get("CellCallTolerance", 0.2)
+                    ),
                 }
                 self._num_cells_expected = num_cells
                 logger.info(f"Geometry cached: {num_cells} cells")

@@ -28,6 +28,11 @@ const state = {
     highlightFadeDuration: 2000,  // Fade duration in milliseconds (1 second)
     highlightColor: [0, 217, 255],  // Soft cyan RGB
 
+    // Convergence chart
+    cellCallTolerance: 0.2,  // Convergence threshold (from server)
+    deltaHistory: [],  // Array of {iteration, delta} objects
+    chartXMax: 10,  // Current X-axis max (dynamically extends)
+
     connected: false,
     deckgl: null,
     stream: null,  // holds buffers during chunked transfer
@@ -107,6 +112,11 @@ socket.on('geometry_init_begin', (meta) => {
     }
     if (meta.img_dim && typeof meta.img_dim === 'object') {
         state.geom.imgDim = meta.img_dim;
+    }
+    // Store cell_call_tolerance for convergence chart
+    if (meta.cell_call_tolerance !== undefined && meta.cell_call_tolerance !== null) {
+        state.cellCallTolerance = Number(meta.cell_call_tolerance);
+        console.log(`Cell call tolerance set to: ${state.cellCallTolerance}`);
     }
     // Enable/disable Plane toggle based on 3D meta
     const planeToggleEl = document.getElementById('plane-toggle');
@@ -268,10 +278,19 @@ socket.on('classes_update_end', (msg) => {
     // Detect cells that changed CLASS (not just probability) for highlighting
     detectClassChanges();
 
+    // Add to convergence chart history
+    state.deltaHistory.push({ iteration: state.iteration, delta: state.delta });
+
+    // Extend X-axis if needed
+    if (state.iteration > state.chartXMax) {
+        state.chartXMax = Math.ceil(state.iteration / 50) * 50; // Extend by chunks of 50
+    }
+
     updateStatus();
     updateCellClassCounts();
     updateLegend();
     render();
+    renderConvergenceChart();
 });
 
 function applyClassesUpdate(iteration, delta, numCells, classes, prob) {
@@ -1139,6 +1158,165 @@ window.addEventListener('load', () => {
         });
     }
 });
+
+// Convergence chart rendering (Canvas 2D)
+function renderConvergenceChart() {
+    const canvas = document.getElementById('convergence-canvas');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+
+    // Clear canvas
+    ctx.clearRect(0, 0, width, height);
+
+    // No data yet
+    if (state.deltaHistory.length === 0) {
+        ctx.fillStyle = '#9aa0a6';
+        ctx.font = '11px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Waiting for data...', width / 2, height / 2);
+        return;
+    }
+
+    // Chart padding
+    const padding = { top: 15, right: 15, bottom: 25, left: 40 };
+    const chartWidth = width - padding.left - padding.right;
+    const chartHeight = height - padding.top - padding.bottom;
+
+    // Axes ranges
+    const xMin = 0;
+    const xMax = state.chartXMax;
+    const yMin = 0;
+    const yMax = 1.0;
+
+    // Helper functions
+    const scaleX = (iter) => padding.left + ((iter - xMin) / (xMax - xMin)) * chartWidth;
+    const scaleY = (delta) => padding.top + chartHeight - ((delta - yMin) / (yMax - yMin)) * chartHeight;
+
+    // Draw grid (subtle)
+    ctx.strokeStyle = '#2a2a2a';
+    ctx.lineWidth = 1;
+
+    // Horizontal grid lines (at 0.2, 0.4, 0.6, 0.8, 1.0)
+    for (let y = 0; y <= 1.0; y += 0.2) {
+        const py = scaleY(y);
+        ctx.beginPath();
+        ctx.moveTo(padding.left, py);
+        ctx.lineTo(padding.left + chartWidth, py);
+        ctx.stroke();
+    }
+
+    // Vertical grid lines (every 25 iterations)
+    for (let x = 0; x <= xMax; x += 25) {
+        const px = scaleX(x);
+        ctx.beginPath();
+        ctx.moveTo(px, padding.top);
+        ctx.lineTo(px, padding.top + chartHeight);
+        ctx.stroke();
+    }
+
+    // Draw CellCallTolerance threshold line (dashed amber/yellow)
+    const toleranceY = scaleY(state.cellCallTolerance);
+    ctx.strokeStyle = '#FFD54F';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(padding.left, toleranceY);
+    ctx.lineTo(padding.left + chartWidth, toleranceY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Draw tolerance label
+    ctx.fillStyle = '#FFD54F';
+    ctx.font = '10px "Segoe UI", sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`Tolerance (${state.cellCallTolerance.toFixed(2)})`, width - padding.right, toleranceY - 3);
+
+    // Draw convergence line (smooth gradient from green to cyan)
+    if (state.deltaHistory.length > 1) {
+        const gradient = ctx.createLinearGradient(padding.left, 0, padding.left + chartWidth, 0);
+        gradient.addColorStop(0, '#22c55e');  // Green (start)
+        gradient.addColorStop(1, '#00D9FF');  // Cyan (end)
+
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+
+        state.deltaHistory.forEach((point, idx) => {
+            const px = scaleX(point.iteration);
+            const py = scaleY(point.delta);
+
+            if (idx === 0) {
+                ctx.moveTo(px, py);
+            } else {
+                ctx.lineTo(px, py);
+            }
+        });
+
+        ctx.stroke();
+
+        // Draw points on the line
+        ctx.fillStyle = '#22c55e';
+        state.deltaHistory.forEach((point) => {
+            const px = scaleX(point.iteration);
+            const py = scaleY(point.delta);
+            ctx.beginPath();
+            ctx.arc(px, py, 2.5, 0, 2 * Math.PI);
+            ctx.fill();
+        });
+    }
+
+    // Draw axes
+    ctx.strokeStyle = '#e5e5e5';
+    ctx.lineWidth = 1.5;
+    // Y-axis
+    ctx.beginPath();
+    ctx.moveTo(padding.left, padding.top);
+    ctx.lineTo(padding.left, padding.top + chartHeight);
+    ctx.stroke();
+    // X-axis
+    ctx.beginPath();
+    ctx.moveTo(padding.left, padding.top + chartHeight);
+    ctx.lineTo(padding.left + chartWidth, padding.top + chartHeight);
+    ctx.stroke();
+
+    // Y-axis labels
+    ctx.fillStyle = '#9aa0a6';
+    ctx.font = '10px "Segoe UI", sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (let y = 0; y <= 1.0; y += 0.2) {
+        const py = scaleY(y);
+        ctx.fillText(y.toFixed(1), padding.left - 5, py);
+    }
+
+    // X-axis labels
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const xStep = xMax <= 100 ? 25 : 50;
+    for (let x = 0; x <= xMax; x += xStep) {
+        const px = scaleX(x);
+        ctx.fillText(x.toString(), px, padding.top + chartHeight + 5);
+    }
+
+    // Axis titles
+    ctx.fillStyle = '#e5e5e5';
+    ctx.font = '11px "Segoe UI", sans-serif';
+    // Y-axis title (rotated)
+    ctx.save();
+    ctx.translate(10, height / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.fillText('Delta (Convergence)', 0, 0);
+    ctx.restore();
+    // X-axis title
+    ctx.textAlign = 'center';
+    ctx.fillText('Iteration', width / 2, height - 5);
+}
 
 // Handle window resize
 window.addEventListener('resize', () => {
