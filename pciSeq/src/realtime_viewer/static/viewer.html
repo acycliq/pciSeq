@@ -114,7 +114,7 @@
             z-index: 1101; /* stay above loading overlay */
         }
         .hud .status-dot { width: 8px; height: 8px; }
-        .hud .hud-sep { color: var(--muted); opacity: 0.8; }
+        .hud .hud-sep { color: var(--muted); opacity: 0.5; font-weight: 300; }
 
         #deck-container {
             width: 100%;
@@ -448,7 +448,7 @@
                 <!-- Minimal status HUD (keeps focus on the canvas) -->
                 <div class="hud" id="hud">
                     <span class="hud-item">Connected <span class="status-dot" id="hud-connection-dot"></span></span>
-                    <span class="hud-sep">•</span>
+                    <span class="hud-sep">|</span>
                     <span class="hud-item"><span id="hud-cells-value">-</span> cells</span>
                 </div>
                 <div id="loading-overlay">
