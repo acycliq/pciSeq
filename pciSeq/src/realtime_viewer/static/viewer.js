@@ -750,46 +750,10 @@ function render() {
             const alpha = Math.round((0.7 + d.prob * 0.3) * 255);
             return [color[0], color[1], color[2], alpha];
         },
-        getLineColor: d => {
-            // Check if this cell changed class and should be highlighted
-            const changeTime = state.classChangedCells.get(d.id);
-            if (changeTime) {
-                const elapsed = now - changeTime;
-                const fadeDuration = state.highlightFadeDuration;
-                const fadeProgress = elapsed / fadeDuration; // 0 to 1
-                const opacity = Math.max(0, 1 - fadeProgress); // 1 to 0
-
-                if (opacity > 0) {
-                    // Bright highlight color (soft cyan) with fading opacity
-                    const alpha = Math.round(opacity * 255);
-                    return [state.highlightColor[0], state.highlightColor[1], state.highlightColor[2], alpha];
-                }
-            }
-            // Default: subtle white border
-            return [255, 255, 255, 60];
-        },
-        getLineWidth: d => {
-            // Check if this cell changed class and should have thick border
-            const changeTime = state.classChangedCells.get(d.id);
-            if (changeTime) {
-                const elapsed = now - changeTime;
-                const fadeDuration = state.highlightFadeDuration;
-                const fadeProgress = elapsed / fadeDuration; // 0 to 1
-                const opacity = Math.max(0, 1 - fadeProgress); // 1 to 0
-
-                if (opacity > 0) {
-                    // Thick border that fades: 5px -> 1px
-                    return 1 + (opacity * 4); // 5 → 1
-                }
-            }
-            // Default: thin border
-            return 1;
-        },
+        getLineColor: [255, 255, 255, 60],
         updateTriggers: {
             getFillColor: [state.iteration],  // Update colors when iteration changes
             getRadius: [state.iteration, state.classChangedCells.size],  // Update when class changes detected (for scaling animation)
-            getLineColor: [state.iteration, state.classChangedCells.size],  // Update when class changes detected
-            getLineWidth: [state.iteration, state.classChangedCells.size],  // Update when class changes detected
             data: [Object.values(state.cellClassVisible)]  // Update when visibility changes
         }
     });
