@@ -866,16 +866,8 @@ function autoFitView() {
 
 // Custom color scheme import
 function hexToRgb(hex) {
-    // Remove # if present
-    hex = hex.replace(/^#/, '');
-
-    // Parse hex values
-    const bigint = parseInt(hex, 16);
-    const r = (bigint >> 16) & 255;
-    const g = (bigint >> 8) & 255;
-    const b = bigint & 255;
-
-    return [r, g, b];
+    const color = d3.rgb(hex);
+    return [color.r, color.g, color.b];
 }
 
 function applyColorScheme(colorScheme) {
