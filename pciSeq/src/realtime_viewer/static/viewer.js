@@ -737,7 +737,7 @@ function render() {
 
                 if (opacity > 0) {
                     // Scale from 120% to 100% as it fades
-                    const scale = 1.0 + (opacity * 0.2); // 1.2 → 1.0
+                    const scale = 1.0 + (opacity * 0.3); // 1.3 → 1.0
                     return baseRadius * scale;
                 }
             }
