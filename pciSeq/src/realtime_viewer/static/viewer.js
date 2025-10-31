@@ -426,12 +426,8 @@ function updateStatus() {
     document.getElementById('delta-value').textContent = state.delta.toFixed(3);
     document.getElementById('cells-value').textContent = state.numCells.toLocaleString();
 
-    // Also update the minimal HUD if present
-    const hIter = document.getElementById('hud-iteration-value');
-    const hDelta = document.getElementById('hud-delta-value');
+    // Update the minimal HUD (only cells count now)
     const hCells = document.getElementById('hud-cells-value');
-    if (hIter) hIter.textContent = state.iteration;
-    if (hDelta) hDelta.textContent = state.delta.toFixed(3);
     if (hCells) hCells.textContent = state.numCells.toLocaleString();
 }
 
