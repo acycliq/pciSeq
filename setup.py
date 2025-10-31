@@ -110,7 +110,10 @@ setup(
         "interactive": ["matplotlib>=2.2.0", "jupyter"],
     },
     include_package_data=True,
-    package_data={"pciSeq": get_static_files(os.path.join("pciSeq", "static"))},
+    package_data={
+        "pciSeq": get_static_files(os.path.join("pciSeq", "static"))
+        + get_static_files(os.path.join("pciSeq", "src", "realtime_viewer", "static"))
+    },
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: BSD License",
