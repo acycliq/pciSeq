@@ -106,5 +106,15 @@ class CellClass(object):
         Returns:
             np.array: Initialized alpha values.
         """
-        ones = np.ones(self.nK - 1)
-        return np.append(ones, sum(ones)).astype(np.float32)
+        if self.config['cell_type_weights']:
+            weights_dict = dict(zip(self.names, len(self.names) * [1] ))
+            for key in self.config['cell_type_weights']:
+                weights_dict[key] = self.config['cell_type_weights'][key]
+
+
+            out = np.array(list(weights_dict.values()))
+        else:
+            ones = np.ones(self.nK - 1)
+            out = np.append(ones, sum(ones)).astype(np.float32)
+
+        return out
