@@ -107,10 +107,12 @@ class CellClass(object):
             np.array: Initialized alpha values.
         """
         if self.config['cell_type_weights']:
-            weights_dict = dict(zip(self.names, len(self.names) * [1] ))
+            weights_dict = {name: 1 for name in self.names}
             for key in self.config['cell_type_weights']:
-                weights_dict[key] = self.config['cell_type_weights'][key]
-
+                if key not in self.names:
+                    cellType_logger.warning(f"Cell type '{key}' in cell_type_weights not found in cell type names. Ignoring.")
+                else:
+                    weights_dict[key] = self.config['cell_type_weights'][key]
 
             out = np.array(list(weights_dict.values()))
         else:
