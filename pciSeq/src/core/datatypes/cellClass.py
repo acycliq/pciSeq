@@ -106,15 +106,23 @@ class CellClass(object):
         Returns:
             np.array: Initialized alpha values.
         """
-        if self.config['cell_type_weights']:
+        cfg_weights = self.config['cell_type_weights']
+        if cfg_weights:
             weights_dict = {name: 1 for name in self.names}
-            for key in self.config['cell_type_weights']:
+            for key in cfg_weights:
                 if key not in self.names:
                     cellType_logger.warning(f"Cell type '{key}' in cell_type_weights not found in cell type names. Ignoring.")
                 else:
-                    weights_dict[key] = self.config['cell_type_weights'][key]
+                    # Override with provided weights where applicable
+                    weights_dict[key] = cfg_weights[key]
 
-            out = np.array(list(weights_dict.values()))
+            # Preserve the 'Zero = sum(others)' behavior unless explicitly overridden
+            if 'Zero' not in cfg_weights:
+                vals = list(weights_dict.values())
+                weights_dict["Zero"] = np.sum(vals[:-1])
+
+            # get the values from the dict as a numpy array
+            out = np.array(list(weights_dict.values()), dtype=np.float32)
         else:
             ones = np.ones(self.nK - 1)
             out = np.append(ones, sum(ones)).astype(np.float32)
