@@ -33,7 +33,11 @@ class CellClass(object):
             single_cell (SingleCell): SingleCell object containing single-cell data.
             config (dict): Configuration parameters for cell types.
         """
-        assert single_cell.classes[-1] == 'Zero', "Last label should be the Zero class"
+        assert single_cell.classes[-1] == 'Zero', "Last cell class should be the Zero class"
+        # Check that all classes except 'Zero' are in alphabetical order
+        classes_without_zero = single_cell.classes[:-1]
+        assert list(classes_without_zero) == sorted(classes_without_zero, key=str.lower), \
+            "Cell type names (excluding 'Zero') must be in alphabetical order"
         self._names = single_cell.classes
         self._alpha = None
         self.config = config
