@@ -112,9 +112,17 @@ class CellClass(object):
         """
         cfg_weights = self.config['cell_type_weights']
         if cfg_weights:
-            weights_dict = {name: 1 for name in self.names}
+            # Extract default value if provided, otherwise use 1
+            default_weight = cfg_weights.get('default', 1)
+
+            # Initialize all cell types with the default weight
+            weights_dict = {name: default_weight for name in self.names}
+
             for key in cfg_weights:
-                if key not in self.names:
+                if key == 'default':
+                    # Skip the 'default' key as it's not a cell type
+                    continue
+                elif key not in self.names:
                     cellType_logger.warning(f"Cell type '{key}' in cell_type_weights not found in cell type names. Ignoring.")
                 else:
                     # Override with provided weights where applicable
