@@ -843,6 +843,9 @@ class VarBayes:
     def read_tsv(self, filepath):
         return utils.read_tsv(filepath)
 
+    def trace_cell_classification(self, label, show_plot=True):
+        return utils.trace_cell_classification(self, label, show_plot)
+
     # def trellis_plot(self, label, flatfile_folder):
     #     return visualisation.trellis_plot(self, label, flatfile_folder)
 

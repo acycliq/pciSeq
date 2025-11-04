@@ -9,6 +9,7 @@ from pandas import DataFrame, Series
 import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
+from scipy.special import psi, softmax
 
 # Configure logging
 ops_utils_logger = logging.getLogger(__name__)
@@ -382,6 +383,215 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
         plt.show()
 
     return gene_expression_data, my_contr_df, fig if show_plot else None
+
+
+def trace_cell_classification(obj, label, show_plot=True):
+    """
+    Trace the step-by-step classification process for a specific cell.
+
+    Shows the progression:
+    1. Initial alpha (from ini_alpha)
+    2. Updated alpha (zeta + ini_alpha)
+    3. Log prior (from alpha)
+    4. Gene log-likelihood (from data)
+    5. Log posterior (log_likelihood + log_prior)
+    6. Final posterior probabilities (softmax)
+
+    WITHOUT mutating the object's state.
+
+    Parameters:
+        obj: The VarBayes object
+        label (int): The cell label to analyze
+        show_plot (bool): Whether to display plots (default: True)
+
+    Returns:
+        dict: Contains all intermediate values and final probabilities
+    """
+
+    # Handle label mapping
+    if obj.config['label_map']:
+        pciSeq_label = obj.config['label_map'][label]
+    else:
+        pciSeq_label = label
+
+    # Get configuration
+    prior_mode = obj.config.get('cell_type_prior', 'uniform')
+
+    # Step 1: Get initial alpha (from config weights)
+    ini_alpha = obj.cellTypes.ini_alpha()
+
+    # Step 2: Get observed class sizes (zeta)
+    zeta = obj.cells.classProb.sum(axis=0)
+
+    # Step 3: Updated alpha (what dalpha_upd does)
+    updated_alpha = zeta + ini_alpha
+
+    # Step 4: Compute log_prior from updated alpha
+    if obj.single_cell.isMissing or prior_mode == 'weighted':
+        log_prior = psi(updated_alpha) - psi(updated_alpha.sum())
+    else:
+        prior = updated_alpha / updated_alpha.sum()
+        log_prior = np.log(prior)
+
+    # Step 5: Get gene log-likelihood for this cell
+    contr_df, _, _ = calculate_genes_log_likelihood_contr(obj, label)
+    gene_loglik = contr_df.sum(axis=0).values  # Sum over genes
+
+    # Step 6: Compute log posterior
+    log_posterior = gene_loglik + log_prior
+
+    # Step 7: Apply softmax to get final probabilities
+    posterior_probs = softmax(log_posterior)
+
+    # Store results
+    results = {
+        'label': label,
+        'cell_type_names': obj.cellTypes.names,
+        'ini_alpha': ini_alpha,
+        'zeta': zeta,
+        'updated_alpha': updated_alpha,
+        'log_prior': log_prior,
+        'gene_loglik': gene_loglik,
+        'log_posterior': log_posterior,
+        'posterior_probs': posterior_probs,
+        'prior_mode': prior_mode,
+        'predicted_class': obj.cellTypes.names[np.argmax(posterior_probs)],
+        'predicted_prob': np.max(posterior_probs)
+    }
+
+    if show_plot:
+        _plot_classification_trace(results)
+
+    return results
+
+
+def _plot_classification_trace(results):
+    """Helper function to plot the classification trace."""
+
+    from plotly.subplots import make_subplots
+
+    cell_type_names = results['cell_type_names']
+    n_types = len(cell_type_names)
+
+    # Compute cell class prior (softmax of log_prior)
+    cell_class_prior = np.exp(results['log_prior']) / np.exp(results['log_prior']).sum()
+
+    # Create subplots: 2 rows x 4 columns
+    fig = make_subplots(
+        rows=2, cols=4,
+        subplot_titles=(
+            '<b>Step 1: Initial Alpha</b><br><sub>(from config weights)</sub>',
+            '<b>Step 2: Updated Alpha</b><br><sub>(ini_alpha + zeta)</sub>',
+            '<b>Step 3: Cell Class Log Prior</b><br><sub>(from updated alpha)</sub>',
+            '<b>Step 4: Cell Class Prior</b><br><sub>(softmax of log prior)</sub>',
+            '<b>Step 5: Cell Class Log-Likelihood</b><br><sub>(from gene expression data)</sub>',
+            '<b>Step 6: Cell Class Log Posterior</b><br><sub>(log-likelihood + log prior)</sub>',
+            '<b>Step 7: Cell Class Posterior</b><br><sub>(softmax of log posterior)</sub>',
+            ''  # Empty placeholder
+        ),
+        vertical_spacing=0.25,  # Increased padding between rows
+        horizontal_spacing=0.08
+    )
+
+    # Color scheme
+    colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c']
+    bar_colors = [colors[i % len(colors)] for i in range(n_types)]
+
+    # Plot 1: Initial alpha
+    fig.add_trace(go.Bar(
+        x=cell_type_names,
+        y=results['ini_alpha'],
+        marker_color=bar_colors,
+        showlegend=False,
+        hovertemplate='<b>%{x}</b><br>ini_alpha: %{y:.2f}<extra></extra>'
+    ), row=1, col=1)
+
+    # Plot 2: Updated alpha
+    fig.add_trace(go.Bar(
+        x=cell_type_names,
+        y=results['updated_alpha'],
+        marker_color=bar_colors,
+        showlegend=False,
+        hovertemplate='<b>%{x}</b><br>updated_alpha: %{y:.2f}<extra></extra>'
+    ), row=1, col=2)
+
+    # Plot 3: Cell Class Log Prior
+    fig.add_trace(go.Bar(
+        x=cell_type_names,
+        y=results['log_prior'],
+        marker_color=bar_colors,
+        showlegend=False,
+        hovertemplate='<b>%{x}</b><br>log_prior: %{y:.3f}<extra></extra>'
+    ), row=1, col=3)
+
+    # Plot 4: Cell Class Prior (NEW)
+    fig.add_trace(go.Bar(
+        x=cell_type_names,
+        y=cell_class_prior * 100,
+        marker_color=bar_colors,
+        showlegend=False,
+        hovertemplate='<b>%{x}</b><br>prior: %{y:.2f}%<extra></extra>'
+    ), row=1, col=4)
+
+    # Plot 5: Cell Class Log-Likelihood
+    fig.add_trace(go.Bar(
+        x=cell_type_names,
+        y=results['gene_loglik'],
+        marker_color=bar_colors,
+        showlegend=False,
+        hovertemplate='<b>%{x}</b><br>log_likelihood: %{y:.1f}<extra></extra>'
+    ), row=2, col=1)
+
+    # Plot 6: Cell Class Log Posterior
+    fig.add_trace(go.Bar(
+        x=cell_type_names,
+        y=results['log_posterior'],
+        marker_color=bar_colors,
+        showlegend=False,
+        hovertemplate='<b>%{x}</b><br>log_posterior: %{y:.1f}<extra></extra>'
+    ), row=2, col=2)
+
+    # Plot 7: Cell Class Posterior (with highlight for winner)
+    max_idx = np.argmax(results['posterior_probs'])
+    final_colors = [colors[i % len(colors)] if i != max_idx else '#e74c3c'
+                   for i in range(n_types)]
+
+    fig.add_trace(go.Bar(
+        x=cell_type_names,
+        y=results['posterior_probs'] * 100,
+        marker_color=final_colors,
+        showlegend=False,
+        hovertemplate='<b>%{x}</b><br>posterior: %{y:.1f}%<extra></extra>'
+    ), row=2, col=3)
+
+    # Update layout
+    fig.update_layout(
+        height=750,
+        width=1800,
+        title_text=f"<span style='font-size:18px'><b>Cell {results['label']}: Classification Trace</b></span><br>" +
+                   f"<span style='font-size:12px'>Predicted: {results['predicted_class']} ({results['predicted_prob']*100:.1f}%) | " +
+                   f"Mode: {results['prior_mode']}</span>",
+        title_x=0.5,
+        title_y=0.98,  # Move title higher
+        template='plotly_white',
+        font=dict(family="Arial, sans-serif", size=11)
+    )
+
+    # Update y-axes labels
+    fig.update_yaxes(title_text="ini_alpha", row=1, col=1)
+    fig.update_yaxes(title_text="ini_alpha + zeta", row=1, col=2)
+    fig.update_yaxes(title_text="Log Prior", row=1, col=3)
+    fig.update_yaxes(title_text="Prior (%)", row=1, col=4)
+    fig.update_yaxes(title_text="Log-Likelihood", row=2, col=1)
+    fig.update_yaxes(title_text="Log Posterior", row=2, col=2)
+    fig.update_yaxes(title_text="Posterior (%)", row=2, col=3)
+
+    # Update x-axes
+    for row in [1, 2]:
+        for col in [1, 2, 3, 4]:
+            fig.update_xaxes(tickangle=-45, row=row, col=col)
+
+    fig.show()
 
 
 def read_tsv(filepath):
