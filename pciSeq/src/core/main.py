@@ -741,22 +741,25 @@ class VarBayes:
         alpha = self.cellTypes.ini_alpha()
         out = zeta + alpha
 
-        # 07-May-2023: Hiding 'min_class_size' from the config file. Should bring it back at a later version
-        # mask = zeta <= self.config['min_class_size']
-        min_class_size = 5
-        mask = zeta <= min_class_size
+        ####### 04-Nov-2025: NOT NEEDED ANYMORE - SHOULD BE SAFE TO REMOVE ########
+        # # 07-May-2023: Hiding 'min_class_size' from the config file. Should bring it back at a later version
+        # # mask = zeta <= self.config['min_class_size']
+        # min_class_size = 5
+        # mask = zeta <= min_class_size
+        #
+        # # make sure Zero class is the last one
+        # assert self.cellTypes.names[-1] == "Zero"
+        # assert len(self.cellTypes.names) == len(mask)
+        #
+        # # make sure the last value ie always False, overriding if necessary the
+        # # check a few lines above when the mask variable was set.
+        # # In this manner we will prevent the Zero class from being removed.
+        # mask[-1] = False
+        #
+        # # If a class size is smaller than 'min_class_size' then it will be assigned a weight of almost zero
+        # out[mask] = 10e-6
+        ##########################################
 
-        # make sure Zero class is the last one
-        assert self.cellTypes.names[-1] == "Zero"
-        assert len(self.cellTypes.names) == len(mask)
-
-        # make sure the last value ie always False, overriding if necessary the
-        # check a few lines above when the mask variable was set.
-        # In this manner we will prevent the Zero class from being removed.
-        mask[-1] = False
-
-        # If a class size is smaller than 'min_class_size' then it will be assigned a weight of almost zero
-        out[mask] = 10e-6
         self.cellTypes.alpha = out
 
     # -------------------------------------------------------------------- #
