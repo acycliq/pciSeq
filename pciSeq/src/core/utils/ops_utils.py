@@ -476,9 +476,9 @@ def _plot_classification_trace(results):
     # Compute cell class prior (softmax of log_prior)
     cell_class_prior = np.exp(results['log_prior']) / np.exp(results['log_prior']).sum()
 
-    # Create subplots: 2 rows x 4 columns
+    # Create subplots: 4 rows x 2 columns (leave last slot empty)
     fig = make_subplots(
-        rows=2, cols=4,
+        rows=4, cols=2,
         subplot_titles=(
             '<b>Step 1: Initial Alpha</b><br><sub>(from config weights)</sub>',
             '<b>Step 2: Updated Alpha</b><br><sub>(ini_alpha + zeta)</sub>',
@@ -489,15 +489,17 @@ def _plot_classification_trace(results):
             '<b>Step 7: Cell Class Posterior</b><br><sub>(softmax of log posterior)</sub>',
             ''  # Empty placeholder
         ),
-        vertical_spacing=0.25,  # Increased padding between rows
-        horizontal_spacing=0.08
+        # Reduce spacing to make each subplot taller (same overall size)
+        vertical_spacing=0.08,
+        # Slightly increase space between left and right columns
+        horizontal_spacing=0.12
     )
 
     # Color scheme
     colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c']
     bar_colors = [colors[i % len(colors)] for i in range(n_types)]
 
-    # Plot 1: Initial alpha
+    # Plot 1: Initial alpha (Row 1, Col 1)
     fig.add_trace(go.Bar(
         x=cell_type_names,
         y=results['ini_alpha'],
@@ -506,7 +508,7 @@ def _plot_classification_trace(results):
         hovertemplate='<b>%{x}</b><br>ini_alpha: %{y:.2f}<extra></extra>'
     ), row=1, col=1)
 
-    # Plot 2: Updated alpha
+    # Plot 2: Updated alpha (Row 1, Col 2)
     fig.add_trace(go.Bar(
         x=cell_type_names,
         y=results['updated_alpha'],
@@ -515,43 +517,43 @@ def _plot_classification_trace(results):
         hovertemplate='<b>%{x}</b><br>updated_alpha: %{y:.2f}<extra></extra>'
     ), row=1, col=2)
 
-    # Plot 3: Cell Class Log Prior
+    # Plot 3: Cell Class Log Prior (Row 2, Col 1)
     fig.add_trace(go.Bar(
         x=cell_type_names,
         y=results['log_prior'],
         marker_color=bar_colors,
         showlegend=False,
         hovertemplate='<b>%{x}</b><br>log_prior: %{y:.3f}<extra></extra>'
-    ), row=1, col=3)
+    ), row=2, col=1)
 
-    # Plot 4: Cell Class Prior (NEW)
+    # Plot 4: Cell Class Prior (Row 2, Col 2)
     fig.add_trace(go.Bar(
         x=cell_type_names,
         y=cell_class_prior * 100,
         marker_color=bar_colors,
         showlegend=False,
         hovertemplate='<b>%{x}</b><br>prior: %{y:.2f}%<extra></extra>'
-    ), row=1, col=4)
+    ), row=2, col=2)
 
-    # Plot 5: Cell Class Log-Likelihood
+    # Plot 5: Cell Class Log-Likelihood (Row 3, Col 1)
     fig.add_trace(go.Bar(
         x=cell_type_names,
         y=results['gene_loglik'],
         marker_color=bar_colors,
         showlegend=False,
         hovertemplate='<b>%{x}</b><br>log_likelihood: %{y:.1f}<extra></extra>'
-    ), row=2, col=1)
+    ), row=3, col=1)
 
-    # Plot 6: Cell Class Log Posterior
+    # Plot 6: Cell Class Log Posterior (Row 3, Col 2)
     fig.add_trace(go.Bar(
         x=cell_type_names,
         y=results['log_posterior'],
         marker_color=bar_colors,
         showlegend=False,
         hovertemplate='<b>%{x}</b><br>log_posterior: %{y:.1f}<extra></extra>'
-    ), row=2, col=2)
+    ), row=3, col=2)
 
-    # Plot 7: Cell Class Posterior (with highlight for winner)
+    # Plot 7: Cell Class Posterior (Row 4, Col 1) with highlight for winner
     max_idx = np.argmax(results['posterior_probs'])
     final_colors = [colors[i % len(colors)] if i != max_idx else '#e74c3c'
                    for i in range(n_types)]
@@ -562,33 +564,44 @@ def _plot_classification_trace(results):
         marker_color=final_colors,
         showlegend=False,
         hovertemplate='<b>%{x}</b><br>posterior: %{y:.1f}%<extra></extra>'
-    ), row=2, col=3)
+    ), row=4, col=1)
 
-    # Update layout
+    # Target subplot size based on provided screenshot dimensions (426x369 px)
+    target_subplot_w = 426
+    target_subplot_h = 369
+
+    # Compute overall figure size to approximate per-subplot dimensions
+    # Note: Plotly spacing is fractional, so this is an approximation.
+    fig_width = target_subplot_w * 2 + 160  # margins/padding
+    fig_height = target_subplot_h * 4 + 240  # margins/padding
+
+    # Update layout using computed figure size
     fig.update_layout(
-        height=750,
-        width=1800,
+        height=fig_height,
+        width=fig_width,
         title_text=f"<span style='font-size:18px'><b>Cell {results['label']}: Classification Trace</b></span><br>" +
                    f"<span style='font-size:12px'>Predicted: {results['predicted_class']} ({results['predicted_prob']*100:.1f}%) | " +
                    f"Mode: {results['prior_mode']}</span>",
         title_x=0.5,
-        title_y=0.98,  # Move title higher
+        title_y=0.98,
         template='plotly_white',
-        font=dict(family="Arial, sans-serif", size=11)
+        font=dict(family="Arial, sans-serif", size=11),
+        # Increase top margin to add padding between title and top row
+        margin=dict(l=80, r=40, t=130, b=60)
     )
 
     # Update y-axes labels
     fig.update_yaxes(title_text="ini_alpha", row=1, col=1)
     fig.update_yaxes(title_text="ini_alpha + zeta", row=1, col=2)
-    fig.update_yaxes(title_text="Log Prior", row=1, col=3)
-    fig.update_yaxes(title_text="Prior (%)", row=1, col=4)
-    fig.update_yaxes(title_text="Log-Likelihood", row=2, col=1)
-    fig.update_yaxes(title_text="Log Posterior", row=2, col=2)
-    fig.update_yaxes(title_text="Posterior (%)", row=2, col=3)
+    fig.update_yaxes(title_text="Log Prior", row=2, col=1)
+    fig.update_yaxes(title_text="Prior (%)", row=2, col=2)
+    fig.update_yaxes(title_text="Log-Likelihood", row=3, col=1)
+    fig.update_yaxes(title_text="Log Posterior", row=3, col=2)
+    fig.update_yaxes(title_text="Posterior (%)", row=4, col=1)
 
     # Update x-axes
-    for row in [1, 2]:
-        for col in [1, 2, 3, 4]:
+    for row in [1, 2, 3, 4]:
+        for col in [1, 2]:
             fig.update_xaxes(tickangle=-45, row=row, col=col)
 
     fig.show()
@@ -743,4 +756,3 @@ def empirical_mean(spots, cells):
     # use the fitted centroids where possible otherwise use the initial ones
     xyz_bar[np.isfinite(x_bar)] = xyz_bar_fitted[np.isfinite(x_bar)]
     return pd.DataFrame(xyz_bar, columns=['x', 'y', 'z'], dtype=np.float32)
-
