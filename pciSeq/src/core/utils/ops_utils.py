@@ -394,8 +394,7 @@ def cell_typing_breakdown(obj, label, weights=None, show_plot=True):
         label (int): The cell label to analyze
         weights: Optional override for initial Dirichlet alpha.
             - dict: Same semantics as config['cell_type_weights']
-              {'default': 1, 'TypeA': 2, ..., 'Zero': optional}. If 'Zero' is
-              not provided it is set to the sum of all non-Zero weights.
+              {'default': value_1, 'Class_1': value_2, ..., 'Class_n': value_n}.
               Unknown class keys are ignored with a warning. Values map by name
               to the order in obj.cellTypes.names.
             - 1D array-like: Explicit alpha vector of length K matching
@@ -416,7 +415,6 @@ def cell_typing_breakdown(obj, label, weights=None, show_plot=True):
 
         - Start from default=1 (or provided)
         - Override per-class entries when present
-        - If 'Zero' missing, set it to sum of non-Zero entries
         - Ignore unknown keys with a warning
         """
         default_val = dct.get('default', 1)
@@ -432,9 +430,9 @@ def cell_typing_breakdown(obj, label, weights=None, show_plot=True):
                 continue
             vals[key] = val
         # Handle Zero if not explicitly provided
-        if 'Zero' not in dct:
-            non_zero_names = [n for n in names if n != 'Zero']
-            vals['Zero'] = float(np.sum([vals[n] for n in non_zero_names]))
+        # if 'Zero' not in dct:
+        #     non_zero_names = [n for n in names if n != 'Zero']
+        #     vals['Zero'] = float(np.sum([vals[n] for n in non_zero_names]))
         # Return in the exact order of names
         return np.array([float(vals[n]) for n in names], dtype=float)
 
@@ -445,12 +443,12 @@ def cell_typing_breakdown(obj, label, weights=None, show_plot=True):
     if weights is not None:
         if isinstance(weights, dict):
             ini_alpha = _build_alpha_from_dict(weights, names)
-            alpha_source = 'override-dict'
+            alpha_source = 'override'
         else:
             ini_alpha = np.asarray(weights, dtype=float)
             if ini_alpha.shape != (nK,):
                 raise ValueError(f"weights must have shape ({nK},), got {ini_alpha.shape}")
-            alpha_source = 'override-array'
+            alpha_source = 'override'
     else:
         ini_alpha = obj.cellTypes.ini_alpha()
         alpha_source = 'default'
