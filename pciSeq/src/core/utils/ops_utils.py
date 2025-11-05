@@ -409,6 +409,12 @@ def cell_typing_breakdown(obj, label, weights=None, show_plot=True):
     # Get configuration
     prior_mode = obj.config.get('cell_type_prior', 'uniform')
 
+    if prior_mode != 'weighted':
+        ops_utils_logger.warning(
+            f"Function available only for 'weighted' cell type prior mode."
+        )
+        return dict()
+
     # Step 1: Get initial alpha (from config weights) or override
     def _build_alpha_from_dict(dct, names):
         """Build alpha vector following the same logic as cell_type_weights.
@@ -498,12 +504,12 @@ def cell_typing_breakdown(obj, label, weights=None, show_plot=True):
     }
 
     if show_plot:
-        _plot_classification_trace(out)
+        _plot_classification_steps(out)
 
     return out
 
 
-def _plot_classification_trace(data):
+def _plot_classification_steps(data):
     """Helper function to plot the classification trace."""
 
     from plotly.subplots import make_subplots
@@ -512,7 +518,7 @@ def _plot_classification_trace(data):
     n_types = len(cell_type_names)
 
     # Compute cell class prior (softmax of log_prior)
-    cell_class_prior = np.exp(data['log_prior']) / np.exp(data['log_prior']).sum()
+    cell_class_prior = softmax(data['log_prior'])
 
     # Create subplots: 4 rows x 2 columns (leave last slot empty)
     fig = make_subplots(
