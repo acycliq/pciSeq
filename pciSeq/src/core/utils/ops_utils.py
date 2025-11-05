@@ -387,21 +387,20 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
 
 def cell_typing_breakdown(obj, label, weights=None, show_plot=True):
     """
-    Trace the step-by-step classification process for a specific cell.
-
-    Shows the progression:
-    1. Initial alpha (from ini_alpha)
-    2. Updated alpha (zeta + ini_alpha)
-    3. Log prior (from alpha)
-    4. Gene log-likelihood (from data)
-    5. Log posterior (log_likelihood + log_prior)
-    6. Final posterior probabilities (softmax)
-
-    WITHOUT mutating the object's state.
+    Follow cell-typing step-by-step for a given cell and assuming spot assignment is known
 
     Parameters:
         obj: The VarBayes object
         label (int): The cell label to analyze
+        weights: Optional override for initial Dirichlet alpha.
+            - dict: Same semantics as config['cell_type_weights']
+              {'default': 1, 'TypeA': 2, ..., 'Zero': optional}. If 'Zero' is
+              not provided it is set to the sum of all non-Zero weights.
+              Unknown class keys are ignored with a warning. Values map by name
+              to the order in obj.cellTypes.names.
+            - 1D array-like: Explicit alpha vector of length K matching
+              obj.cellTypes.names order. When using an array, you must include
+              the entry for the 'Zero' class yourself.
         show_plot (bool): Whether to display plots (default: True)
 
     Returns:
@@ -412,22 +411,56 @@ def cell_typing_breakdown(obj, label, weights=None, show_plot=True):
     prior_mode = obj.config.get('cell_type_prior', 'uniform')
 
     # Step 1: Get initial alpha (from config weights) or override
+    def _build_alpha_from_dict(dct, names):
+        """Build alpha vector following the same logic as cell_type_weights.
+
+        - Start from default=1 (or provided)
+        - Override per-class entries when present
+        - If 'Zero' missing, set it to sum of non-Zero entries
+        - Ignore unknown keys with a warning
+        """
+        default_val = dct.get('default', 1)
+        # Initialize with defaults
+        vals = {name: default_val for name in names}
+        # Apply overrides
+        for key, val in dct.items():
+            if key == 'default':
+                continue
+            if key not in names:
+                ops_utils_logger.warning(
+                    f"Cell type '{key}' in weights dict not found in cell type names. Ignoring.")
+                continue
+            vals[key] = val
+        # Handle Zero if not explicitly provided
+        if 'Zero' not in dct:
+            non_zero_names = [n for n in names if n != 'Zero']
+            vals['Zero'] = float(np.sum([vals[n] for n in non_zero_names]))
+        # Return in the exact order of names
+        return np.array([float(vals[n]) for n in names], dtype=float)
+
+    names = obj.cellTypes.names
+    nK = obj.nK # number of classes (aka cell types) including 'Zero'
+
+
     if weights is not None:
-        ini_alpha = np.asarray(weights, dtype=float)
-        # Validate shape against number of classes
-        try:
-            K = obj.cells.classProb.shape[1]
-        except Exception:
-            K = len(obj.cellTypes.names)
-        if ini_alpha.shape != (K,):
-            raise ValueError(f"ini_alpha_override must have shape ({K},), got {ini_alpha.shape}")
-        alpha_source = 'override'
+        if isinstance(weights, dict):
+            ini_alpha = _build_alpha_from_dict(weights, names)
+            alpha_source = 'override-dict'
+        else:
+            ini_alpha = np.asarray(weights, dtype=float)
+            if ini_alpha.shape != (nK,):
+                raise ValueError(f"weights must have shape ({nK},), got {ini_alpha.shape}")
+            alpha_source = 'override-array'
     else:
         ini_alpha = obj.cellTypes.ini_alpha()
         alpha_source = 'default'
 
-    # Step 2: Get observed class sizes (zeta)
+    # Step 2: Get observed class sizes (zeta). This is basically the number of cells in each class.
     zeta = obj.cells.classProb.sum(axis=0)
+
+    # WARNING: DUPLICATED CODE. Steps 3 and 4 below are already in cellClass.
+    # If I change something in CellClass, I need to change it here too.
+    # It is OK for now, but If we develop cellClass any further this will be a problem.
 
     # Step 3: Updated alpha (what dalpha_upd does)
     updated_alpha = zeta + ini_alpha
