@@ -385,7 +385,7 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     return gene_expression_data, my_contr_df, fig if show_plot else None
 
 
-def trace_cell_classification(obj, label, show_plot=True):
+def cell_typing_breakdown(obj, label, weights=None, show_plot=True):
     """
     Trace the step-by-step classification process for a specific cell.
 
@@ -408,17 +408,23 @@ def trace_cell_classification(obj, label, show_plot=True):
         dict: Contains all intermediate values and final probabilities
     """
 
-    # Handle label mapping
-    if obj.config['label_map']:
-        pciSeq_label = obj.config['label_map'][label]
-    else:
-        pciSeq_label = label
-
     # Get configuration
     prior_mode = obj.config.get('cell_type_prior', 'uniform')
 
-    # Step 1: Get initial alpha (from config weights)
-    ini_alpha = obj.cellTypes.ini_alpha()
+    # Step 1: Get initial alpha (from config weights) or override
+    if weights is not None:
+        ini_alpha = np.asarray(weights, dtype=float)
+        # Validate shape against number of classes
+        try:
+            K = obj.cells.classProb.shape[1]
+        except Exception:
+            K = len(obj.cellTypes.names)
+        if ini_alpha.shape != (K,):
+            raise ValueError(f"ini_alpha_override must have shape ({K},), got {ini_alpha.shape}")
+        alpha_source = 'override'
+    else:
+        ini_alpha = obj.cellTypes.ini_alpha()
+        alpha_source = 'default'
 
     # Step 2: Get observed class sizes (zeta)
     zeta = obj.cells.classProb.sum(axis=0)
@@ -444,7 +450,7 @@ def trace_cell_classification(obj, label, show_plot=True):
     posterior_probs = softmax(log_posterior)
 
     # Store results
-    results = {
+    out = {
         'label': label,
         'cell_type_names': obj.cellTypes.names,
         'ini_alpha': ini_alpha,
@@ -455,26 +461,27 @@ def trace_cell_classification(obj, label, show_plot=True):
         'log_posterior': log_posterior,
         'posterior_probs': posterior_probs,
         'prior_mode': prior_mode,
+        'alpha_source': alpha_source,
         'predicted_class': obj.cellTypes.names[np.argmax(posterior_probs)],
         'predicted_prob': np.max(posterior_probs)
     }
 
     if show_plot:
-        _plot_classification_trace(results)
+        _plot_classification_trace(out)
 
-    return results
+    return out
 
 
-def _plot_classification_trace(results):
+def _plot_classification_trace(data):
     """Helper function to plot the classification trace."""
 
     from plotly.subplots import make_subplots
 
-    cell_type_names = results['cell_type_names']
+    cell_type_names = data['cell_type_names']
     n_types = len(cell_type_names)
 
     # Compute cell class prior (softmax of log_prior)
-    cell_class_prior = np.exp(results['log_prior']) / np.exp(results['log_prior']).sum()
+    cell_class_prior = np.exp(data['log_prior']) / np.exp(data['log_prior']).sum()
 
     # Create subplots: 4 rows x 2 columns (leave last slot empty)
     fig = make_subplots(
@@ -502,7 +509,7 @@ def _plot_classification_trace(results):
     # Plot 1: Initial alpha (Row 1, Col 1)
     fig.add_trace(go.Bar(
         x=cell_type_names,
-        y=results['ini_alpha'],
+        y=data['ini_alpha'],
         marker_color=bar_colors,
         showlegend=False,
         hovertemplate='<b>%{x}</b><br>ini_alpha: %{y:.2f}<extra></extra>'
@@ -511,7 +518,7 @@ def _plot_classification_trace(results):
     # Plot 2: Updated alpha (Row 1, Col 2)
     fig.add_trace(go.Bar(
         x=cell_type_names,
-        y=results['updated_alpha'],
+        y=data['updated_alpha'],
         marker_color=bar_colors,
         showlegend=False,
         hovertemplate='<b>%{x}</b><br>updated_alpha: %{y:.2f}<extra></extra>'
@@ -520,7 +527,7 @@ def _plot_classification_trace(results):
     # Plot 3: Cell Class Log Prior (Row 2, Col 1)
     fig.add_trace(go.Bar(
         x=cell_type_names,
-        y=results['log_prior'],
+        y=data['log_prior'],
         marker_color=bar_colors,
         showlegend=False,
         hovertemplate='<b>%{x}</b><br>log_prior: %{y:.3f}<extra></extra>'
@@ -538,7 +545,7 @@ def _plot_classification_trace(results):
     # Plot 5: Cell Class Log-Likelihood (Row 3, Col 1)
     fig.add_trace(go.Bar(
         x=cell_type_names,
-        y=results['gene_loglik'],
+        y=data['gene_loglik'],
         marker_color=bar_colors,
         showlegend=False,
         hovertemplate='<b>%{x}</b><br>log_likelihood: %{y:.1f}<extra></extra>'
@@ -547,20 +554,20 @@ def _plot_classification_trace(results):
     # Plot 6: Cell Class Log Posterior (Row 3, Col 2)
     fig.add_trace(go.Bar(
         x=cell_type_names,
-        y=results['log_posterior'],
+        y=data['log_posterior'],
         marker_color=bar_colors,
         showlegend=False,
         hovertemplate='<b>%{x}</b><br>log_posterior: %{y:.1f}<extra></extra>'
     ), row=3, col=2)
 
     # Plot 7: Cell Class Posterior (Row 4, Col 1) with highlight for winner
-    max_idx = np.argmax(results['posterior_probs'])
+    max_idx = np.argmax(data['posterior_probs'])
     final_colors = [colors[i % len(colors)] if i != max_idx else '#e74c3c'
                    for i in range(n_types)]
 
     fig.add_trace(go.Bar(
         x=cell_type_names,
-        y=results['posterior_probs'] * 100,
+        y=data['posterior_probs'] * 100,
         marker_color=final_colors,
         showlegend=False,
         hovertemplate='<b>%{x}</b><br>posterior: %{y:.1f}%<extra></extra>'
@@ -576,12 +583,15 @@ def _plot_classification_trace(results):
     fig_height = target_subplot_h * 4 + 240  # margins/padding
 
     # Update layout using computed figure size
+    alpha_note = "custom" if data.get('alpha_source') == 'override' else "default"
     fig.update_layout(
         height=fig_height,
         width=fig_width,
-        title_text=f"<span style='font-size:18px'><b>Cell {results['label']}: Classification Trace</b></span><br>" +
-                   f"<span style='font-size:12px'>Predicted: {results['predicted_class']} ({results['predicted_prob']*100:.1f}%) | " +
-                   f"Mode: {results['prior_mode']}</span>",
+        title_text=(
+            f"<span style='font-size:18px'><b>Cell {data['label']}: Classification Trace</b></span><br>"
+            f"<span style='font-size:12px'>Predicted: {data['predicted_class']} ({data['predicted_prob'] * 100:.1f}%) | "
+            f"Mode: {data['prior_mode']} | Alpha: {alpha_note}</span>"
+        ),
         title_x=0.5,
         title_y=0.98,
         template='plotly_white',
