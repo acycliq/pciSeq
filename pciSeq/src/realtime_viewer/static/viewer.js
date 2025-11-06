@@ -22,6 +22,7 @@ const state = {
     changedCells: new Set(),  // Set of cell indices that changed
 
     connected: false,
+    version: null,  // pciSeq version
     deckgl: null,
     stream: null,  // holds buffers during chunked transfer
     geom: {
@@ -129,6 +130,15 @@ socket.on('geometry_init_begin', (meta) => {
             console.log('Applying pending color scheme...');
             applyColorScheme(state.pendingColorScheme);
             state.pendingColorScheme = null;
+        }
+    }
+
+    // Store version and update UI
+    if (meta.version) {
+        state.version = meta.version;
+        const versionEl = document.getElementById('version-display');
+        if (versionEl) {
+            versionEl.textContent = state.version;
         }
     }
 });

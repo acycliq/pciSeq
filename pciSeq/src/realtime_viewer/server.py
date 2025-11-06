@@ -12,6 +12,7 @@ import threading
 import logging
 import webbrowser
 from pathlib import Path
+from pciSeq._version import __version__
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +129,7 @@ class RealtimeViewerServer:
                             "is_3d": bool(geom.get("is_3d", False)),
                             "voxel_size": geom.get("voxel_size"),
                             "img_dim": geom.get("img_dim"),
+                            "version": __version__,
                         },
                         namespace="/",
                     )
@@ -333,6 +335,7 @@ class RealtimeViewerServer:
                         "is_3d": is3d,
                         "voxel_size": voxel_size,
                         "img_dim": varbayes.config.get("img_dim", None),
+                        "version": __version__,
                     },
                     namespace="/",
                 )
@@ -364,6 +367,7 @@ class RealtimeViewerServer:
                     "is_3d": is3d,
                     "voxel_size": voxel_size,
                     "img_dim": varbayes.config.get("img_dim", None),
+                    "version": __version__,
                 }
                 self._num_cells_expected = num_cells
                 logger.info(f"Geometry cached: {num_cells} cells")
