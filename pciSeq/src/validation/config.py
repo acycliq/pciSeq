@@ -71,15 +71,15 @@ class Config(dict):
         # Start with defaults
         super().__init__(config.DEFAULT.copy())
 
+        # Setup logging early so warnings during merge are captured
+        self._setup_logging()
+
         # Merge user options
         if user_opts:
             self._merge_user_opts(user_opts)
 
         # Validate types
         self._validate_types()
-
-        # Setup logging
-        self._setup_logging()
 
     def _merge_user_opts(self, opts: Dict[str, Any]) -> None:
         """
@@ -93,6 +93,9 @@ class Config(dict):
         """
         valid_keys = set(config.DEFAULT.keys())
 
+        # Determine strictness once per merge (opts value takes precedence)
+        # If True then it will drop an exception otherwise a Warning
+        strict = True
         for key, value in opts.items():
             if key in valid_keys:
                 self[key] = value
@@ -102,11 +105,16 @@ class Config(dict):
                 # these keys are ignored by the core algorithm parameters.
                 self[key] = value
                 allowed = ", ".join(sorted(valid_keys))
-                logger.warning(
-                    "Unrecognized configuration option: '%s'! Valid options are: %s",
-                    key,
-                    allowed,
-                )
+                if strict:
+                    raise KeyError(
+                        f"Unrecognized configuration option: '{key}'! Valid options are: {allowed}"
+                    )
+                else:
+                    logger.warning(
+                        "Unrecognized configuration option: '%s'! Valid options are: %s",
+                        key,
+                        allowed,
+                    )
 
     def _validate_types(self) -> None:
         """
