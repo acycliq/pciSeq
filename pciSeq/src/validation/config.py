@@ -98,9 +98,15 @@ class Config(dict):
                 self[key] = value
                 logger.info(f"Config override: {key} = {value}")
             else:
-                # Preserve unknown keys (e.g., callbacks, plugins)
+                # Preserve unknown keys but emit a warning so callers notice
+                # these keys are ignored by the core algorithm parameters.
                 self[key] = value
-                logger.debug(f"Non-standard config key preserved: '{key}'")
+                allowed = ", ".join(sorted(valid_keys))
+                logger.warning(
+                    "Unrecognized configuration option: '%s'! Valid options are: %s",
+                    key,
+                    allowed,
+                )
 
     def _validate_types(self) -> None:
         """
