@@ -366,6 +366,49 @@
 
         .changes-count { font-family: inherit; font-size: 13px; font-weight: 600; color: var(--accent); }
 
+        /* Convergence chart styles */
+        #convergence-chart {
+            margin-bottom: 20px;
+            padding: 12px;
+            background: var(--bg);
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+        #convergence-chart h3 {
+            font-size: 12px;
+            color: var(--accent);
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        #convergence-svg-container {
+            width: 100%;
+            height: 160px;
+            position: relative;
+        }
+        #convergence-svg-container svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        /* D3 tooltip styles */
+        .chart-tooltip {
+            position: absolute;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 8px;
+            font-size: 11px;
+            color: var(--text);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            z-index: 1000;
+        }
+        .chart-tooltip.visible {
+            opacity: 1;
+        }
+
         #info {
             font-size: 12px;
             color: #666;
@@ -398,13 +441,6 @@
         }
 
         .loading-text { font-size: 16px; color: var(--accent); }
-
-        /* Convergence chart panel */
-        #convergence { margin-top: 16px; padding: 12px; background: var(--bg); border-radius: 6px; border: 1px solid var(--border); }
-        #convergence h4 { font-size: 12px; color: var(--accent); margin-bottom: 8px; font-weight: 600; }
-        #convergence-svg-container { width: 100%; height: 220px; }
-        .chart-tooltip { position: absolute; opacity: 0; pointer-events: none; background: rgba(0,0,0,0.85); color: #e5e5e5; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; z-index: 2000; }
-        .chart-tooltip.visible { opacity: 1; }
     </style>
 </head>
 <body>
@@ -443,10 +479,7 @@
                 <!-- Minimal status HUD (keeps focus on the canvas) -->
                 <div class="hud" id="hud">
                     <span class="hud-item">Connected <span class="status-dot" id="hud-connection-dot"></span></span>
-                    <span class="hud-item">Iter <span id="hud-iteration-value">-</span></span>
-                    <span class="hud-sep">•</span>
-                    <span class="hud-item">Convergence <span id="hud-delta-value">-</span></span>
-                    <span class="hud-sep">•</span>
+                    <span class="hud-sep">|</span>
                     <span class="hud-item"><span id="hud-cells-value">-</span> cells</span>
                 </div>
                 <div id="loading-overlay">
@@ -501,8 +534,8 @@
                     <div id="legend-resize-handle" title="Drag to resize"></div>
                 </div>
 
-                <div id="convergence">
-                    <h4>Convergence</h4>
+                <div id="convergence-chart">
+                    <h3>Convergence</h3>
                     <div id="convergence-svg-container"></div>
                 </div>
 
