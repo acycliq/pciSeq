@@ -211,6 +211,37 @@
             background: #00cc00;
         }
 
+        /* Resize handle for legend items */
+        #legend-resize-handle {
+            height: 10px;
+            background: var(--border);
+            border-radius: 4px;
+            margin-top: 8px;
+            cursor: ns-resize;
+            transition: background 0.15s ease;
+            position: relative;
+        }
+
+        #legend-resize-handle:hover {
+            background: var(--accent);
+        }
+
+        #legend-resize-handle::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 3px;
+            background: var(--muted);
+            border-radius: 2px;
+        }
+
+        #legend-resize-handle:hover::before {
+            background: #0b0b0b;
+        }
+
         /* Minimal chip-style legend items */
         .chip { display: flex; align-items: center; gap: 10px; padding: 6px 8px; margin-bottom: 8px; border-radius: 8px; cursor: pointer; transition: background 0.15s ease, opacity 0.15s ease; }
         .chip:hover { background: var(--accent-weak); }
@@ -459,6 +490,7 @@
                         <input id="legend-filter-input" type="text" placeholder="Filter classes…" autocomplete="off" spellcheck="false" />
                     </div>
                     <div id="legend-items"></div>
+                    <div id="legend-resize-handle" title="Drag to resize"></div>
                 </div>
 
                 <div id="info">

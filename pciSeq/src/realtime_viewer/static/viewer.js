@@ -1034,6 +1034,53 @@ window.addEventListener('load', () => {
             }
         });
     }
+
+    // Legend resize handle functionality
+    const legendItems = document.getElementById('legend-items');
+    const resizeHandle = document.getElementById('legend-resize-handle');
+
+    if (legendItems && resizeHandle) {
+        let isResizing = false;
+        let startY = 0;
+        let startHeight = 0;
+        const minHeight = 100;
+        const maxHeight = 1200;
+
+        // Load saved height from localStorage
+        const savedHeight = localStorage.getItem('legendItemsHeight');
+        if (savedHeight) {
+            legendItems.style.maxHeight = savedHeight + 'px';
+        }
+
+        resizeHandle.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            startY = e.clientY;
+            startHeight = legendItems.offsetHeight;
+            document.body.style.cursor = 'ns-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+
+            const deltaY = e.clientY - startY;
+            const newHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + deltaY));
+            legendItems.style.maxHeight = newHeight + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+
+                // Save the height to localStorage
+                const currentHeight = legendItems.offsetHeight;
+                localStorage.setItem('legendItemsHeight', currentHeight);
+            }
+        });
+    }
 });
 
 // Handle window resize
