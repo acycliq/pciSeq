@@ -15,13 +15,13 @@ No external viewer is required.
   - Wires a callback so VarBayes can push updates after each iteration.
 
 - RealtimeViewerServer (server.py)
-  - Serves the static files `viewer.html` and `viewer.js`.
+  - Serves the static files `viewer.html` and modular client scripts under `static/js/`.
   - Streams two types of messages to the browser:
     - Geometry (sent once): centroids, radii, class names, mean cell radius (mcr)
     - Per-iteration classes: class index per cell and probability (prob)
   - Caches geometry and the last update so a new browser tab can catch up.
 
-- viewer.html + viewer.js
+- viewer.html + js/ modules
   - Connects to the server via Socket.IO.
   - Receives geometry once, then receives class/prob arrays each iteration.
   - Renders cells with deck.gl; shows a minimal HUD and a compact legend.
@@ -41,7 +41,7 @@ Sequence at a high level:
 
 ASCII diagram of the workflow:
 
-  Python (VarBayes)               RealtimeViewerServer                 Browser (viewer.js)
+  Python (VarBayes)               RealtimeViewerServer                 Browser (client)
   -------------------             ----------------------               --------------------
   main_loop() iter i  --->  send_update(classProb, i, delta)  --->  classes_update_* events
          |                          |                                   |
@@ -152,7 +152,7 @@ cellData, geneData = fit(
 viewer.stop()
 ```
 
-## Rendering Details (viewer.js)
+## Rendering Details (client)
 
 - Deck.gl ScatterplotLayer renders one circle per cell.
 - Radius: uses `mcr` (mean cell radius) if available; otherwise uses per-cell radius derived from area.
@@ -169,7 +169,15 @@ pciSeq/src/realtime_viewer/
   README.md              # this document
   static/
     viewer.html          # UI layout and styles
-    viewer.js            # Socket client + deck.gl renderer
+    js/                  # Modular client code
+      state.js
+      colors.js
+      detection.js
+      rendering.js
+      chart.js
+      socket-handlers.js
+      ui-controls.js
+      main.js
 ```
 
 ## Troubleshooting

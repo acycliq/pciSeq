@@ -6,6 +6,7 @@
     <title>pciSeq Real-Time Algorithm Viewer</title>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         :root {
             --bg: #111111;
@@ -397,6 +398,13 @@
         }
 
         .loading-text { font-size: 16px; color: var(--accent); }
+
+        /* Convergence chart panel */
+        #convergence { margin-top: 16px; padding: 12px; background: var(--bg); border-radius: 6px; border: 1px solid var(--border); }
+        #convergence h4 { font-size: 12px; color: var(--accent); margin-bottom: 8px; font-weight: 600; }
+        #convergence-svg-container { width: 100%; height: 220px; }
+        .chart-tooltip { position: absolute; opacity: 0; pointer-events: none; background: rgba(0,0,0,0.85); color: #e5e5e5; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; z-index: 2000; }
+        .chart-tooltip.visible { opacity: 1; }
     </style>
 </head>
 <body>
@@ -493,6 +501,11 @@
                     <div id="legend-resize-handle" title="Drag to resize"></div>
                 </div>
 
+                <div id="convergence">
+                    <h4>Convergence</h4>
+                    <div id="convergence-svg-container"></div>
+                </div>
+
                 <div id="info">
                     <p><strong>About:</strong></p>
                     <p>This viewer shows cells at their spatial positions, colored by cell type assignment.</p>
@@ -506,8 +519,14 @@
         </div>
     </div>
 
-    
-
-    <script src="viewer.js"></script>
+    <!-- Load modular JavaScript files in dependency order -->
+    <script src="js/state.js"></script>
+    <script src="js/colors.js"></script>
+    <script src="js/detection.js"></script>
+    <script src="js/rendering.js"></script>
+    <script src="js/chart.js"></script>
+    <script src="js/socket-handlers.js"></script>
+    <script src="js/ui-controls.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>
