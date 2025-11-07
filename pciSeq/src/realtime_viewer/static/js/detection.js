@@ -90,6 +90,9 @@
 
         console.log(`Detected ${changedCount} cells that changed class (iteration ${state.iteration})`);
 
+        // Update the changes count display
+        window.pciSeq.updateChangesCount();
+
         // Start animation loop if there are cells to animate and loop isn't already running
         if (state.classChangedCells.size > 0 && !state.animationFrameId) {
             startHighlightAnimation();

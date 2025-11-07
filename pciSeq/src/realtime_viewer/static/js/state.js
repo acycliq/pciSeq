@@ -127,8 +127,18 @@
 
     window.pciSeq.updateChangesCount = function() {
         const countEl = document.getElementById('changes-count');
+        const classChangesCountEl = document.getElementById('class-changes-count');
+
         if (countEl) {
-            countEl.textContent = state.changedCells.size.toLocaleString();
+            const totalCells = state.cells.length;
+            const changedCellsCount = state.changedCells.size;
+            countEl.textContent = `${changedCellsCount.toLocaleString()}/${totalCells.toLocaleString()}`;
+        }
+
+        if (classChangesCountEl) {
+            const changedCellsCount = state.changedCells.size;
+            const classChangedCount = state.classChangedCells.size;
+            classChangesCountEl.textContent = `${classChangedCount.toLocaleString()}/${changedCellsCount.toLocaleString()}`;
         }
     };
 
