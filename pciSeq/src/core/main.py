@@ -203,16 +203,6 @@ class VarBayes:
         """
         return self._scaled_exp
 
-    # @property
-    # def cell_explorer(self) -> CellExplorer:
-    #     """
-    #     Get cell analyzer instance.
-    #     Returns:
-    #         CellExplorer: Instance configured for this VarBayes object
-    #     """
-    #     if self._cell_explorer is None:
-    #         self._cell_explorer = CellExplorer(self)
-    #     return self._cell_explorer
 
     # -------------------------------------------------------------------- #
     def run(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -730,61 +720,14 @@ class VarBayes:
         Adjusts Dirichlet parameters based on:
             1. Current cell type assignments
             2. Initial alpha values
-            3. Minimum class size constraints
-
-        Note:
-            - Ensures Zero class (background) is preserved
-            - Sets very small weights (1e-6) for classes below minimum size
         """
         # logger.info('Update cell type (marginal) distribution')
-        zeta = self.cells.classProb.sum(axis=0)  # this the class size
+        zeta = self.cells.classProb.sum(axis=0)  # this is the class size (how many cells are in each class)
         alpha = self.cellTypes.ini_alpha()
         out = zeta + alpha
 
-        # 07-May-2023: Hiding 'min_class_size' from the config file. Should bring it back at a later version
-        # mask = zeta <= self.config['min_class_size']
-        min_class_size = 5
-        mask = zeta <= min_class_size
-
-        # make sure Zero class is the last one
-        assert self.cellTypes.names[-1] == "Zero"
-        assert len(self.cellTypes.names) == len(mask)
-
-        # make sure the last value ie always False, overriding if necessary the
-        # check a few lines above when the mask variable was set.
-        # In this manner we will prevent the Zero class from being removed.
-        mask[-1] = False
-
-        # If a class size is smaller than 'min_class_size' then it will be assigned a weight of almost zero
-        out[mask] = 10e-6
         self.cellTypes.alpha = out
 
-    # -------------------------------------------------------------------- #
-    # def spot_misread_density(self) -> np.array:
-    #     """
-    #     Calculates spot misread probabilities for each gene.
-    #
-    #     Combines:
-    #         1. Default misread probability for all genes
-    #         2. Gene-specific probabilities from configuration
-    #         3. Alignment with current spot assignments
-    #
-    #     Returns:
-    #         np.ndarray: Array of misread probabilities aligned with spots
-    #     """
-    #     # Get default misread probability for all genes
-    #     default_val = self.config['MisreadDensity']['default']
-    #     gene_names = self.genes.gene_panel
-    #     misread_dict = dict(zip(gene_names, [default_val] * self.nG))
-    #
-    #     # Update with any gene-specific probabilities
-    #     misread_dict.update(self.config['MisreadDensity'] or {})
-    #     misread_dict.pop('default', None)
-    #
-    #     # Convert to array and align directly with spots
-    #     v = np.array(list(misread_dict.values()))
-    #     v = v[self.spots.gene_id]  # Align with spots
-    #     return v
 
     # -------------------------------------------------------------------- #
     def diagnostics_upd(self) -> None:
@@ -801,21 +744,6 @@ class VarBayes:
         except Exception as e:
             main_logger.warning(f"Failed to update diagnostics: {e}")
 
-    # -------------------------------------------------------------------- #
-    # def cell_analysis(self, cell_num):
-    #     """
-    #     Convenience method to analyze a specific cell.
-    #
-    #     Parameters
-    #     ----------
-    #     cell_num : int
-    #         The cell number to analyze
-    #
-    #     Returns
-    #     -------
-    #     Same as cell_explorer.view_cell()
-    #     """
-    #     return self.cell_explorer.view_cell(cell_num)
 
     # -------------------------------------------------------------------- #
     def heatmap_counts_per_class(self):
@@ -840,7 +768,9 @@ class VarBayes:
     def read_tsv(self, filepath):
         return utils.read_tsv(filepath)
 
+    def cell_typing_breakdown(self, label, weights=None, show_plot=True):
+        return utils.cell_typing_breakdown(self, label, weights, show_plot)
+
     # def trellis_plot(self, label, flatfile_folder):
     #     return visualisation.trellis_plot(self, label, flatfile_folder)
-
 

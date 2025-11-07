@@ -33,7 +33,11 @@ class CellClass(object):
             single_cell (SingleCell): SingleCell object containing single-cell data.
             config (dict): Configuration parameters for cell types.
         """
-        assert single_cell.classes[-1] == 'Zero', "Last label should be the Zero class"
+        assert single_cell.classes[-1] == 'Zero', "Last cell class should be the Zero class"
+        # Check that all classes except 'Zero' are in alphabetical order
+        classes_without_zero = single_cell.classes[:-1]
+        assert list(classes_without_zero) == sorted(classes_without_zero, key=str.lower), \
+            "Cell type names (excluding 'Zero') must be in alphabetical order"
         self._names = single_cell.classes
         self._alpha = None
         self.config = config
@@ -106,5 +110,33 @@ class CellClass(object):
         Returns:
             np.array: Initialized alpha values.
         """
-        ones = np.ones(self.nK - 1)
-        return np.append(ones, sum(ones)).astype(np.float32)
+        cfg_weights = self.config['cell_type_weights']
+        if cfg_weights:
+            # Extract default value if provided, otherwise use 1
+            default_weight = cfg_weights.get('default', 1)
+
+            # Initialize all cell types with the default weight
+            weights_dict = {name: default_weight for name in self.names}
+
+            for key in cfg_weights:
+                if key == 'default':
+                    # Skip the 'default' key as it's not a cell type
+                    continue
+                elif key not in self.names:
+                    cellType_logger.warning(f"Cell type '{key}' in cell_type_weights not found in cell type names. Ignoring.")
+                else:
+                    # Override with provided weights where applicable
+                    weights_dict[key] = cfg_weights[key]
+
+            # Preserve the 'Zero = sum(others)' behavior unless explicitly overridden
+            if 'Zero' not in cfg_weights:
+                vals = list(weights_dict.values())
+                weights_dict["Zero"] = np.sum(vals[:-1])
+
+            # get the values from the dict as a numpy array
+            out = np.array(list(weights_dict.values()), dtype=np.float32)
+        else:
+            ones = np.ones(self.nK - 1)
+            out = np.append(ones, sum(ones)).astype(np.float32)
+
+        return out

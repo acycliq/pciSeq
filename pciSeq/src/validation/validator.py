@@ -254,6 +254,7 @@ class Validator:
 
         Handles:
             - cell_type_prior validation and normalization
+            - cell_type_weights validation (requires cell_type_prior='weighted')
             - InsideCellBonus conversion (True → 2)
             - Dict parameter normalization (MisreadDensity, priors)
         """
@@ -266,6 +267,14 @@ class Validator:
                 f"got '{cfg['cell_type_prior']}'"
             )
         cfg['cell_type_prior'] = cfg['cell_type_prior'].lower()
+
+        # Validate cell_type_weights only allowed with weighted prior
+        if cfg.get('cell_type_weights') is not None:
+            if cfg['cell_type_prior'] != 'weighted':
+                raise ValueError(
+                    "cell_type_weights can only be used when cell_type_prior='weighted'. "
+                    f"Currently cell_type_prior='{cfg['cell_type_prior']}'"
+                )
 
         # Normalize InsideCellBonus boolean to numeric
         if cfg['InsideCellBonus'] is True:

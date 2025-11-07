@@ -120,6 +120,7 @@ DEFAULT = {
     # weight. These weights are calculated dynamically within the algorithm based on
     # a Dirichlet distribution assumption.
     "cell_type_prior": "uniform",
+    "cell_type_weights": None,
     # Runtime attribute (automatically set during execution)
     "is_redis_running": False,
     # *******************************************************************************

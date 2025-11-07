@@ -30,6 +30,7 @@ _TYPE_SPECS = {
     "is_redis_running": bool,
     "cell_radius": (type(None), float),
     "cell_type_prior": str,
+    "cell_type_weights": (type(None), dict),
     "voxel_size": list,
     "exclude_planes": (type(None), list),
     "is3D": (type(None), bool),
