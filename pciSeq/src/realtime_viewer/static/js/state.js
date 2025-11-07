@@ -135,8 +135,13 @@
         }
 
         if (classChangesCountEl) {
-            const classChangedCount = state.classChangedCells.size;
-            classChangesCountEl.textContent = classChangedCount.toLocaleString();
+            // Show "-" on first iteration (no previous class data to compare)
+            if (!state.previousClass) {
+                classChangesCountEl.textContent = '-';
+            } else {
+                const classChangedCount = state.classChangedCells.size;
+                classChangesCountEl.textContent = classChangedCount.toLocaleString();
+            }
         }
     };
 
