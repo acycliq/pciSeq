@@ -65,16 +65,32 @@
 
     // Detect cells that changed CLASS (not just probability) for highlighting with fade-out
     function detectClassChanges() {
-        // Safety: if no previous class data or cell count mismatch, skip detection
-        if (!state.previousClass || state.previousClass.length !== state.cells.length) {
-            if (state.previousClass) {
-                console.log(`Skipping class change detection: cell count mismatch (${state.previousClass.length} → ${state.cells.length})`);
+        const now = Date.now();
+        let changedCount = 0;
+
+        // First iteration: all cells are getting their initial class assignment
+        if (!state.previousClass) {
+            for (let i = 0; i < state.cells.length; i++) {
+                state.classChangedCells.set(state.cells[i].id, now);
+                changedCount++;
+            }
+            console.log(`First iteration: marked all ${changedCount} cells as changed class`);
+
+            // Update the changes count display
+            window.pciSeq.updateChangesCount();
+
+            // Start animation loop
+            if (state.classChangedCells.size > 0 && !state.animationFrameId) {
+                startHighlightAnimation();
             }
             return;
         }
 
-        const now = Date.now();
-        let changedCount = 0;
+        // Safety: if cell count mismatch, skip detection
+        if (state.previousClass.length !== state.cells.length) {
+            console.log(`Skipping class change detection: cell count mismatch (${state.previousClass.length} → ${state.cells.length})`);
+            return;
+        }
 
         // Compare current class with previous class
         for (let i = 0; i < state.cells.length; i++) {
