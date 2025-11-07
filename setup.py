@@ -55,7 +55,6 @@ install_deps = [
     "plotly",
     "numba",
     "pyarrow",
-    "flask_socketio",
 ]
 
 
