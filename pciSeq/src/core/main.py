@@ -203,16 +203,6 @@ class VarBayes:
         """
         return self._scaled_exp
 
-    # @property
-    # def cell_explorer(self) -> CellExplorer:
-    #     """
-    #     Get cell analyzer instance.
-    #     Returns:
-    #         CellExplorer: Instance configured for this VarBayes object
-    #     """
-    #     if self._cell_explorer is None:
-    #         self._cell_explorer = CellExplorer(self)
-    #     return self._cell_explorer
 
     # -------------------------------------------------------------------- #
     def run(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -738,32 +728,6 @@ class VarBayes:
 
         self.cellTypes.alpha = out
 
-    # -------------------------------------------------------------------- #
-    # def spot_misread_density(self) -> np.array:
-    #     """
-    #     Calculates spot misread probabilities for each gene.
-    #
-    #     Combines:
-    #         1. Default misread probability for all genes
-    #         2. Gene-specific probabilities from configuration
-    #         3. Alignment with current spot assignments
-    #
-    #     Returns:
-    #         np.ndarray: Array of misread probabilities aligned with spots
-    #     """
-    #     # Get default misread probability for all genes
-    #     default_val = self.config['MisreadDensity']['default']
-    #     gene_names = self.genes.gene_panel
-    #     misread_dict = dict(zip(gene_names, [default_val] * self.nG))
-    #
-    #     # Update with any gene-specific probabilities
-    #     misread_dict.update(self.config['MisreadDensity'] or {})
-    #     misread_dict.pop('default', None)
-    #
-    #     # Convert to array and align directly with spots
-    #     v = np.array(list(misread_dict.values()))
-    #     v = v[self.spots.gene_id]  # Align with spots
-    #     return v
 
     # -------------------------------------------------------------------- #
     def diagnostics_upd(self) -> None:
@@ -780,21 +744,6 @@ class VarBayes:
         except Exception as e:
             main_logger.warning(f"Failed to update diagnostics: {e}")
 
-    # -------------------------------------------------------------------- #
-    # def cell_analysis(self, cell_num):
-    #     """
-    #     Convenience method to analyze a specific cell.
-    #
-    #     Parameters
-    #     ----------
-    #     cell_num : int
-    #         The cell number to analyze
-    #
-    #     Returns
-    #     -------
-    #     Same as cell_explorer.view_cell()
-    #     """
-    #     return self.cell_explorer.view_cell(cell_num)
 
     # -------------------------------------------------------------------- #
     def heatmap_counts_per_class(self):
