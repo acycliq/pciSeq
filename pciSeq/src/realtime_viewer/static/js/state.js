@@ -130,15 +130,13 @@
         const classChangesCountEl = document.getElementById('class-changes-count');
 
         if (countEl) {
-            const totalCells = state.cells.length;
             const changedCellsCount = state.changedCells.size;
-            countEl.textContent = `${changedCellsCount.toLocaleString()}/${totalCells.toLocaleString()}`;
+            countEl.textContent = changedCellsCount.toLocaleString();
         }
 
         if (classChangesCountEl) {
-            const changedCellsCount = state.changedCells.size;
             const classChangedCount = state.classChangedCells.size;
-            classChangesCountEl.textContent = `${classChangedCount.toLocaleString()}/${changedCellsCount.toLocaleString()}`;
+            classChangesCountEl.textContent = classChangedCount.toLocaleString();
         }
     };
 
