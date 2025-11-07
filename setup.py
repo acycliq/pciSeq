@@ -94,7 +94,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name="pciSeq",
+    name="pciSeq_3d",
     version=version,
     license="BSD",
     author="Dimitris Nicoloutsopoulos",
@@ -102,7 +102,7 @@ setup(
     description="Probabilistic cell typing for spatial transcriptomics",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/acycliq/pciSeq",
+    url="https://github.com/acycliq/pciSeq_3d",
     packages=find_packages(),
     install_requires=install_deps,
     extras_require={
