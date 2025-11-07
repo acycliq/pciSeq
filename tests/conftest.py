@@ -70,6 +70,7 @@ def base_opts():
         "is_redis_running": False,
         "cell_radius": None,
         "cell_type_prior": "uniform",
+        "cell_type_weights": None,
         "is3D": True,
         "voxel_size": [1, 1, 1],
         "exclude_planes": [],
