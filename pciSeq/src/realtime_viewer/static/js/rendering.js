@@ -42,11 +42,32 @@
                 return null;
             },
             onViewStateChange: ({viewState}) => {
+                // Keep current view state so radius scaling can react to zoom
+                state.viewState = viewState;
                 return viewState;
             }
         });
 
+        // Initialize stored view state for first render
+        state.viewState = state.viewState || state.deckgl.props.initialViewState;
+
         render();
+    }
+
+    // Compute multiplicative scale so added on-screen radius ~ constant pixels
+    function computeHighlightScale(baseRadius, opacity) {
+        const zoom = (state.viewState && typeof state.viewState.zoom === 'number') ? state.viewState.zoom : -1;
+        const screenScale = Math.pow(2, zoom);
+        const pixelBoost = state.highlightPixelBoost || 12; // desired extra pixels at full opacity
+        const denom = Math.max(baseRadius * screenScale, 1e-6);
+        const ratio = Math.max(0.3, pixelBoost / denom); //clamp to 0.3
+
+        // try {
+        //     console.log(`highlight-scale debug: opacity=${Number(opacity).toFixed(3)}, ratio=${Number(ratio).toExponential(3)}`);
+        // } catch (_) {
+        //     // noop if formatting fails
+        // }
+        return 1.0 + (opacity * ratio);
     }
 
     // Main render function
@@ -104,8 +125,7 @@
                     const opacity = Math.max(0, 1 - fadeProgress); // 1 to 0
 
                     if (opacity > 0) {
-                        // Scale from 130% to 100% as it fades
-                        const scale = 1.0 + (opacity * 0.3); // 1.3 → 1.0
+                        const scale = computeHighlightScale(baseRadius, opacity);
                         return baseRadius * scale;
                     }
                 }
@@ -121,7 +141,7 @@
             getLineColor: [255, 255, 255, 60],
             updateTriggers: {
                 getFillColor: [state.iteration],
-                getRadius: [state.iteration, state.classChangedCells.size],
+                getRadius: [state.iteration, state.classChangedCells.size, state.viewState ? state.viewState.zoom : 0],
                 data: [Object.values(state.cellClassVisible)]
             }
         });

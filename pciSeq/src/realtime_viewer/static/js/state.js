@@ -33,6 +33,8 @@
         animationFrameId: null,  // Track animation loop
         highlightFadeDuration: 2000,  // Fade duration in milliseconds
         highlightColor: [0, 217, 255],  // Soft cyan RGB
+        // Highlight visual strength (extra on-screen pixels added at full opacity)
+        highlightPixelBoost: 12,
 
         // Convergence chart
         cellCallTolerance: 0.2,  // Convergence threshold (from server)
