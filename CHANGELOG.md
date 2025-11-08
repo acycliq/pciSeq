@@ -9,6 +9,6 @@
 - Realtime viewer.
 
 ### Changed
-- Package name changed from `pciSeq` to `pciSeq_3d`
+- Distribution package name changed from `pciSeq` to `pciSeq_3d` (import name remains `pciSeq`)
 
 ## Notes
