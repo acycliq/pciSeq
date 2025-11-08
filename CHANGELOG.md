@@ -6,6 +6,7 @@
 - Support for weighted cell type priors via `cell_type_weights` config parameter
   - Can only be used when `cell_type_prior='weighted'`
 - Export TSVs and sharded Arrow Feather (.feather, Arrow IPC) files.
+- Realtime viewer.
 
 ### Changed
 - Package name changed from `pciSeq` to `pciSeq_3d`
