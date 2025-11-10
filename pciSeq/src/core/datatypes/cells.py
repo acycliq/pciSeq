@@ -58,6 +58,7 @@ class Cells(object):
         self._background_counts = None
         self.on_planes = dict(zip(_cells_df['label'], _cells_df['values']))
         self._nb_contr = None  # placeholder for the genes' contribution to the negative binomial loglik
+        self._theta_bar = None # placeholder for the cell inefficiency
 
     # -------- PROPERTIES -------- #
     @property
@@ -158,6 +159,14 @@ class Cells(object):
     @nb_contr.setter
     def nb_contr(self, val):
         self._nb_contr = val
+
+    @property
+    def theta_bar(self) -> np.ndarray:
+        return self._theta_bar
+
+    @theta_bar.setter
+    def theta_bar(self, val: np.ndarray):
+        self._theta_bar = val
 
     # -------- METHODS -------- #
     def ini_centroids(self) -> pd.DataFrame:

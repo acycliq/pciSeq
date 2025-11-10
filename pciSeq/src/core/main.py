@@ -267,8 +267,11 @@ class VarBayes:
                 # 5. assign spots to cells
                 self.spots_to_cell()
 
-                # 6. update gene efficiency
+                # 6. update gene inefficiency
                 self.eta_upd()
+
+                # 7. update the cell inefficiency
+                self.theta_upd()
 
                 # 7. update the dirichlet distribution
                 if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):
@@ -727,6 +730,33 @@ class VarBayes:
         out = zeta + alpha
 
         self.cellTypes.alpha = out
+
+
+    # -------------------------------------------------------------------- #
+    def theta_upd(self) -> None:
+        theta_0 = 30 # a guess about the gene counts of a random cell
+        gene_counts = self.cells.geneCount.sum(axis=1) # vector of shape nC, 1 with the gene counts for each cell
+
+        # add also the background counts
+        gene_counts[0]  = self.cells.background_counts.sum()
+
+        observed = gene_counts + theta_0
+
+
+        classProb = self.cells.classProb
+        mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
+        area_factor = self.cells.ini_cell_props['area_factor']
+        gamma_bar = self.spots.gamma_bar.compute()
+        eta_bar = self.genes.eta_bar
+
+        expected = np.einsum(
+            'ck, gk, c, cgk, g -> c',
+            classProb, mu, area_factor, gamma_bar, eta_bar
+        )
+
+        expected = expected + theta_0
+
+        self.cells.theta_bar = observed / expected
 
 
     # -------------------------------------------------------------------- #
