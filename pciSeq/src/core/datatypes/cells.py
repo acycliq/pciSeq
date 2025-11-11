@@ -168,6 +168,11 @@ class Cells(object):
     def theta_bar(self, val: np.ndarray):
         self._theta_bar = val
 
+    @property
+    def ini_gene_counts(self) -> np.ndarray:
+        # returns an array if shape (nC,) with the total number of reads inside the cell's boundaries.
+        return self._ini_gene_counts
+
     # -------- METHODS -------- #
     def ini_centroids(self) -> pd.DataFrame:
         """
