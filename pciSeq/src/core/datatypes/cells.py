@@ -170,7 +170,9 @@ class Cells(object):
 
     @property
     def ini_gene_counts(self) -> np.ndarray:
-        # returns an array if shape (nC,) with the total number of reads inside the cell's boundaries.
+        """ Returns an array of shape (nC,) containing the total number of spots
+            inside each cell's boundaries.
+        """
         return self._ini_gene_counts
 
     # -------- METHODS -------- #
