@@ -58,7 +58,8 @@ class Cells(object):
         self._background_counts = None
         self.on_planes = dict(zip(_cells_df['label'], _cells_df['values']))
         self._nb_contr = None  # placeholder for the genes' contribution to the negative binomial loglik
-        self._theta_bar = None # placeholder for the cell inefficiency
+        self._theta_bar = None  # placeholder for the cell inefficiency
+        self._logtheta_bar = None
 
     # -------- PROPERTIES -------- #
     @property
@@ -169,11 +170,19 @@ class Cells(object):
         self._theta_bar = val
 
     @property
+    def logtheta_bar(self) -> np.ndarray:
+        return self._logtheta_bar
+
+    @logtheta_bar.setter
+    def logtheta_bar(self, val: np.ndarray):
+        self._logtheta_bar = val
+
+    @property
     def ini_gene_counts(self) -> np.ndarray:
         """ Returns an array of shape (nC,) containing the total number of spots
             inside each cell's boundaries.
         """
-        return self._ini_gene_counts
+        return self._ini_gene_counts.astype(np.int32)
 
     # -------- METHODS -------- #
     def ini_centroids(self) -> pd.DataFrame:
@@ -276,6 +285,25 @@ class Cells(object):
         out[:, 2, 1] = agg_12
 
         return out.astype(np.float32)
+
+    def calc_theta(self, a: np.ndarray, b: np.ndarray) -> None:
+        """
+        Compute expected theta and log-theta for each cell under a Gamma posterior.
+
+        Parameters:
+            a (np.ndarray): Shape parameters (shape ``(nC,)`` ).
+            b (np.ndarray): Rate parameters (shape ``(nC,)`` ).
+
+        Notes:
+            - Results are stored in ``self.theta_bar`` and ``self.logtheta_bar``.
+        """
+
+        # Compute in float64, then store as float32
+        a64 = a.astype(np.float64)
+        b64 = b.astype(np.float64)
+        self.theta_bar = (a64 / b64).astype(np.float32)
+        self.logtheta_bar = (scipy.special.psi(a64) - np.log(b64)).astype(np.float32)
+
 
     # -------------------------- CONVENIENCE METHODS ----------------------- #
     def gene_reads_per_class(self):
