@@ -178,7 +178,7 @@ class VarBayes:
         self.genes.init_eta(self.config['rGene'], self.config['rGene'])
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
-        self.cells._ini_gene_counts = np.bincount(self.spots.data.label.values, minlength=self.nC)
+        self.cells._ini_gene_counts = np.bincount(self.spots.data.label.values, minlength=self.nC).astype(np.int32)
         self.genes._misread_density = self.genes.calc_misread_density()
 
     def __getstate__(self):
@@ -734,13 +734,21 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def theta_upd(self) -> None:
-        theta_0 = 30 # a guess about the gene counts of a random cell
+
+        # the mean gene counts across all cells (excluding the background, ie index 0)
+        avg = int(self.cells.ini_gene_counts[1:].mean())
+        theta_1 = self.cells.ini_gene_counts.copy() # make a copy, numpy array are mutable and we want to avoid changing the original
+
+        # replace zero values with the average gene counts across all cells
+        theta_1[theta_1 == 0] = avg
+        theta_2 = 1
+
         gene_counts = self.cells.geneCount.sum(axis=1) # vector of shape nC, 1 with the gene counts for each cell
 
         # add also the background counts
         gene_counts[0]  = self.cells.background_counts.sum()
 
-        observed = gene_counts + theta_0
+        observed = gene_counts + theta_1
 
 
         classProb = self.cells.classProb
@@ -754,9 +762,9 @@ class VarBayes:
             classProb, mu, area_factor, gamma_bar, eta_bar
         )
 
-        expected = expected + theta_0
+        expected = expected + theta_2
 
-        self.cells.theta_bar = observed / expected
+        self.cells.calc_theta(observed, expected)
 
 
     # -------------------------------------------------------------------- #
