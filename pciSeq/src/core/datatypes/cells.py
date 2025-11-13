@@ -59,7 +59,8 @@ class Cells(object):
         self.on_planes = dict(zip(_cells_df['label'], _cells_df['values']))
         self._nb_contr = None  # placeholder for the genes' contribution to the negative binomial loglik
         self._theta_bar = None  # placeholder for the cell inefficiency
-        self._logtheta_bar = None
+        self._logtheta_bar = None # placeholder for the cell inefficiency (log)
+        self._theta_params = dict() # placeholder for theta (cell inefficiency) hyperparameters
 
     # -------- PROPERTIES -------- #
     @property
@@ -184,6 +185,20 @@ class Cells(object):
         """
         return self._ini_gene_counts.astype(np.int32)
 
+    @property
+    def theta_params(self) -> dict:
+        return self._theta_params
+
+    @theta_params.setter
+    def theta_params(self, val: dict):
+        a = np.asarray(val['alpha'], dtype=np.float32)
+        b = np.asarray(val['lambda'], dtype=np.float32)
+        assert (
+            np.isfinite(a).all() and (a > 0).all() and
+            np.isfinite(b).all() and (b > 0).all()
+        ), "theta_params 'alpha' and 'lambda' must be finite and > 0"
+        self._theta_params = {'alpha': a, 'lambda': b}
+
     # -------- METHODS -------- #
     def ini_centroids(self) -> pd.DataFrame:
         """
@@ -286,6 +301,31 @@ class Cells(object):
 
         return out.astype(np.float32)
 
+    def _set_theta_hyperparameters(self):
+        """
+        sets the hyperparameters for the theta distribution, which is a Gamma distribution.
+        with the shape-rate parameters (alpha, lambda) and pdf:
+            f(x) = x**(alpha-1) * exp(-lambda * x) * (lambda**alpha) / Gamma(alpha)
+            with mean = alpha / lambda and variance = alpha / lambda**2
+        Returns:
+
+        """
+        # the mean gene counts across all cells (excluding the background, ie index 0)
+        avg = int(self.ini_gene_counts[1:].mean())
+        _alpha = self.ini_gene_counts.copy()  # make a copy, numpy array is mutable, and we want to avoid changing the original
+
+        # replace zero values with the average gene counts across all cells (ex background)
+        _alpha[_alpha == 0] = avg
+        _lambda = 1
+        self.theta_params = {"alpha": _alpha, "lambda": _lambda}
+
+    def init_theta(self):
+        self._set_theta_hyperparameters()
+        a = self.theta_params['alpha']
+        b = self.theta_params['lambda']
+        self.calc_theta(a, b)
+
+
     def calc_theta(self, a: np.ndarray, b: np.ndarray) -> None:
         """
         Compute expected theta and log-theta for each cell under a Gamma posterior.
@@ -299,8 +339,11 @@ class Cells(object):
         """
 
         # Compute in float64, then store as float32
+        assert  (a > 0).all()
+        assert  (b > 0).all()
         a64 = a.astype(np.float64)
         b64 = b.astype(np.float64)
+
         self.theta_bar = (a64 / b64).astype(np.float32)
         self.logtheta_bar = (scipy.special.psi(a64) - np.log(b64)).astype(np.float32)
 
