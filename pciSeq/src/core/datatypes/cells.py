@@ -316,7 +316,7 @@ class Cells(object):
 
         # replace zero values with the average gene counts across all cells (ex background)
         _alpha[_alpha == 0] = avg
-        _lambda = 1
+        _lambda = _alpha.copy()
         self.theta_params = {"alpha": _alpha, "lambda": _lambda}
 
     def init_theta(self):
