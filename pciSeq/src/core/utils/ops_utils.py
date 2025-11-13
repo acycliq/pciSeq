@@ -106,7 +106,8 @@ def compute_gene_loglikelihood_matrix(obj) -> np.ndarray:
     Args:
         obj: VarBayes object containing the following attributes:
             - scaled_exp: A delayed or computed array of scaled expression values (shape: nC x nG x nK)
-            - genes.eta_bar: Gene efficiency parameters (shape: nG)
+            - genes.eta_bar: Gene efficiency (shape: nG)
+            - cells.theta_bar: Cell inefficiency (shape: nC)
             - config['SpotReg']: Regularization parameter for spot-level noise
             - config['rSpot']: Dispersion parameter for the negative binomial distribution
             - cells.geneCount: Observed gene counts for all cells (shape: nC x nG)
@@ -120,7 +121,10 @@ def compute_gene_loglikelihood_matrix(obj) -> np.ndarray:
     scaled_means = obj.scaled_exp.compute()
 
     # Calculate scaled expression adjusted by gene efficiency and regularization
-    ScaledExp = np.einsum('cgk,g->cgk', scaled_means, obj.genes.eta_bar) + obj.config['SpotReg']
+    ScaledExp = np.einsum(
+        'cgk,g,c->cgk',
+        scaled_means, obj.genes.eta_bar, obj.cells.theta_bar
+    ) + obj.config['SpotReg']
 
     # Calculate negative binomial probabilities
     pNegBin = ScaledExp / (obj.config['rSpot'] + ScaledExp)

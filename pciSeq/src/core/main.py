@@ -179,6 +179,7 @@ class VarBayes:
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.cells._ini_gene_counts = np.bincount(self.spots.data.label.values, minlength=self.nC).astype(np.int32)
+        self.cells.init_theta()
         self.genes._misread_density = self.genes.calc_misread_density()
 
     def __getstate__(self):
@@ -383,7 +384,7 @@ class VarBayes:
         self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
                                                     self.single_cell.mean_expression_adj.values))
 
-        beta = self.scaled_exp.compute() * self.genes.eta_bar[:, None] + cfg['rSpot']
+        beta = self.scaled_exp.compute() * self.genes.eta_bar[:, None] * self.cells.theta_bar[:, None, None] + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
         self.spots._log_gamma_bar = delayed(self.spots.logGammaExpectation(rho, beta))
@@ -457,6 +458,9 @@ class VarBayes:
             # get the spots' nth-closest cell
             sn = self.spots.parent_cell_id[:, n]
 
+            # cell inefficiency
+            logtheta = self.cells.logtheta_bar[sn]
+
             # get the respective cell type probabilities
             cp = self.cells.classProb[sn]
 
@@ -471,7 +475,7 @@ class VarBayes:
 
             # wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik[:, n]
             mvn_loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
-            wSpotCell[:, n] = term_1 + term_2 + mvn_loglik
+            wSpotCell[:, n] = term_1 + term_2 + logtheta + mvn_loglik
             mvn_loglik_arr[:, n] = mvn_loglik
             attention[:, n] = term_1
             expr_fluctuations[:, n] = term_2
@@ -566,6 +570,7 @@ class VarBayes:
         mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
+        theta_bar = self.cells.theta_bar
 
         zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
         zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
@@ -573,13 +578,14 @@ class VarBayes:
 
         # Calcs the sum in the Gamma distribution (equation 5). The zero class
         # is excluded from the sum, hence the arrays in the einsum below stop at :-1
-        # Note. We should exclude the "cell" that is meant to keep the
+        # Note. We should maybe exclude the "cell" that is meant to keep the
         # misreads, ie exclude the background, hence the relevant indexing below
-        # starts at 1
-        class_total_counts = oe.contract('ck, gk, c, cgk -> g',
+        # could probably start at 1
+        class_total_counts = oe.contract('ck, gk, c, c, cgk -> g',
                                          classProb[:, :-1],
                                          mu.values[:, :-1],
                                          area_factor,
+                                         theta_bar,
                                          gamma_bar[:, :, :-1], optimize='optimal')
         # background_counts = self.cells.background_counts
         background_counts = np.bincount(self.spots.gene_id, self.spots.parent_cell_prob[:, -1], minlength=self.nG)
@@ -735,20 +741,22 @@ class VarBayes:
     # -------------------------------------------------------------------- #
     def theta_upd(self) -> None:
 
-        # the mean gene counts across all cells (excluding the background, ie index 0)
-        avg = int(self.cells.ini_gene_counts[1:].mean())
-        theta_1 = self.cells.ini_gene_counts.copy() # make a copy, numpy array are mutable and we want to avoid changing the original
+        # # the mean gene counts across all cells (excluding the background, ie index 0)
+        # avg = int(self.cells.ini_gene_counts[1:].mean())
+        # theta_1 = self.cells.ini_gene_counts.copy() # make a copy, numpy array are mutable and we want to avoid changing the original
+        #
+        # # replace zero values with the average gene counts across all cells
+        # theta_1[theta_1 == 0] = avg
+        # theta_2 = 1
 
-        # replace zero values with the average gene counts across all cells
-        theta_1[theta_1 == 0] = avg
-        theta_2 = 1
+        theta_params = self.cells.theta_params
 
         gene_counts = self.cells.geneCount.sum(axis=1) # vector of shape nC, 1 with the gene counts for each cell
 
         # add also the background counts
         gene_counts[0]  = self.cells.background_counts.sum()
 
-        observed = gene_counts + theta_1
+        observed = gene_counts + theta_params['alpha']
 
 
         classProb = self.cells.classProb
@@ -762,7 +770,7 @@ class VarBayes:
             classProb, mu, area_factor, gamma_bar, eta_bar
         )
 
-        expected = expected + theta_2
+        expected = expected + theta_params['lambda']
 
         self.cells.calc_theta(observed, expected)
 
