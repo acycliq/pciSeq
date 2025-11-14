@@ -13,11 +13,16 @@
     function initializeDeck() {
         const {DeckGL, ScatterplotLayer, OrthographicView} = deck;
 
+        // Calculate initial view center from img_dim if available, otherwise use origin
+        const defaultCenter = state.geom?.imgDim
+            ? [state.geom.imgDim.w / 2, state.geom.imgDim.h / 2, 0]
+            : [0, 0, 0];
+
         state.deckgl = new DeckGL({
             container: 'deck-container',
             views: [new OrthographicView({id: 'ortho', controller: true})],
             initialViewState: {
-                target: [3200, 2200, 0],  // Center of typical image
+                target: defaultCenter,
                 zoom: -1  // Start zoomed out
             },
             controller: true,
