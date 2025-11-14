@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import coo_matrix
 import logging
+from joblib import Parallel, delayed
 from .label_processing import CellLabelManager, get_unique_labels
 from .spot_processing import process_spots, assign_spot_labels
 from .utils import log_data_summary
@@ -18,6 +19,28 @@ from ..core.utils.cell_utils import find_labels
 from .cell_processing import extract_borders
 
 spot_labels_logger = logging.getLogger(__name__)
+
+
+def _process_plane_borders(i: int, coo_plane: coo_matrix) -> pd.DataFrame:
+    """
+    Helper function to extract borders for a single plane.
+
+    Parameters
+    ----------
+    i : int
+        Plane index
+    coo_plane : coo_matrix
+        Sparse matrix for this plane
+
+    Returns
+    -------
+    pd.DataFrame
+        Borders dataframe with plane_id column
+    """
+    temp = extract_borders(coo_plane.toarray().astype(np.uint32))
+    temp = temp.rename(columns={'label': 'cell_id'})
+    temp.insert(0, 'plane_id', i)
+    return temp
 
 
 def stage_data(spots: pd.DataFrame,
@@ -76,12 +99,12 @@ def stage_data(spots: pd.DataFrame,
     cell_boundaries = extract_borders(coo[mid_plane].toarray().astype(np.uint32))
     cell_boundaries = cell_boundaries.rename(columns={'label': 'cell_id'})
 
-    cell_boundaries_list = []
-    for i, d in enumerate(coo):
-        temp = extract_borders(d.toarray().astype(np.uint32))
-        temp = temp.rename(columns={'label': 'cell_id'}) # you must keep consistent naming! looks waste to toggle label <-> cell_id
-        temp.insert(0, 'plane_id', i)
-        cell_boundaries_list.append(temp)
+    # Parallelize border extraction across all planes
+    spot_labels_logger.info(f"Extracting borders for {len(coo)} planes in parallel...")
+    cell_boundaries_list = Parallel(n_jobs=-1, backend='loky')(
+        delayed(_process_plane_borders)(i, d) for i, d in enumerate(coo)
+    )
+    spot_labels_logger.info("Border extraction complete")
 
     # Validate results
     assert props_df.shape[0] == len(set(np.concatenate(get_unique_labels(coo))))
