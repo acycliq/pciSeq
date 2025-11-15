@@ -228,8 +228,8 @@
         const bottomSum = data.bottom_sum || 0;
         const geneData = data.gene_expression_data || null;
 
-        // Setup dimensions for each chart - increase left margin for y-axis label
-        const margin = {top: 30, right: 15, bottom: 70, left: 65};
+        // Setup dimensions for each chart - tight margins to maximize chart area
+        const margin = {top: 20, right: 10, bottom: 60, left: 45};
         const containerWidth = leftDiv.clientWidth;
         const containerHeight = leftDiv.clientHeight;
         const chartWidth = containerWidth - margin.left - margin.right;
@@ -241,11 +241,11 @@
 
         // Render left chart (top genes for pciSeq class)
         renderSingleBarChart(leftDiv, topGenes, margin, chartWidth, chartHeight, colorTop,
-            `Cell ${cellLabel} - Top 10 contr for class: ${pciSeqClass} (Sum: ${topSum.toFixed(2)})`);
+            `Cell ${cellLabel} - Top 10 contr for class:\n${pciSeqClass} (Sum: ${topSum.toFixed(2)})`);
 
         // Render right chart (bottom genes for user class)
         renderSingleBarChart(rightDiv, bottomGenes, margin, chartWidth, chartHeight, colorBottom,
-            `Cell ${cellLabel} - Top 10 contr for class: ${userClass} (Sum: ${Math.abs(bottomSum).toFixed(2)})`);
+            `Cell ${cellLabel} - Top 10 contr for class:\n${userClass} (Sum: ${Math.abs(bottomSum).toFixed(2)})`);
 
         // Render gene expression data table if available
         if (geneData && geneData.length > 0) {
@@ -278,15 +278,22 @@
             .domain([0, maxValue * 1.1])
             .range([chartHeight, 0]);
 
-        // Title
-        chartGroup.append('text')
+        // Title (supports multi-line with \n)
+        const titleLines = title.split('\n');
+        const titleGroup = chartGroup.append('text')
             .attr('x', chartWidth / 2)
             .attr('y', -10)
             .attr('text-anchor', 'middle')
             .style('font-size', '10px')
             .style('font-weight', '600')
-            .style('fill', 'var(--text)')
-            .text(title);
+            .style('fill', 'var(--text)');
+
+        titleLines.forEach((line, i) => {
+            titleGroup.append('tspan')
+                .attr('x', chartWidth / 2)
+                .attr('dy', i === 0 ? 0 : '1.1em')
+                .text(line);
+        });
 
         // Render bars and axes
         renderBarsAndAxes(chartGroup, genes, xScale, yScale, color, chartHeight);
@@ -347,9 +354,9 @@
         chartGroup.append('text')
             .attr('transform', 'rotate(-90)')
             .attr('x', -chartHeight / 2)
-            .attr('y', -50)
+            .attr('y', -32)
             .attr('text-anchor', 'middle')
-            .style('font-size', '11px')
+            .style('font-size', '10px')
             .style('fill', 'var(--muted)')
             .text('Log-Likelihood Difference');
     }
