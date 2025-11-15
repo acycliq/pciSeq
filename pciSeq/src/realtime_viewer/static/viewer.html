@@ -604,6 +604,20 @@
             z-index: 10;
         }
 
+        /* Subheader rows to separate Assigned vs Comparison blocks */
+        #check-cell-table .subheader td {
+            position: sticky;
+            top: 24px; /* sit below the main header */
+            background: var(--bg);
+            z-index: 9;
+            color: var(--accent);
+            font-weight: 700;
+            text-transform: none;
+            padding: 6px 8px;
+            border-top: 2px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+
         #check-cell-table th {
             padding: 8px;
             text-align: left;

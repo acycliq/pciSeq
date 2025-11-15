@@ -278,7 +278,7 @@
 
         // Render gene expression data table if available
         if (geneData && geneData.length > 0) {
-            renderGeneTable(geneData, pciSeqClass, userClass);
+            renderGeneTable(geneData, pciSeqClass, userClass, topGenes, bottomGenes);
         }
     }
 
@@ -451,7 +451,7 @@
      * @param {string} pciSeqClass - pciSeq assigned class name
      * @param {string} userClass - User comparison class name
      */
-    function renderGeneTable(geneData, pciSeqClass, userClass) {
+    function renderGeneTable(geneData, pciSeqClass, userClass, topGenes, bottomGenes) {
         const tableEl = document.getElementById('check-cell-table');
         if (!tableEl) return;
 
@@ -481,36 +481,81 @@
         // Create table body
         const tbody = document.createElement('tbody');
 
-        geneData.forEach(row => {
-            const tr = document.createElement('tr');
+        // Index geneData by gene for quick lookups
+        const byGene = new Map(geneData.map(r => [r.gene, r]));
 
-            // Gene name
-            const tdGene = document.createElement('td');
-            tdGene.className = 'gene-name';
-            tdGene.textContent = row.gene;
-            tr.appendChild(tdGene);
+        // Helper to append a subheader row
+        function appendSubheader(text) {
+            const sr = document.createElement('tr');
+            sr.className = 'subheader';
+            const td = document.createElement('td');
+            td.colSpan = 4;
+            td.textContent = text;
+            sr.appendChild(td);
+            tbody.appendChild(sr);
+        }
 
-            // Mean counts for assigned class (pciSeq)
-            const tdPciSeq = document.createElement('td');
-            tdPciSeq.textContent = row.mean_expr_pciseq.toFixed(3);
-            tr.appendChild(tdPciSeq);
+        // Render top 10 (supports assigned)
+        if (Array.isArray(topGenes) && topGenes.length > 0) {
+            appendSubheader(`Top 10 genes supporting Assigned (${pciSeqClass})`);
+            topGenes.forEach(g => {
+                const row = byGene.get(g.gene);
+                if (!row) return;
+                const tr = document.createElement('tr');
 
-            // Mean counts for user-selected comparison class
-            const tdUser = document.createElement('td');
-            tdUser.textContent = row.mean_expr_user.toFixed(3);
-            tr.appendChild(tdUser);
+                // Gene name
+                const tdGene = document.createElement('td');
+                tdGene.className = 'gene-name';
+                tdGene.textContent = row.gene;
+                tr.appendChild(tdGene);
 
-            // Counts for this clicked cell (render with decimals for consistency)
-            const tdCount = document.createElement('td');
-            try {
-                tdCount.textContent = Number(row.gene_count).toFixed(3);
-            } catch (_) {
-                tdCount.textContent = String(row.gene_count);
-            }
-            tr.appendChild(tdCount);
+                // Means
+                const tdP = document.createElement('td');
+                tdP.textContent = Number(row.mean_expr_pciseq).toFixed(3);
+                tr.appendChild(tdP);
+                const tdU = document.createElement('td');
+                tdU.textContent = Number(row.mean_expr_user).toFixed(3);
+                tr.appendChild(tdU);
 
-            tbody.appendChild(tr);
-        });
+                // This cell count
+                const tdC = document.createElement('td');
+                tdC.textContent = Number(row.gene_count).toFixed(3);
+                tr.appendChild(tdC);
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Render bottom 10 (supports comparison)
+        if (Array.isArray(bottomGenes) && bottomGenes.length > 0) {
+            appendSubheader(`Top 10 genes supporting Comparison (${userClass})`);
+            bottomGenes.forEach(g => {
+                const row = byGene.get(g.gene);
+                if (!row) return;
+                const tr = document.createElement('tr');
+
+                // Gene name
+                const tdGene = document.createElement('td');
+                tdGene.className = 'gene-name';
+                tdGene.textContent = row.gene;
+                tr.appendChild(tdGene);
+
+                // Means
+                const tdP = document.createElement('td');
+                tdP.textContent = Number(row.mean_expr_pciseq).toFixed(3);
+                tr.appendChild(tdP);
+                const tdU = document.createElement('td');
+                tdU.textContent = Number(row.mean_expr_user).toFixed(3);
+                tr.appendChild(tdU);
+
+                // This cell count
+                const tdC = document.createElement('td');
+                tdC.textContent = Number(row.gene_count).toFixed(3);
+                tr.appendChild(tdC);
+
+                tbody.appendChild(tr);
+            });
+        }
 
         tableEl.appendChild(tbody);
 
