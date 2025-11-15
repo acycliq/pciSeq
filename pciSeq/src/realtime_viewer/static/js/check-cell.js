@@ -244,7 +244,8 @@
         const geneData = data.gene_expression_data || null;
 
         // Setup dimensions for each chart - tight margins to maximize chart area
-        const margin = {top: 20, right: 10, bottom: 60, left: 45};
+        // Reduce empty space above the title; keep bottom for x-axis labels
+        const margin = {top: 10, right: 10, bottom: 60, left: 45};
         const containerWidth = leftDiv.clientWidth;
         const containerHeight = leftDiv.clientHeight;
         const chartWidth = containerWidth - margin.left - margin.right;
@@ -429,6 +430,9 @@
         const tooltip = d3.select('body')
             .append('div')
             .attr('class', 'chart-tooltip visible')
+            .style('position', 'fixed')
+            .style('z-index', '3001')
+            .style('pointer-events', 'none')
             .style('left', (event.pageX + 10) + 'px')
             .style('top', (event.pageY - 10) + 'px')
             .html(`
