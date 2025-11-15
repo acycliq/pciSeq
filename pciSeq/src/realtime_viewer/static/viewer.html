@@ -447,6 +447,145 @@
         }
 
         .loading-text { font-size: 16px; color: var(--accent); }
+
+        /* Bottom drawer panel for cell diagnostics */
+        #bottom-drawer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 0;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4);
+            z-index: 2000;
+            transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #bottom-drawer.open {
+            height: 40vh; /* 40% of viewport height */
+        }
+
+        #drawer-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg);
+            flex-shrink: 0;
+        }
+
+        #drawer-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        #drawer-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        #drawer-controls label {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        #comparison-class-select {
+            padding: 4px 8px;
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 12px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        #comparison-class-select:hover {
+            border-color: var(--accent);
+        }
+
+        #drawer-close {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        #drawer-close:hover {
+            background: var(--danger);
+            border-color: var(--danger);
+            color: white;
+        }
+
+        #drawer-content {
+            flex: 1;
+            overflow: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        #check-cell-chart {
+            width: 100%;
+            height: 300px;
+            flex-shrink: 0;
+        }
+
+        #check-cell-table-container {
+            flex: 1;
+            overflow: auto;
+            min-height: 200px;
+        }
+
+        #check-cell-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        #check-cell-table thead {
+            position: sticky;
+            top: 0;
+            background: var(--bg);
+            z-index: 10;
+        }
+
+        #check-cell-table th {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 2px solid var(--border);
+            color: var(--accent);
+            font-weight: 600;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        #check-cell-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        #check-cell-table tbody tr:hover {
+            background: var(--accent-weak);
+        }
+
+        #check-cell-table .gene-name {
+            font-weight: 600;
+            color: var(--accent);
+        }
     </style>
 </head>
 <body>
@@ -564,12 +703,33 @@
         </div>
     </div>
 
+    <!-- Bottom drawer for cell diagnostics -->
+    <div id="bottom-drawer">
+        <div id="drawer-header">
+            <div id="drawer-title">Cell Diagnostics</div>
+            <div id="drawer-controls">
+                <label for="comparison-class-select">Compare against:</label>
+                <select id="comparison-class-select">
+                    <option value="Zero">Zero</option>
+                </select>
+                <button id="drawer-close">Close</button>
+            </div>
+        </div>
+        <div id="drawer-content">
+            <div id="check-cell-chart"></div>
+            <div id="check-cell-table-container">
+                <table id="check-cell-table"></table>
+            </div>
+        </div>
+    </div>
+
     <!-- Load modular JavaScript files in dependency order -->
     <script src="js/state.js"></script>
     <script src="js/colors.js"></script>
     <script src="js/detection.js"></script>
     <script src="js/rendering.js"></script>
     <script src="js/chart.js"></script>
+    <script src="js/check-cell.js"></script>
     <script src="js/socket-handlers.js"></script>
     <script src="js/ui-controls.js"></script>
     <script src="js/main.js"></script>

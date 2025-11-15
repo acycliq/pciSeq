@@ -190,7 +190,111 @@ class RealtimeViewerServer:
         def handle_disconnect():
             logger.info("Client disconnected from realtime viewer")
 
-        # Diagnostics (check_cell) handler is added in a separate commit
+        @self.socketio.on("request_check_cell")
+        def handle_check_cell_request(data):
+            """Handle check_cell diagnostic request from client."""
+            logger.info(f"Received check_cell request: {data}")
+
+            try:
+                cell_label = data.get("cell_label")
+                comparison_class = data.get("comparison_class", "Zero")
+
+                if cell_label is None:
+                    self.socketio.emit("check_cell_result", {
+                        "error": "Missing cell_label parameter"
+                    }, namespace="/")
+                    return
+
+                # Get VarBayes instance
+                if not self._varbayes_ref:
+                    self.socketio.emit("check_cell_result", {
+                        "error": "VarBayes instance not available"
+                    }, namespace="/")
+                    return
+
+                # Import check_cell function
+                from pciSeq.src.core.utils import ops_utils
+
+                # IMPORTANT: The viewer now sends original_label directly as cell.id
+                # (We map seq_idx -> original_label in send_update and send it to viewer)
+                # So cell_label IS the original_label - no mapping needed!
+                original_label = cell_label
+
+                logger.info(f"Viewer sent original_label: {original_label}")
+
+                # Call check_cell with the original label (it will handle the mapping internally)
+                gene_data, contr_df, _ = ops_utils.check_cell(
+                    self._varbayes_ref,
+                    original_label,
+                    comparison_class,
+                    top_n=10,
+                    show_plot=False
+                )
+
+                # Get pciSeq's internal index (seq_idx) for this cell to extract the assigned class
+                label_map = self._varbayes_ref.config.get('label_map')
+                if label_map is not None:
+                    seq_idx = label_map[original_label]
+                else:
+                    seq_idx = original_label
+
+                pciseq_class = self._varbayes_ref.cells.class_names[
+                    self._varbayes_ref.cells.classProb[seq_idx].argmax()
+                ]
+
+                # Prepare data for JSON serialization
+                top_genes = []
+                bottom_genes = []
+
+                if 'diff' in contr_df.columns:
+                    # Top genes (positive diff - favor pciSeq class)
+                    top_sorted = contr_df.nlargest(10, 'diff')
+                    for gene_name, row in top_sorted.iterrows():
+                        top_genes.append({
+                            "gene": str(gene_name),
+                            "value": float(row['diff'])
+                        })
+
+                    # Bottom genes (negative diff - favor user class)
+                    bottom_sorted = contr_df.nsmallest(10, 'diff')
+                    for gene_name, row in bottom_sorted.iterrows():
+                        bottom_genes.append({
+                            "gene": str(gene_name),
+                            "value": float(row['diff'])
+                        })
+
+                # Calculate sums
+                top_sum = sum(g['value'] for g in top_genes)
+                bottom_sum = sum(g['value'] for g in bottom_genes)
+
+                # Prepare gene expression data table
+                gene_table_data = []
+                if gene_data is not None and not gene_data.empty:
+                    for gene_name, row in gene_data.iterrows():
+                        gene_table_data.append({
+                            "gene": str(gene_name),
+                            "mean_expr_pciseq": float(row.get(pciseq_class, 0)) if pciseq_class in row else 0,
+                            "mean_expr_user": float(row.get(comparison_class, 0)) if comparison_class in row else 0,
+                            "gene_count": int(row.get('gene count', 0)) if 'gene count' in row else 0
+                        })
+
+                # Send response
+                self.socketio.emit("check_cell_result", {
+                    "cell_label": int(cell_label),
+                    "pciseq_class": str(pciseq_class),
+                    "user_class": str(comparison_class),
+                    "top_genes": top_genes,
+                    "bottom_genes": bottom_genes,
+                    "top_sum": float(top_sum),
+                    "bottom_sum": float(bottom_sum),
+                    "gene_expression_data": gene_table_data
+                }, namespace="/")
+
+            except Exception as e:
+                logger.error(f"Error in check_cell handler: {e}", exc_info=True)
+                self.socketio.emit("check_cell_result", {
+                    "error": str(e)
+                }, namespace="/")
 
     def start(self):
         """Start server in background thread and optionally open browser."""

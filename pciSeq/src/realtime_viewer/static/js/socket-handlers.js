@@ -269,7 +269,13 @@
         window.pciSeq.render();
     }
 
-    // Diagnostics (check_cell) response listener is added in a separate commit
+    // Check cell diagnostics response
+    socket.on('check_cell_result', (data) => {
+        console.log('=== RECEIVED check_cell_result ===', data);
+        if (window.pciSeq.checkCell && window.pciSeq.checkCell.handleCheckCellResponse) {
+            window.pciSeq.checkCell.handleCheckCellResponse(data);
+        }
+    });
 
     // Export socket reference
     window.pciSeq.socket = socket;
