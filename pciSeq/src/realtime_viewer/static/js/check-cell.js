@@ -254,13 +254,29 @@
         const colorTop = '#87CEEB'; // skyblue
         const colorBottom = '#FA8072'; // salmon
 
-        // Render left chart (top genes for pciSeq class)
-        renderSingleBarChart(leftDiv, topGenes, margin, chartWidth, chartHeight, colorTop,
-            `Cell ${cellLabel} - Top 10 contr for class:\n${pciSeqClass} (Sum: ${topSum.toFixed(2)})`);
+        // Render left chart (top genes for pciSeq class) - positive bars
+        renderSingleBarChart(
+            leftDiv,
+            topGenes,
+            margin,
+            chartWidth,
+            chartHeight,
+            colorTop,
+            `Cell ${cellLabel} - Top 10 contr for class:\n${pciSeqClass} (Sum: ${topSum.toFixed(2)})`,
+            false
+        );
 
-        // Render right chart (bottom genes for user class)
-        renderSingleBarChart(rightDiv, bottomGenes, margin, chartWidth, chartHeight, colorBottom,
-            `Cell ${cellLabel} - Top 10 contr for class:\n${userClass} (Sum: ${Math.abs(bottomSum).toFixed(2)})`);
+        // Render right chart (bottom genes for user class) - negative bars
+        renderSingleBarChart(
+            rightDiv,
+            bottomGenes,
+            margin,
+            chartWidth,
+            chartHeight,
+            colorBottom,
+            `Cell ${cellLabel} - Top 10 contr for class:\n${userClass} (Sum: ${bottomSum.toFixed(2)})`,
+            true
+        );
 
         // Render gene expression data table if available
         if (geneData && geneData.length > 0) {
@@ -271,7 +287,7 @@
     /**
      * Render a single bar chart in its container
      */
-    function renderSingleBarChart(container, genes, margin, chartWidth, chartHeight, color, title) {
+    function renderSingleBarChart(container, genes, margin, chartWidth, chartHeight, color, title, negative) {
         // Create SVG
         const svg = d3.select(container)
             .append('svg')
@@ -281,23 +297,36 @@
         const chartGroup = svg.append('g')
             .attr('transform', `translate(${margin.left},${margin.top})`);
 
+        // Reserve a small gap between the multi-line title and the plot area
+        const titleGap = 20; // px
+
         // X scale (band scale for gene names)
         const xScale = d3.scaleBand()
             .domain(d3.range(genes.length))
             .range([0, chartWidth])
             .padding(0.2);
 
-        // Y scale (linear scale for values)
-        const maxValue = d3.max(genes, d => Math.abs(d.value)) || 1;
+        // Y scale (linear scale for values) over the available plot height (excludes titleGap)
+        let yDomain;
+        if (negative) {
+            const minVal = d3.min(genes, d => d.value);
+            const minNeg = (minVal !== undefined && minVal !== null) ? Math.min(0, minVal) : -1;
+            yDomain = [minNeg * 1.1, 0];
+        } else {
+            const maxVal = d3.max(genes, d => d.value);
+            const maxPos = (maxVal !== undefined && maxVal !== null) ? Math.max(0, maxVal) : 1;
+            yDomain = [0, maxPos * 1.1];
+        }
+        const plotHeight = Math.max(1, chartHeight - titleGap);
         const yScale = d3.scaleLinear()
-            .domain([0, maxValue * 1.1])
-            .range([chartHeight, 0]);
+            .domain(yDomain)
+            .range([plotHeight, 0]);
 
         // Title (supports multi-line with \n)
         const titleLines = title.split('\n');
         const titleGroup = chartGroup.append('text')
             .attr('x', chartWidth / 2)
-            .attr('y', -10)
+            .attr('y', 0) // keep title within the SVG group
             .attr('text-anchor', 'middle')
             .style('font-size', '10px')
             .style('font-weight', '600')
@@ -306,29 +335,37 @@
         titleLines.forEach((line, i) => {
             titleGroup.append('tspan')
                 .attr('x', chartWidth / 2)
-                .attr('dy', i === 0 ? 0 : '1.1em')
+                .attr('dy', i === 0 ? 0 : '1.2em')
                 .text(line);
         });
 
-        // Render bars and axes
-        renderBarsAndAxes(chartGroup, genes, xScale, yScale, color, chartHeight);
+        // Render bars and axes inside a plot group offset by titleGap
+        const plotGroup = chartGroup.append('g').attr('transform', `translate(0, ${titleGap})`);
+        renderBarsAndAxes(plotGroup, genes, xScale, yScale, color, plotHeight, negative);
     }
 
     /**
      * Helper to render bars and axes
      */
-    function renderBarsAndAxes(chartGroup, genes, xScale, yScale, color, chartHeight) {
+    function renderBarsAndAxes(chartGroup, genes, xScale, yScale, color, chartHeight, negative) {
 
-        // Bars (VERTICAL - like matplotlib)
-        // For bottom genes, show absolute values as positive bars
+        // Bars relative to zero baseline for negative charts
+        const zeroY = yScale(0);
         chartGroup.selectAll('.bar')
             .data(genes)
             .join('rect')
             .attr('class', 'bar')
             .attr('x', (d, i) => xScale(i))
-            .attr('y', d => yScale(Math.abs(d.value)))
+            .attr('y', d => negative ? zeroY : yScale(d.value))
             .attr('width', xScale.bandwidth())
-            .attr('height', d => yScale.range()[0] - yScale(Math.abs(d.value)))
+            .attr('height', d => {
+                if (negative) {
+                    const vy = yScale(d.value);
+                    return Math.max(0, vy - zeroY);
+                } else {
+                    return Math.max(0, zeroY - yScale(d.value));
+                }
+            })
             .attr('fill', color)
             .attr('opacity', 0.8)
             .on('mouseover', function(event, d) {
@@ -339,6 +376,15 @@
                 d3.select(this).attr('opacity', 0.8);
                 hideTooltip();
             });
+
+        // Zero baseline
+        chartGroup.append('line')
+            .attr('x1', 0)
+            .attr('x2', xScale.range()[1])
+            .attr('y1', zeroY)
+            .attr('y2', zeroY)
+            .attr('stroke', 'var(--border)')
+            .attr('stroke-width', 1);
 
         // X-axis with gene names at the bottom
         const xAxis = d3.axisBottom(xScale)
