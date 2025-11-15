@@ -505,7 +505,7 @@
 
                 // Gene name
                 const tdGene = document.createElement('td');
-                tdGene.className = 'gene-name';
+                tdGene.className = 'gene-name assigned';
                 tdGene.textContent = row.gene;
                 tr.appendChild(tdGene);
 
@@ -536,7 +536,7 @@
 
                 // Gene name
                 const tdGene = document.createElement('td');
-                tdGene.className = 'gene-name';
+                tdGene.className = 'gene-name comparison';
                 tdGene.textContent = row.gene;
                 tr.appendChild(tdGene);
 
