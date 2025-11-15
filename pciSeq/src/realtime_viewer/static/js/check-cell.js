@@ -123,6 +123,10 @@
         const drawer = document.getElementById('bottom-drawer');
         if (drawer) {
             drawer.classList.add('open');
+            // Apply saved drawer height if present
+            if (window.pciSeq.applySavedDrawerHeight) {
+                window.pciSeq.applySavedDrawerHeight();
+            }
 
             // Update title
             const title = document.getElementById('drawer-title');
@@ -321,19 +325,23 @@
                 hideTooltip();
             });
 
-        // Gene labels on X-axis (bottom, rotated like matplotlib)
-        chartGroup.selectAll('.label')
-            .data(genes)
-            .join('text')
-            .attr('class', 'label')
-            .attr('x', (d, i) => xScale(i) + xScale.bandwidth() / 2)
-            .attr('y', yScale.range()[1] + 10)
-            .attr('dy', '0.35em')
-            .attr('text-anchor', 'end')
-            .attr('transform', (d, i) => `rotate(-45, ${xScale(i) + xScale.bandwidth() / 2}, ${yScale.range()[1] + 10})`)
-            .style('font-size', '10px')
+        // X-axis with gene names at the bottom
+        const xAxis = d3.axisBottom(xScale)
+            .tickFormat((_, i) => (genes[i] && genes[i].gene) ? genes[i].gene : '');
+
+        const xAxisGroup = chartGroup.append('g')
+            .attr('class', 'x-axis')
+            .attr('transform', `translate(0, ${yScale.range()[0]})`)
+            .call(xAxis);
+
+        // Style and rotate tick labels for readability
+        xAxisGroup.selectAll('text')
+            .style('text-anchor', 'end')
             .style('fill', 'var(--text)')
-            .text(d => d.gene);
+            .style('font-size', '10px')
+            .attr('dx', '-0.5em')
+            .attr('dy', '0.15em')
+            .attr('transform', 'rotate(-45)');
 
         // Y-axis
         const yAxis = d3.axisLeft(yScale).ticks(5);

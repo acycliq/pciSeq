@@ -267,15 +267,25 @@ class RealtimeViewerServer:
                 top_sum = sum(g['value'] for g in top_genes)
                 bottom_sum = sum(g['value'] for g in bottom_genes)
 
-                # Prepare gene expression data table
+                # Prepare gene expression data table (MultiIndex columns)
                 gene_table_data = []
                 if gene_data is not None and not gene_data.empty:
+                    # Build MultiIndex keys as created by ops_utils.check_cell
+                    pc_col = (f"Cells typed as {pciseq_class}", "mean counts")
+                    user_col = (f"Cells typed as {comparison_class}", "mean counts")
+                    count_col = (f"This cell: ({original_label})", "counts")
+
                     for gene_name, row in gene_data.iterrows():
+                        # row is a Series with MultiIndex; use tuple keys
+                        mean_pciseq = float(row[pc_col]) if pc_col in row.index else 0.0
+                        mean_user = float(row[user_col]) if user_col in row.index else 0.0
+                        gene_count = int(row[count_col]) if count_col in row.index else 0
+
                         gene_table_data.append({
                             "gene": str(gene_name),
-                            "mean_expr_pciseq": float(row.get(pciseq_class, 0)) if pciseq_class in row else 0,
-                            "mean_expr_user": float(row.get(comparison_class, 0)) if comparison_class in row else 0,
-                            "gene_count": int(row.get('gene count', 0)) if 'gene count' in row else 0
+                            "mean_expr_pciseq": mean_pciseq,
+                            "mean_expr_user": mean_user,
+                            "gene_count": gene_count,
                         })
 
                 # Send response
