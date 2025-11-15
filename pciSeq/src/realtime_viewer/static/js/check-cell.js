@@ -117,16 +117,12 @@
     }
 
     /**
-     * Open the bottom drawer panel
+     * Open the left side drawer panel
      */
     function openDrawer() {
         const drawer = document.getElementById('bottom-drawer');
         if (drawer) {
             drawer.classList.add('open');
-            // Apply saved drawer height if present
-            if (window.pciSeq.applySavedDrawerHeight) {
-                window.pciSeq.applySavedDrawerHeight();
-            }
 
             // Update title
             const title = document.getElementById('drawer-title');
@@ -214,75 +210,42 @@
      * @param {Object} data - Chart data from server
      */
     function renderCheckCellChart(data) {
-        const chartDiv = document.getElementById('check-cell-chart');
-        if (!chartDiv) return;
+        const leftDiv = document.getElementById('check-cell-chart-left');
+        const rightDiv = document.getElementById('check-cell-chart-right');
+        if (!leftDiv || !rightDiv) return;
 
-        // Clear previous chart
-        chartDiv.innerHTML = '';
+        // Clear previous charts
+        leftDiv.innerHTML = '';
+        rightDiv.innerHTML = '';
 
         // Extract data
         const topGenes = data.top_genes || [];
         const bottomGenes = data.bottom_genes || [];
         const pciSeqClass = data.pciseq_class || '';
         const userClass = data.user_class || '';
+        const cellLabel = data.cell_label || '';
         const topSum = data.top_sum || 0;
         const bottomSum = data.bottom_sum || 0;
         const geneData = data.gene_expression_data || null;
 
-        // Setup dimensions
-        const margin = {top: 40, right: 20, bottom: 80, left: 60};
-        const containerWidth = chartDiv.clientWidth;
-        const containerHeight = chartDiv.clientHeight;
-        const chartWidth = Math.floor((containerWidth - margin.left - margin.right) / 2) - 10;
+        // Setup dimensions for each chart - increase left margin for y-axis label
+        const margin = {top: 30, right: 15, bottom: 70, left: 65};
+        const containerWidth = leftDiv.clientWidth;
+        const containerHeight = leftDiv.clientHeight;
+        const chartWidth = containerWidth - margin.left - margin.right;
         const chartHeight = containerHeight - margin.top - margin.bottom;
 
-        // Create SVG
-        const svg = d3.select(chartDiv)
-            .append('svg')
-            .attr('width', containerWidth)
-            .attr('height', containerHeight);
-
-        // Create two chart groups (side by side)
-        const leftChart = svg.append('g')
-            .attr('transform', `translate(${margin.left},${margin.top})`);
-
-        const rightChart = svg.append('g')
-            .attr('transform', `translate(${margin.left + chartWidth + 40},${margin.top})`);
-
-        // X scales (band scale for gene names - VERTICAL bars)
-        const xScaleTop = d3.scaleBand()
-            .domain(d3.range(topGenes.length))
-            .range([0, chartWidth])
-            .padding(0.2);
-
-        const xScaleBottom = d3.scaleBand()
-            .domain(d3.range(bottomGenes.length))
-            .range([0, chartWidth])
-            .padding(0.2);
-
-        // Y scales (linear scale for values - VERTICAL bars)
-        const topMax = d3.max(topGenes, d => d.value) || 1;
-        const bottomMax = d3.max(bottomGenes, d => Math.abs(d.value)) || 1;
-
-        const yScaleTop = d3.scaleLinear()
-            .domain([0, topMax * 1.1])
-            .range([chartHeight, 0]);
-
-        const yScaleBottom = d3.scaleLinear()
-            .domain([0, bottomMax * 1.1])
-            .range([chartHeight, 0]);
-
-        // Color scheme - match matplotlib skyblue and salmon
+        // Color scheme
         const colorTop = '#87CEEB'; // skyblue
         const colorBottom = '#FA8072'; // salmon
 
-        // Render top genes (left chart)
-        renderBarChart(leftChart, topGenes, xScaleTop, yScaleTop, colorTop,
-            `Top genes for ${pciSeqClass} (Sum: ${topSum.toFixed(2)})`);
+        // Render left chart (top genes for pciSeq class)
+        renderSingleBarChart(leftDiv, topGenes, margin, chartWidth, chartHeight, colorTop,
+            `Cell ${cellLabel} - Top 10 contr for class: ${pciSeqClass} (Sum: ${topSum.toFixed(2)})`);
 
-        // Render bottom genes (right chart)
-        renderBarChart(rightChart, bottomGenes, xScaleBottom, yScaleBottom, colorBottom,
-            `Top genes for ${userClass} (Sum: ${Math.abs(bottomSum).toFixed(2)})`);
+        // Render right chart (bottom genes for user class)
+        renderSingleBarChart(rightDiv, bottomGenes, margin, chartWidth, chartHeight, colorBottom,
+            `Cell ${cellLabel} - Top 10 contr for class: ${userClass} (Sum: ${Math.abs(bottomSum).toFixed(2)})`);
 
         // Render gene expression data table if available
         if (geneData && geneData.length > 0) {
@@ -291,18 +254,48 @@
     }
 
     /**
-     * Helper to render a single VERTICAL bar chart (like matplotlib)
+     * Render a single bar chart in its container
      */
-    function renderBarChart(chartGroup, genes, xScale, yScale, color, title, labelAlign) {
+    function renderSingleBarChart(container, genes, margin, chartWidth, chartHeight, color, title) {
+        // Create SVG
+        const svg = d3.select(container)
+            .append('svg')
+            .attr('width', chartWidth + margin.left + margin.right)
+            .attr('height', chartHeight + margin.top + margin.bottom);
+
+        const chartGroup = svg.append('g')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
+
+        // X scale (band scale for gene names)
+        const xScale = d3.scaleBand()
+            .domain(d3.range(genes.length))
+            .range([0, chartWidth])
+            .padding(0.2);
+
+        // Y scale (linear scale for values)
+        const maxValue = d3.max(genes, d => Math.abs(d.value)) || 1;
+        const yScale = d3.scaleLinear()
+            .domain([0, maxValue * 1.1])
+            .range([chartHeight, 0]);
+
         // Title
         chartGroup.append('text')
-            .attr('x', xScale.range()[1] / 2)
+            .attr('x', chartWidth / 2)
             .attr('y', -10)
             .attr('text-anchor', 'middle')
-            .style('font-size', '13px')
+            .style('font-size', '10px')
             .style('font-weight', '600')
             .style('fill', 'var(--text)')
             .text(title);
+
+        // Render bars and axes
+        renderBarsAndAxes(chartGroup, genes, xScale, yScale, color, chartHeight);
+    }
+
+    /**
+     * Helper to render bars and axes
+     */
+    function renderBarsAndAxes(chartGroup, genes, xScale, yScale, color, chartHeight) {
 
         // Bars (VERTICAL - like matplotlib)
         // For bottom genes, show absolute values as positive bars
@@ -353,7 +346,7 @@
         // Y-axis label
         chartGroup.append('text')
             .attr('transform', 'rotate(-90)')
-            .attr('x', -yScale.range()[1] / 2)
+            .attr('x', -chartHeight / 2)
             .attr('y', -50)
             .attr('text-anchor', 'middle')
             .style('font-size', '11px')

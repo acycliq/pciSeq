@@ -448,27 +448,25 @@
 
         .loading-text { font-size: 16px; color: var(--accent); }
 
-        /* Bottom drawer panel for cell diagnostics */
+        /* Left side drawer for cell diagnostics */
         #bottom-drawer {
             position: fixed;
-            bottom: 0;
+            top: 0;
             left: 0;
-            right: 0;
-            height: 0;
+            bottom: 0;
+            width: 0;
             background: var(--surface);
-            border-top: 1px solid var(--border);
-            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4);
+            border-right: 1px solid var(--border);
+            box-shadow: 4px 0 16px rgba(0, 0, 0, 0.4);
             z-index: 2000;
-            transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
             display: flex;
             flex-direction: column;
         }
-        /* Disable transition during live dragging for responsiveness */
-        #bottom-drawer.resizing { transition: none !important; }
 
         #bottom-drawer.open {
-            height: 30vh; /* even shorter; content scrolls, chart unchanged */
+            width: 480px;
         }
 
         #drawer-header {
@@ -479,30 +477,6 @@
             border-bottom: 1px solid var(--border);
             background: var(--bg);
             flex-shrink: 0;
-        }
-
-        /* Resize handle for bottom drawer */
-        #drawer-resize-handle {
-            height: 8px;
-            cursor: ns-resize;
-            background: transparent;
-            position: relative;
-            flex-shrink: 0;
-        }
-        #drawer-resize-handle::before {
-            content: '';
-            position: absolute;
-            left: 50%;
-            top: 2px;
-            transform: translateX(-50%);
-            width: 60px;
-            height: 4px;
-            border-radius: 2px;
-            background: var(--border);
-            opacity: 0.8;
-        }
-        #drawer-resize-handle:hover::before {
-            background: var(--accent);
         }
 
         #drawer-title {
@@ -563,10 +537,16 @@
             gap: 16px;
         }
 
-        #check-cell-chart {
-            width: 100%;
-            height: 420px; /* taller so bars are clearly visible */
+        #check-cell-charts-row {
+            display: flex;
+            gap: 12px;
             flex-shrink: 0;
+        }
+
+        .check-cell-chart-half {
+            flex: 1;
+            height: 280px;
+            min-width: 0; /* allow flex shrink */
         }
 
         #check-cell-table-container {
@@ -729,9 +709,8 @@
         </div>
     </div>
 
-    <!-- Bottom drawer for cell diagnostics -->
+    <!-- Left side drawer for cell diagnostics -->
     <div id="bottom-drawer">
-        <div id="drawer-resize-handle" title="Drag to resize"></div>
         <div id="drawer-header">
             <div id="drawer-title">Cell Diagnostics</div>
             <div id="drawer-controls">
@@ -743,7 +722,10 @@
             </div>
         </div>
         <div id="drawer-content">
-            <div id="check-cell-chart"></div>
+            <div id="check-cell-charts-row">
+                <div id="check-cell-chart-left" class="check-cell-chart-half"></div>
+                <div id="check-cell-chart-right" class="check-cell-chart-half"></div>
+            </div>
             <div id="check-cell-table-container">
                 <table id="check-cell-table"></table>
             </div>
