@@ -222,6 +222,29 @@ class RealtimeViewerServer:
 
                 logger.info(f"Viewer sent original_label: {original_label}")
 
+                # Determine pciSeq-assigned class for this cell to validate request
+                label_map = self._varbayes_ref.config.get('label_map')
+                if label_map is not None:
+                    if original_label not in label_map:
+                        self.socketio.emit("check_cell_result", {
+                            "error": f"Cell label {original_label} not found in label map"
+                        }, namespace="/")
+                        return
+                    seq_idx = label_map[original_label]
+                else:
+                    seq_idx = original_label
+
+                pciseq_class = self._varbayes_ref.cells.class_names[
+                    self._varbayes_ref.cells.classProb[seq_idx].argmax()
+                ]
+
+                # Guard: if user class equals assigned class, avoid pandas diff error
+                if str(comparison_class) == str(pciseq_class):
+                    self.socketio.emit("check_cell_result", {
+                        "error": f"Comparison class equals assigned class ({pciseq_class}). Choose a different class."
+                    }, namespace="/")
+                    return
+
                 # Call check_cell with the original label (it will handle the mapping internally)
                 gene_data, contr_df, _ = ops_utils.check_cell(
                     self._varbayes_ref,
@@ -231,16 +254,7 @@ class RealtimeViewerServer:
                     show_plot=False
                 )
 
-                # Get pciSeq's internal index (seq_idx) for this cell to extract the assigned class
-                label_map = self._varbayes_ref.config.get('label_map')
-                if label_map is not None:
-                    seq_idx = label_map[original_label]
-                else:
-                    seq_idx = original_label
-
-                pciseq_class = self._varbayes_ref.cells.class_names[
-                    self._varbayes_ref.cells.classProb[seq_idx].argmax()
-                ]
+                # seq_idx and pciseq_class already computed above
 
                 # Prepare data for JSON serialization
                 top_genes = []
