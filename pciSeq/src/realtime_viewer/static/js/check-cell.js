@@ -155,35 +155,50 @@
 
         if (!socket) {
             console.error('Cannot request check_cell: socket not available');
-            const chartDiv = document.getElementById('check-cell-chart');
-            if (chartDiv) {
-                chartDiv.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--danger);">Socket not available</div>';
-            }
+            showErrorInCharts('Socket not available');
             return;
         }
 
         if (!socket.connected) {
             console.error('Cannot request check_cell: socket not connected');
-            const chartDiv = document.getElementById('check-cell-chart');
-            if (chartDiv) {
-                chartDiv.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--danger);">Socket not connected. Please wait for connection.</div>';
-            }
+            showErrorInCharts('Socket not connected. Please wait for connection.');
             return;
         }
 
         console.log(`Requesting check_cell for cell ${cellLabel} vs ${comparisonClass}`);
 
-        // Show loading state in chart area
-        const chartDiv = document.getElementById('check-cell-chart');
-        if (chartDiv) {
-            chartDiv.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--muted);">Loading...</div>';
-        }
+        // Show loading state in both chart areas
+        showLoadingInCharts();
 
         // Send request to server
         socket.emit('request_check_cell', {
             cell_label: cellLabel,
             comparison_class: comparisonClass
         });
+    }
+
+    /**
+     * Show loading indicator in chart areas
+     */
+    function showLoadingInCharts() {
+        const leftDiv = document.getElementById('check-cell-chart-left');
+        const rightDiv = document.getElementById('check-cell-chart-right');
+        const loadingHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); font-size: 12px;">Calculating...</div>';
+
+        if (leftDiv) leftDiv.innerHTML = loadingHTML;
+        if (rightDiv) rightDiv.innerHTML = loadingHTML;
+    }
+
+    /**
+     * Show error message in chart areas
+     */
+    function showErrorInCharts(message) {
+        const leftDiv = document.getElementById('check-cell-chart-left');
+        const rightDiv = document.getElementById('check-cell-chart-right');
+        const errorHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--danger); font-size: 11px; text-align: center; padding: 20px;">${message}</div>`;
+
+        if (leftDiv) leftDiv.innerHTML = errorHTML;
+        if (rightDiv) rightDiv.innerHTML = errorHTML;
     }
 
     /**
