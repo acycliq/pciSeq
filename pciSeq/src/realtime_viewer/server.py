@@ -140,6 +140,7 @@ class RealtimeViewerServer:
                             {
                                 "start": int(start),
                                 "end": int(end),
+                                "cell_ids": geom.get("cell_ids", list(range(n)))[start:end],
                                 "centroids_x": geom["centroids_x"][start:end],
                                 "centroids_y": geom["centroids_y"][start:end],
                                 "centroids_z": geom.get("centroids_z", [0] * n)[
@@ -188,6 +189,8 @@ class RealtimeViewerServer:
         @self.socketio.on("disconnect")
         def handle_disconnect():
             logger.info("Client disconnected from realtime viewer")
+
+        # Diagnostics (check_cell) handler is added in a separate commit
 
     def start(self):
         """Start server in background thread and optionally open browser."""
@@ -238,6 +241,34 @@ class RealtimeViewerServer:
                 Current iteration number
             delta: float
                 Convergence metric (mean probability change)
+
+        IMPORTANT - Cell Label Mapping processing:
+        ========================================
+        The user provides a segmentation image with cell labels (original_label).
+        These labels may be non-sequential (e.g., 0, 5, 12, 47, 100...).
+
+        During preprocessing (pciSeq.fit), some cells may be removed (e.g., flat cells
+        on single planes), creating gaps in the labeling. To ensure sequential indexing,
+        preprocessing relabels cells to sequential indices (seq_idx: 0, 1, 2, 3...).
+
+        If relabeling occurs:
+        - label_map dict is created: {original_label: seq_idx}
+        - Example: {0: 0, 5: 1, 12: 2, 47: 3, 100: 4, ...}
+        - Background is always 0 in both references: {0: 0, ...}
+
+        If no relabeling occurs (labels were already sequential):
+        - label_map = None
+        - original_label == seq_idx for all cells
+
+        Internal arrays (like cells_classProb):
+        - Use seq_idx for indexing
+        - Row index in cells_classProb[seq_idx] corresponds to seq_idx
+        - cells_classProb.shape = (nC, nK) where nC = total number of cells
+
+        For the viewer:
+        - We send original_label as cell.id (not seq_idx)
+        - This way user sees the same labels as in their segmentation
+        - When user Ctrl+Clicks a cell, viewer sends original_label to check_cell()
         """
         if not self._is_running:
             return
@@ -251,6 +282,20 @@ class RealtimeViewerServer:
                 return
 
             varbayes = self._varbayes_ref
+
+            # Create cell_ids array: map seq_idx -> original_label
+            # Row index in cells_classProb = seq_idx (0, 1, 2, ...)
+            # We map these to original_label for the viewer
+            nC = cells_classProb.shape[0]  # Total number of cells including background
+            label_map = varbayes.config.get('label_map')
+
+            if label_map is not None:
+                # Reverse map: seq_idx -> original_label
+                reverse_map = {v: k for k, v in label_map.items()}
+                cell_ids = np.array([reverse_map[seq_idx] for seq_idx in range(nC)], dtype=np.int32)
+            else:
+                # No relabeling occurred, original_label == seq_idx
+                cell_ids = np.arange(nC, dtype=np.int32)
 
             # Extract argmax (assigned class per cell) - most efficient format
             cell_classes = np.argmax(cells_classProb, axis=1).astype(np.uint8)
@@ -276,14 +321,21 @@ class RealtimeViewerServer:
             # Round to 1 decimal to reduce payload size
             radii = np.round(np.sqrt(areas / np.pi).astype(np.float32), 1)
 
-            # Skip the first cell (index 0) which is the background
+            # Get z centroids BEFORE filtering (so it can be filtered too if needed)
+            if centroids.shape[1] >= 3:
+                centroids_z = np.round(centroids[:, 2].astype(np.float32), 3)
+            else:
+                centroids_z = np.zeros_like(centroids_x)
+
+            # Skip background (index 0) - it's not a real cell and its centroid is NaN
+            # which breaks JSON serialization. Slice all arrays consistently [1:] to keep alignment.
+            cell_ids = cell_ids[1:]
             cell_classes = cell_classes[1:]
             prob = prob[1:]
             centroids_x = centroids_x[1:]
             centroids_y = centroids_y[1:]
+            centroids_z = centroids_z[1:]
             radii = radii[1:]
-
-            # logger.info(f"[ITERATION {iteration}] Skipped background cell (index 0), sending {len(cell_classes)} real cells")
 
             # Apply fixed radius if requested
             if self.fixed_radius is not None:
@@ -298,10 +350,12 @@ class RealtimeViewerServer:
                 idx_part = np.argpartition(prob, -k)[-k:]
                 idx_sorted = idx_part[np.argsort(prob[idx_part])[::-1]]
 
+                cell_ids = cell_ids[idx_sorted]
                 cell_classes = cell_classes[idx_sorted]
                 prob = prob[idx_sorted]
                 centroids_x = centroids_x[idx_sorted]
                 centroids_y = centroids_y[idx_sorted]
+                centroids_z = centroids_z[idx_sorted]
                 radii = radii[idx_sorted]
 
             num_cells = len(cell_classes)
@@ -317,13 +371,6 @@ class RealtimeViewerServer:
                 )
                 is3d = bool(varbayes.config.get("is3D", False))
                 voxel_size = varbayes.config.get("voxel_size", None)
-
-                # z centroids if present, otherwise zeros
-                if centroids.shape[1] >= 3:
-                    cz_full = np.round(centroids[:, 2].astype(np.float32), 3)
-                    centroids_z = cz_full[1:]
-                else:
-                    centroids_z = np.zeros_like(centroids_x)
 
                 self.socketio.emit(
                     "geometry_init_begin",
@@ -346,10 +393,11 @@ class RealtimeViewerServer:
                         {
                             "start": int(start),
                             "end": int(end),
-                            "centroids_x": centroids_x[start:end].tolist(),
-                            "centroids_y": centroids_y[start:end].tolist(),
-                            "centroids_z": centroids_z[start:end].tolist(),
-                            "radii": radii[start:end].tolist(),
+                            "cell_ids": [int(x) for x in cell_ids[start:end]],
+                            "centroids_x": [float(x) for x in centroids_x[start:end]],
+                            "centroids_y": [float(x) for x in centroids_y[start:end]],
+                            "centroids_z": [float(x) for x in centroids_z[start:end]],
+                            "radii": [float(x) for x in radii[start:end]],
                         },
                         namespace="/",
                     )
@@ -358,6 +406,7 @@ class RealtimeViewerServer:
                 self._geometry_cache = {
                     "num_cells": int(num_cells),
                     "chunk_size": int(chunk_size),
+                    "cell_ids": cell_ids.tolist(),
                     "centroids_x": centroids_x.tolist(),
                     "centroids_y": centroids_y.tolist(),
                     "centroids_z": centroids_z.tolist(),

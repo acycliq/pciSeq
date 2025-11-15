@@ -27,6 +27,7 @@
                     const className = state.cellClassNames[object.class] || `Class ${object.class}`;
                     return {
                         html: `<div style="font-size: 12px;">
+                            Cell ID: ${object.id}<br/>
                             Cell Class: ${className}<br/>
                             Position: (${Math.round(object.x)}, ${Math.round(object.y)})<br/>
                             Prob: ${(object.prob * 100).toFixed(1)}%
