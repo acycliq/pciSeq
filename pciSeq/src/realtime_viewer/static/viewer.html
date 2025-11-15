@@ -453,7 +453,7 @@
             position: fixed;
             bottom: 0;
             left: 0;
-            height: 60vh;
+            height: 30vh;
             width: 0;
             background: var(--surface);
             border-right: 1px solid var(--border);
@@ -465,8 +465,44 @@
             flex-direction: column;
         }
 
+        /* Disable transition during live resize for responsiveness */
+        #bottom-drawer.resizing {
+            transition: none !important;
+        }
+
         #bottom-drawer.open {
             width: 480px;
+        }
+
+        /* Resize handle for drawer height */
+        #drawer-resize-handle {
+            width: 100%;
+            height: 10px;
+            background: var(--border);
+            cursor: ns-resize;
+            transition: background 0.15s ease;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        #drawer-resize-handle:hover {
+            background: var(--accent);
+        }
+
+        #drawer-resize-handle::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 3px;
+            background: var(--muted);
+            border-radius: 2px;
+        }
+
+        #drawer-resize-handle:hover::before {
+            background: #0b0b0b;
         }
 
         #drawer-header {
@@ -711,6 +747,7 @@
 
     <!-- Left side drawer for cell diagnostics -->
     <div id="bottom-drawer">
+        <div id="drawer-resize-handle" title="Drag to resize"></div>
         <div id="drawer-header">
             <div id="drawer-title">Cell Diagnostics</div>
             <div id="drawer-controls">
