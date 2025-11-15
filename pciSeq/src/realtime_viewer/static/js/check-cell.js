@@ -464,9 +464,9 @@
 
         const headers = [
             'Gene',
-            `Mean Expr (${pciSeqClass})`,
-            `Mean Expr (${userClass})`,
-            'Gene Count'
+            `Mean counts (cells typed as ${pciSeqClass})`,
+            `Mean counts (cells typed as ${userClass})`,
+            'This cell: counts'
         ];
 
         headers.forEach(headerText => {
@@ -490,19 +490,23 @@
             tdGene.textContent = row.gene;
             tr.appendChild(tdGene);
 
-            // Mean expression for pciSeq class
+            // Mean counts for assigned class (pciSeq)
             const tdPciSeq = document.createElement('td');
             tdPciSeq.textContent = row.mean_expr_pciseq.toFixed(3);
             tr.appendChild(tdPciSeq);
 
-            // Mean expression for user class
+            // Mean counts for user-selected comparison class
             const tdUser = document.createElement('td');
             tdUser.textContent = row.mean_expr_user.toFixed(3);
             tr.appendChild(tdUser);
 
-            // Gene count
+            // Counts for this clicked cell (render with decimals for consistency)
             const tdCount = document.createElement('td');
-            tdCount.textContent = row.gene_count;
+            try {
+                tdCount.textContent = Number(row.gene_count).toFixed(3);
+            } catch (_) {
+                tdCount.textContent = String(row.gene_count);
+            }
             tr.appendChild(tdCount);
 
             tbody.appendChild(tr);
