@@ -293,7 +293,8 @@ class RealtimeViewerServer:
                         # row is a Series with MultiIndex; use tuple keys
                         mean_pciseq = float(row[pc_col]) if pc_col in row.index else 0.0
                         mean_user = float(row[user_col]) if user_col in row.index else 0.0
-                        gene_count = int(row[count_col]) if count_col in row.index else 0
+                        # Preserve decimals for this cell's counts
+                        gene_count = float(row[count_col]) if count_col in row.index else 0.0
 
                         gene_table_data.append({
                             "gene": str(gene_name),
