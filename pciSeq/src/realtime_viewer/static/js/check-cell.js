@@ -127,7 +127,7 @@
             // Update title
             const title = document.getElementById('drawer-title');
             if (title && currentCellLabel !== null) {
-                title.textContent = `Cell ${currentCellLabel} (${currentCellClass})`;
+                title.innerHTML = `Cell ${currentCellLabel}:<br/>${currentCellClass}`;
             }
         }
     }
