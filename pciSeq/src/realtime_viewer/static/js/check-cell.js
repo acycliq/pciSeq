@@ -209,10 +209,7 @@
         console.log('Received check_cell response:', data);
 
         if (data.error) {
-            const chartDiv = document.getElementById('check-cell-chart');
-            if (chartDiv) {
-                chartDiv.innerHTML = `<div style="text-align: center; padding: 40px; color: var(--danger);">Error: ${data.error}</div>`;
-            }
+            showErrorInCharts(`Error: ${data.error}`);
             return;
         }
 
