@@ -65,6 +65,8 @@
             option.value = className;
             option.textContent = className;
             // Select the current comparison class, not just 'Zero'
+            // To switch to "Reset to Default" behavior:
+            // Add `//` to the beginning of each of the next 3 lines.
             if (className === currentComparisonClass) {
                 option.selected = true;
             }
@@ -73,9 +75,31 @@
 
         // Also ensure the select element's value property is set, as `option.selected`
         // might not be enough in all browsers to reflect the state.
+        // To switch to "Reset to Default" behavior:
+            // Add `//` to the beginning of the next line.
         selectEl.value = currentComparisonClass;
 
         console.log(`Populated dropdown with ${classNames.length} classes, selected: ${currentComparisonClass}`);
+
+        /*
+        // --- Alternative: Reset to Default behavior ---
+        // To activate this behavior, remove `/*` and `*/` from around this block,
+        // and add `//` to the beginning of each of the 3 lines above that implement the "sticky" behavior.
+        // Add all class names
+        classNames.forEach((className) => {
+            const option = document.createElement('option');
+            option.value = className;
+            option.textContent = className;
+            // Select Zero by default
+            if (className === 'Zero') {
+                option.selected = true;
+            }
+            selectEl.appendChild(option);
+        });
+
+        console.log(`Populated dropdown with ${classNames.length} classes`);
+        // --- End Alternative ---
+        */
     }
 
     /**
@@ -109,6 +133,12 @@
         // Note: may need to map this to the original cell label
         currentCellLabel = cell.id;
         currentCellClass = state.cellClassNames[cell.class] || `Class ${cell.class}`;
+
+        // To switch to "Reset to Default" behavior:
+        // 1. Remove `//` from the line below.
+        // 2. In populateClassDropdown, remove `/*` and `*/` from around the 'Alternative: Reset to Default behavior' block,
+        //    and add `//` to the beginning of each of the 3 lines that implement the "sticky" behavior.
+        // currentComparisonClass = 'Zero';
 
         console.log(`Ctrl+Click on cell ${currentCellLabel}, class: ${currentCellClass}`);
 
