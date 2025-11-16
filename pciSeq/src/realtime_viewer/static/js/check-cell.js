@@ -64,14 +64,18 @@
             const option = document.createElement('option');
             option.value = className;
             option.textContent = className;
-            // Select Zero by default
-            if (className === 'Zero') {
+            // Select the current comparison class, not just 'Zero'
+            if (className === currentComparisonClass) {
                 option.selected = true;
             }
             selectEl.appendChild(option);
         });
 
-        console.log(`Populated dropdown with ${classNames.length} classes`);
+        // Also ensure the select element's value property is set, as `option.selected`
+        // might not be enough in all browsers to reflect the state.
+        selectEl.value = currentComparisonClass;
+
+        console.log(`Populated dropdown with ${classNames.length} classes, selected: ${currentComparisonClass}`);
     }
 
     /**
