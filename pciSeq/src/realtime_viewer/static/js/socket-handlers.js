@@ -45,6 +45,7 @@
         state.geom.stream = {
             total: meta.num_cells,
             received: 0,
+            cell_ids: new Int32Array(meta.num_cells),
             centroids_x: new Float32Array(meta.num_cells),
             centroids_y: new Float32Array(meta.num_cells),
             centroids_z: new Float32Array(meta.num_cells),
@@ -107,6 +108,7 @@
     socket.on('geometry_init_chunk', (chunk) => {
         if (!state.geom.stream) return;
         const {start, end} = chunk;
+        state.geom.stream.cell_ids.set(chunk.cell_ids, start);
         state.geom.stream.centroids_x.set(chunk.centroids_x, start);
         state.geom.stream.centroids_y.set(chunk.centroids_y, start);
         if (chunk.centroids_z) {
@@ -119,12 +121,15 @@
     socket.on('geometry_init_end', () => {
         console.log('=== END geometry_init ===');
         const gs = state.geom.stream;
+        state.geom.cell_ids = gs.cell_ids;
         state.geom.centroids_x = gs.centroids_x;
         state.geom.centroids_y = gs.centroids_y;
         state.geom.centroids_z = gs.centroids_z;
         state.geom.radii = gs.radii;
         state.geom.ready = true;
         state.geom.stream = null;
+
+        console.log(`Geometry arrays: cell_ids=${state.geom.cell_ids ? state.geom.cell_ids.length : 'undefined'}, centroids_x=${state.geom.centroids_x.length}, radii=${state.geom.radii.length}`);
 
         // Compute plane indices if 3D
         if (state.geom.is3D && state.geom.voxelSize && state.geom.centroids_z) {
@@ -196,7 +201,7 @@
         const cells = new Array(N);
         for (let i = 0; i < N; i++) {
             cells[i] = {
-                id: i,
+                id: state.geom.cell_ids ? state.geom.cell_ids[i] : i,  // Use original_label from server, fallback to index
                 x: state.geom.centroids_x[i],
                 y: state.geom.centroids_y[i],
                 radius: state.geom.radii[i],
@@ -246,7 +251,7 @@
         const cells = new Array(N);
         for (let i = 0; i < N; i++) {
             cells[i] = {
-                id: i,
+                id: state.geom.cell_ids ? state.geom.cell_ids[i] : i,  // Use original_label from server, fallback to index
                 x: state.geom.centroids_x[i],
                 y: state.geom.centroids_y[i],
                 radius: state.geom.radii[i],
@@ -263,6 +268,14 @@
         window.pciSeq.updateLegend();
         window.pciSeq.render();
     }
+
+    // Check cell diagnostics response
+    socket.on('check_cell_result', (data) => {
+        console.log('=== RECEIVED check_cell_result ===', data);
+        if (window.pciSeq.checkCell && window.pciSeq.checkCell.handleCheckCellResponse) {
+            window.pciSeq.checkCell.handleCheckCellResponse(data);
+        }
+    });
 
     // Export socket reference
     window.pciSeq.socket = socket;

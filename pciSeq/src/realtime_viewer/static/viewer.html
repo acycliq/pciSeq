@@ -447,6 +447,200 @@
         }
 
         .loading-text { font-size: 16px; color: var(--accent); }
+
+        /* Left side drawer for cell diagnostics */
+        #bottom-drawer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            height: 30vh;
+            width: 0;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            box-shadow: 4px 0 16px rgba(0, 0, 0, 0.4);
+            z-index: 2000;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Disable transition during live resize for responsiveness */
+        #bottom-drawer.resizing {
+            transition: none !important;
+        }
+
+        #bottom-drawer.open {
+            width: 480px;
+        }
+
+        /* Resize handle for drawer height */
+        #drawer-resize-handle {
+            width: 100%;
+            height: 10px;
+            background: var(--border);
+            cursor: ns-resize;
+            transition: background 0.15s ease;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        #drawer-resize-handle:hover {
+            background: var(--accent);
+        }
+
+        #drawer-resize-handle::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 3px;
+            background: var(--muted);
+            border-radius: 2px;
+        }
+
+        #drawer-resize-handle:hover::before {
+            background: #0b0b0b;
+        }
+
+        #drawer-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg);
+            flex-shrink: 0;
+        }
+
+        #drawer-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        #drawer-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        #drawer-controls label {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        #comparison-class-select {
+            padding: 4px 8px;
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 12px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        #comparison-class-select:hover {
+            border-color: var(--accent);
+        }
+
+        #drawer-close {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        #drawer-close:hover {
+            background: var(--danger);
+            border-color: var(--danger);
+            color: white;
+        }
+
+        #drawer-content {
+            flex: 1;
+            overflow: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        #check-cell-charts-row {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .check-cell-chart-half {
+            flex: 1;
+            height: 280px;
+            min-width: 0; /* allow flex shrink */
+        }
+
+        #check-cell-table-container {
+            flex: 1;
+            overflow: auto;
+            min-height: 200px;
+        }
+
+        #check-cell-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        #check-cell-table thead {
+            position: sticky;
+            top: 0;
+            background: var(--bg);
+            z-index: 10;
+        }
+
+        /* Subheader rows to separate Assigned vs Comparison blocks */
+        #check-cell-table .subheader td {
+            position: sticky;
+            top: 24px; /* sit below the main header */
+            background: var(--bg);
+            z-index: 9;
+            color: var(--accent);
+            font-weight: 700;
+            text-transform: none;
+            padding: 6px 8px;
+            border-top: 2px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+
+        #check-cell-table th {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 2px solid var(--border);
+            color: var(--accent);
+            font-weight: 600;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        #check-cell-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        #check-cell-table tbody tr:hover {
+            background: var(--accent-weak);
+        }
+
+        #check-cell-table .gene-name { font-weight: 600; color: var(--text); }
+        #check-cell-table .gene-name.assigned { color: #87CEEB; }
+        #check-cell-table .gene-name.comparison { color: #FA8072; }
     </style>
 </head>
 <body>
@@ -564,12 +758,37 @@
         </div>
     </div>
 
+    <!-- Left side drawer for cell diagnostics -->
+    <div id="bottom-drawer">
+        <div id="drawer-resize-handle" title="Drag to resize"></div>
+        <div id="drawer-header">
+            <div id="drawer-title">Cell Diagnostics</div>
+            <div id="drawer-controls">
+                <label for="comparison-class-select">Compare against:</label>
+                <select id="comparison-class-select">
+                    <option value="Zero">Zero</option>
+                </select>
+                <button id="drawer-close">Close</button>
+            </div>
+        </div>
+        <div id="drawer-content">
+            <div id="check-cell-charts-row">
+                <div id="check-cell-chart-left" class="check-cell-chart-half"></div>
+                <div id="check-cell-chart-right" class="check-cell-chart-half"></div>
+            </div>
+            <div id="check-cell-table-container">
+                <table id="check-cell-table"></table>
+            </div>
+        </div>
+    </div>
+
     <!-- Load modular JavaScript files in dependency order -->
     <script src="js/state.js"></script>
     <script src="js/colors.js"></script>
     <script src="js/detection.js"></script>
     <script src="js/rendering.js"></script>
     <script src="js/chart.js"></script>
+    <script src="js/check-cell.js"></script>
     <script src="js/socket-handlers.js"></script>
     <script src="js/ui-controls.js"></script>
     <script src="js/main.js"></script>

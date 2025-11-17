@@ -24,6 +24,11 @@
         // Initialize UI controls
         window.pciSeq.uiControls.initializeControls();
 
+        // Initialize check cell diagnostics
+        if (window.pciSeq.checkCell) {
+            window.pciSeq.checkCell.initialize();
+        }
+
         console.log('=== pciSeq Real-Time Viewer Ready ===');
     });
 
