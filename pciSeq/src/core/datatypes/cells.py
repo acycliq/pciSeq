@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import scipy
 from natsort import natsort_keygen
+from collections import defaultdict
 from sklearn.neighbors import NearestNeighbors
 import numpy_groupies as npg
 import opt_einsum as oe
@@ -61,6 +62,7 @@ class Cells(object):
         self._theta_bar = None  # placeholder for the cell inefficiency
         self._logtheta_bar = None # placeholder for the cell inefficiency (log)
         self._theta_params = dict() # placeholder for theta (cell inefficiency) hyperparameters
+        self.theta_terms = defaultdict(dict) # Initialize container for per-iteration theta diagnostics
 
     # -------- PROPERTIES -------- #
     @property

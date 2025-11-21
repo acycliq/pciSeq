@@ -56,6 +56,7 @@ Dependencies:
 """
 import logging
 from typing import Dict, List, Optional, Tuple, Union, Any
+from collections import defaultdict
 
 # Third-party imports
 import sys
@@ -755,7 +756,9 @@ class VarBayes:
 
         # add also the background counts
         gene_counts[0]  = self.cells.background_counts.sum()
-
+        # Record diagnostics for posterior shape terms
+        self.cells.theta_terms[self.iter_num]['hard_gene_counts'] = theta_params['alpha']
+        self.cells.theta_terms[self.iter_num]['soft_gene_counts'] = gene_counts
         observed = gene_counts + theta_params['alpha']
 
 
@@ -769,6 +772,10 @@ class VarBayes:
             'ck, gk, c, cgk, g -> c',
             classProb, mu, area_factor, gamma_bar, eta_bar
         )
+
+        # Record diagnostics for posterior rate terms
+        self.cells.theta_terms[self.iter_num]['lambda'] = theta_params['lambda']
+        self.cells.theta_terms[self.iter_num]['expected_gene_counts'] = expected
 
         expected = expected + theta_params['lambda']
 
@@ -819,4 +826,3 @@ class VarBayes:
 
     # def trellis_plot(self, label, flatfile_folder):
     #     return visualisation.trellis_plot(self, label, flatfile_folder)
-
