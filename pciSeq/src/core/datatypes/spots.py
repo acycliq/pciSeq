@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import scipy
 import opt_einsum as oe
+from collections import defaultdict
 
 spots_logger = logging.getLogger(__name__)
 
@@ -53,6 +54,7 @@ class Spots(object):
         self.mvn_loglik_arr = None
         self.attention = None
         self.expr_fluctuations = None
+        self.gamma_terms = defaultdict(list) # placeholder to keep gamma per iteration (for debugging)
 
     def __getstate__(self):
         """
