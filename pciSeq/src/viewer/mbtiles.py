@@ -5,6 +5,9 @@
 
 import sqlite3, logging, time, os, re
 from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
+from queue import Queue
+from threading import Thread
 
 logger = logging.getLogger(__name__)
 
@@ -316,4 +319,262 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
 
     optimize_database(con, silent)
 
+    con.close()
+
+
+# =============================================================================
+# PARALLEL VERSION - Producer/Consumer Pattern
+# =============================================================================
+#
+# Architecture:
+#   PRODUCERS (N threads)          QUEUE              CONSUMER (1 thread)
+#   ┌─────────────────┐           ┌─────┐           ┌─────────────────┐
+#   │ Read tile files │ ───────►  │     │  ───────► │ Batch insert    │
+#   │ from disk       │           │     │           │ into SQLite     │
+#   └─────────────────┘           └─────┘           └─────────────────┘
+#
+# Why this works:
+#   - File reading benefits from parallelism (multiple I/O operations)
+#   - SQLite writing stays single-threaded (avoids lock contention)
+#   - Queue provides backpressure if writers fall behind readers
+# =============================================================================
+
+
+def _collect_tile_paths(directory_path, image_format, silent):
+    """
+    Walk directory tree and collect all tile file paths.
+    This is fast (no file I/O, just directory listing).
+
+    Returns:
+        List of (plane_id, z, x, y, file_path) tuples
+    """
+    tile_paths = []
+    for plane_dir in get_dirs(directory_path):
+        try:
+            plane_id = _parse_plane_id(plane_dir, silent)
+        except ValueError:
+            if not silent:
+                logger.warning("Skipping directory: %s", plane_dir)
+            continue
+
+        plane_path = os.path.join(directory_path, plane_dir)
+        for zoom_dir in get_dirs(plane_path):
+            z = int(zoom_dir)
+            zoom_path = os.path.join(plane_path, zoom_dir)
+
+            for row_dir in get_dirs(zoom_path):
+                y = int(row_dir)
+                row_path = os.path.join(zoom_path, row_dir)
+
+                for filename in os.listdir(row_path):
+                    if filename == ".DS_Store":
+                        continue
+                    name, ext = os.path.splitext(filename)
+                    if ext.lstrip('.').lower() != image_format or not name:
+                        continue
+
+                    x = int(name)
+                    file_path = os.path.join(row_path, filename)
+                    tile_paths.append((plane_id, z, x, y, file_path))
+
+    return tile_paths
+
+
+def _read_tile(tile_info):
+    """
+    PRODUCER: Read a single tile file from disk.
+
+    Args:
+        tile_info: (plane_id, z, x, y, file_path)
+
+    Returns:
+        (plane_id, z, x, y, file_bytes)
+    """
+    plane_id, z, x, y, file_path = tile_info
+    with open(file_path, 'rb') as f:
+        data = f.read()
+    return (plane_id, z, x, y, data)
+
+
+def _writer_worker(queue, mbtiles_file, batch_size, silent):
+    """
+    CONSUMER: Take tiles from queue and batch-insert into SQLite.
+    Runs in a dedicated thread. Stops when it receives None (poison pill).
+
+    Args:
+        queue: Queue to read from
+        mbtiles_file: Path to MBTiles database
+        batch_size: Number of tiles per batch insert
+        silent: Suppress logging
+    """
+    con = sqlite3.connect(mbtiles_file)
+    cur = con.cursor()
+    optimize_connection(cur)
+
+    batch = []
+    count = 0
+    start_time = time.time()
+
+    while True:
+        item = queue.get()
+
+        # Poison pill signals shutdown
+        if item is None:
+            break
+
+        plane_id, z, x, y, data = item
+        batch.append((plane_id, z, x, y, sqlite3.Binary(data)))
+        count += 1
+
+        if len(batch) >= batch_size:
+            cur.executemany(
+                """INSERT INTO tiles (plane_id, zoom_level, tile_column, tile_row, tile_data)
+                   VALUES (?, ?, ?, ?, ?)""",
+                batch
+            )
+            con.commit()
+            if not silent:
+                elapsed = time.time() - start_time
+                logger.info(" %d tiles written (%.0f tiles/sec)" % (count, count / elapsed))
+            batch = []
+
+    # Insert remaining tiles
+    if batch:
+        cur.executemany(
+            """INSERT INTO tiles (plane_id, zoom_level, tile_column, tile_row, tile_data)
+               VALUES (?, ?, ?, ?, ?)""",
+            batch
+        )
+        con.commit()
+
+    con.close()
+    return count
+
+
+def disk_to_mbtiles_parallel(directory_path, mbtiles_file, **kwargs):
+    """
+    Import tiles from disk into MBTiles using parallel file reading.
+
+    Same interface as disk_to_mbtiles, but uses producer-consumer pattern:
+    - Multiple threads read tile files from disk (producers)
+    - Single thread writes to SQLite database (consumer)
+
+    Args:
+        directory_path: Path to tile directory
+        mbtiles_file: Output MBTiles file path
+        **kwargs:
+            format: Tile format (default: 'png')
+            batch_size: Tiles per batch insert (default: 50000)
+            workers: Number of reader threads (default: 8)
+            silent: Suppress logging (default: False)
+            name: Dataset name (optional)
+            description: Dataset description (optional)
+            width: Image width in pixels (optional)
+            height: Image height in pixels (optional)
+    """
+    silent = kwargs.get('silent', False)
+    image_format = kwargs.get('format', 'png').lower()
+    batch_size = kwargs.get('batch_size', 50000)
+    workers = kwargs.get('workers', 8)
+
+    if not silent:
+        logger.info("Importing disk to MBTiles (parallel: %d workers)" % workers)
+
+    # -------------------------------------------------------------------------
+    # Step 1: Collect all tile paths (fast, no file I/O)
+    # -------------------------------------------------------------------------
+    if not silent:
+        logger.info("Step 1/4: Collecting tile paths...")
+    tile_paths = _collect_tile_paths(directory_path, image_format, silent)
+    total_tiles = len(tile_paths)
+
+    if not silent:
+        logger.info("Found %d tiles to process" % total_tiles)
+
+    if total_tiles == 0:
+        logger.warning("No tiles found!")
+        return
+
+    # Extract metadata from paths
+    plane_ids = set(t[0] for t in tile_paths)
+    zoom_levels = set(t[1] for t in tile_paths)
+
+    # -------------------------------------------------------------------------
+    # Step 2: Setup database
+    # -------------------------------------------------------------------------
+    if not silent:
+        logger.info("Step 2/4: Setting up database...")
+    con = mbtiles_connect(mbtiles_file, silent)
+    cur = con.cursor()
+    optimize_connection(cur)
+    mbtiles_setup(cur)
+    con.commit()
+    con.close()  # Close - writer thread will open its own connection
+
+    # -------------------------------------------------------------------------
+    # Step 3: Start consumer thread, then produce tiles
+    # -------------------------------------------------------------------------
+    if not silent:
+        logger.info("Step 3/4: Reading and writing tiles...")
+
+    queue = Queue(maxsize=batch_size * 2)  # Backpressure if consumer falls behind
+
+    # Start consumer thread
+    writer = Thread(
+        target=_writer_worker,
+        args=(queue, mbtiles_file, batch_size, silent),
+        name="sqlite-writer"
+    )
+    writer.start()
+
+    # Produce tiles using thread pool
+    start_time = time.time()
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        for result in executor.map(_read_tile, tile_paths):
+            queue.put(result)
+
+    # Signal consumer to stop
+    queue.put(None)
+    writer.join()
+
+    elapsed = time.time() - start_time
+    if not silent:
+        logger.info("Total: %d tiles in %.2f seconds (%.0f tiles/sec)" %
+                   (total_tiles, elapsed, total_tiles / elapsed))
+
+    # -------------------------------------------------------------------------
+    # Step 4: Add metadata
+    # -------------------------------------------------------------------------
+    if not silent:
+        logger.info("Step 4/4: Writing metadata...")
+
+    con = mbtiles_connect(mbtiles_file, silent)
+    cur = con.cursor()
+
+    metadata = {
+        'format': image_format,
+        'minzoom': str(min(zoom_levels)) if zoom_levels else '0',
+        'maxzoom': str(max(zoom_levels)) if zoom_levels else '0',
+        'planes': ','.join(str(p) for p in sorted(plane_ids)),
+        'plane_count': str(len(plane_ids)),
+        'created': datetime.now(timezone.utc).isoformat(),
+        'tile_count': str(total_tiles),
+    }
+    if kwargs.get('name'):
+        metadata['name'] = kwargs['name']
+    if kwargs.get('description'):
+        metadata['description'] = kwargs['description']
+    if kwargs.get('width'):
+        metadata['width'] = str(kwargs['width'])
+    if kwargs.get('height'):
+        metadata['height'] = str(kwargs['height'])
+
+    for name, value in metadata.items():
+        cur.execute('INSERT INTO metadata (name, value) VALUES (?, ?)', (name, value))
+    con.commit()
+
+    if not silent:
+        logger.info('Metadata: %s', metadata)
+
+    optimize_database(con, silent)
     con.close()
