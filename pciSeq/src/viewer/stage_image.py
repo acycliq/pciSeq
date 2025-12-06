@@ -1,8 +1,11 @@
 import shutil
 import os
+import tempfile
 import pyvips
 import logging
 import numpy as np
+
+from .mbtiles import disk_to_mbtiles
 
 stage_image_logger = logging.getLogger(__name__)
 
@@ -168,7 +171,8 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
 
     # Determine input type and process accordingly
     if isinstance(img, str):
-        # File path - load as single 2D image
+        # File path - legacy support for 2D images only.
+        # For 3D data, load your file (e.g., tifffile.imread, np.load) and pass the array directly.
         stage_image_logger.info('Loading image from file: %s' % img)
         im = pyvips.Image.new_from_file(img, access='sequential')
         plane_out_dir = os.path.join(out_dir, f"{plane_prefix}0")
@@ -214,4 +218,70 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
     }
 
 
+def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, plane_prefix="plane_"):
+    """
+    Process an image into a viewable format (MBTiles).
+
+    This function:
+    1. Creates tile pyramids for all planes
+    2. Packages tiles into a single MBTiles file
+    3. Cleans up temporary tile files
+
+    Args:
+        img: One of:
+            - numpy array (H, W) or (H, W, C): single 2D image
+            - numpy array (Z, H, W) or (Z, H, W, C): 3D stack of images (multiple planes)
+            - str: path to a 2D image file (legacy support)
+        out_dir: (str) Output directory for the .mbtiles file. Default: system temp directory.
+        zoom_levels: (int) Number of zoom levels to produce. Default is 8.
+        name: (str) Dataset name for metadata. Optional.
+        description: (str) Dataset description for metadata. Optional.
+        plane_prefix: (str) Prefix for plane directories. Default is "plane_".
+
+    Returns:
+        None. Check logs for output location.
+    """
+    # Determine output directory
+    if out_dir is None:
+        out_dir = tempfile.gettempdir()
+
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+    # Create temporary directory for tiles (in same location as output)
+    tiles_dir = os.path.join(out_dir, "_tiles_temp")
+    mbtiles_path = os.path.join(out_dir, "output.mbtiles")
+
+    stage_image_logger.info("Starting image processing...")
+    stage_image_logger.info("Output directory: %s" % out_dir)
+
+    try:
+        # Step 1: Create tile pyramids
+        stage_image_logger.info("Step 1/3: Creating tile pyramids...")
+        result = tile_maker(img, zoom_levels=zoom_levels, out_dir=tiles_dir, plane_prefix=plane_prefix)
+
+        # Step 2: Package into MBTiles
+        stage_image_logger.info("Step 2/3: Packaging tiles into MBTiles...")
+        disk_to_mbtiles(
+            tiles_dir,
+            mbtiles_path,
+            format="jpg",
+            batch_size=50000,
+            width=result['pixel_dims'][0],
+            height=result['pixel_dims'][1],
+            name=name,
+            description=description,
+        )
+
+        # Step 3: Clean up temporary tiles
+        stage_image_logger.info("Step 3/3: Cleaning up temporary files...")
+        shutil.rmtree(tiles_dir)
+
+    except Exception as e:
+        # Clean up on failure
+        if os.path.exists(tiles_dir):
+            shutil.rmtree(tiles_dir)
+        raise
+
+    stage_image_logger.info("Done! MBTiles file created at: %s" % mbtiles_path)
 
