@@ -165,54 +165,41 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
             - 'num_planes': number of planes processed
             - 'zoom_levels': number of zoom levels
     """
-    # Remove output dir if exists, then create fresh
     if os.path.exists(out_dir):
         shutil.rmtree(out_dir)
     os.makedirs(out_dir)
 
-    # Capture original dimensions: width=last dim, height=second-to-last (except 4D)
+    # Determine original dimensions and number of planes
     if isinstance(img, str):
-        im = pyvips.Image.new_from_file(img, access='sequential')
-        original_dims = [im.width, im.height]
-    elif isinstance(img, np.ndarray):
-        if img.ndim == 4:
-            original_dims = [img.shape[-2], img.shape[-3]]
-        else:
-            original_dims = [img.shape[-1], img.shape[-2]]
-
-    # Determine input type and process accordingly
-    if isinstance(img, str):
-        # File path - legacy support for 2D images only.
-        plane_out_dir = os.path.join(out_dir, f"{plane_prefix}0")
-        stage_image_logger.info('Processing single image...')
-        _process_single_plane(im, zoom_levels, plane_out_dir)
+        img = pyvips.Image.new_from_file(img, access='sequential')
+        original_dims = [img.width, img.height]
         num_planes = 1
-
     elif isinstance(img, np.ndarray):
-        if img.ndim == 2:
-            stage_image_logger.info('Processing 2D numpy array with shape %s' % (img.shape,))
-            im = _numpy_to_vips(img)
-            plane_out_dir = os.path.join(out_dir, f"{plane_prefix}0")
-            _process_single_plane(im, zoom_levels, plane_out_dir)
-            num_planes = 1
-
-        elif img.ndim == 3 or img.ndim == 4:
-            # 3D stack: (Z, H, W) or (Z, H, W, C)
-            num_planes = img.shape[0]
-            stage_image_logger.info('Processing 3D numpy array with %d planes, shape %s' % (num_planes, img.shape))
-
-            for z in range(num_planes):
-                stage_image_logger.info('Processing plane %d/%d' % (z + 1, num_planes))
-                plane_data = img[z]
-                im = _numpy_to_vips(plane_data)
-                plane_out_dir = os.path.join(out_dir, f"{plane_prefix}{z}")
-                _process_single_plane(im, zoom_levels, plane_out_dir)
-
-        else:
-            raise ValueError(f"Unsupported numpy array dimensions: {img.ndim}")
-
+        if img.ndim == 3 and img.shape[-1] <= 4:
+            raise ValueError(
+                f"Shape {img.shape} looks like (H, W, C). 2D RGB images are not supported. "
+                "Convert to grayscale first, or reshape to (C, H, W) to treat channels as planes."
+            )
+        original_dims = [img.shape[-2], img.shape[-3]] if img.ndim == 4 else [img.shape[-1], img.shape[-2]]
+        num_planes = 1 if img.ndim == 2 else img.shape[0]
     else:
         raise TypeError(f"img must be a file path (str) or numpy array, got {type(img)}")
+
+    stage_image_logger.info('Processing %d plane(s), size: %dx%d' % (num_planes, original_dims[0], original_dims[1]))
+
+    # Process each plane
+    for z in range(num_planes):
+        if num_planes > 1:
+            stage_image_logger.info('Plane %d/%d' % (z + 1, num_planes))
+
+        if isinstance(img, pyvips.Image):
+            plane = img
+        elif img.ndim == 2:
+            plane = _numpy_to_vips(img)
+        else:
+            plane = _numpy_to_vips(img[z])
+
+        _process_single_plane(plane, zoom_levels, os.path.join(out_dir, f"{plane_prefix}{z}"))
 
     stage_image_logger.info('Done. Pyramid of tiles saved at: %s' % out_dir)
 
