@@ -151,8 +151,9 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
     Args:
         img: One of:
             - str: path to a 2D image file (TIFF, PNG, JPEG, etc.)
-            - numpy array (H, W) or (H, W, C): single 2D image
-            - numpy array (Z, H, W) or (Z, H, W, C): 3D stack of images (multiple planes)
+            - numpy array (H, W): single 2D grayscale image
+            - numpy array (Z, H, W): 3D stack of grayscale images
+            - numpy array (Z, H, W, C): 3D stack with channels
         zoom_levels: (int) Number of zoom levels to produce. Default is 8.
         out_dir: (str) Output folder for the tile pyramid. Will be deleted and recreated if exists.
         plane_prefix: (str) Prefix for plane subdirectories when processing 3D images.
@@ -160,7 +161,7 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
 
     Returns:
         dict with keys:
-            - 'pixel_dims': [width, height] of the resized image
+            - 'original_dims': [width, height] of the original input image
             - 'num_planes': number of planes processed
             - 'zoom_levels': number of zoom levels
     """
@@ -169,25 +170,30 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
         shutil.rmtree(out_dir)
     os.makedirs(out_dir)
 
+    # Capture original dimensions: width=last dim, height=second-to-last (except 4D)
+    if isinstance(img, str):
+        im = pyvips.Image.new_from_file(img, access='sequential')
+        original_dims = [im.width, im.height]
+    elif isinstance(img, np.ndarray):
+        if img.ndim == 4:
+            original_dims = [img.shape[-2], img.shape[-3]]
+        else:
+            original_dims = [img.shape[-1], img.shape[-2]]
+
     # Determine input type and process accordingly
     if isinstance(img, str):
         # File path - legacy support for 2D images only.
-        # For 3D data, load your file (e.g., tifffile.imread, np.load) and pass the array directly.
-        stage_image_logger.info('Loading image from file: %s' % img)
-        im = pyvips.Image.new_from_file(img, access='sequential')
         plane_out_dir = os.path.join(out_dir, f"{plane_prefix}0")
         stage_image_logger.info('Processing single image...')
-        pixel_dims = _process_single_plane(im, zoom_levels, plane_out_dir)
+        _process_single_plane(im, zoom_levels, plane_out_dir)
         num_planes = 1
 
     elif isinstance(img, np.ndarray):
-        # Numpy array - check dimensionality
-        if img.ndim == 2 or (img.ndim == 3 and img.shape[2] <= 4):
-            # 2D image: (H, W) or (H, W, C) where C is channels (1-4)
+        if img.ndim == 2:
             stage_image_logger.info('Processing 2D numpy array with shape %s' % (img.shape,))
             im = _numpy_to_vips(img)
             plane_out_dir = os.path.join(out_dir, f"{plane_prefix}0")
-            pixel_dims = _process_single_plane(im, zoom_levels, plane_out_dir)
+            _process_single_plane(im, zoom_levels, plane_out_dir)
             num_planes = 1
 
         elif img.ndim == 3 or img.ndim == 4:
@@ -195,13 +201,12 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
             num_planes = img.shape[0]
             stage_image_logger.info('Processing 3D numpy array with %d planes, shape %s' % (num_planes, img.shape))
 
-            pixel_dims = None
             for z in range(num_planes):
                 stage_image_logger.info('Processing plane %d/%d' % (z + 1, num_planes))
                 plane_data = img[z]
                 im = _numpy_to_vips(plane_data)
                 plane_out_dir = os.path.join(out_dir, f"{plane_prefix}{z}")
-                pixel_dims = _process_single_plane(im, zoom_levels, plane_out_dir)
+                _process_single_plane(im, zoom_levels, plane_out_dir)
 
         else:
             raise ValueError(f"Unsupported numpy array dimensions: {img.ndim}")
@@ -212,7 +217,7 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
     stage_image_logger.info('Done. Pyramid of tiles saved at: %s' % out_dir)
 
     return {
-        'pixel_dims': pixel_dims,
+        'original_dims': original_dims,
         'num_planes': num_planes,
         'zoom_levels': zoom_levels,
     }
@@ -229,8 +234,9 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
 
     Args:
         img: One of:
-            - numpy array (H, W) or (H, W, C): single 2D image
-            - numpy array (Z, H, W) or (Z, H, W, C): 3D stack of images (multiple planes)
+            - numpy array (H, W): single 2D grayscale image
+            - numpy array (Z, H, W): 3D stack of grayscale images
+            - numpy array (Z, H, W, C): 3D stack with channels
             - str: path to a 2D image file (legacy support)
         out_dir: (str) Output directory for the .mbtiles file. Default: system temp directory.
         zoom_levels: (int) Number of zoom levels to produce. Default is 8.
@@ -267,8 +273,8 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
             mbtiles_path,
             format="jpg",
             batch_size=50000,
-            width=result['pixel_dims'][0],
-            height=result['pixel_dims'][1],
+            width=result['original_dims'][0],
+            height=result['original_dims'][1],
             name=name,
             description=description,
         )
