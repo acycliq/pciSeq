@@ -170,6 +170,7 @@ class Cells(object):
 
     @theta_bar.setter
     def theta_bar(self, val: np.ndarray):
+        assert val.shape == (self.nC, len(self.class_names))
         self._theta_bar = val
 
     @property
@@ -178,6 +179,7 @@ class Cells(object):
 
     @logtheta_bar.setter
     def logtheta_bar(self, val: np.ndarray):
+        assert val.shape == (self.nC, len(self.class_names))
         self._logtheta_bar = val
 
     @property
@@ -318,6 +320,10 @@ class Cells(object):
 
         # replace zero values with the average gene counts across all cells (ex background)
         _alpha[_alpha == 0] = avg
+
+        # divide by the number of cell classes
+        _alpha = _alpha / len(self.class_names)
+        _alpha = np.tile(_alpha[:, None], [1, len(self.class_names)])
         _lambda = _alpha.copy()
         self.theta_params = {"alpha": _alpha, "lambda": _lambda}
 

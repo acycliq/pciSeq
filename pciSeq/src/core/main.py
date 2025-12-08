@@ -385,7 +385,7 @@ class VarBayes:
         self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
                                                     self.single_cell.mean_expression_adj.values))
 
-        beta = self.scaled_exp.compute() * self.genes.eta_bar[:, None] * self.cells.theta_bar[:, None, None] + cfg['rSpot']
+        beta = self.scaled_exp.compute() * self.genes.eta_bar[:, None] * self.cells.theta_bar[:, None, :] + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
         self.spots._log_gamma_bar = delayed(self.spots.logGammaExpectation(rho, beta))
@@ -469,7 +469,7 @@ class VarBayes:
 
             # multiply and sum over cells. In practice this means that when high expected counts
             # are aligned with high cell class probs this term will be high
-            term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
+            term_1 = np.einsum('ij, ij -> i', expected_counts * logtheta, cp)
 
             log_gamma_bar = self.spots.log_gamma_bar.compute()
             log_gamma_bar = log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
@@ -478,7 +478,7 @@ class VarBayes:
 
             # wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik[:, n]
             mvn_loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
-            wSpotCell[:, n] = term_1 + term_2 + logtheta + mvn_loglik
+            wSpotCell[:, n] = term_1 + term_2 + mvn_loglik
             mvn_loglik_arr[:, n] = mvn_loglik
             attention[:, n] = term_1
             expr_fluctuations[:, n] = term_2
@@ -584,11 +584,11 @@ class VarBayes:
         # Note. We should maybe exclude the "cell" that is meant to keep the
         # misreads, ie exclude the background, hence the relevant indexing below
         # could probably start at 1
-        class_total_counts = oe.contract('ck, gk, c, c, cgk -> g',
+        class_total_counts = oe.contract('ck, gk, c, ck, cgk -> g',
                                          classProb[:, :-1],
                                          mu.values[:, :-1],
                                          area_factor,
-                                         theta_bar,
+                                         theta_bar[:,:-1],
                                          gamma_bar[:, :, :-1], optimize='optimal')
         # background_counts = self.cells.background_counts
         background_counts = np.bincount(self.spots.gene_id, self.spots.parent_cell_prob[:, -1], minlength=self.nG)
@@ -755,23 +755,22 @@ class VarBayes:
         theta_params = self.cells.theta_params
 
         gene_counts = self.cells.geneCount.sum(axis=1) # vector of shape nC, 1 with the gene counts for each cell
+        classProb = self.cells.classProb
 
         # add also the background counts
         gene_counts[0]  = self.cells.background_counts.sum()
         # Record diagnostics for posterior shape terms
         self.cells.theta_terms[self.iter_num]['hard_gene_counts'] = theta_params['alpha']
         self.cells.theta_terms[self.iter_num]['soft_gene_counts'] = gene_counts
-        observed = gene_counts + theta_params['alpha']
+        observed = np.einsum('ck,c->ck', classProb, gene_counts) + theta_params['alpha']
 
-
-        classProb = self.cells.classProb
         mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
         eta_bar = self.genes.eta_bar
 
         expected = np.einsum(
-            'ck, gk, c, cgk, g -> c',
+            'ck, gk, c, cgk, g -> ck',
             classProb, mu, area_factor, gamma_bar, eta_bar
         )
 
@@ -779,9 +778,9 @@ class VarBayes:
         self.cells.theta_terms[self.iter_num]['lambda'] = theta_params['lambda']
         self.cells.theta_terms[self.iter_num]['expected_gene_counts'] = expected
 
-        expected = expected + theta_params['lambda']
+        expected_total = expected + theta_params['lambda']
 
-        self.cells.calc_theta(observed, expected)
+        self.cells.calc_theta(observed, expected_total)
 
 
     # -------------------------------------------------------------------- #
