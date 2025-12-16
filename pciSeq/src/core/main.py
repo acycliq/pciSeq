@@ -469,7 +469,7 @@ class VarBayes:
 
             # multiply and sum over cells. In practice this means that when high expected counts
             # are aligned with high cell class probs this term will be high
-            term_1 = np.einsum('ij, ij -> i', expected_counts * logtheta, cp)
+            term_1 = np.einsum('ij, ij -> i', expected_counts + logtheta, cp)
 
             log_gamma_bar = self.spots.log_gamma_bar.compute()
             log_gamma_bar = log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
