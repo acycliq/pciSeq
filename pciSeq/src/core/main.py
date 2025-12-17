@@ -56,7 +56,6 @@ Dependencies:
 """
 import logging
 from typing import Dict, List, Optional, Tuple, Union, Any
-from collections import defaultdict
 
 # Third-party imports
 import sys
@@ -179,9 +178,9 @@ class VarBayes:
         self.genes.init_eta(self.config['rGene'], self.config['rGene'])
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
-        self.cells._ini_gene_counts = np.bincount(self.spots.data.label.values, minlength=self.nC).astype(np.int32)
-        self.cells.init_theta()
+        self.cells._ini_gene_counts = np.bincount(self.spots.data.label.values, minlength=self.nC)
         self.genes._misread_density = self.genes.calc_misread_density()
+        self.cells.init_theta(self.config['rTheta'], self.config['rTheta'])
 
     def __getstate__(self):
         """
@@ -272,7 +271,6 @@ class VarBayes:
                 # 6. update gene inefficiency
                 self.eta_upd()
 
-                # 7. update the cell inefficiency
                 self.theta_upd()
 
                 # 7. update the dirichlet distribution
@@ -385,13 +383,11 @@ class VarBayes:
         self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
                                                     self.single_cell.mean_expression_adj.values))
 
-        beta = self.scaled_exp.compute() * self.genes.eta_bar[:, None] * self.cells.theta_bar[:, None, :] + cfg['rSpot']
+        beta = self.scaled_exp.compute() * self.genes.eta_bar[:, None] * self.cells.theta_bar[:,None, :]+ cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
         self.spots._log_gamma_bar = delayed(self.spots.logGammaExpectation(rho, beta))
         self.spots._gamma_bar = delayed(self.spots.gammaExpectation(rho, beta))
-
-        self.spots.gamma_terms[self.iter_num] = self.spots.gammaExpectation(rho, beta)
 
     # -------------------------------------------------------------------- #
     def cell_to_cellType(self) -> None:
@@ -461,15 +457,12 @@ class VarBayes:
             # get the spots' nth-closest cell
             sn = self.spots.parent_cell_id[:, n]
 
-            # cell inefficiency
-            logtheta = self.cells.logtheta_bar[sn]
-
             # get the respective cell type probabilities
             cp = self.cells.classProb[sn]
-
+            log_theta_bar = self.cells.logtheta_bar[sn]
             # multiply and sum over cells. In practice this means that when high expected counts
             # are aligned with high cell class probs this term will be high
-            term_1 = np.einsum('ij, ij -> i', expected_counts + logtheta, cp)
+            term_1 = np.einsum('ij, ij -> i', expected_counts+log_theta_bar, cp)
 
             log_gamma_bar = self.spots.log_gamma_bar.compute()
             log_gamma_bar = log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
@@ -581,15 +574,15 @@ class VarBayes:
 
         # Calcs the sum in the Gamma distribution (equation 5). The zero class
         # is excluded from the sum, hence the arrays in the einsum below stop at :-1
-        # Note. We should maybe exclude the "cell" that is meant to keep the
+        # Note. We should exclude the "cell" that is meant to keep the
         # misreads, ie exclude the background, hence the relevant indexing below
-        # could probably start at 1
-        class_total_counts = oe.contract('ck, gk, c, ck, cgk -> g',
+        # starts at 1
+        class_total_counts = oe.contract('ck, gk, c, cgk, ck -> g',
                                          classProb[:, :-1],
                                          mu.values[:, :-1],
                                          area_factor,
-                                         theta_bar[:,:-1],
-                                         gamma_bar[:, :, :-1], optimize='optimal')
+                                         gamma_bar[:, :, :-1],
+                                         theta_bar[:,:-1], optimize='optimal')
         # background_counts = self.cells.background_counts
         background_counts = np.bincount(self.spots.gene_id, self.spots.parent_cell_prob[:, -1], minlength=self.nG)
 
@@ -740,48 +733,30 @@ class VarBayes:
 
         self.cellTypes.alpha = out
 
-
     # -------------------------------------------------------------------- #
-    def theta_upd(self) -> None:
-
-        # # the mean gene counts across all cells (excluding the background, ie index 0)
-        # avg = int(self.cells.ini_gene_counts[1:].mean())
-        # theta_1 = self.cells.ini_gene_counts.copy() # make a copy, numpy array are mutable and we want to avoid changing the original
-        #
-        # # replace zero values with the average gene counts across all cells
-        # theta_1[theta_1 == 0] = avg
-        # theta_2 = 1
-
-        theta_params = self.cells.theta_params
-
-        gene_counts = self.cells.geneCount.sum(axis=1) # vector of shape nC, 1 with the gene counts for each cell
+    def theta_upd(self):
+        geneCounts = self.cells.geneCount.sum(axis=1)
         classProb = self.cells.classProb
+        alpha = np.einsum('ck,c->ck',
+                          classProb,
+                          geneCounts) + self.config['rTheta']
 
-        # add also the background counts
-        gene_counts[0]  = self.cells.background_counts.sum()
-        # Record diagnostics for posterior shape terms
-        self.cells.theta_terms[self.iter_num]['hard_gene_counts'] = theta_params['alpha']
-        self.cells.theta_terms[self.iter_num]['soft_gene_counts'] = gene_counts
-        observed = np.einsum('ck,c->ck', classProb, gene_counts) + theta_params['alpha']
+
 
         mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
         eta_bar = self.genes.eta_bar
 
-        expected = np.einsum(
-            'ck, gk, c, cgk, g -> ck',
-            classProb, mu, area_factor, gamma_bar, eta_bar
-        )
+        beta = np.einsum('ck, c, cgk, g, gk -> ck',
+                         classProb,
+                         area_factor,
+                         gamma_bar,
+                         eta_bar,
+                         mu) + self.config['rTheta']
 
-        # Record diagnostics for posterior rate terms
-        self.cells.theta_terms[self.iter_num]['lambda'] = theta_params['lambda']
-        self.cells.theta_terms[self.iter_num]['expected_gene_counts'] = expected
-
-        expected_total = expected + theta_params['lambda']
-
-        self.cells.calc_theta(observed, expected_total)
-
+        self.cells.calc_theta(alpha, beta)
+        print('ok')
 
     # -------------------------------------------------------------------- #
     def diagnostics_upd(self) -> None:

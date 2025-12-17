@@ -148,6 +148,7 @@ DEFAULT = {
     "remove_flat_cells": True,
     # Runtime attribute (automatically set during execution)
     "is3D": None,
+    "rTheta": 25.0,
     # *******************************************************************************
     # Realtime viewer (optional visualization feature)
     # *******************************************************************************

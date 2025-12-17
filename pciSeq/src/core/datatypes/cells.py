@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 import scipy
 from natsort import natsort_keygen
-from collections import defaultdict
 from sklearn.neighbors import NearestNeighbors
 import numpy_groupies as npg
 import opt_einsum as oe
@@ -59,10 +58,8 @@ class Cells(object):
         self._background_counts = None
         self.on_planes = dict(zip(_cells_df['label'], _cells_df['values']))
         self._nb_contr = None  # placeholder for the genes' contribution to the negative binomial loglik
-        self._theta_bar = None  # placeholder for the cell inefficiency
-        self._logtheta_bar = None # placeholder for the cell inefficiency (log)
-        self._theta_params = dict() # placeholder for theta (cell inefficiency) hyperparameters
-        self.theta_terms = defaultdict(dict) # Initialize container for per-iteration theta diagnostics
+        self._theta_bar = None
+        self._logtheta_bar = None
 
     # -------- PROPERTIES -------- #
     @property
@@ -165,45 +162,62 @@ class Cells(object):
         self._nb_contr = val
 
     @property
-    def theta_bar(self) -> np.ndarray:
-        return self._theta_bar
-
-    @theta_bar.setter
-    def theta_bar(self, val: np.ndarray):
-        assert val.shape == (self.nC, len(self.class_names))
-        self._theta_bar = val
-
-    @property
-    def logtheta_bar(self) -> np.ndarray:
-        return self._logtheta_bar
-
-    @logtheta_bar.setter
-    def logtheta_bar(self, val: np.ndarray):
-        assert val.shape == (self.nC, len(self.class_names))
-        self._logtheta_bar = val
-
-    @property
     def ini_gene_counts(self) -> np.ndarray:
         """ Returns an array of shape (nC,) containing the total number of spots
             inside each cell's boundaries.
         """
-        return self._ini_gene_counts.astype(np.int32)
+        return self._ini_gene_counts
 
     @property
-    def theta_params(self) -> dict:
-        return self._theta_params
+    def theta_bar(self):
+        """Returns the eta bar values for genes."""
+        return self._theta_bar
 
-    @theta_params.setter
-    def theta_params(self, val: dict):
-        a = np.asarray(val['alpha'], dtype=np.float32)
-        b = np.asarray(val['lambda'], dtype=np.float32)
-        assert (
-            np.isfinite(a).all() and (a > 0).all() and
-            np.isfinite(b).all() and (b > 0).all()
-        ), "theta_params 'alpha' and 'lambda' must be finite and > 0"
-        self._theta_params = {'alpha': a, 'lambda': b}
+    @property
+    def logtheta_bar(self):
+        """Returns the log eta bar for genes (estimated mean of the posterior)."""
+        return self._logtheta_bar
 
     # -------- METHODS -------- #
+
+    def init_theta(self, a, b):
+        """
+        Initializes eta values for genes.
+
+        Parameters:
+            a (float): Parameter a for eta calculation.
+            b (float): Parameter b for eta calculation.
+        """
+        nK = self.class_names.shape[0]
+        self._theta_bar = np.ones([self.nC, nK], dtype=np.float32) * (a / b)
+        self._logtheta_bar = np.ones([self.nC, nK], dtype=np.float32) * self._digamma(a, b)
+
+    def calc_theta(self, a, b):
+        """
+        Calculates eta values for genes.
+
+        Parameters:
+            a (np.array): Array of parameter a values.
+            b (np.array): Array of parameter b values.
+        """
+        a = a.astype(np.float32)
+        b = b.astype(np.float32)
+        self._theta_bar = a / b
+        self._logtheta_bar = self._digamma(a, b)
+
+    def _digamma(self, a, b):
+        """
+        Calculates the digamma function for theta calculation.
+
+        Parameters:
+            a (np.array): Array of parameter a values.
+            b (np.array): Array of parameter b values.
+
+        Returns:
+            np.array: Digamma values.
+        """
+        return scipy.special.psi(a) - np.log(b)
+
     def ini_centroids(self) -> pd.DataFrame:
         """
         Initializes the centroids for cells.
@@ -304,57 +318,6 @@ class Cells(object):
         out[:, 2, 1] = agg_12
 
         return out.astype(np.float32)
-
-    def _set_theta_hyperparameters(self):
-        """
-        sets the hyperparameters for the theta distribution, which is a Gamma distribution.
-        with the shape-rate parameters (alpha, lambda) and pdf:
-            f(x) = x**(alpha-1) * exp(-lambda * x) * (lambda**alpha) / Gamma(alpha)
-            with mean = alpha / lambda and variance = alpha / lambda**2
-        Returns:
-
-        """
-        # the mean gene counts across all cells (excluding the background, ie index 0)
-        avg = int(self.ini_gene_counts[1:].mean())
-        _alpha = self.ini_gene_counts.copy()  # make a copy, numpy array is mutable, and we want to avoid changing the original
-
-        # replace zero values with the average gene counts across all cells (ex background)
-        _alpha[_alpha == 0] = avg
-
-        # divide by the number of cell classes
-        _alpha = _alpha / len(self.class_names)
-        _alpha = np.tile(_alpha[:, None], [1, len(self.class_names)])
-        _lambda = _alpha.copy()
-        self.theta_params = {"alpha": _alpha, "lambda": _lambda}
-
-    def init_theta(self):
-        self._set_theta_hyperparameters()
-        a = self.theta_params['alpha']
-        b = self.theta_params['lambda']
-        self.calc_theta(a, b)
-
-
-    def calc_theta(self, a: np.ndarray, b: np.ndarray) -> None:
-        """
-        Compute expected theta and log-theta for each cell under a Gamma posterior.
-
-        Parameters:
-            a (np.ndarray): Shape parameters (shape ``(nC,)`` ).
-            b (np.ndarray): Rate parameters (shape ``(nC,)`` ).
-
-        Notes:
-            - Results are stored in ``self.theta_bar`` and ``self.logtheta_bar``.
-        """
-
-        # Compute in float64, then store as float32
-        assert  (a > 0).all()
-        assert  (b > 0).all()
-        a64 = a.astype(np.float64)
-        b64 = b.astype(np.float64)
-
-        self.theta_bar = (a64 / b64).astype(np.float32)
-        self.logtheta_bar = (scipy.special.psi(a64) - np.log(b64)).astype(np.float32)
-
 
     # -------------------------- CONVENIENCE METHODS ----------------------- #
     def gene_reads_per_class(self):
