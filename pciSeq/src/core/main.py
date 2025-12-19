@@ -388,6 +388,7 @@ class VarBayes:
 
         self.spots._log_gamma_bar = delayed(self.spots.logGammaExpectation(rho, beta))
         self.spots._gamma_bar = delayed(self.spots.gammaExpectation(rho, beta))
+        self.spots.my_gamma_bar = self.spots._gamma_bar.compute()
 
     # -------------------------------------------------------------------- #
     def cell_to_cellType(self) -> None:
