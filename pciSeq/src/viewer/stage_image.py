@@ -115,6 +115,21 @@ def _process_single_plane(im, zoom_levels, plane_out_dir):
     Returns:
         pixel_dims: [width, height] after resizing
     """
+    # Normalize to 8-bit if not already
+    if im.format != 'uchar':
+        stage_image_logger.info(f"Converting {im.format} to uchar with normalization")
+        mn = im.min()
+        mx = im.max()
+        
+        if mx > mn:
+            # Scale to 0-255
+            im = (im - mn) * (255.0 / (mx - mn))
+        else:
+            # Constant image, just offset to 0
+            im = im - mn
+            
+        im = im.cast('uchar')
+
     dim = map_image_size(zoom_levels)
 
     # Create output directory
