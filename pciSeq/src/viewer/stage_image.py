@@ -242,8 +242,10 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
             - str: path to a 2D image file (legacy support)
         out_dir: (str) Output directory for the .mbtiles file. Default: system temp directory.
         zoom_levels: (int) Number of zoom levels to produce. Default is 8.
-        name: (str) Dataset name for metadata. Optional.
-        description: (str) Dataset description for metadata. Optional.
+        name: (str) Short identifier for the dataset. Optional.
+                    Example: "WT94_DAPI"
+        description: (str) Detailed description of the dataset. Optional.
+                    Example: "DAPI background for WT94 mouse cortex, 84 z-planes at 0.9um spacing"
         plane_prefix: (str) Prefix for plane directories. Default is "plane_".
         voxel_size: (list/tuple) Size of a voxel in microns [x, y, z]. Optional.
                     Example: [0.28, 0.28, 0.7] for 0.28 microns in x/y and 0.7 in z.
