@@ -300,6 +300,11 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
         metadata['width'] = str(kwargs['width'])
     if kwargs.get('height'):
         metadata['height'] = str(kwargs['height'])
+    if kwargs.get('voxel_size'):
+        # Store voxel size as comma-separated string: "x,y,z"
+        voxel_size = kwargs['voxel_size']
+        if isinstance(voxel_size, (list, tuple)) and len(voxel_size) == 3:
+            metadata['voxel_size'] = ','.join(str(v) for v in voxel_size)
 
     for name, value in metadata.items():
         cur.execute('INSERT INTO metadata (name, value) VALUES (?, ?)', (name, value))

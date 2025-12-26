@@ -225,7 +225,7 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
     }
 
 
-def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, plane_prefix="plane_"):
+def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, plane_prefix="plane_", voxel_size=None):
     """
     Process an image into a viewable format (MBTiles).
 
@@ -245,6 +245,8 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
         name: (str) Dataset name for metadata. Optional.
         description: (str) Dataset description for metadata. Optional.
         plane_prefix: (str) Prefix for plane directories. Default is "plane_".
+        voxel_size: (list/tuple) Size of a voxel in microns [x, y, z]. Optional.
+                    Example: [0.28, 0.28, 0.7] for 0.28 microns in x/y and 0.7 in z.
 
     Returns:
         None. Check logs for output location.
@@ -279,6 +281,7 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
             height=result['original_dims'][1],
             name=name,
             description=description,
+            voxel_size=voxel_size,
         )
 
         # Step 3: Clean up temporary tiles
