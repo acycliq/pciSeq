@@ -60,9 +60,9 @@ def plane_quality_control(spots: pd.DataFrame,
     """
     min_plane = 0
     removed = pd.DataFrame()
-    if cfg['exclude_planes'] is not None:
-        coo = label_image_remove_planes(coo, cfg)
-        spots, min_plane = spots_remove_planes(spots, cfg)
+
+    # Note: exclude_planes feature has been removed due to coordinate system complexity
+    # Users should filter their input data before passing to pciSeq
 
     if cfg['remove_flat_cells']:
         coo, removed = remove_flat_cells_par(coo)
