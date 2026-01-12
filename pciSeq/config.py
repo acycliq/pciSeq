@@ -134,13 +134,6 @@ DEFAULT = {
     # Use: [0.147, 0.147, 0.9]
     # Default: [1, 1, 1] (isotropic voxels)
     "voxel_size": [1, 1, 1],
-    # exclude_planes: List of z-planes to exclude from pciSeq.
-    # Useful for removing poor quality or out-of-focus planes.
-    # Example: [0, 1, 2, 3, 79, 80, 81, 82, 83] excludes first four and last five planes
-    # Note: After exclusion, z coordinates are adjusted relative to
-    # the first remaining plane.
-    # Default: None (use all planes)
-    "exclude_planes": None,
     # remove_flat_cells: Controls removal of cells that appear in only one z-plane.
     # These single-plane cells are often artifacts from segmentation, especially in 3D data.
     # Note: Only relevant for 3D data (multiple z-planes).

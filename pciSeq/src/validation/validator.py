@@ -253,12 +253,21 @@ class Validator:
         Validate and normalize configuration values.
 
         Handles:
+            - Rejection of deprecated parameters (exclude_planes)
             - cell_type_prior validation and normalization
             - cell_type_weights validation (requires cell_type_prior='weighted')
             - InsideCellBonus conversion (True → 2)
             - Dict parameter normalization (MisreadDensity, priors)
         """
         cfg = self.config
+
+        # Check for deprecated/unsupported parameters
+        if 'exclude_planes' in cfg and cfg['exclude_planes'] is not None:
+            raise ValueError(
+                "The 'exclude_planes' parameter is no longer supported due to coordinate system "
+                "complexity. Please filter your input data (spots and coo matrices) before "
+                "passing them to pciSeq. Use spatial filtering (x, y, z) on your input data instead."
+            )
 
         # Validate and normalize cell_type_prior
         if cfg['cell_type_prior'].lower() not in ['uniform', 'weighted']:

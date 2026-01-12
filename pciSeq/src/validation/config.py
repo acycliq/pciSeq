@@ -32,7 +32,6 @@ _TYPE_SPECS = {
     "cell_type_prior": str,
     "cell_type_weights": (type(None), dict),
     "voxel_size": list,
-    "exclude_planes": (type(None), list),
     "is3D": (type(None), bool),
     "remove_flat_cells": bool,
     "realtime_viewer": bool,
@@ -163,13 +162,11 @@ class Config(dict):
         Updates:
             - is3D: Whether data is 3D (multiple planes)
             - is_redis_running: Whether Redis server is available
-            - exclude_planes: Normalized to empty list if None
         """
         from pciSeq.src.diagnostics.utils import check_redis_server
 
         self["is3D"] = self._detect_3d(coo)
         self["is_redis_running"] = check_redis_server()
-        self["exclude_planes"] = self["exclude_planes"] or []
 
     def _detect_3d(self, coo) -> bool:
         """
