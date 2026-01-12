@@ -73,7 +73,6 @@ def base_opts():
         "cell_type_weights": None,
         "is3D": True,
         "voxel_size": [1, 1, 1],
-        "exclude_planes": [],
         "remove_flat_cells": True,
         "mean_gene_counts_per_class": 60,
         "mean_gene_counts_per_cell": 30,
