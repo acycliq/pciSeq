@@ -6,6 +6,7 @@ import logging
 import numpy as np
 
 from .mbtiles import disk_to_mbtiles
+from ..core.utils.io_utils import get_out_dir
 
 stage_image_logger = logging.getLogger(__name__)
 
@@ -260,23 +261,31 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
-    # Create temporary directory for tiles (in same location as output)
-    tiles_dir = os.path.join(out_dir, "_tiles_temp")
-    mbtiles_path = os.path.join(out_dir, "output.mbtiles")
+    # Always create tiles and MBTiles locally first to avoid SQLite locking
+    # issues on network filesystems (NFS, SMB, CIFS).
+    # Reuse the existing pciSeq temp directory structure from get_out_dir().
+    local_temp_dir = os.path.join(get_out_dir(), "staging_temp")
+    tiles_dir = os.path.join(local_temp_dir, "tiles")
+    local_mbtiles_path = os.path.join(local_temp_dir, "output.mbtiles")
+    final_mbtiles_path = os.path.join(out_dir, "output.mbtiles")
+
+    # Clean up any leftover staging directory from a previous failed run
+    if os.path.exists(local_temp_dir):
+        shutil.rmtree(local_temp_dir)
 
     stage_image_logger.info("Starting image processing...")
     stage_image_logger.info("Output directory: %s" % out_dir)
 
     try:
         # Step 1: Create tile pyramids
-        stage_image_logger.info("Step 1/3: Creating tile pyramids...")
+        stage_image_logger.info("Step 1/4: Creating tile pyramids...")
         result = tile_maker(img, zoom_levels=zoom_levels, out_dir=tiles_dir, plane_prefix=plane_prefix)
 
-        # Step 2: Package into MBTiles
-        stage_image_logger.info("Step 2/3: Packaging tiles into MBTiles...")
+        # Step 2: Package into MBTiles (locally)
+        stage_image_logger.info("Step 2/4: Packaging tiles into MBTiles...")
         disk_to_mbtiles(
             tiles_dir,
-            mbtiles_path,
+            local_mbtiles_path,
             format="jpg",
             batch_size=50000,
             width=result['original_dims'][0],
@@ -286,15 +295,19 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
             voxel_size=voxel_size,
         )
 
-        # Step 3: Clean up temporary tiles
-        stage_image_logger.info("Step 3/3: Cleaning up temporary files...")
-        shutil.rmtree(tiles_dir)
+        # Step 3: Copy MBTiles to final destination
+        stage_image_logger.info("Step 3/4: Copying MBTiles to output directory...")
+        shutil.copy2(local_mbtiles_path, final_mbtiles_path)
+
+        # Step 4: Clean up local temporary files
+        stage_image_logger.info("Step 4/4: Cleaning up temporary files...")
+        shutil.rmtree(local_temp_dir)
 
     except Exception as e:
         # Clean up on failure
-        if os.path.exists(tiles_dir):
-            shutil.rmtree(tiles_dir)
+        if os.path.exists(local_temp_dir):
+            shutil.rmtree(local_temp_dir)
         raise
 
-    stage_image_logger.info("Done! MBTiles file created at: %s" % mbtiles_path)
+    stage_image_logger.info("Done! MBTiles file created at: %s" % final_mbtiles_path)
 
