@@ -241,7 +241,7 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
             - numpy array (Z, H, W): 3D stack of grayscale images
             - numpy array (Z, H, W, C): 3D stack with channels
             - str: path to a 2D image file (legacy support)
-        out_dir: (str) Output directory for the .mbtiles file. Default: {get_out_dir()}/data/arrow.
+        out_dir: (str) Output directory for the .mbtiles file. Default: system temp directory.
         zoom_levels: (int) Number of zoom levels to produce. Default is 8.
         name: (str) Short identifier for the dataset. Optional.
                     Example: "WT94_DAPI"
@@ -254,9 +254,9 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
     Returns:
         None. Check logs for output location.
     """
-    # Determine output directory - default to inside the arrow folder
+    # Determine output directory
     if out_dir is None:
-        out_dir = os.path.join(get_out_dir(), "data", "arrow")
+        out_dir = tempfile.gettempdir()
 
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
