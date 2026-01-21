@@ -34,7 +34,7 @@ def mbtiles_connect(mbtiles_file, silent):
         raise
 
 def optimize_connection(cur):
-    cur.execute("""PRAGMA synchronous=0""")
+    cur.execute("""PRAGMA synchronous=1""") # Set to Normal. It is safer than Off. It may slow down insertions but will prevent corrupt db
     cur.execute("""PRAGMA locking_mode=EXCLUSIVE""")
     cur.execute("""PRAGMA journal_mode=DELETE""")
 
