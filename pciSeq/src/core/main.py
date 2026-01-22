@@ -181,6 +181,7 @@ class VarBayes:
         self.cells._ini_gene_counts = np.bincount(self.spots.data.label.values, minlength=self.nC)
         self.genes._misread_density = self.genes.calc_misread_density()
         self.cells.init_theta(self.config['rTheta'], self.config['rTheta'])
+        self.spots.init_gamma(self.config['rSpot'], self.config['rSpot'], [self.nC, self.nG, self.nK])
 
     def __getstate__(self):
         """
@@ -254,6 +255,10 @@ class VarBayes:
                 # 1. For each cell, calc the expected gene counts
                 self.geneCount_upd()
 
+                self.eta_upd()
+
+                self.theta_upd()
+
                 # 2. calc expected gamma
                 self.gamma_upd()
 
@@ -268,10 +273,10 @@ class VarBayes:
                 # 5. assign spots to cells
                 self.spots_to_cell()
 
-                # 6. update gene inefficiency
-                self.eta_upd()
-
-                self.theta_upd()
+                # # 6. update gene inefficiency
+                # self.eta_upd()
+                #
+                # self.theta_upd()
 
                 # 7. update the dirichlet distribution
                 if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):

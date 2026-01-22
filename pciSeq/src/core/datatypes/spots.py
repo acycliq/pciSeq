@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import scipy
 import opt_einsum as oe
+from dask.delayed import delayed
 from collections import defaultdict
 
 spots_logger = logging.getLogger(__name__)
@@ -155,6 +156,33 @@ class Spots(object):
         return bonus_mask
 
     # ---------------- METHODS ---------------- #
+    def init_gamma(self, a, b, dim):
+        """
+        Initializes eta values for genes.
+
+        Parameters:
+            a (float): Parameter a for eta calculation.
+            b (float): Parameter b for eta calculation.
+            dim (list): Dimensionality of gamma values.
+        """
+        self._gamma_bar = delayed(np.ones(dim, dtype=np.float32) * (a / b))
+        self._log_gamma_bar = delayed(np.ones(dim, dtype=np.float32) * self._digamma(a, b))
+
+
+    def _digamma(self, a, b):
+        """
+        Calculates the digamma function for eta calculation.
+
+        Parameters:
+            a (np.array): Array of parameter a values.
+            b (np.array): Array of parameter b values.
+
+        Returns:
+            np.array: Digamma values.
+        """
+        return scipy.special.psi(a) - np.log(b)
+
+
     def read(self, spots_df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Reads and processes spot data, excluding specified genes.
