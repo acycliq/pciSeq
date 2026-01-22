@@ -14,7 +14,7 @@ _TYPE_SPECS = {
     "exclude_genes": list,
     "max_iter": int,
     "CellCallTolerance": float,
-    "rGene": int,
+    "rGene": (float, int),
     "Inefficiency": float,
     "InsideCellBonus": (bool, int, float),
     "MisreadDensity": (float, dict),
