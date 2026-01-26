@@ -5,6 +5,7 @@ from pathlib import Path
 import pickle
 import tempfile
 import shutil
+import sqlite3
 import pyarrow as pa
 import pyarrow.feather as feather
 from pathlib import Path
@@ -130,6 +131,48 @@ def load_from_url(url: str) -> str:
     return filename
 
 
+def _collect_metadata() -> Dict:
+    """Collect metadata about the environment and analysis run."""
+    import platform
+    import subprocess
+    import sys
+    from datetime import datetime
+
+    # Git commit of the pciSeq code
+    git_commit = None
+    try:
+        pciSeq_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__)
+        ))))
+        git_commit = subprocess.check_output(
+            ['git', 'rev-parse', '--short', 'HEAD'],
+            cwd=pciSeq_dir,
+            stderr=subprocess.DEVNULL,
+            text=True
+        ).strip()
+    except Exception:
+        pass
+
+    # Key package versions
+    pkg_versions = {}
+    for pkg in ['numpy', 'scipy', 'pandas', 'pciSeq']:
+        try:
+            mod = __import__(pkg)
+            pkg_versions[pkg] = getattr(mod, '__version__', 'unknown')
+        except ImportError:
+            pass
+
+    metadata = {
+        'date': datetime.now().isoformat(),
+        'git_commit': git_commit,
+        'hostname': platform.node(),
+        'os': f'{platform.system()} {platform.release()}',
+        'python_version': sys.version.split()[0],
+        'package_versions': pkg_versions,
+    }
+    return metadata
+
+
 def serialise(varBayes: Any, debug_dir: str) -> None:
     """Pickle variable Bayes object to debug directory.
 
@@ -137,12 +180,136 @@ def serialise(varBayes: Any, debug_dir: str) -> None:
         varBayes: Object to serialize
         debug_dir: Directory to save pickle file
     """
+    varBayes._metadata = _collect_metadata()
+    io_utils_logger.info('Metadata: git_commit=%s, date=%s, host=%s',
+                         varBayes._metadata.get('git_commit'),
+                         varBayes._metadata.get('date'),
+                         varBayes._metadata.get('hostname'))
+
     if not os.path.exists(debug_dir):
         os.makedirs(debug_dir)
     pickle_dst = os.path.join(debug_dir, 'pciSeq.pickle')
     with open(pickle_dst, 'wb') as outf:
         pickle.dump(varBayes, outf)
         io_utils_logger.info('Saved at %s', pickle_dst)
+
+    # Export check_cell database to diagnostics folder (sibling of arrow folder)
+    # This allows the viewer to auto-discover it alongside arrow data
+    data_dir = os.path.dirname(debug_dir)  # Go up from debug to data folder
+    export_check_cell_data(varBayes, data_dir)
+
+
+def export_check_cell_data(varBayes: Any, output_dir: str) -> None:
+    """Export check_cell data to SQLite database for the Electron viewer.
+
+    This writes data to a single SQLite database file that can be efficiently
+    queried by the JavaScript viewer without requiring Python at runtime.
+    Each cell query is a single indexed lookup.
+
+    The database is written to {output_dir}/diagnostics/check_cell.db so that
+    when the user copies the data folder, the viewer can auto-discover it
+    alongside the arrow data and mbtiles file.
+
+    Database schema:
+        metadata table - Key-value pairs for configuration and small arrays
+        cells table    - One row per cell with BLOB columns for arrays
+
+    Args:
+        varBayes: The VarBayes object containing the analysis results.
+        output_dir: Base data directory (parent of arrow, tsv, debug folders).
+    """
+    diagnostics_dir = os.path.join(output_dir, 'diagnostics')
+    if not os.path.exists(diagnostics_dir):
+        os.makedirs(diagnostics_dir)
+
+    cells = varBayes.cells
+    genes = varBayes.genes
+
+    # Compute scaled_means (this is the expensive one-time operation)
+    io_utils_logger.info('Computing scaled_exp for check_cell export...')
+    scaled_means = varBayes.scaled_exp.compute()
+
+    nC, nG, nK = scaled_means.shape
+    io_utils_logger.info('check_cell data: nC=%d, nG=%d, nK=%d', nC, nG, nK)
+
+    # Build label_map for JSON (convert keys to strings)
+    label_map = {}
+    if varBayes.config.get('label_map'):
+        label_map = {str(k): int(v) for k, v in varBayes.config['label_map'].items()}
+
+    # Create SQLite database
+    db_path = os.path.join(diagnostics_dir, 'check_cell.db')
+    if os.path.exists(db_path):
+        os.remove(db_path)  # Remove existing database
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Create tables
+    cursor.execute('''
+        CREATE TABLE metadata (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE cells (
+            cell_id INTEGER PRIMARY KEY,
+            scaled_means BLOB,
+            theta_bar BLOB,
+            gene_count BLOB,
+            class_prob BLOB
+        )
+    ''')
+
+    # Insert metadata (scalars as strings, arrays as JSON)
+    meta_items = [
+        ('nC', str(nC)),
+        ('nG', str(nG)),
+        ('nK', str(nK)),
+        ('rSpot', str(float(varBayes.config['rSpot']))),
+        ('SpotReg', str(float(varBayes.config['SpotReg']))),
+        ('class_names', json.dumps(cells.class_names.tolist())),
+        ('gene_panel', json.dumps(genes.gene_panel.tolist())),
+        ('label_map', json.dumps(label_map)),
+        ('eta_bar', json.dumps(genes.eta_bar.astype(np.float32).tolist())),
+        ('mean_gene_reads_per_class', json.dumps(cells.mean_gene_reads_per_class().astype(np.float32).tolist())),
+    ]
+    cursor.executemany('INSERT INTO metadata VALUES (?, ?)', meta_items)
+    io_utils_logger.info('Inserted %d metadata entries', len(meta_items))
+
+    # Insert cell data (BLOBs store raw Float32 bytes)
+    # Convert arrays to Float32 for consistent storage
+    scaled_means_f32 = scaled_means.astype(np.float32)
+    theta_bar_f32 = cells.theta_bar.astype(np.float32)
+    gene_count_f32 = cells.geneCount.astype(np.float32)
+    class_prob_f32 = cells.classProb.astype(np.float32)
+
+    # Batch insert for performance
+    batch_size = 1000
+    for batch_start in range(0, nC, batch_size):
+        batch_end = min(batch_start + batch_size, nC)
+        batch_data = []
+        for c in range(batch_start, batch_end):
+            batch_data.append((
+                c,
+                scaled_means_f32[c].tobytes(),  # Shape (nG, nK) flattened
+                theta_bar_f32[c].tobytes(),      # Shape (nK,)
+                gene_count_f32[c].tobytes(),     # Shape (nG,)
+                class_prob_f32[c].tobytes(),     # Shape (nK,)
+            ))
+        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?)', batch_data)
+
+        if (batch_end % 10000 == 0) or (batch_end == nC):
+            io_utils_logger.info('Inserted %d/%d cells', batch_end, nC)
+
+    conn.commit()
+    conn.close()
+
+    # Log database size
+    db_size_mb = os.path.getsize(db_path) / (1024 * 1024)
+    io_utils_logger.info('check_cell export complete: %s (%.1f MB)', db_path, db_size_mb)
 
 
 def export_db_tables(out_dir: str, con: Any) -> None:
