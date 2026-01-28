@@ -181,77 +181,52 @@ def serialise(varBayes: Any, debug_dir: str) -> None:
         debug_dir: Directory to save pickle file
     """
     varBayes._metadata = _collect_metadata()
-    io_utils_logger.info('Metadata: git_commit=%s, date=%s, host=%s',
-                         varBayes._metadata.get('git_commit'),
-                         varBayes._metadata.get('date'),
-                         varBayes._metadata.get('hostname'))
+    # io_utils_logger.info('Metadata: git_commit=%s, date=%s, host=%s',
+    #                      varBayes._metadata.get('git_commit'),
+    #                      varBayes._metadata.get('date'),
+    #                      varBayes._metadata.get('hostname'))
 
     if not os.path.exists(debug_dir):
         os.makedirs(debug_dir)
     pickle_dst = os.path.join(debug_dir, 'pciSeq.pickle')
     with open(pickle_dst, 'wb') as outf:
         pickle.dump(varBayes, outf)
-        io_utils_logger.info('Saved at %s', pickle_dst)
 
-    # Export check_cell database to diagnostics folder (sibling of arrow folder)
+    pickle_mb = os.path.getsize(pickle_dst) / (1024 * 1024)
+    io_utils_logger.info('Saved at %s (%.1f MB)', pickle_dst, pickle_mb)
+
+    # Export diagnostics database to diagnostics folder (sibling of arrow folder)
     # This allows the viewer to auto-discover it alongside arrow data
     data_dir = os.path.dirname(debug_dir)  # Go up from debug to data folder
-    export_check_cell_data(varBayes, data_dir)
+    export_diagnostics(varBayes, data_dir)
 
 
-def export_check_cell_data(varBayes: Any, output_dir: str) -> None:
-    """Export check_cell data to SQLite database for the Electron viewer.
+def export_diagnostics(varBayes: Any, output_dir: str) -> None:
+    """Export diagnostics data (check_cell and check_spot) to a single SQLite database.
 
-    This writes data to a single SQLite database file that can be efficiently
-    queried by the JavaScript viewer without requiring Python at runtime.
-    Each cell query is a single indexed lookup.
+    Writes to {output_dir}/diagnostics/diagnostics.db
 
-    The database is written to {output_dir}/diagnostics/check_cell.db so that
-    when the user copies the data folder, the viewer can auto-discover it
-    alongside the arrow data and mbtiles file.
-
-    Database schema:
-        metadata table - Key-value pairs for configuration and small arrays
-        cells table    - One row per cell with BLOB columns for arrays
+    Tables:
+      - metadata: key-value pairs (including JSON arrays)
+      - cells: per-cell diagnostic data
+      - spots: per-spot diagnostic data
 
     Args:
-        varBayes: The VarBayes object containing the analysis results.
-        output_dir: Base data directory (parent of arrow, tsv, debug folders).
+        varBayes: Fitted VarBayes object
+        output_dir: Base data directory
     """
     diagnostics_dir = os.path.join(output_dir, 'diagnostics')
-    if not os.path.exists(diagnostics_dir):
-        os.makedirs(diagnostics_dir)
+    os.makedirs(diagnostics_dir, exist_ok=True)
 
-    cells = varBayes.cells
-    genes = varBayes.genes
-
-    # Compute scaled_means (this is the expensive one-time operation)
-    io_utils_logger.info('Computing scaled_exp for check_cell export...')
-    scaled_means = varBayes.scaled_exp.compute()
-
-    nC, nG, nK = scaled_means.shape
-    io_utils_logger.info('check_cell data: nC=%d, nG=%d, nK=%d', nC, nG, nK)
-
-    # Build label_map for JSON (convert keys to strings)
-    label_map = {}
-    if varBayes.config.get('label_map'):
-        label_map = {str(k): int(v) for k, v in varBayes.config['label_map'].items()}
-
-    # Create SQLite database
-    db_path = os.path.join(diagnostics_dir, 'check_cell.db')
+    db_path = os.path.join(diagnostics_dir, 'diagnostics.db')
     if os.path.exists(db_path):
-        os.remove(db_path)  # Remove existing database
+        os.remove(db_path)
 
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-    # Create tables
-    cursor.execute('''
-        CREATE TABLE metadata (
-            key TEXT PRIMARY KEY,
-            value TEXT
-        )
-    ''')
+    # --- Create Tables ---
+    cursor.execute('CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT)')
 
     cursor.execute('''
         CREATE TABLE cells (
@@ -263,53 +238,137 @@ def export_check_cell_data(varBayes: Any, output_dir: str) -> None:
         )
     ''')
 
-    # Insert metadata (scalars as strings, arrays as JSON)
+    cursor.execute('''
+        CREATE TABLE spots (
+            spot_id INTEGER PRIMARY KEY,
+            gene_idx INTEGER,
+            x INTEGER,
+            y INTEGER,
+            z INTEGER,
+            neighbor_cell_ids TEXT,
+            mvn_loglik BLOB,
+            attention BLOB,
+            expr_fluct BLOB
+        )
+    ''')
+
+    # --- Gather Data ---
+    cells = varBayes.cells
+    genes = varBayes.genes
+    spots = varBayes.spots
+
+    # Label Map
+    label_map = {}
+    if varBayes.config.get('label_map'):
+        label_map = {str(k): int(v) for k, v in varBayes.config['label_map'].items()}
+
+    # Gene Panel
+    gene_panel = genes.gene_panel.tolist()
+
+    # Misread Density
+    misread_series = genes.misread_density
+    if hasattr(misread_series, 'to_dict'):
+        misread_dict = {str(k): float(v) for k, v in misread_series.to_dict().items()}
+    else:
+        io_utils_logger.error("Diagnostics export skipped: 'misread_density' is missing or invalid.")
+        return
+
+    # --- Populate Metadata ---
+    # Compute scaled_means for metadata nC (and for cells table)
+    # io_utils_logger.info('Computing scaled_exp for diagnostics export...')
+    scaled_means = varBayes.scaled_exp.compute()
+    nC, nG, nK = scaled_means.shape
+
+    nS = spots.nS
+    # Check if we can get nN (needs neighbor_ids)
+    neighbor_ids = spots.parent_cell_id
+    nN = 0
+    if neighbor_ids is not None:
+        nN = neighbor_ids.shape[1]
+
     meta_items = [
+        # Cell-related
         ('nC', str(nC)),
         ('nG', str(nG)),
         ('nK', str(nK)),
         ('rSpot', str(float(varBayes.config['rSpot']))),
         ('SpotReg', str(float(varBayes.config['SpotReg']))),
         ('class_names', json.dumps(cells.class_names.tolist())),
-        ('gene_panel', json.dumps(genes.gene_panel.tolist())),
-        ('label_map', json.dumps(label_map)),
         ('eta_bar', json.dumps(genes.eta_bar.astype(np.float32).tolist())),
         ('mean_gene_reads_per_class', json.dumps(cells.mean_gene_reads_per_class().astype(np.float32).tolist())),
+
+        # Spot-related
+        ('nS', str(int(nS))),
+        ('nN', str(int(nN))),
+        ('misread_density', json.dumps(misread_dict)),
+
+        # Shared
+        ('gene_panel', json.dumps(gene_panel)),
+        ('label_map', json.dumps(label_map)),
     ]
     cursor.executemany('INSERT INTO metadata VALUES (?, ?)', meta_items)
-    io_utils_logger.info('Inserted %d metadata entries', len(meta_items))
+    # io_utils_logger.info('Inserted %d metadata entries', len(meta_items))
 
-    # Insert cell data (BLOBs store raw Float32 bytes)
-    # Convert arrays to Float32 for consistent storage
+    # --- Populate Cells Table ---
     scaled_means_f32 = scaled_means.astype(np.float32)
     theta_bar_f32 = cells.theta_bar.astype(np.float32)
     gene_count_f32 = cells.geneCount.astype(np.float32)
     class_prob_f32 = cells.classProb.astype(np.float32)
 
-    # Batch insert for performance
-    batch_size = 1000
+    batch_size = 10000
     for batch_start in range(0, nC, batch_size):
         batch_end = min(batch_start + batch_size, nC)
         batch_data = []
         for c in range(batch_start, batch_end):
             batch_data.append((
                 c,
-                scaled_means_f32[c].tobytes(),  # Shape (nG, nK) flattened
-                theta_bar_f32[c].tobytes(),      # Shape (nK,)
-                gene_count_f32[c].tobytes(),     # Shape (nG,)
-                class_prob_f32[c].tobytes(),     # Shape (nK,)
+                scaled_means_f32[c].tobytes(),
+                theta_bar_f32[c].tobytes(),
+                gene_count_f32[c].tobytes(),
+                class_prob_f32[c].tobytes(),
             ))
         cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?)', batch_data)
+        # if (batch_end % 10000 == 0) or (batch_end == nC):
+        #     io_utils_logger.info('Inserted %d/%d cells', batch_end, nC)
 
-        if (batch_end % 10000 == 0) or (batch_end == nC):
-            io_utils_logger.info('Inserted %d/%d cells', batch_end, nC)
+    # --- Populate Spots Table ---
+    if spots.mvn_loglik_arr is None or spots.attention is None or spots.expr_fluctuations is None or neighbor_ids is None:
+        io_utils_logger.warning('check_spot data missing; spots table will be empty.')
+    else:
+        mvn_f32 = spots.mvn_loglik_arr.astype(np.float32)
+        attn_f32 = spots.attention.astype(np.float32)
+        expr_f32 = spots.expr_fluctuations.astype(np.float32)
+        gene_idx = spots.gene_id.astype(np.int32)
+        xs = spots.data['x'].astype(np.int32).to_numpy()
+        ys = spots.data['y'].astype(np.int32).to_numpy()
+        zs = spots.data['z'].astype(np.int32).to_numpy()
+
+        batch_size = 10000
+        for start in range(0, nS, batch_size):
+            end = min(start + batch_size, nS)
+            batch = []
+            for i in range(start, end):
+                neigh_json = json.dumps(list(map(int, neighbor_ids[i].tolist())))
+                batch.append((
+                    int(spots.data.index[i]),
+                    int(gene_idx[i]),
+                    int(xs[i]), int(ys[i]), int(zs[i]),
+                    neigh_json,
+                    mvn_f32[i].tobytes(),
+                    attn_f32[i].tobytes(),
+                    expr_f32[i].tobytes(),
+                ))
+            cursor.executemany('''
+                INSERT INTO spots (spot_id, gene_idx, x, y, z, neighbor_cell_ids, mvn_loglik, attention, expr_fluct)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', batch)
+            # if (end % 50000 == 0) or (end == nS):
+            #     io_utils_logger.info('Inserted %d/%d spots', end, nS)
 
     conn.commit()
     conn.close()
 
-    # Log database size
     db_size_mb = os.path.getsize(db_path) / (1024 * 1024)
-    io_utils_logger.info('check_cell export complete: %s (%.1f MB)', db_path, db_size_mb)
+    io_utils_logger.info('Saved at: %s (%.1f MB)', db_path, db_size_mb)
 
 
 def export_db_tables(out_dir: str, con: Any) -> None:
@@ -366,16 +425,22 @@ def write_tsv(cellData: pd.DataFrame, geneData: pd.DataFrame, cellBoundaries: pd
         os.makedirs(out_dir)
 
     # Save cell data
-    cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
-    io_utils_logger.info('Saved at %s', os.path.join(out_dir, 'cellData.tsv'))
+    cellData_path = os.path.join(out_dir, "cellData.tsv")
+    cellData.to_csv(cellData_path, sep='\t', index=False)
+    cellData_mb = os.path.getsize(cellData_path) / (1024 * 1024)
+    io_utils_logger.info('Saved at: %s (%.1f MB)', cellData_path, cellData_mb)
 
     # Save gene data
+    geneData_path = os.path.join(out_dir, "geneData.tsv")
     geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
-    io_utils_logger.info('Saved at %s', os.path.join(out_dir, 'geneData.tsv'))
+    geneData_mb = os.path.getsize(geneData_path) / (1024 * 1024)
+    io_utils_logger.info('Saved at: %s (%.1f MB)', geneData_path, geneData_mb)
 
     # Save boundaries
-    cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-    io_utils_logger.info('Saved at %s', os.path.join(out_dir, 'cellBoundaries.tsv'))
+    cellBoundaries_path = os.path.join(out_dir, "cellBoundaries.tsv")
+    cellBoundaries.to_csv(cellBoundaries_path, sep='\t', index=False)
+    cellBoundaries_mb = os.path.getsize(cellBoundaries_path) / (1024 * 1024)
+    io_utils_logger.info('Saved at %s: (%.1f MB)', cellBoundaries_path, cellBoundaries_mb)
 
 
 def write_arrow(geneData:pd.DataFrame, cellData:pd.DataFrame, cellBoundaries:pd.DataFrame, out_dir: str = None) -> None:
@@ -850,8 +915,6 @@ def boundaries_to_arrow(dfs_in: List[pd.DataFrame], out_dir: str, compression: s
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
     # io_utils_logger.info(f"Done. Total polys: {total_polys}. Total points: {total_points}. Files: {len(shards)}. Output: {out_dir}")
     io_utils_logger.info(f"Saved at: {out_dir}")
-
-
 
 
 
