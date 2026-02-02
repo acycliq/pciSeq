@@ -465,12 +465,12 @@ class VarBayes:
             log_theta_bar = self.cells.logtheta_bar[sn]
             # multiply and sum over cells. In practice this means that when high expected counts
             # are aligned with high cell class probs this term will be high
-            term_1 = np.einsum('ij, ij -> i', expected_counts+log_theta_bar, cp)
+            term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
 
             log_gamma_bar = self.spots.log_gamma_bar.compute()
             log_gamma_bar = log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
 
-            term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
+            term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar+log_theta_bar)
 
             # wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik[:, n]
             mvn_loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
