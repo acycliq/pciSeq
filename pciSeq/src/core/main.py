@@ -255,11 +255,13 @@ class VarBayes:
                 # 1. For each cell, calc the expected gene counts
                 self.geneCount_upd()
 
+                # 2. calc the gene inefficiency
                 self.eta_upd()
 
+                # 3. calc the cell inefficiency
                 self.theta_upd()
 
-                # 2. calc expected gamma
+                # 4. calc expected gamma
                 self.gamma_upd()
 
                 main_logger.info("gaussian_upd step has been removed in this version of the software")
@@ -267,16 +269,11 @@ class VarBayes:
                 # if self.single_cell.isMissing or (self.config['InsideCellBonus'] is False) or (self.config['is3D']):
                 #     self.gaussian_upd()
 
-                # 4. assign cells to cell types
-                self.cell_to_cellType()
-
                 # 5. assign spots to cells
                 self.spots_to_cell()
 
-                # # 6. update gene inefficiency
-                # self.eta_upd()
-                #
-                # self.theta_upd()
+                # 6. assign cells to cell types
+                self.cell_to_cellType()
 
                 # 7. update the dirichlet distribution
                 if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):
