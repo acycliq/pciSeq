@@ -454,6 +454,7 @@ class VarBayes:
         mvn_loglik_arr = np.zeros(wSpotCell.shape)
         attention = np.zeros(wSpotCell.shape)
         expr_fluctuations = np.zeros(wSpotCell.shape)
+        cell_inefficiency = np.zeros(wSpotCell.shape)
 
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
         for n in range(nN - 1):
@@ -470,14 +471,17 @@ class VarBayes:
             log_gamma_bar = self.spots.log_gamma_bar.compute()
             log_gamma_bar = log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
 
-            term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar+log_theta_bar)
+            term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
+
+            term_3 = np.einsum('ij, ij -> i', cp, log_theta_bar)
 
             # wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik[:, n]
             mvn_loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
-            wSpotCell[:, n] = term_1 + term_2 + mvn_loglik
+            wSpotCell[:, n] = term_1 + term_2 + term_3 + mvn_loglik
             mvn_loglik_arr[:, n] = mvn_loglik
             attention[:, n] = term_1
             expr_fluctuations[:, n] = term_2
+            cell_inefficiency[:, n] = term_3
 
         # apply inside cell bonus
         bonus_mask = self.spots.bonus_mask * self.config['InsideCellBonus']
@@ -488,6 +492,7 @@ class VarBayes:
         self.spots.mvn_loglik_arr = mvn_loglik_arr
         self.spots.attention = attention
         self.spots.expr_fluctuations = expr_fluctuations
+        self.spots.cell_inefficiency = cell_inefficiency
 
         # Since the spot-to-cell assignments changed you need to update the gene counts now
         self.geneCount_upd()
