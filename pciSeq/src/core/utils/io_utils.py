@@ -248,7 +248,8 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
             neighbor_cell_ids TEXT,
             mvn_loglik BLOB,
             attention BLOB,
-            expr_fluct BLOB
+            expr_fluct BLOB,
+            cell_inefficiency BLOB
         )
     ''')
 
@@ -332,12 +333,13 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         #     io_utils_logger.info('Inserted %d/%d cells', batch_end, nC)
 
     # --- Populate Spots Table ---
-    if spots.mvn_loglik_arr is None or spots.attention is None or spots.expr_fluctuations is None or neighbor_ids is None:
+    if spots.mvn_loglik_arr is None or spots.attention is None or spots.expr_fluctuations is None or spots.cell_inefficiency is None or neighbor_ids is None:
         io_utils_logger.warning('check_spot data missing; spots table will be empty.')
     else:
         mvn_f32 = spots.mvn_loglik_arr.astype(np.float32)
         attn_f32 = spots.attention.astype(np.float32)
         expr_f32 = spots.expr_fluctuations.astype(np.float32)
+        cineff_f32 = spots.cell_inefficiency.astype(np.float32)
         gene_idx = spots.gene_id.astype(np.int32)
         xs = spots.data['x'].astype(np.int32).to_numpy()
         ys = spots.data['y'].astype(np.int32).to_numpy()
@@ -357,10 +359,11 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
                     mvn_f32[i].tobytes(),
                     attn_f32[i].tobytes(),
                     expr_f32[i].tobytes(),
+                    cineff_f32[i].tobytes(),
                 ))
             cursor.executemany('''
-                INSERT INTO spots (spot_id, gene_idx, x, y, z, neighbor_cell_ids, mvn_loglik, attention, expr_fluct)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', batch)
+                INSERT INTO spots (spot_id, gene_idx, x, y, z, neighbor_cell_ids, mvn_loglik, attention, expr_fluct, cell_inefficiency)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', batch)
             # if (end % 50000 == 0) or (end == nS):
             #     io_utils_logger.info('Inserted %d/%d spots', end, nS)
 
