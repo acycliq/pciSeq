@@ -9,7 +9,7 @@ import pandas as pd
 from scipy.sparse import coo_matrix
 import logging
 from joblib import Parallel, delayed
-from .label_processing import CellLabelManager, get_unique_labels
+from .label_processing import process_labels, get_unique_labels
 from .spot_processing import process_spots, assign_spot_labels
 from .utils import log_data_summary
 from .plane_management import plane_quality_control
@@ -76,7 +76,7 @@ def stage_data(spots: pd.DataFrame,
             removed.frame_num = removed.frame_num + min_plane
 
     # Process label matrices
-    coo, label_map = CellLabelManager.process_label_matrices(coo)
+    coo, label_map = process_labels(coo)
     cfg['label_map'] = label_map  # Dont quite like it here, need to make it more transparent!!
 
     img_dim = {'n_planes': len(coo),
