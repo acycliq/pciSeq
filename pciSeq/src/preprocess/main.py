@@ -90,8 +90,7 @@ def stage_data(spots: pd.DataFrame,
     spots = assign_spot_labels(spots, coo)
 
     # Calculate cell properties
-    masks = np.stack([d.toarray().astype(np.uint32) for d in coo])
-    props_df = calculate_cell_properties(masks, cfg['voxel_size'])
+    props_df = calculate_cell_properties(coo, cfg['voxel_size'])
 
     # Get cell boundaries
     mid_plane = int(np.floor(len(coo) / 2))
