@@ -15,7 +15,6 @@ from .utils import log_data_summary
 from .plane_management import plane_quality_control
 from .cell_processing import calculate_cell_properties
 from ..core.utils.geometry import get_img_shape
-from ..core.utils.cell_utils import find_labels
 from .cell_processing import extract_borders
 
 spot_labels_logger = logging.getLogger(__name__)
@@ -110,16 +109,7 @@ def stage_data(spots: pd.DataFrame,
     assert props_df.shape[0] == len(set(np.concatenate(get_unique_labels(coo))))
     assert set(spots.label[spots.label > 0]) <= set(props_df.label)
 
-    # Prepare output
-    spot_labels_logger.info("find_labels start")
-    labels_dict = find_labels(masks)
-    spot_labels_logger.info("find_labels end")
-    labels_df = pd.DataFrame(labels_dict.items(), columns=['index', 'values']).set_index('index')
-
     cells = props_df.rename(columns={'x_cell': 'x0', 'y_cell': 'y0', 'z_cell': 'z0'})
-
-    assert np.all(labels_df.index.values == cells.label.values)
-    cells = cells.merge(labels_df, how='left', left_on='label', right_on='index')
     processed_spots = spots[['x', 'y', 'z', 'plane_id', 'label', 'gene_name', 'score', 'intensity']].rename_axis('spot_id')
 
     return cells, cell_boundaries, cell_boundaries_list, processed_spots, label_map

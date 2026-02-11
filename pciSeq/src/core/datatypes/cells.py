@@ -56,7 +56,6 @@ class Cells(object):
         self._gene_counts = None
         self._ini_gene_counts = None  # initial gene counts
         self._background_counts = None
-        self.on_planes = dict(zip(_cells_df['label'], _cells_df['values']))
         self._nb_contr = None  # placeholder for the genes' contribution to the negative binomial loglik
         self._theta_bar = None
         self._logtheta_bar = None
