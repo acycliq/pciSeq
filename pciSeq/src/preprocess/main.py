@@ -4,6 +4,7 @@ Orchestrates the complete preprocessing pipeline.
 """
 
 from typing import List, Tuple, Dict, Optional
+from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 import pandas as pd
 from scipy.sparse import coo_matrix
@@ -42,6 +43,18 @@ def _process_plane_borders(i: int, coo_plane: coo_matrix) -> pd.DataFrame:
     return temp
 
 
+def _extract_all_borders(coo: List[coo_matrix]) -> Tuple[pd.DataFrame, List[pd.DataFrame]]:
+    """Extract borders for all planes. Runs in a background thread."""
+    spot_labels_logger.info("Border extraction started...")
+    mid_plane = len(coo) // 2
+    cell_boundaries_list = Parallel(n_jobs=-1, backend='loky')(
+        delayed(_process_plane_borders)(i, d) for i, d in enumerate(coo)
+    )
+    cell_boundaries = cell_boundaries_list[mid_plane]
+    spot_labels_logger.info("Border extraction complete")
+    return cell_boundaries, cell_boundaries_list
+
+
 def stage_data(spots: pd.DataFrame,
                coo: List[coo_matrix],
                cfg: Dict) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, Optional[Dict]]:
@@ -61,8 +74,9 @@ def stage_data(spots: pd.DataFrame,
     -------
     cells : pd.DataFrame
         Cell properties including position and size
-    cell_boundaries : pd.DataFrame
-        Cell boundary coordinates
+    borders_future : Future
+        Future resolving to (cell_boundaries, cell_boundaries_list).
+        Border extraction runs in the background and only blocks when .result() is called.
     processed_spots : pd.DataFrame
         Processed spots with cell assignments
     label_map : Optional[Dict]
@@ -92,17 +106,11 @@ def stage_data(spots: pd.DataFrame,
     # Calculate cell properties
     props_df = calculate_cell_properties(coo, cfg['voxel_size'])
 
-    # Get cell boundaries
-    mid_plane = int(np.floor(len(coo) / 2))
-    cell_boundaries = extract_borders(coo[mid_plane].toarray().astype(np.uint32))
-    cell_boundaries = cell_boundaries.rename(columns={'label': 'cell_id'})
-
-    # Parallelize border extraction across all planes
-    spot_labels_logger.info(f"Extracting borders for {len(coo)} planes in parallel...")
-    cell_boundaries_list = Parallel(n_jobs=-1, backend='loky')(
-        delayed(_process_plane_borders)(i, d) for i, d in enumerate(coo)
-    )
-    spot_labels_logger.info("Border extraction complete")
+    # Launch border extraction in the background, not needed until results are saved
+    spot_labels_logger.info(f"Submitting border extraction for {len(coo)} planes (background task)...")
+    executor = ThreadPoolExecutor(max_workers=1)
+    borders_future = executor.submit(_extract_all_borders, coo)
+    executor.shutdown(wait=False)
 
     # Validate results
     assert props_df.shape[0] == len(set(np.concatenate(get_unique_labels(coo))))
@@ -111,4 +119,4 @@ def stage_data(spots: pd.DataFrame,
     cells = props_df.rename(columns={'x_cell': 'x0', 'y_cell': 'y0', 'z_cell': 'z0'})
     processed_spots = spots[['x', 'y', 'z', 'plane_id', 'label', 'gene_name', 'score', 'intensity']].rename_axis('spot_id')
 
-    return cells, cell_boundaries, cell_boundaries_list, processed_spots, label_map
+    return cells, borders_future, processed_spots, label_map

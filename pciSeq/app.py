@@ -73,17 +73,20 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
         # 4. Use validated inputs and prepare the data
         app_logger.info('Preprocessing data')
-        _cells, cellBoundaries, cellBoundaries_list, _spots, label_map = stage_data(spots, coo, cfg)
+        _cells, borders_future, _spots, label_map = stage_data(spots, coo, cfg)
         cfg['remapping'] = label_map
 
         # 5. cell typing (diagnostics are now handled inside VarBayes)
         cellData, geneData, varBayes = cell_type(_cells, _spots, scdata, cfg)
 
-        # 6 if labels have been remapped, switch to the original ones
+        # 6. Resolve borders (blocks only if extraction hasn't finished yet)
+        cellBoundaries, cellBoundaries_list = borders_future.result()
+
+        # 7 if labels have been remapped, switch to the original ones
         if label_map is not None:
             cellData, geneData, cellBoundaries, cellBoundaries_list = recover_original_labels(cellData, geneData, cellBoundaries, cellBoundaries_list, label_map)
 
-        # 7. Save data and launch viewer if needed
+        # 8. Save data and launch viewer if needed
         if cfg['save_data'] or cfg['launch_viewer']:
             write_data(cellData, geneData, cellBoundaries, cellBoundaries_list, varBayes, cfg)
 
