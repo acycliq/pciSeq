@@ -74,7 +74,6 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         # 4. Use validated inputs and prepare the data
         app_logger.info('Preprocessing data')
         _cells, borders_future, _spots, label_map = stage_data(spots, coo, cfg)
-        cfg['remapping'] = label_map
 
         # 5. cell typing (diagnostics are now handled inside VarBayes)
         cellData, geneData, varBayes = cell_type(_cells, _spots, scdata, cfg)
