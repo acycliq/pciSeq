@@ -456,6 +456,9 @@ class VarBayes:
         expr_fluctuations = np.zeros(wSpotCell.shape)
         cell_inefficiency = np.zeros(wSpotCell.shape)
 
+        # Materialize once before the loop (same for all neighbors)
+        log_gamma_bar_arr = self.spots.log_gamma_bar.compute()
+
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
         for n in range(nN - 1):
             # get the spots' nth-closest cell
@@ -468,8 +471,7 @@ class VarBayes:
             # are aligned with high cell class probs this term will be high
             term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
 
-            log_gamma_bar = self.spots.log_gamma_bar.compute()
-            log_gamma_bar = log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
+            log_gamma_bar = log_gamma_bar_arr[self.spots.parent_cell_id[:, n], self.spots.gene_id]
 
             term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
 
