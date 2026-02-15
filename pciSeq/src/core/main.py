@@ -174,6 +174,7 @@ class VarBayes:
         been applied directly to the expression data from scRNAseq
         """
         self.cellTypes.ini_prior()
+        self.cells.nbrs = self.cells.nearest_neighbours()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
         self.genes.init_eta(self.config['rGene'], self.config['rGene'])
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
@@ -414,7 +415,8 @@ class VarBayes:
         # for debugging, safe to remove in the future
         self.cells.nb_contr = contr
         contr = np.sum(contr, axis=1)
-        wCellClass = contr + self.cellTypes.log_prior
+        mrf = self.cells.classProb[self.cells.nbrs].sum(axis=1)
+        wCellClass = contr + self.cellTypes.log_prior + mrf
         pCellClass = softmax(wCellClass, axis=1)
 
         self.cells.classProb = pCellClass
