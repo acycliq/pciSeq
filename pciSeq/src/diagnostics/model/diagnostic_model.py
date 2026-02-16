@@ -29,7 +29,7 @@ class DiagnosticModel:
             self._publish_data_to_redis(
                 key=DiagnosticKeys.GENE_EFFICIENCY,
                 data=self._prepare_gene_data(algorithm_model),
-                metadata=self._create_metadata(iteration, has_converged)
+                metadata=self.create_metadata(iteration, has_converged)
             )
 
             self._publish_data_to_redis(
@@ -73,7 +73,7 @@ class DiagnosticModel:
         })
 
     @staticmethod
-    def _create_metadata(iteration: int, has_converged: bool) -> dict:
+    def create_metadata(iteration: int, has_converged: bool) -> dict:
         """Create consistent metadata structure."""
         return {
             'iteration': iteration,

@@ -411,6 +411,11 @@ class VarBayes:
         # Get the full log-likelihood matrix using shared computation
         contr = utils.compute_gene_loglikelihood_matrix(self)
 
+        label_map = self.config['label_map']
+        inv_label_map = {v:k for k,v in label_map.items()}
+
+        df_list = [pd.DataFrame(d, columns=self.cells.class_names) for d in contr]
+
         # populate the genes' contributions to the negative loglik. Property 'nb_contr' is only useful
         # for debugging, safe to remove in the future
         self.cells.nb_contr = contr
@@ -418,6 +423,21 @@ class VarBayes:
         mrf = self.cells.classProb[self.cells.nbrs].sum(axis=1)
         wCellClass = contr + self.cellTypes.log_prior + mrf
         pCellClass = softmax(wCellClass, axis=1)
+
+        # save the data to a tmp dir
+        if (self.iter_num < 10) or (self.iter_num > 70):
+            from pathlib import Path
+            out_dir = Path("/tmp/pciSeq/data/flatfiles") / f"iter_{self.iter_num}"
+            out_dir.mkdir(parents=True, exist_ok=True)
+
+            for i, d in enumerate(df_list):
+                d.to_csv(out_dir / f"contr_{i}.csv", index=False)
+
+            pd.DataFrame(mrf, columns=self.cells.class_names).to_csv(out_dir / "mrf.csv")
+
+            # if log_prior is (K,) make it a single row; if it's already (1,K) or (N,K) this also works if you adjust
+            pd.DataFrame([self.cellTypes.log_prior], columns=self.cells.class_names).to_csv(out_dir / "log_prior.csv")
+            main_logger.info(f"[iter {self.iter_num}] Saving debug CSVs to: {out_dir}")
 
         self.cells.classProb = pCellClass
 
