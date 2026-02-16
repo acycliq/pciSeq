@@ -8,12 +8,10 @@ import shutil
 import sqlite3
 import pyarrow as pa
 import pyarrow.feather as feather
-from pathlib import Path
 import json
-from typing import Tuple, Optional, Dict, Any, Union
+from typing import Tuple, Optional, Dict, Any, Union, List
 from urllib.parse import urlparse
 from urllib.request import urlopen
-from typing import List, Any, Dict
 import pandas as pd
 from tqdm import tqdm
 import logging
@@ -181,10 +179,6 @@ def serialise(varBayes: Any, debug_dir: str) -> None:
         debug_dir: Directory to save pickle file
     """
     varBayes._metadata = collect_metadata()
-    # io_utils_logger.info('Metadata: git_commit=%s, date=%s, host=%s',
-    #                      varBayes._metadata.get('git_commit'),
-    #                      varBayes._metadata.get('date'),
-    #                      varBayes._metadata.get('hostname'))
 
     if not os.path.exists(debug_dir):
         os.makedirs(debug_dir)
