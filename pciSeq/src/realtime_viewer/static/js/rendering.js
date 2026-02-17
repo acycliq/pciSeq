@@ -32,6 +32,7 @@
                     const className = state.cellClassNames[object.class] || `Class ${object.class}`;
                     return {
                         html: `<div style="font-size: 12px;">
+                            Cell ID: ${object.id}<br/>
                             Cell Class: ${className}<br/>
                             Position: (${Math.round(object.x)}, ${Math.round(object.y)})<br/>
                             Prob: ${(object.prob * 100).toFixed(1)}%
@@ -50,6 +51,13 @@
                 // Keep current view state so radius scaling can react to zoom
                 state.viewState = viewState;
                 return viewState;
+            },
+            onClick: (info, event) => {
+                // Delegate to check-cell module if available
+                if (window.pciSeq.checkCell && window.pciSeq.checkCell.handleCellClick) {
+                    // event.srcEvent contains the original browser event with ctrlKey, metaKey, etc.
+                    window.pciSeq.checkCell.handleCellClick(info, event.srcEvent || event);
+                }
             }
         });
 

@@ -53,9 +53,14 @@ def check_libvips():
 
 
 if check_libvips():
-    from pciSeq.src.viewer.stage_image import tile_maker
+    from pciSeq.src.viewer.stage_image import tile_maker, stage_image
 else:
     def tile_maker():
         init_logger.warning('>>>> tile_maker() isnt available because libvips is not installed. Please see '
+                            'https://www.libvips.org/install.html <<<<')
+        init_logger.warning('>>>> If you are on Linux you can install it by calling: sudo apt install libvips <<<<')
+
+    def stage_image(*args, **kwargs):
+        init_logger.warning('>>>> stage_image() isnt available because libvips is not installed. Please see '
                             'https://www.libvips.org/install.html <<<<')
         init_logger.warning('>>>> If you are on Linux you can install it by calling: sudo apt install libvips <<<<')

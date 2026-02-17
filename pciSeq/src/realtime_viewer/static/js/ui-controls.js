@@ -17,6 +17,7 @@
         setupPlaneControls();
         setupThresholdSlider();
         setupLegendResize();
+        setupDrawerResize();
         setupLegendFilter();
         setupWindowResize();
     }
@@ -27,6 +28,67 @@
         if (fileInput) {
             fileInput.addEventListener('change', window.pciSeq.colors.handleColorFileUpload);
         }
+    }
+
+    // Setup bottom drawer resize via drag handle
+    function setupDrawerResize() {
+        const drawer = document.getElementById('bottom-drawer');
+        const handle = document.getElementById('drawer-resize-handle');
+        if (!drawer || !handle) return;
+
+        let isResizing = false;
+        let startY = 0;
+        let startHeight = 0;
+        const minHeight = 180; // px
+        const maxHeight = Math.floor(window.innerHeight * 0.8); // 80% of viewport
+
+        // Apply saved height when opening (observer approach)
+        const saved = window.localStorage && window.localStorage.getItem('drawerHeightPx');
+        function applySavedHeightIfOpen() {
+            if (!drawer.classList.contains('open')) return;
+            const h = parseInt(saved, 10);
+            if (!Number.isNaN(h)) drawer.style.height = h + 'px';
+        }
+
+        // Try once at startup (in case it opens immediately)
+        applySavedHeightIfOpen();
+
+        handle.addEventListener('mousedown', (e) => {
+            if (!drawer.classList.contains('open')) return;
+            isResizing = true;
+            startY = e.clientY;
+            startHeight = drawer.offsetHeight;
+            drawer.classList.add('resizing');
+            document.body.style.cursor = 'ns-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            const deltaY = e.clientY - startY; // dragging down increases delta
+            let newHeight = startHeight - deltaY; // drawer grows when dragging up
+            newHeight = Math.max(minHeight, Math.min(maxHeight, newHeight));
+            drawer.style.height = newHeight + 'px';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!isResizing) return;
+            isResizing = false;
+            drawer.classList.remove('resizing');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            const h = drawer.offsetHeight;
+            try { window.localStorage && window.localStorage.setItem('drawerHeightPx', String(h)); } catch (e) {}
+        });
+
+        // Expose a small helper for modules that open the drawer
+        window.pciSeq.applySavedDrawerHeight = function() {
+            const val = window.localStorage && window.localStorage.getItem('drawerHeightPx');
+            const h = parseInt(val, 10);
+            if (!Number.isNaN(h)) drawer.style.height = h + 'px';
+        };
     }
 
     // Setup legend list resize via drag handle

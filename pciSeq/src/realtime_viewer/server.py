@@ -140,6 +140,7 @@ class RealtimeViewerServer:
                             {
                                 "start": int(start),
                                 "end": int(end),
+                                "cell_ids": geom.get("cell_ids", list(range(n)))[start:end],
                                 "centroids_x": geom["centroids_x"][start:end],
                                 "centroids_y": geom["centroids_y"][start:end],
                                 "centroids_z": geom.get("centroids_z", [0] * n)[
@@ -188,6 +189,137 @@ class RealtimeViewerServer:
         @self.socketio.on("disconnect")
         def handle_disconnect():
             logger.info("Client disconnected from realtime viewer")
+
+        @self.socketio.on("request_check_cell")
+        def handle_check_cell_request(data):
+            """Handle check_cell diagnostic request from client."""
+            logger.info(f"Received check_cell request: {data}")
+
+            try:
+                cell_label = data.get("cell_label")
+                comparison_class = data.get("comparison_class", "Zero")
+
+                if cell_label is None:
+                    self.socketio.emit("check_cell_result", {
+                        "error": "Missing cell_label parameter"
+                    }, namespace="/")
+                    return
+
+                # Get VarBayes instance
+                if not self._varbayes_ref:
+                    self.socketio.emit("check_cell_result", {
+                        "error": "VarBayes instance not available"
+                    }, namespace="/")
+                    return
+
+                # Import check_cell function
+                from pciSeq.src.core.utils import ops_utils
+
+                # IMPORTANT: The viewer now sends original_label directly as cell.id
+                # (We map seq_idx -> original_label in send_update and send it to viewer)
+                # So cell_label IS the original_label - no mapping needed!
+                original_label = cell_label
+
+                logger.info(f"Viewer sent original_label: {original_label}")
+
+                # Determine pciSeq-assigned class for this cell to validate request
+                label_map = self._varbayes_ref.config.get('label_map')
+                if label_map is not None:
+                    if original_label not in label_map:
+                        self.socketio.emit("check_cell_result", {
+                            "error": f"Cell label {original_label} not found in label map"
+                        }, namespace="/")
+                        return
+                    seq_idx = label_map[original_label]
+                else:
+                    seq_idx = original_label
+
+                pciseq_class = self._varbayes_ref.cells.class_names[
+                    self._varbayes_ref.cells.classProb[seq_idx].argmax()
+                ]
+
+                # Guard: if user class equals assigned class, avoid pandas diff error
+                if str(comparison_class) == str(pciseq_class):
+                    self.socketio.emit("check_cell_result", {
+                        "error": f"Comparison class equals assigned class ({pciseq_class}). Choose a different class."
+                    }, namespace="/")
+                    return
+
+                # Call check_cell with the original label (it will handle the mapping internally)
+                gene_data, contr_df, _ = ops_utils.check_cell(
+                    self._varbayes_ref,
+                    original_label,
+                    comparison_class,
+                    top_n=10,
+                    show_plot=False
+                )
+
+                # seq_idx and pciseq_class already computed above
+
+                # Prepare data for JSON serialization
+                top_genes = []
+                bottom_genes = []
+
+                if 'diff' in contr_df.columns:
+                    # Top genes (positive diff - favor pciSeq class)
+                    top_sorted = contr_df.nlargest(10, 'diff')
+                    for gene_name, row in top_sorted.iterrows():
+                        top_genes.append({
+                            "gene": str(gene_name),
+                            "value": float(row['diff'])
+                        })
+
+                    # Bottom genes (negative diff - favor user class)
+                    bottom_sorted = contr_df.nsmallest(10, 'diff')
+                    for gene_name, row in bottom_sorted.iterrows():
+                        bottom_genes.append({
+                            "gene": str(gene_name),
+                            "value": float(row['diff'])
+                        })
+
+                # Calculate sums
+                top_sum = sum(g['value'] for g in top_genes)
+                bottom_sum = sum(g['value'] for g in bottom_genes)
+
+                # Prepare gene expression data table (MultiIndex columns)
+                gene_table_data = []
+                if gene_data is not None and not gene_data.empty:
+                    # Build MultiIndex keys as created by ops_utils.check_cell
+                    pc_col = (f"Cells typed as {pciseq_class}", "mean counts")
+                    user_col = (f"Cells typed as {comparison_class}", "mean counts")
+                    count_col = (f"This cell: ({original_label})", "counts")
+
+                    for gene_name, row in gene_data.iterrows():
+                        # row is a Series with MultiIndex; use tuple keys
+                        mean_pciseq = float(row[pc_col]) if pc_col in row.index else 0.0
+                        mean_user = float(row[user_col]) if user_col in row.index else 0.0
+                        # Preserve decimals for this cell's counts
+                        gene_count = float(row[count_col]) if count_col in row.index else 0.0
+
+                        gene_table_data.append({
+                            "gene": str(gene_name),
+                            "mean_expr_pciseq": mean_pciseq,
+                            "mean_expr_user": mean_user,
+                            "gene_count": gene_count,
+                        })
+
+                # Send response
+                self.socketio.emit("check_cell_result", {
+                    "cell_label": int(cell_label),
+                    "pciseq_class": str(pciseq_class),
+                    "user_class": str(comparison_class),
+                    "top_genes": top_genes,
+                    "bottom_genes": bottom_genes,
+                    "top_sum": float(top_sum),
+                    "bottom_sum": float(bottom_sum),
+                    "gene_expression_data": gene_table_data
+                }, namespace="/")
+
+            except Exception as e:
+                logger.error(f"Error in check_cell handler: {e}", exc_info=True)
+                self.socketio.emit("check_cell_result", {
+                    "error": str(e)
+                }, namespace="/")
 
     def start(self):
         """Start server in background thread and optionally open browser."""
@@ -238,6 +370,34 @@ class RealtimeViewerServer:
                 Current iteration number
             delta: float
                 Convergence metric (mean probability change)
+
+        IMPORTANT - Cell Label Mapping processing:
+        ========================================
+        The user provides a segmentation image with cell labels (original_label).
+        These labels may be non-sequential (e.g., 0, 5, 12, 47, 100...).
+
+        During preprocessing (pciSeq.fit), some cells may be removed (e.g., flat cells
+        on single planes), creating gaps in the labeling. To ensure sequential indexing,
+        preprocessing relabels cells to sequential indices (seq_idx: 0, 1, 2, 3...).
+
+        If relabeling occurs:
+        - label_map dict is created: {original_label: seq_idx}
+        - Example: {0: 0, 5: 1, 12: 2, 47: 3, 100: 4, ...}
+        - Background is always 0 in both references: {0: 0, ...}
+
+        If no relabeling occurs (labels were already sequential):
+        - label_map = None
+        - original_label == seq_idx for all cells
+
+        Internal arrays (like cells_classProb):
+        - Use seq_idx for indexing
+        - Row index in cells_classProb[seq_idx] corresponds to seq_idx
+        - cells_classProb.shape = (nC, nK) where nC = total number of cells
+
+        For the viewer:
+        - We send original_label as cell.id (not seq_idx)
+        - This way user sees the same labels as in their segmentation
+        - When user Ctrl+Clicks a cell, viewer sends original_label to check_cell()
         """
         if not self._is_running:
             return
@@ -251,6 +411,20 @@ class RealtimeViewerServer:
                 return
 
             varbayes = self._varbayes_ref
+
+            # Create cell_ids array: map seq_idx -> original_label
+            # Row index in cells_classProb = seq_idx (0, 1, 2, ...)
+            # We map these to original_label for the viewer
+            nC = cells_classProb.shape[0]  # Total number of cells including background
+            label_map = varbayes.config.get('label_map')
+
+            if label_map is not None:
+                # Reverse map: seq_idx -> original_label
+                reverse_map = {v: k for k, v in label_map.items()}
+                cell_ids = np.array([reverse_map[seq_idx] for seq_idx in range(nC)], dtype=np.int32)
+            else:
+                # No relabeling occurred, original_label == seq_idx
+                cell_ids = np.arange(nC, dtype=np.int32)
 
             # Extract argmax (assigned class per cell) - most efficient format
             cell_classes = np.argmax(cells_classProb, axis=1).astype(np.uint8)
@@ -276,14 +450,21 @@ class RealtimeViewerServer:
             # Round to 1 decimal to reduce payload size
             radii = np.round(np.sqrt(areas / np.pi).astype(np.float32), 1)
 
-            # Skip the first cell (index 0) which is the background
+            # Get z centroids BEFORE filtering (so it can be filtered too if needed)
+            if centroids.shape[1] >= 3:
+                centroids_z = np.round(centroids[:, 2].astype(np.float32), 3)
+            else:
+                centroids_z = np.zeros_like(centroids_x)
+
+            # Skip background (index 0) - it's not a real cell and its centroid is NaN
+            # which breaks JSON serialization. Slice all arrays consistently [1:] to keep alignment.
+            cell_ids = cell_ids[1:]
             cell_classes = cell_classes[1:]
             prob = prob[1:]
             centroids_x = centroids_x[1:]
             centroids_y = centroids_y[1:]
+            centroids_z = centroids_z[1:]
             radii = radii[1:]
-
-            # logger.info(f"[ITERATION {iteration}] Skipped background cell (index 0), sending {len(cell_classes)} real cells")
 
             # Apply fixed radius if requested
             if self.fixed_radius is not None:
@@ -298,10 +479,12 @@ class RealtimeViewerServer:
                 idx_part = np.argpartition(prob, -k)[-k:]
                 idx_sorted = idx_part[np.argsort(prob[idx_part])[::-1]]
 
+                cell_ids = cell_ids[idx_sorted]
                 cell_classes = cell_classes[idx_sorted]
                 prob = prob[idx_sorted]
                 centroids_x = centroids_x[idx_sorted]
                 centroids_y = centroids_y[idx_sorted]
+                centroids_z = centroids_z[idx_sorted]
                 radii = radii[idx_sorted]
 
             num_cells = len(cell_classes)
@@ -317,13 +500,6 @@ class RealtimeViewerServer:
                 )
                 is3d = bool(varbayes.config.get("is3D", False))
                 voxel_size = varbayes.config.get("voxel_size", None)
-
-                # z centroids if present, otherwise zeros
-                if centroids.shape[1] >= 3:
-                    cz_full = np.round(centroids[:, 2].astype(np.float32), 3)
-                    centroids_z = cz_full[1:]
-                else:
-                    centroids_z = np.zeros_like(centroids_x)
 
                 self.socketio.emit(
                     "geometry_init_begin",
@@ -346,10 +522,11 @@ class RealtimeViewerServer:
                         {
                             "start": int(start),
                             "end": int(end),
-                            "centroids_x": centroids_x[start:end].tolist(),
-                            "centroids_y": centroids_y[start:end].tolist(),
-                            "centroids_z": centroids_z[start:end].tolist(),
-                            "radii": radii[start:end].tolist(),
+                            "cell_ids": [int(x) for x in cell_ids[start:end]],
+                            "centroids_x": [float(x) for x in centroids_x[start:end]],
+                            "centroids_y": [float(x) for x in centroids_y[start:end]],
+                            "centroids_z": [float(x) for x in centroids_z[start:end]],
+                            "radii": [float(x) for x in radii[start:end]],
                         },
                         namespace="/",
                     )
@@ -358,6 +535,7 @@ class RealtimeViewerServer:
                 self._geometry_cache = {
                     "num_cells": int(num_cells),
                     "chunk_size": int(chunk_size),
+                    "cell_ids": cell_ids.tolist(),
                     "centroids_x": centroids_x.tolist(),
                     "centroids_y": centroids_y.tolist(),
                     "centroids_z": centroids_z.tolist(),
