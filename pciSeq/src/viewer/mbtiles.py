@@ -201,6 +201,49 @@ def _parse_plane_id(name: str, silent: bool) -> int:
     raise ValueError(f"Invalid plane directory name: {name}")
 
 
+def _write_metadata(cur, con, count, plane_ids, zoom_levels, image_format, silent, **kwargs):
+    """Write metadata to the MBTiles database."""
+    metadata = {
+        "format": image_format,
+        "minzoom": str(min(zoom_levels)) if zoom_levels else "0",
+        "maxzoom": str(max(zoom_levels)) if zoom_levels else "0",
+        "planes": ",".join(str(p) for p in sorted(plane_ids)),
+        "plane_count": str(len(plane_ids)),
+        "created": datetime.now(timezone.utc).isoformat(),
+        "tile_count": str(count),
+    }
+    if kwargs.get("name"):
+        metadata["name"] = kwargs["name"]
+    if kwargs.get("description"):
+        metadata["description"] = kwargs["description"]
+    if kwargs.get("width"):
+        metadata["width"] = str(kwargs["width"])
+    if kwargs.get("height"):
+        metadata["height"] = str(kwargs["height"])
+    if kwargs.get("voxel_size"):
+        voxel_size = kwargs["voxel_size"]
+        if isinstance(voxel_size, (list, tuple)) and len(voxel_size) == 3:
+            metadata["voxel_size"] = ",".join(str(v) for v in voxel_size)
+
+    for name, value in metadata.items():
+        cur.execute("INSERT INTO metadata (name, value) VALUES (?, ?)", (name, value))
+    con.commit()
+
+    if not silent:
+        logger.info("Metadata: %s", metadata)
+
+
+def _finalize_db(cur, con, silent, **kwargs):
+    """Run optional compression and optimize the database."""
+    if kwargs.get("compression", False):
+        compression_prepare(cur, silent)
+        compression_chunk = kwargs.get("compression_chunk", 10000)
+        compression_do(cur, con, compression_chunk, silent)
+        compression_finalize(cur, con, silent)
+
+    optimize_database(con, silent)
+
+
 def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     """
     Import tiles from disk into MBTiles database.
@@ -324,46 +367,8 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
             % (count, time.time() - start_time, count / (time.time() - start_time))
         )
 
-    # Insert metadata
-    metadata = {
-        # Auto-detected
-        "format": image_format,
-        "minzoom": str(min(zoom_levels)) if zoom_levels else "0",
-        "maxzoom": str(max(zoom_levels)) if zoom_levels else "0",
-        "planes": ",".join(str(p) for p in sorted(plane_ids)),
-        "plane_count": str(len(plane_ids)),
-        "created": datetime.now(timezone.utc).isoformat(),
-        "tile_count": str(count),
-    }
-    # Optional (from kwargs)
-    if kwargs.get("name"):
-        metadata["name"] = kwargs["name"]
-    if kwargs.get("description"):
-        metadata["description"] = kwargs["description"]
-    if kwargs.get("width"):
-        metadata["width"] = str(kwargs["width"])
-    if kwargs.get("height"):
-        metadata["height"] = str(kwargs["height"])
-    if kwargs.get("voxel_size"):
-        # Store voxel size as comma-separated string: "x,y,z"
-        voxel_size = kwargs["voxel_size"]
-        if isinstance(voxel_size, (list, tuple)) and len(voxel_size) == 3:
-            metadata["voxel_size"] = ",".join(str(v) for v in voxel_size)
-
-    for name, value in metadata.items():
-        cur.execute("INSERT INTO metadata (name, value) VALUES (?, ?)", (name, value))
-    con.commit()
-
-    if not silent:
-        logger.info("Metadata: %s", metadata)
-
-    if kwargs.get("compression", False):
-        compression_prepare(cur, silent)
-        compression_chunk = kwargs.get("compression_chunk", 10000)
-        compression_do(cur, con, compression_chunk, silent)
-        compression_finalize(cur, con, silent)
-
-    optimize_database(con, silent)
+    _write_metadata(cur, con, count, plane_ids, zoom_levels, image_format, silent, **kwargs)
+    _finalize_db(cur, con, silent, **kwargs)
 
     con.close()
 
@@ -472,42 +477,7 @@ def buffer_to_mbtiles(bufs, mbtiles_file, **kwargs):
             % (count, time.time() - start_time, count / (time.time() - start_time))
         )
 
-    # Insert metadata
-    metadata = {
-        "format": image_format,
-        "minzoom": str(min(zoom_levels)) if zoom_levels else "0",
-        "maxzoom": str(max(zoom_levels)) if zoom_levels else "0",
-        "planes": ",".join(str(p) for p in sorted(plane_ids)),
-        "plane_count": str(len(plane_ids)),
-        "created": datetime.now(timezone.utc).isoformat(),
-        "tile_count": str(count),
-    }
-    if kwargs.get("name"):
-        metadata["name"] = kwargs["name"]
-    if kwargs.get("description"):
-        metadata["description"] = kwargs["description"]
-    if kwargs.get("width"):
-        metadata["width"] = str(kwargs["width"])
-    if kwargs.get("height"):
-        metadata["height"] = str(kwargs["height"])
-    if kwargs.get("voxel_size"):
-        voxel_size = kwargs["voxel_size"]
-        if isinstance(voxel_size, (list, tuple)) and len(voxel_size) == 3:
-            metadata["voxel_size"] = ",".join(str(v) for v in voxel_size)
-
-    for name, value in metadata.items():
-        cur.execute("INSERT INTO metadata (name, value) VALUES (?, ?)", (name, value))
-    con.commit()
-
-    if not silent:
-        logger.info("Metadata: %s", metadata)
-
-    if kwargs.get("compression", False):
-        compression_prepare(cur, silent)
-        compression_chunk = kwargs.get("compression_chunk", 10000)
-        compression_do(cur, con, compression_chunk, silent)
-        compression_finalize(cur, con, silent)
-
-    optimize_database(con, silent)
+    _write_metadata(cur, con, count, plane_ids, zoom_levels, image_format, silent, **kwargs)
+    _finalize_db(cur, con, silent, **kwargs)
 
     con.close()

@@ -104,6 +104,32 @@ def map_image_size(z):
     return 256 * 2 ** z
 
 
+def _get_img_details(img):
+    """Determine image dimensions, number of planes, and convert file paths to pyvips.
+
+    Args:
+        img: file path (str), or numpy array (2D, 3D, or 4D)
+
+    Returns:
+        (img, original_dims, num_planes) where img may have been converted
+        from a file path to a pyvips.Image
+    """
+    if isinstance(img, str):
+        img = pyvips.Image.new_from_file(img, access='sequential')
+        return img, [img.width, img.height], 1
+    elif isinstance(img, np.ndarray):
+        if img.ndim == 3 and img.shape[-1] <= 4:
+            raise ValueError(
+                f"Shape {img.shape} looks like (H, W, C). 2D RGB images are not supported. "
+                "Convert to grayscale first, or reshape to (C, H, W) to treat channels as planes."
+            )
+        original_dims = [img.shape[-2], img.shape[-3]] if img.ndim == 4 else [img.shape[-1], img.shape[-2]]
+        num_planes = 1 if img.ndim == 2 else img.shape[0]
+        return img, original_dims, num_planes
+    else:
+        raise TypeError(f"img must be a file path (str) or numpy array, got {type(img)}")
+
+
 def _process_single_plane(im, zoom_levels, plane_out_dir):
     """Process a single 2D image plane into a tile pyramid.
 
@@ -184,21 +210,7 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
         shutil.rmtree(out_dir)
     os.makedirs(out_dir)
 
-    # Determine original dimensions and number of planes
-    if isinstance(img, str):
-        img = pyvips.Image.new_from_file(img, access='sequential')
-        original_dims = [img.width, img.height]
-        num_planes = 1
-    elif isinstance(img, np.ndarray):
-        if img.ndim == 3 and img.shape[-1] <= 4:
-            raise ValueError(
-                f"Shape {img.shape} looks like (H, W, C). 2D RGB images are not supported. "
-                "Convert to grayscale first, or reshape to (C, H, W) to treat channels as planes."
-            )
-        original_dims = [img.shape[-2], img.shape[-3]] if img.ndim == 4 else [img.shape[-1], img.shape[-2]]
-        num_planes = 1 if img.ndim == 2 else img.shape[0]
-    else:
-        raise TypeError(f"img must be a file path (str) or numpy array, got {type(img)}")
+    img, original_dims, num_planes = _get_img_details(img)
 
     stage_image_logger.info('Processing %d plane(s), size: %dx%d' % (num_planes, original_dims[0], original_dims[1]))
 
@@ -272,30 +284,10 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
     stage_image_logger.info("Done! MBTiles file created at: %s" % mbtiles_path)
 
 
-def _stage_image_buffer(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size):
-    """In-memory path: tiles never touch disk."""
-    # Determine original dimensions and number of planes
-    if isinstance(img, str):
-        img = pyvips.Image.new_from_file(img, access='sequential')
-        original_dims = [img.width, img.height]
-        num_planes = 1
-    elif isinstance(img, np.ndarray):
-        if img.ndim == 3 and img.shape[-1] <= 4:
-            raise ValueError(
-                f"Shape {img.shape} looks like (H, W, C). 2D RGB images are not supported. "
-                "Convert to grayscale first, or reshape to (C, H, W) to treat channels as planes."
-            )
-        original_dims = [img.shape[-2], img.shape[-3]] if img.ndim == 4 else [img.shape[-1], img.shape[-2]]
-        num_planes = 1 if img.ndim == 2 else img.shape[0]
-    else:
-        raise TypeError(f"img must be a file path (str) or numpy array, got {type(img)}")
-
-    stage_image_logger.info('Processing %d plane(s), size: %dx%d' % (num_planes, original_dims[0], original_dims[1]))
-
+def _plane_buffer_generator(img, num_planes, zoom_levels, plane_prefix):
+    """Yield one dzsave_buffer per plane. O(1) memory, only one plane's tiles in memory at a time."""
     dim = map_image_size(zoom_levels)
-    bufs = []
 
-    stage_image_logger.info("Step 1/2: Creating tile pyramids in memory...")
     for z in range(num_planes):
         if num_planes > 1:
             stage_image_logger.info('Plane %d/%d' % (z + 1, num_planes))
@@ -327,11 +319,17 @@ def _stage_image_buffer(img, mbtiles_path, zoom_levels, name, description, plane
         assert max(plane.width, plane.height) == dim, \
             'Image not scaled properly. Expected %d pixels on longest side' % dim
 
-        buf = plane.dzsave_buffer(basename=f'{plane_prefix}{z}', layout='google', suffix='.jpg', background=0)
-        bufs.append(buf)
+        yield plane.dzsave_buffer(basename=f'{plane_prefix}{z}', layout='google', suffix='.jpg', background=0)
 
-    # Package into MBTiles
-    stage_image_logger.info("Step 2/2: Packaging tiles into MBTiles...")
+
+def _stage_image_buffer(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size):
+    """In-memory path: tiles never touch disk."""
+    img, original_dims, num_planes = _get_img_details(img)
+
+    stage_image_logger.info('Processing %d plane(s), size: %dx%d' % (num_planes, original_dims[0], original_dims[1]))
+    stage_image_logger.info("Creating tile pyramids and packaging into MBTiles...")
+
+    bufs = _plane_buffer_generator(img, num_planes, zoom_levels, plane_prefix)
     buffer_to_mbtiles(
         bufs,
         mbtiles_path,
