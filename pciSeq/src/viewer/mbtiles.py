@@ -182,14 +182,19 @@ def get_dirs(path):
 
 def _parse_plane_id(name: str, silent: bool) -> int:
     """Extract an integer plane_id from a directory name.
-    Accepts names like '123', 'd_123', 'plane123'. Uses trailing digits.
+    Accepts names like '123', 'd_123', 'plane123', 'plane_0_files'.
+    Strips a trailing '_files' suffix (added by dzsave_buffer), then
+    extracts the last integer found.
     Raises ValueError if no digits are found.
     """
     name = name.strip()
+    # dzsave_buffer appends '_files' to the basename
+    if name.endswith("_files"):
+        name = name[:-6]
     # if the whole name is digits
     if name.isdigit():
         return int(name)
-    # find trailing digits (e.g., d_123, plane123)
+    # find trailing digits (e.g., d_123, plane123, plane_0)
     m = re.search(r"(\d+)$", name)
     if m:
         return int(m.group(1))
@@ -380,8 +385,8 @@ def buffer_to_mbtiles(bufs, mbtiles_file, **kwargs):
     tiles in basename_files/z/y/x.jpg layout.
 
     Args:
-        bufs: list of bytes objects (one zip per plane, from dzsave_buffer
-              called with basename='plane_N')
+        bufs: iterable of bytes objects (one zip per plane, from dzsave_buffer
+              called with basename='plane_N'). Can be a list or a generator.
         mbtiles_file: Output MBTiles file path
         **kwargs: Same as disk_to_mbtiles (format, batch_size, compression,
                   compression_chunk, silent, name, description, width, height,

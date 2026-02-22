@@ -130,8 +130,41 @@ def _get_img_details(img):
         raise TypeError(f"img must be a file path (str) or numpy array, got {type(img)}")
 
 
+def _prepare_plane(im, zoom_levels):
+    """Normalize to 8-bit and resize a pyvips image to fit the tile pyramid.
+
+    Args:
+        im: pyvips.Image object
+        zoom_levels: number of zoom levels
+
+    Returns:
+        im: the prepared pyvips.Image (uchar, resized)
+    """
+    # Normalize to 8-bit if not already
+    if im.format != 'uchar':
+        stage_image_logger.info(f"Converting {im.format} to uchar with normalization")
+        mn = im.min()
+        mx = im.max()
+        if mx > mn:
+            im = (im - mn) * (255.0 / (mx - mn))
+        else:
+            im = im - mn
+        im = im.cast('uchar')
+
+    # Resize to fit the tile pyramid
+    dim = map_image_size(zoom_levels)
+    factor = dim / max(im.width, im.height)
+    im = im.resize(factor)
+    stage_image_logger.info('Resized to %d by %d' % (im.width, im.height))
+
+    assert max(im.width, im.height) == dim, \
+        'Image not scaled properly. Expected %d pixels on longest side' % dim
+
+    return im
+
+
 def _process_single_plane(im, zoom_levels, plane_out_dir):
-    """Process a single 2D image plane into a tile pyramid.
+    """Process a single 2D image plane into a tile pyramid on disk.
 
     Args:
         im: pyvips.Image object
@@ -141,48 +174,14 @@ def _process_single_plane(im, zoom_levels, plane_out_dir):
     Returns:
         pixel_dims: [width, height] after resizing
     """
-    # Normalize to 8-bit if not already
-    if im.format != 'uchar':
-        stage_image_logger.info(f"Converting {im.format} to uchar with normalization")
-        mn = im.min()
-        mx = im.max()
-        
-        if mx > mn:
-            # Scale to 0-255
-            im = (im - mn) * (255.0 / (mx - mn))
-        else:
-            # Constant image, just offset to 0
-            im = im - mn
-            
-        im = im.cast('uchar')
+    im = _prepare_plane(im, zoom_levels)
 
-    dim = map_image_size(zoom_levels)
-
-    # Create output directory
     if not os.path.exists(plane_out_dir):
         os.makedirs(plane_out_dir)
 
-    # The following two lines add an alpha component to rgb which allows for transparency.
-    # Is this worth it? It adds quite a bit on the execution time, about x2 increase
-    # im = im.colourspace('srgb')
-    # im = im.addalpha()
-
-    # Resize to fit the tile pyramid
-    factor = dim / max(im.width, im.height)
-    im = im.resize(factor)
-    stage_image_logger.info('Resized to %d by %d' % (im.width, im.height))
-    pixel_dims = [im.width, im.height]
-
-    # Sanity check
-    assert max(im.width, im.height) == dim, \
-        'Image not scaled properly. Expected %d pixels on longest side' % dim
-
-    # im = im.gravity('south-west', dim, dim) # <---- Uncomment this if the origin is the bottom-left corner
-
-    # Create tile pyramid
     im.dzsave(plane_out_dir, layout='google', suffix='.jpg', background=0)
 
-    return pixel_dims
+    return [im.width, im.height]
 
 
 def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
@@ -262,7 +261,7 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
                     to disk first (uses more disk I/O but less memory).
 
     Returns:
-        None. Check logs for output location.
+        str: path to the created .mbtiles file.
     """
     # Determine output directory
     if out_dir is None:
@@ -283,16 +282,15 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
 
     stage_image_logger.info("Done! MBTiles file created at: %s" % mbtiles_path)
 
+    return mbtiles_path
+
 
 def _plane_buffer_generator(img, num_planes, zoom_levels, plane_prefix):
     """Yield one dzsave_buffer per plane. O(1) memory, only one plane's tiles in memory at a time."""
-    dim = map_image_size(zoom_levels)
-
     for z in range(num_planes):
         if num_planes > 1:
             stage_image_logger.info('Plane %d/%d' % (z + 1, num_planes))
 
-        # Get the plane as a pyvips image
         if isinstance(img, pyvips.Image):
             plane = img
         elif img.ndim == 2:
@@ -300,25 +298,7 @@ def _plane_buffer_generator(img, num_planes, zoom_levels, plane_prefix):
         else:
             plane = _numpy_to_vips(img[z])
 
-        # Normalize to 8-bit
-        if plane.format != 'uchar':
-            stage_image_logger.info(f"Converting {plane.format} to uchar with normalization")
-            mn = plane.min()
-            mx = plane.max()
-            if mx > mn:
-                plane = (plane - mn) * (255.0 / (mx - mn))
-            else:
-                plane = plane - mn
-            plane = plane.cast('uchar')
-
-        # Resize to fit the tile pyramid
-        factor = dim / max(plane.width, plane.height)
-        plane = plane.resize(factor)
-        stage_image_logger.info('Resized to %d by %d' % (plane.width, plane.height))
-
-        assert max(plane.width, plane.height) == dim, \
-            'Image not scaled properly. Expected %d pixels on longest side' % dim
-
+        plane = _prepare_plane(plane, zoom_levels)
         yield plane.dzsave_buffer(basename=f'{plane_prefix}{z}', layout='google', suffix='.jpg', background=0)
 
 
