@@ -5,7 +5,7 @@ import pyvips
 import logging
 import numpy as np
 
-from .mbtiles import disk_to_mbtiles
+from .mbtiles import disk_to_mbtiles, buffer_to_mbtiles
 
 stage_image_logger = logging.getLogger(__name__)
 
@@ -225,14 +225,10 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
     }
 
 
-def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, plane_prefix="plane_", voxel_size=None):
+def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, plane_prefix="plane_",
+                voxel_size=None, use_buffer=True):
     """
     Process an image into a viewable format (MBTiles).
-
-    This function:
-    1. Creates tile pyramids for all planes
-    2. Packages tiles into a single MBTiles file
-    3. Cleans up temporary tile files
 
     Args:
         img: One of:
@@ -246,9 +242,12 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
                     Example: "WT94_DAPI"
         description: (str) Detailed description of the dataset. Optional.
                     Example: "DAPI background for WT94 mouse cortex, 84 z-planes at 0.9um spacing"
-        plane_prefix: (str) Prefix for plane directories. Default is "plane_".
+        plane_prefix: (str) Prefix for plane directories/names. Default is "plane_".
         voxel_size: (list/tuple) Size of a voxel in microns [x, y, z]. Optional.
                     Example: [0.28, 0.28, 0.7] for 0.28 microns in x/y and 0.7 in z.
+        use_buffer: (bool) If True (default), tiles are created in memory via dzsave_buffer()
+                    and inserted directly into the MBTiles database. If False, tiles are written
+                    to disk first (uses more disk I/O but less memory).
 
     Returns:
         None. Check logs for output location.
@@ -260,19 +259,100 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
-    # Create temporary directory for tiles (in same location as output)
-    tiles_dir = os.path.join(out_dir, "_tiles_temp")
     mbtiles_path = os.path.join(out_dir, "output.mbtiles")
 
     stage_image_logger.info("Starting image processing...")
     stage_image_logger.info("Output directory: %s" % out_dir)
 
+    if use_buffer:
+        _stage_image_buffer(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size)
+    else:
+        _stage_image_disk(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size, out_dir)
+
+    stage_image_logger.info("Done! MBTiles file created at: %s" % mbtiles_path)
+
+
+def _stage_image_buffer(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size):
+    """In-memory path: tiles never touch disk."""
+    # Determine original dimensions and number of planes
+    if isinstance(img, str):
+        img = pyvips.Image.new_from_file(img, access='sequential')
+        original_dims = [img.width, img.height]
+        num_planes = 1
+    elif isinstance(img, np.ndarray):
+        if img.ndim == 3 and img.shape[-1] <= 4:
+            raise ValueError(
+                f"Shape {img.shape} looks like (H, W, C). 2D RGB images are not supported. "
+                "Convert to grayscale first, or reshape to (C, H, W) to treat channels as planes."
+            )
+        original_dims = [img.shape[-2], img.shape[-3]] if img.ndim == 4 else [img.shape[-1], img.shape[-2]]
+        num_planes = 1 if img.ndim == 2 else img.shape[0]
+    else:
+        raise TypeError(f"img must be a file path (str) or numpy array, got {type(img)}")
+
+    stage_image_logger.info('Processing %d plane(s), size: %dx%d' % (num_planes, original_dims[0], original_dims[1]))
+
+    dim = map_image_size(zoom_levels)
+    bufs = []
+
+    stage_image_logger.info("Step 1/2: Creating tile pyramids in memory...")
+    for z in range(num_planes):
+        if num_planes > 1:
+            stage_image_logger.info('Plane %d/%d' % (z + 1, num_planes))
+
+        # Get the plane as a pyvips image
+        if isinstance(img, pyvips.Image):
+            plane = img
+        elif img.ndim == 2:
+            plane = _numpy_to_vips(img)
+        else:
+            plane = _numpy_to_vips(img[z])
+
+        # Normalize to 8-bit
+        if plane.format != 'uchar':
+            stage_image_logger.info(f"Converting {plane.format} to uchar with normalization")
+            mn = plane.min()
+            mx = plane.max()
+            if mx > mn:
+                plane = (plane - mn) * (255.0 / (mx - mn))
+            else:
+                plane = plane - mn
+            plane = plane.cast('uchar')
+
+        # Resize to fit the tile pyramid
+        factor = dim / max(plane.width, plane.height)
+        plane = plane.resize(factor)
+        stage_image_logger.info('Resized to %d by %d' % (plane.width, plane.height))
+
+        assert max(plane.width, plane.height) == dim, \
+            'Image not scaled properly. Expected %d pixels on longest side' % dim
+
+        buf = plane.dzsave_buffer(basename=f'{plane_prefix}{z}', layout='google', suffix='.jpg', background=0)
+        bufs.append(buf)
+
+    # Package into MBTiles
+    stage_image_logger.info("Step 2/2: Packaging tiles into MBTiles...")
+    buffer_to_mbtiles(
+        bufs,
+        mbtiles_path,
+        format="jpg",
+        batch_size=50000,
+        width=original_dims[0],
+        height=original_dims[1],
+        name=name,
+        description=description,
+        voxel_size=voxel_size,
+    )
+
+
+def _stage_image_disk(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size, out_dir):
+    """Disk-based path: tiles are written to a temp directory, then imported into MBTiles."""
+    tiles_dir = os.path.join(out_dir, "_tiles_temp")
+
     try:
-        # Step 1: Create tile pyramids
-        stage_image_logger.info("Step 1/3: Creating tile pyramids...")
+        stage_image_logger.info("Step 1/3: Creating tile pyramids on disk...")
         result = tile_maker(img, zoom_levels=zoom_levels, out_dir=tiles_dir, plane_prefix=plane_prefix)
 
-        # Step 2: Package into MBTiles
         stage_image_logger.info("Step 2/3: Packaging tiles into MBTiles...")
         disk_to_mbtiles(
             tiles_dir,
@@ -286,15 +366,11 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
             voxel_size=voxel_size,
         )
 
-        # Step 3: Clean up temporary tiles
         stage_image_logger.info("Step 3/3: Cleaning up temporary files...")
         shutil.rmtree(tiles_dir)
 
-    except Exception as e:
-        # Clean up on failure
+    except Exception:
         if os.path.exists(tiles_dir):
             shutil.rmtree(tiles_dir)
         raise
-
-    stage_image_logger.info("Done! MBTiles file created at: %s" % mbtiles_path)
 

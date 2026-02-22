@@ -3,10 +3,17 @@
 # Simplified MBTiles utility for non-geographic imagery
 # Based on MBUtil (c) Development Seed 2012
 
-import sqlite3, logging, time, os, re
+import sqlite3
+import logging
+import time
+import os
+import re
+import io
+import zipfile
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
+
 
 def mbtiles_setup(cur):
     cur.execute("""
@@ -23,6 +30,7 @@ def mbtiles_setup(cur):
     cur.execute("""create unique index tile_index on tiles
         (plane_id, zoom_level, tile_column, tile_row);""")
 
+
 def mbtiles_connect(mbtiles_file, silent):
     try:
         con = sqlite3.connect(mbtiles_file)
@@ -33,14 +41,16 @@ def mbtiles_connect(mbtiles_file, silent):
             logger.exception(e)
         raise
 
+
 def optimize_connection(cur):
     cur.execute("""PRAGMA synchronous=0""")
     cur.execute("""PRAGMA locking_mode=EXCLUSIVE""")
     cur.execute("""PRAGMA journal_mode=DELETE""")
 
+
 def compression_prepare(cur, silent):
     if not silent:
-        logger.debug('Prepare database compression.')
+        logger.debug("Prepare database compression.")
     cur.execute("""
       CREATE TABLE if not exists images (
         tile_data blob,
@@ -55,22 +65,23 @@ def compression_prepare(cur, silent):
         tile_id integer);
     """)
 
+
 def optimize_database(con, silent):
     if not silent:
-        logger.debug('analyzing db')
+        logger.debug("analyzing db")
     con.execute("""ANALYZE;""")
     if not silent:
-        logger.debug('cleaning db')
+        logger.debug("cleaning db")
 
     # VACUUM requires autocommit mode
     con.isolation_level = None
     con.execute("""VACUUM;""")
-    con.isolation_level = ''
+    con.isolation_level = ""
 
 
 def compression_do(cur, con, chunk, silent):
     if not silent:
-        logger.debug('Making database compression.')
+        logger.debug("Making database compression.")
     overlapping = 0
     unique = 0
     total = 0
@@ -86,8 +97,11 @@ def compression_do(cur, con, chunk, silent):
         ids = []
         files = []
         start = time.time()
-        cur.execute("""select plane_id, zoom_level, tile_column, tile_row, tile_data
-            from tiles where rowid > ? and rowid <= ?""", ((i * chunk), ((i + 1) * chunk)))
+        cur.execute(
+            """select plane_id, zoom_level, tile_column, tile_row, tile_data
+            from tiles where rowid > ? and rowid <= ?""",
+            ((i * chunk), ((i + 1) * chunk)),
+        )
         if not silent:
             logger.debug("select: %s" % (time.time() - start))
         rows = cur.fetchall()
@@ -128,12 +142,15 @@ def compression_do(cur, con, chunk, silent):
 
     if not silent:
         dedup_pct = (overlapping / total * 100) if total > 0 else 0
-        logger.info('Compression: %d tiles processed, %d unique, %d duplicates (%.1f%% deduplication)' %
-                   (total, unique, overlapping, dedup_pct))
+        logger.info(
+            "Compression: %d tiles processed, %d unique, %d duplicates (%.1f%% deduplication)"
+            % (total, unique, overlapping, dedup_pct)
+        )
+
 
 def compression_finalize(cur, con, silent):
     if not silent:
-        logger.debug('Finalizing database compression.')
+        logger.debug("Finalizing database compression.")
     cur.execute("""drop table tiles;""")
     cur.execute("""create view tiles as
         select map.plane_id as plane_id, 
@@ -152,13 +169,16 @@ def compression_finalize(cur, con, silent):
     # VACUUM requires autocommit mode
     con.isolation_level = None
     cur.execute("""vacuum;""")
-    con.isolation_level = ''
+    con.isolation_level = ""
 
     cur.execute("""analyze;""")
 
+
 def get_dirs(path):
-    return [name for name in os.listdir(path)
-        if os.path.isdir(os.path.join(path, name))]
+    return [
+        name for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))
+    ]
+
 
 def _parse_plane_id(name: str, silent: bool) -> int:
     """Extract an integer plane_id from a directory name.
@@ -174,8 +194,12 @@ def _parse_plane_id(name: str, silent: bool) -> int:
     if m:
         return int(m.group(1))
     if not silent:
-        logger.error("Cannot parse plane_id from directory '%s'. Expected trailing integer (e.g., 'd_123' or '123').", name)
+        logger.error(
+            "Cannot parse plane_id from directory '%s'. Expected trailing integer (e.g., 'd_123' or '123').",
+            name,
+        )
     raise ValueError(f"Invalid plane directory name: {name}")
+
 
 def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     """
@@ -196,10 +220,10 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
             width: Image width in pixels (optional)
             height: Image height in pixels (optional)
     """
-    silent = kwargs.get('silent', False)
-    image_format = kwargs.get('format', 'png')
-    image_format = (image_format or 'png').lower()
-    batch_size = kwargs.get('batch_size', 1000)
+    silent = kwargs.get("silent", False)
+    image_format = kwargs.get("format", "png")
+    image_format = (image_format or "png").lower()
+    batch_size = kwargs.get("batch_size", 1000)
     sample_every = max(10000, batch_size * 10)
 
     if not silent:
@@ -225,7 +249,9 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
             d = _parse_plane_id(plane_dir, silent)
         except ValueError:
             if not silent:
-                logger.warning("Skipping directory without numeric plane id: %s", plane_dir)
+                logger.warning(
+                    "Skipping directory without numeric plane id: %s", plane_dir
+                )
             continue
         plane_ids.add(d)
         for zoom_dir in get_dirs(os.path.join(directory_path, plane_dir)):
@@ -233,7 +259,9 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
             zoom_levels.add(z)
             for row_dir in get_dirs(os.path.join(directory_path, plane_dir, zoom_dir)):
                 y = int(row_dir)  # y coordinate from directory name
-                for current_file in os.listdir(os.path.join(directory_path, plane_dir, zoom_dir, row_dir)):
+                for current_file in os.listdir(
+                    os.path.join(directory_path, plane_dir, zoom_dir, row_dir)
+                ):
                     if current_file == ".DS_Store":
                         if not silent:
                             logger.debug("Skipping .DS_Store file")
@@ -241,19 +269,24 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
 
                     # Robust extension parsing (handles multi-dot names, case-insensitive)
                     file_name, ext = os.path.splitext(current_file)
-                    ext = ext.lstrip('.').lower()
+                    ext = ext.lstrip(".").lower()
                     if ext != image_format or not file_name:
                         continue
 
                     x = int(file_name)  # x coordinate from file name
 
-                    file_path = os.path.join(directory_path, plane_dir, zoom_dir, row_dir, current_file)
-                    with open(file_path, 'rb') as f:
+                    file_path = os.path.join(
+                        directory_path, plane_dir, zoom_dir, row_dir, current_file
+                    )
+                    with open(file_path, "rb") as f:
                         file_content = f.read()
 
                     # Log only the first few and then sparsely to avoid huge logs
                     if not silent and (count < 10 or ((count + 1) % sample_every == 0)):
-                        logger.debug(' Read tile from Plane (d): %i, Zoom (z): %i\tCol (x): %i\tRow (y): %i' % (d, z, x, y))
+                        logger.debug(
+                            " Read tile from Plane (d): %i, Zoom (z): %i\tCol (x): %i\tRow (y): %i"
+                            % (d, z, x, y)
+                        )
 
                     # Add to batch
                     batch.append((d, z, x, y, sqlite3.Binary(file_content)))
@@ -261,61 +294,217 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
 
                     # Insert batch when it reaches batch_size
                     if len(batch) >= batch_size:
-                        cur.executemany("""insert into tiles (
+                        cur.executemany(
+                            """insert into tiles (
                             plane_id, zoom_level, tile_column, tile_row, tile_data) values
-                            (?, ?, ?, ?, ?);""", batch)
+                            (?, ?, ?, ?, ?);""",
+                            batch,
+                        )
                         con.commit()
                         batch = []
                         if not silent:
-                            logger.info(" %s tiles inserted (%d tiles/sec)" % (count, count / (time.time() - start_time)))
+                            logger.info(
+                                " %s tiles inserted (%d tiles/sec)"
+                                % (count, count / (time.time() - start_time))
+                            )
 
     # Insert remaining tiles in batch
     if batch:
-        cur.executemany("""insert into tiles (
+        cur.executemany(
+            """insert into tiles (
             plane_id, zoom_level, tile_column, tile_row, tile_data) values
-            (?, ?, ?, ?, ?);""", batch)
+            (?, ?, ?, ?, ?);""",
+            batch,
+        )
         con.commit()
 
     if not silent:
-        logger.info('Total: %s tiles inserted in %.2f seconds (%d tiles/sec)' %
-                   (count, time.time() - start_time, count / (time.time() - start_time)))
+        logger.info(
+            "Total: %s tiles inserted in %.2f seconds (%d tiles/sec)"
+            % (count, time.time() - start_time, count / (time.time() - start_time))
+        )
 
     # Insert metadata
     metadata = {
         # Auto-detected
-        'format': image_format,
-        'minzoom': str(min(zoom_levels)) if zoom_levels else '0',
-        'maxzoom': str(max(zoom_levels)) if zoom_levels else '0',
-        'planes': ','.join(str(p) for p in sorted(plane_ids)),
-        'plane_count': str(len(plane_ids)),
-        'created': datetime.now(timezone.utc).isoformat(),
-        'tile_count': str(count),
+        "format": image_format,
+        "minzoom": str(min(zoom_levels)) if zoom_levels else "0",
+        "maxzoom": str(max(zoom_levels)) if zoom_levels else "0",
+        "planes": ",".join(str(p) for p in sorted(plane_ids)),
+        "plane_count": str(len(plane_ids)),
+        "created": datetime.now(timezone.utc).isoformat(),
+        "tile_count": str(count),
     }
     # Optional (from kwargs)
-    if kwargs.get('name'):
-        metadata['name'] = kwargs['name']
-    if kwargs.get('description'):
-        metadata['description'] = kwargs['description']
-    if kwargs.get('width'):
-        metadata['width'] = str(kwargs['width'])
-    if kwargs.get('height'):
-        metadata['height'] = str(kwargs['height'])
-    if kwargs.get('voxel_size'):
+    if kwargs.get("name"):
+        metadata["name"] = kwargs["name"]
+    if kwargs.get("description"):
+        metadata["description"] = kwargs["description"]
+    if kwargs.get("width"):
+        metadata["width"] = str(kwargs["width"])
+    if kwargs.get("height"):
+        metadata["height"] = str(kwargs["height"])
+    if kwargs.get("voxel_size"):
         # Store voxel size as comma-separated string: "x,y,z"
-        voxel_size = kwargs['voxel_size']
+        voxel_size = kwargs["voxel_size"]
         if isinstance(voxel_size, (list, tuple)) and len(voxel_size) == 3:
-            metadata['voxel_size'] = ','.join(str(v) for v in voxel_size)
+            metadata["voxel_size"] = ",".join(str(v) for v in voxel_size)
 
     for name, value in metadata.items():
-        cur.execute('INSERT INTO metadata (name, value) VALUES (?, ?)', (name, value))
+        cur.execute("INSERT INTO metadata (name, value) VALUES (?, ?)", (name, value))
     con.commit()
 
     if not silent:
-        logger.info('Metadata: %s', metadata)
+        logger.info("Metadata: %s", metadata)
 
-    if kwargs.get('compression', False):
+    if kwargs.get("compression", False):
         compression_prepare(cur, silent)
-        compression_chunk = kwargs.get('compression_chunk', 10000)
+        compression_chunk = kwargs.get("compression_chunk", 10000)
+        compression_do(cur, con, compression_chunk, silent)
+        compression_finalize(cur, con, silent)
+
+    optimize_database(con, silent)
+
+    con.close()
+
+
+def buffer_to_mbtiles(bufs, mbtiles_file, **kwargs):
+    """
+    Import tiles from in-memory zip buffers into MBTiles database.
+    Each buffer is a zip archive produced by pyvips dzsave_buffer(), containing
+    tiles in basename_files/z/y/x.jpg layout.
+
+    Args:
+        bufs: list of bytes objects (one zip per plane, from dzsave_buffer
+              called with basename='plane_N')
+        mbtiles_file: Output MBTiles file path
+        **kwargs: Same as disk_to_mbtiles (format, batch_size, compression,
+                  compression_chunk, silent, name, description, width, height,
+                  voxel_size)
+    """
+    silent = kwargs.get("silent", False)
+    image_format = kwargs.get("format", "png")
+    image_format = (image_format or "png").lower()
+    batch_size = kwargs.get("batch_size", 1000)
+    sample_every = max(10000, batch_size * 10)
+
+    if not silent:
+        logger.info("Importing buffers to MBTiles")
+
+    con = mbtiles_connect(mbtiles_file, silent)
+    cur = con.cursor()
+    optimize_connection(cur)
+    mbtiles_setup(cur)
+
+    count = 0
+    start_time = time.time()
+    batch = []
+    plane_ids = set()
+    zoom_levels = set()
+
+    for buf in bufs:
+        with zipfile.ZipFile(io.BytesIO(buf), "r") as zf:
+            for entry in zf.namelist():
+                # Skip directories
+                if entry.endswith("/"):
+                    continue
+
+                parts = entry.split("/")
+                # Expect: plane_N_files/z/y/x.jpg (4 parts)
+                if len(parts) != 4:
+                    continue
+
+                file_name, ext = os.path.splitext(parts[3])
+                ext = ext.lstrip(".").lower()
+                if ext != image_format or not file_name:
+                    continue
+
+                try:
+                    d = _parse_plane_id(parts[0], silent)
+                    z = int(parts[1])
+                    y = int(parts[2])
+                    x = int(file_name)
+                except ValueError:
+                    continue
+
+                plane_ids.add(d)
+                zoom_levels.add(z)
+
+                file_content = zf.read(entry)
+
+                if not silent and (count < 10 or ((count + 1) % sample_every == 0)):
+                    logger.debug(
+                        " Read tile from Plane (d): %i, Zoom (z): %i\tCol (x): %i\tRow (y): %i"
+                        % (d, z, x, y)
+                    )
+
+                batch.append((d, z, x, y, sqlite3.Binary(file_content)))
+                count += 1
+
+                if len(batch) >= batch_size:
+                    cur.executemany(
+                        """insert into tiles (
+                        plane_id, zoom_level, tile_column, tile_row, tile_data) values
+                        (?, ?, ?, ?, ?);""",
+                        batch,
+                    )
+                    con.commit()
+                    batch = []
+                    if not silent:
+                        logger.info(
+                            " %s tiles inserted (%d tiles/sec)"
+                            % (count, count / (time.time() - start_time))
+                        )
+
+    # Insert remaining tiles
+    if batch:
+        cur.executemany(
+            """insert into tiles (
+            plane_id, zoom_level, tile_column, tile_row, tile_data) values
+            (?, ?, ?, ?, ?);""",
+            batch,
+        )
+        con.commit()
+
+    if not silent:
+        logger.info(
+            "Total: %s tiles inserted in %.2f seconds (%d tiles/sec)"
+            % (count, time.time() - start_time, count / (time.time() - start_time))
+        )
+
+    # Insert metadata
+    metadata = {
+        "format": image_format,
+        "minzoom": str(min(zoom_levels)) if zoom_levels else "0",
+        "maxzoom": str(max(zoom_levels)) if zoom_levels else "0",
+        "planes": ",".join(str(p) for p in sorted(plane_ids)),
+        "plane_count": str(len(plane_ids)),
+        "created": datetime.now(timezone.utc).isoformat(),
+        "tile_count": str(count),
+    }
+    if kwargs.get("name"):
+        metadata["name"] = kwargs["name"]
+    if kwargs.get("description"):
+        metadata["description"] = kwargs["description"]
+    if kwargs.get("width"):
+        metadata["width"] = str(kwargs["width"])
+    if kwargs.get("height"):
+        metadata["height"] = str(kwargs["height"])
+    if kwargs.get("voxel_size"):
+        voxel_size = kwargs["voxel_size"]
+        if isinstance(voxel_size, (list, tuple)) and len(voxel_size) == 3:
+            metadata["voxel_size"] = ",".join(str(v) for v in voxel_size)
+
+    for name, value in metadata.items():
+        cur.execute("INSERT INTO metadata (name, value) VALUES (?, ?)", (name, value))
+    con.commit()
+
+    if not silent:
+        logger.info("Metadata: %s", metadata)
+
+    if kwargs.get("compression", False):
+        compression_prepare(cur, silent)
+        compression_chunk = kwargs.get("compression_chunk", 10000)
         compression_do(cur, con, compression_chunk, silent)
         compression_finalize(cur, con, silent)
 
