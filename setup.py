@@ -42,7 +42,7 @@ install_deps = [
     "fastremap",
     "numexpr",
     "diplib",
-    "pyvips",
+    "pyvips[binary]",
     "natsort",
     "redis",
     "matplotlib",
