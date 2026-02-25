@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from ...src.core.utils.geometry import gaussian_ellipsoid_props, gaussian_contour
 import logging
 
-summary_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def cells_summary(cells, spots, genes, is3D):
@@ -24,7 +24,7 @@ def cells_summary(cells, spots, genes, is3D):
 
     tol = 0.001
 
-    summary_logger.info('Start collecting data ...')
+    logger.info('Start collecting data ...')
 
     isCount_nonZero = [d > tol for d in gene_count]
     name_list = [list(gene_names[i][d]) for (i, d) in enumerate(isCount_nonZero)]
@@ -75,7 +75,7 @@ def cells_summary(cells, spots, genes, is3D):
 
     # Ignore the first row. It is the pseudocell to keep the misreads (ie the background)
     df = df[1:]
-    summary_logger.info('Data collected!')
+    logger.info('Data collected!')
     return df
 
 

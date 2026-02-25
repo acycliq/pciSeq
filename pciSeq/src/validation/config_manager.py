@@ -5,7 +5,7 @@ from scipy.sparse import coo_matrix
 from pciSeq import config
 from pciSeq.src.core.utils.io_utils import log_file
 from pciSeq.src.diagnostics.utils import check_redis_server
-config_manager_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -49,9 +49,9 @@ class ConfigManager:
         for key in opts:
             if key in cfg_dict:
                 cfg_dict[key] = opts[key]
-                config_manager_logger.info(f'{key} is set to {opts[key]}')
+                logger.info(f'{key} is set to {opts[key]}')
             else:
-                config_manager_logger.warning(f"Unrecognized configuration option: '{key}'! "
+                logger.warning(f"Unrecognized configuration option: '{key}'! "
                                               f"Valid options are: {', '.join(sorted(cfg_dict.keys()))}")
 
         log_file(cfg_dict)

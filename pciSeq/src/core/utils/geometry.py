@@ -7,7 +7,7 @@ from scipy.sparse import coo_matrix
 import logging
 
 # Configure logging
-geometry_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def gaussian_contour(mu: Union[List, np.ndarray],
@@ -154,7 +154,7 @@ def euler_angles(r: NDArray[np.float32]) -> List[float]:
     # Check for gimbal lock.
     # Gimbal lock occurs when θ = ±π/2, making φ and ψ indistinguishable.
     # if np.isclose(abs(theta), np.pi / 2, atol=1e-6):
-    #     geometry_logger.warning("Warning: Gimbal lock detected (pitch = ±90°)")
+    #     logger.warning("Warning: Gimbal lock detected (pitch = ±90°)")
 
     return [phi, theta, psi]
 

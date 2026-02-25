@@ -9,7 +9,7 @@ import logging
 from typing import Optional, Dict, Any
 from pciSeq.src.diagnostics.constants import DiagnosticKeys
 
-model_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class DiagnosticModel:
@@ -38,7 +38,7 @@ class DiagnosticModel:
                 metadata=self._create_metadata(iteration, has_converged)
             )
         except Exception as e:
-            model_logger.error(f"Failed to publish diagnostics: {e}")
+            logger.error(f"Failed to publish diagnostics: {e}")
 
     def _publish_data_to_redis(self, key: DiagnosticKeys, data: pd.DataFrame, metadata: dict) -> None:
         """Helper method to publish data to Redis with a consistent pattern."""
@@ -87,7 +87,7 @@ class DiagnosticModel:
             data = self.redis_client.get(key.value)
             return eval(data) if data else None
         except Exception as e:
-            model_logger.error(f"Failed to retrieve data: {e}")
+            logger.error(f"Failed to retrieve data: {e}")
             return None
 
     def _verify_connection(self) -> None:
@@ -95,7 +95,7 @@ class DiagnosticModel:
         try:
             self.redis_client.ping()
         except redis.ConnectionError as e:
-            model_logger.error(f"Redis connection failed: {e}")
+            logger.error(f"Redis connection failed: {e}")
             raise
 
     def flush_db(self):

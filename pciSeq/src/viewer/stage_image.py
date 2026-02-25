@@ -7,7 +7,7 @@ import numpy as np
 
 from .mbtiles import disk_to_mbtiles, buffer_to_mbtiles
 
-stage_image_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # Map numpy dtypes to pyvips format strings
 DTYPE_TO_VIPS_FORMAT = {
@@ -78,7 +78,7 @@ def split_image(im):
     image = im.gravity('north-west', tiles_across * tile_size, tiles_down * tile_size)
 
     for j in range(tiles_down):
-        stage_image_logger.info('Moving to the next row: %d/%d '% (j, tiles_down-1) )
+        logger.info('Moving to the next row: %d/%d '% (j, tiles_down-1) )
         y_top_left = j * tile_size
         for i in range(tiles_across):
             x_top_left = i * tile_size
@@ -86,12 +86,12 @@ def split_image(im):
             tile_num = j * tiles_across + i
             fov_id = 'fov_' + str(tile_num)
 
-            out_dir = os.path.join(stage_image_logger.ROOT_DIR, 'fov', fov_id, 'img')
+            out_dir = os.path.join(logger.ROOT_DIR, 'fov', fov_id, 'img')
             full_path = os.path.join(out_dir, fov_id +'.tif')
             if not os.path.exists(os.path.dirname(full_path)):
                 os.makedirs(os.path.dirname(full_path))
             tile.write_to_file(full_path)
-            stage_image_logger.info('tile: %s saved at %s' % (fov_id, full_path) )
+            logger.info('tile: %s saved at %s' % (fov_id, full_path) )
 
 
 def map_image_size(z):
@@ -142,7 +142,7 @@ def _prepare_plane(im, zoom_levels):
     """
     # Normalize to 8-bit if not already
     if im.format != 'uchar':
-        stage_image_logger.info(f"Converting {im.format} to uchar with normalization")
+        logger.info(f"Converting {im.format} to uchar with normalization")
         mn = im.min()
         mx = im.max()
         if mx > mn:
@@ -155,7 +155,7 @@ def _prepare_plane(im, zoom_levels):
     dim = map_image_size(zoom_levels)
     factor = dim / max(im.width, im.height)
     im = im.resize(factor)
-    stage_image_logger.info('Resized to %d by %d' % (im.width, im.height))
+    logger.info('Resized to %d by %d' % (im.width, im.height))
 
     assert max(im.width, im.height) == dim, \
         'Image not scaled properly. Expected %d pixels on longest side' % dim
@@ -211,12 +211,12 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
 
     img, original_dims, num_planes = _get_img_details(img)
 
-    stage_image_logger.info('Processing %d plane(s), size: %dx%d' % (num_planes, original_dims[0], original_dims[1]))
+    logger.info('Processing %d plane(s), size: %dx%d' % (num_planes, original_dims[0], original_dims[1]))
 
     # Process each plane
     for z in range(num_planes):
         if num_planes > 1:
-            stage_image_logger.info('Plane %d/%d' % (z + 1, num_planes))
+            logger.info('Plane %d/%d' % (z + 1, num_planes))
 
         if isinstance(img, pyvips.Image):
             plane = img
@@ -227,7 +227,7 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
 
         _process_single_plane(plane, zoom_levels, os.path.join(out_dir, f"{plane_prefix}{z}"))
 
-    stage_image_logger.info('Done. Pyramid of tiles saved at: %s' % out_dir)
+    logger.info('Done. Pyramid of tiles saved at: %s' % out_dir)
 
     return {
         'original_dims': original_dims,
@@ -272,15 +272,15 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
 
     mbtiles_path = os.path.join(out_dir, "output.mbtiles")
 
-    stage_image_logger.info("Starting image processing...")
-    stage_image_logger.info("Output directory: %s" % out_dir)
+    logger.info("Starting image processing...")
+    logger.info("Output directory: %s" % out_dir)
 
     if use_buffer:
         _stage_image_buffer(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size)
     else:
         _stage_image_disk(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size, out_dir)
 
-    stage_image_logger.info("Done! MBTiles file created at: %s" % mbtiles_path)
+    logger.info("Done! MBTiles file created at: %s" % mbtiles_path)
 
     return mbtiles_path
 
@@ -289,7 +289,7 @@ def _plane_buffer_generator(img, num_planes, zoom_levels, plane_prefix):
     """Yield one dzsave_buffer per plane. O(1) memory, only one plane's tiles in memory at a time."""
     for z in range(num_planes):
         if num_planes > 1:
-            stage_image_logger.info('Plane %d/%d' % (z + 1, num_planes))
+            logger.info('Plane %d/%d' % (z + 1, num_planes))
 
         if isinstance(img, pyvips.Image):
             plane = img
@@ -306,8 +306,8 @@ def _stage_image_buffer(img, mbtiles_path, zoom_levels, name, description, plane
     """In-memory path: tiles never touch disk."""
     img, original_dims, num_planes = _get_img_details(img)
 
-    stage_image_logger.info('Processing %d plane(s), size: %dx%d' % (num_planes, original_dims[0], original_dims[1]))
-    stage_image_logger.info("Creating tile pyramids and packaging into MBTiles...")
+    logger.info('Processing %d plane(s), size: %dx%d' % (num_planes, original_dims[0], original_dims[1]))
+    logger.info("Creating tile pyramids and packaging into MBTiles...")
 
     bufs = _plane_buffer_generator(img, num_planes, zoom_levels, plane_prefix)
     buffer_to_mbtiles(
@@ -328,10 +328,10 @@ def _stage_image_disk(img, mbtiles_path, zoom_levels, name, description, plane_p
     tiles_dir = os.path.join(out_dir, "_tiles_temp")
 
     try:
-        stage_image_logger.info("Step 1/3: Creating tile pyramids on disk...")
+        logger.info("Step 1/3: Creating tile pyramids on disk...")
         result = tile_maker(img, zoom_levels=zoom_levels, out_dir=tiles_dir, plane_prefix=plane_prefix)
 
-        stage_image_logger.info("Step 2/3: Packaging tiles into MBTiles...")
+        logger.info("Step 2/3: Packaging tiles into MBTiles...")
         disk_to_mbtiles(
             tiles_dir,
             mbtiles_path,
@@ -344,7 +344,7 @@ def _stage_image_disk(img, mbtiles_path, zoom_levels, name, description, plane_p
             voxel_size=voxel_size,
         )
 
-        stage_image_logger.info("Step 3/3: Cleaning up temporary files...")
+        logger.info("Step 3/3: Cleaning up temporary files...")
         shutil.rmtree(tiles_dir)
 
     except Exception:

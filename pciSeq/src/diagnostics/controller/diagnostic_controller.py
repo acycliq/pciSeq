@@ -22,7 +22,7 @@ import tomlkit
 from ...diagnostics.model.diagnostic_model import DiagnosticModel
 from ...diagnostics.utils import subprocess_cmd, check_platform
 
-controller_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class DiagnosticController:
@@ -52,7 +52,7 @@ class DiagnosticController:
             signum: Signal number
             frame: Current stack frame
         """
-        controller_logger.info(f"Received signal {signum}, initiating shutdown...")
+        logger.info(f"Received signal {signum}, initiating shutdown...")
         self.shutdown()
 
     def initialize(self) -> bool:
@@ -63,10 +63,10 @@ class DiagnosticController:
         """
         try:
             self._setup_streamlit_credentials()
-            controller_logger.info("Diagnostics system initialized successfully")
+            logger.info("Diagnostics system initialized successfully")
             return True
         except Exception as e:
-            controller_logger.error(f"Failed to initialize diagnostics: {e}")
+            logger.error(f"Failed to initialize diagnostics: {e}")
             return False
 
     def launch_dashboard(self) -> bool:
@@ -95,10 +95,10 @@ class DiagnosticController:
                 "streamlit", "run", dashboard_path, " --server.headless true"
             ])
 
-            controller_logger.info(f'Started dashboard with PID: {self.dashboard_process.pid}')
+            logger.info(f'Started dashboard with PID: {self.dashboard_process.pid}')
             return True
         except subprocess.SubprocessError as e:
-            controller_logger.error(f"Failed to start dashboard: {e}")
+            logger.error(f"Failed to start dashboard: {e}")
             return False
 
     def update_diagnostics(self, algorithm_model, iteration: int, has_converged: bool) -> None:
@@ -116,9 +116,9 @@ class DiagnosticController:
                 iteration=iteration,
                 has_converged=has_converged
             )
-            controller_logger.debug(f"Updated diagnostics for iteration {iteration}")
+            logger.debug(f"Updated diagnostics for iteration {iteration}")
         except Exception as e:
-            controller_logger.error(f"Failed to update diagnostics: {e}")
+            logger.error(f"Failed to update diagnostics: {e}")
 
     def shutdown(self) -> None:
         """Clean shutdown of all components."""
@@ -126,10 +126,10 @@ class DiagnosticController:
             try:
                 self.dashboard_process.terminate()
                 self.dashboard_process.wait(timeout=5)
-                controller_logger.info(f'Terminated dashboard with PID: {self.dashboard_process.pid}')
+                logger.info(f'Terminated dashboard with PID: {self.dashboard_process.pid}')
             except subprocess.TimeoutExpired:
                 self.dashboard_process.kill()
-                controller_logger.warning(f'Forced dashboard termination with PID: {self.dashboard_process.pid}')
+                logger.warning(f'Forced dashboard termination with PID: {self.dashboard_process.pid}')
             finally:
                 self.dashboard_process = None
 
@@ -137,9 +137,9 @@ class DiagnosticController:
         """Clear all data from Redis database."""
         try:
             self.model.flush_db()
-            controller_logger.info('Redis database flushed on startup')
+            logger.info('Redis database flushed on startup')
         except Exception as e:
-            controller_logger.warning(f"Failed to flush redis db: {e}")
+            logger.warning(f"Failed to flush redis db: {e}")
 
     def enable_keyspace_events(self):
         """
@@ -151,14 +151,14 @@ class DiagnosticController:
         try:
             out, err, exit_code = subprocess_cmd([exe, 'config', 'set', 'notify-keyspace-events', 'KEA'])
             if exit_code != 0:
-                controller_logger.error(f"notify-keyspace-events failed with exit code: {exit_code}")
-                controller_logger.error(f"Output: {out.decode('UTF-8').rstrip()}")
-                controller_logger.error(f"Error: {err.decode('UTF-8').rstrip()}")
+                logger.error(f"notify-keyspace-events failed with exit code: {exit_code}")
+                logger.error(f"Output: {out.decode('UTF-8').rstrip()}")
+                logger.error(f"Error: {err.decode('UTF-8').rstrip()}")
                 raise Exception('Failed to enable keyspace events')
-            controller_logger.info(f"Enabling keyspace events... {out.decode('UTF-8').rstrip()}")
+            logger.info(f"Enabling keyspace events... {out.decode('UTF-8').rstrip()}")
             self.model.redis_client.keyspace_events_enabled = True
         except OSError as ex:
-            controller_logger.error(f"Cannot enable keyspace events. Failed with error: {ex}")
+            logger.error(f"Cannot enable keyspace events. Failed with error: {ex}")
             raise
 
 
@@ -185,9 +185,9 @@ class DiagnosticController:
                 with open(credentials_path, 'w') as outfile:
                     tomlkit.dump(doc, outfile)
 
-            controller_logger.debug("Streamlit credentials configured successfully")
+            logger.debug("Streamlit credentials configured successfully")
             return True
         except Exception as e:
-            controller_logger.warning(f"Failed to setup Streamlit credentials: {e}")
-            controller_logger.warning("Diagnostics dashboard may show welcome screen")
+            logger.warning(f"Failed to setup Streamlit credentials: {e}")
+            logger.warning("Diagnostics dashboard may show welcome screen")
             return False  # Continue without proper credentials

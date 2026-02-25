@@ -9,7 +9,7 @@ import scipy
 from .singleCell import SingleCell
 from .cells import Cells
 
-cellType_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class CellClass(object):
@@ -123,7 +123,7 @@ class CellClass(object):
                     # Skip the 'default' key as it's not a cell type
                     continue
                 elif key not in self.names:
-                    cellType_logger.warning(f"Cell type '{key}' in cell_type_weights not found in cell type names. Ignoring.")
+                    logger.warning(f"Cell type '{key}' in cell_type_weights not found in cell type names. Ignoring.")
                 else:
                     # Override with provided weights where applicable
                     weights_dict[key] = cfg_weights[key]

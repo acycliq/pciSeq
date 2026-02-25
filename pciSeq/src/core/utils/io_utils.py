@@ -19,7 +19,7 @@ from tqdm import tqdm
 import logging
 
 # Configure logging
-io_utils_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def get_out_dir(path: Optional[str] = None, sub_folder: str = '') -> str:
@@ -66,7 +66,7 @@ def log_file(cfg: Dict) -> None:
         fh.setFormatter(formatter)
 
         root_logger.addHandler(fh)
-        io_utils_logger.info('Writing to %s' % logfile)
+        logger.info('Writing to %s' % logfile)
 
 
 def download_url_to_file(url: str, dst: str, progress: bool = True) -> None:
@@ -126,7 +126,7 @@ def load_from_url(url: str) -> str:
     parts = urlparse(url)
     filename = os.path.basename(parts.path)
     if not os.path.exists(filename):
-        io_utils_logger.info('Downloading: "%s" to %s', url, filename)
+        logger.info('Downloading: "%s" to %s', url, filename)
         download_url_to_file(url, filename)
     return filename
 
@@ -181,7 +181,7 @@ def serialise(varBayes: Any, debug_dir: str) -> None:
         debug_dir: Directory to save pickle file
     """
     varBayes._metadata = _collect_metadata()
-    # io_utils_logger.info('Metadata: git_commit=%s, date=%s, host=%s',
+    # logger.info('Metadata: git_commit=%s, date=%s, host=%s',
     #                      varBayes._metadata.get('git_commit'),
     #                      varBayes._metadata.get('date'),
     #                      varBayes._metadata.get('hostname'))
@@ -193,7 +193,7 @@ def serialise(varBayes: Any, debug_dir: str) -> None:
         pickle.dump(varBayes, outf)
 
     pickle_mb = os.path.getsize(pickle_dst) / (1024 * 1024)
-    io_utils_logger.info('Saved at %s (%.1f MB)', pickle_dst, pickle_mb)
+    logger.info('Saved at %s (%.1f MB)', pickle_dst, pickle_mb)
 
     # Export diagnostics database to diagnostics folder (sibling of arrow folder)
     # This allows the viewer to auto-discover it alongside arrow data
@@ -271,12 +271,12 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     if hasattr(misread_series, 'to_dict'):
         misread_dict = {str(k): float(v) for k, v in misread_series.to_dict().items()}
     else:
-        io_utils_logger.error("Diagnostics export skipped: 'misread_density' is missing or invalid.")
+        logger.error("Diagnostics export skipped: 'misread_density' is missing or invalid.")
         return
 
     # --- Populate Metadata ---
     # Compute scaled_means for metadata nC (and for cells table)
-    # io_utils_logger.info('Computing scaled_exp for diagnostics export...')
+    # logger.info('Computing scaled_exp for diagnostics export...')
     scaled_means = varBayes.scaled_exp.compute()
     nC, nG, nK = scaled_means.shape
 
@@ -308,7 +308,7 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         ('label_map', json.dumps(label_map)),
     ]
     cursor.executemany('INSERT INTO metadata VALUES (?, ?)', meta_items)
-    # io_utils_logger.info('Inserted %d metadata entries', len(meta_items))
+    # logger.info('Inserted %d metadata entries', len(meta_items))
 
     # --- Populate Cells Table ---
     scaled_means_f32 = scaled_means.astype(np.float32)
@@ -330,11 +330,11 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
             ))
         cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?)', batch_data)
         # if (batch_end % 10000 == 0) or (batch_end == nC):
-        #     io_utils_logger.info('Inserted %d/%d cells', batch_end, nC)
+        #     logger.info('Inserted %d/%d cells', batch_end, nC)
 
     # --- Populate Spots Table ---
     if spots.mvn_loglik_arr is None or spots.attention is None or spots.expr_fluctuations is None or spots.cell_inefficiency is None or neighbor_ids is None:
-        io_utils_logger.warning('check_spot data missing; spots table will be empty.')
+        logger.warning('check_spot data missing; spots table will be empty.')
     else:
         mvn_f32 = spots.mvn_loglik_arr.astype(np.float32)
         attn_f32 = spots.attention.astype(np.float32)
@@ -365,13 +365,13 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
                 INSERT INTO spots (spot_id, gene_idx, x, y, z, neighbor_cell_ids, mvn_loglik, attention, expr_fluct, cell_inefficiency)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', batch)
             # if (end % 50000 == 0) or (end == nS):
-            #     io_utils_logger.info('Inserted %d/%d spots', end, nS)
+            #     logger.info('Inserted %d/%d spots', end, nS)
 
     conn.commit()
     conn.close()
 
     db_size_mb = os.path.getsize(db_path) / (1024 * 1024)
-    io_utils_logger.info('Saved at: %s (%.1f MB)', db_path, db_size_mb)
+    logger.info('Saved at: %s (%.1f MB)', db_path, db_size_mb)
 
 
 def export_db_tables(out_dir: str, con: Any) -> None:
@@ -397,7 +397,7 @@ def export_db_table(table_name: str, out_dir: str, con: Any) -> None:
     df = con.from_redis(table_name)
     fname = os.path.join(out_dir, table_name + '.csv')
     df.to_csv(fname, index=False)
-    io_utils_logger.info('Saved at %s', fname)
+    logger.info('Saved at %s', fname)
 
 
 def write_data(cellData: pd.DataFrame, geneData: pd.DataFrame,
@@ -431,33 +431,33 @@ def write_tsv(cellData: pd.DataFrame, geneData: pd.DataFrame, cellBoundaries: pd
     cellData_path = os.path.join(out_dir, "cellData.tsv")
     cellData.to_csv(cellData_path, sep='\t', index=False)
     cellData_mb = os.path.getsize(cellData_path) / (1024 * 1024)
-    io_utils_logger.info('Saved at: %s (%.1f MB)', cellData_path, cellData_mb)
+    logger.info('Saved at: %s (%.1f MB)', cellData_path, cellData_mb)
 
     # Save gene data
     geneData_path = os.path.join(out_dir, "geneData.tsv")
     geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
     geneData_mb = os.path.getsize(geneData_path) / (1024 * 1024)
-    io_utils_logger.info('Saved at: %s (%.1f MB)', geneData_path, geneData_mb)
+    logger.info('Saved at: %s (%.1f MB)', geneData_path, geneData_mb)
 
     # Save boundaries
     cellBoundaries_path = os.path.join(out_dir, "cellBoundaries.tsv")
     cellBoundaries.to_csv(cellBoundaries_path, sep='\t', index=False)
     cellBoundaries_mb = os.path.getsize(cellBoundaries_path) / (1024 * 1024)
-    io_utils_logger.info('Saved at %s: (%.1f MB)', cellBoundaries_path, cellBoundaries_mb)
+    logger.info('Saved at %s: (%.1f MB)', cellBoundaries_path, cellBoundaries_mb)
 
 
 def write_arrow(geneData:pd.DataFrame, cellData:pd.DataFrame, cellBoundaries:pd.DataFrame, out_dir: str = None) -> None:
     geneData_to_arrow(geneData, out_dir)
     cellData_to_arrow(cellData, out_dir)
-    # io_utils_logger.info('boundaries_to_arrow_old - Starting')
+    # logger.info('boundaries_to_arrow_old - Starting')
     # boundaries_to_arrow_old(cellBoundaries, out_dir)
-    # io_utils_logger.info('boundaries_to_arrow_old - Ending')
+    # logger.info('boundaries_to_arrow_old - Ending')
 
-    # io_utils_logger.info('boundaries_to_arrow - Starting')
+    # logger.info('boundaries_to_arrow - Starting')
     boundaries_to_arrow(cellBoundaries, out_dir)
-    # io_utils_logger.info('boundaries_to_arrow - Ending')
+    # logger.info('boundaries_to_arrow - Ending')
 
-    # io_utils_logger.info('Saved at %s', os.path.join(out_dir, 'cellBoundaries.tsv'))
+    # logger.info('Saved at %s', os.path.join(out_dir, 'cellBoundaries.tsv'))
 
 
 def geneData_to_arrow(df_in: pd.DataFrame, out_dir: str = None) -> None:
@@ -531,8 +531,8 @@ def geneData_to_arrow(df_in: pd.DataFrame, out_dir: str = None) -> None:
     # Write gene dictionary (id -> name) using data collected during chunking
     (out_dir / "gene_dict.json").write_text(json.dumps(gene_dict_data, indent=2))
 
-    # io_utils_logger.info(f"Saved {total_rows} rows in {len(shards)} shards at {out_dir}")
-    io_utils_logger.info(f"Saved at {out_dir}")
+    # logger.info(f"Saved {total_rows} rows in {len(shards)} shards at {out_dir}")
+    logger.info(f"Saved at {out_dir}")
 
 
 
@@ -614,8 +614,8 @@ def cellData_to_arrow(df_in: pd.DataFrame, out_dir: str = None) -> None:
     manifest = {"format": "arrow-feather", "total_rows": int(total_rows), "shards": shards}
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
 
-    # io_utils_logger.info(f"Saved {total_rows} cell records in {len(shards)} shards at {out_dir}")
-    io_utils_logger.info(f"Saved at {out_dir}")
+    # logger.info(f"Saved {total_rows} cell records in {len(shards)} shards at {out_dir}")
+    logger.info(f"Saved at {out_dir}")
 
 
 def parse_coords(cell: str) -> List[Tuple[float, float]]:
@@ -717,7 +717,7 @@ def boundaries_to_arrow_old(df_in: pd.DataFrame, out_dir: str = None) -> None:
         "shards": shards,
     }
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
-    io_utils_logger.info(f"Done. Total polys: {total_polys}. Total points: {total_points}. Files: {len(shards)}. Output: {out_dir}")
+    logger.info(f"Done. Total polys: {total_polys}. Total points: {total_points}. Files: {len(shards)}. Output: {out_dir}")
 
 
 
@@ -813,7 +813,7 @@ def _boundaries_to_arrow(df_in: List[pd.DataFrame], out_dir: str = None) -> None
         "shards": shards,
     }
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
-    io_utils_logger.info(f"Done. Total polys: {total_polys}. Total points: {total_points}. Files: {len(shards)}. Output: {out_dir}")
+    logger.info(f"Done. Total polys: {total_polys}. Total points: {total_points}. Files: {len(shards)}. Output: {out_dir}")
 
 
 
@@ -850,7 +850,7 @@ def boundaries_to_arrow(dfs_in: List[pd.DataFrame], out_dir: str, compression: s
         # Check for required columns
         required_cols = ['plane_id', 'cell_id', 'coords']
         if not all(col in df_plane.columns for col in required_cols):
-            io_utils_logger.info("Warning: A DataFrame is missing required columns. Skipping.")
+            logger.info("Warning: A DataFrame is missing required columns. Skipping.")
             continue
 
         # Get the plane ID - use index as fallback for empty DataFrames
@@ -880,7 +880,7 @@ def boundaries_to_arrow(dfs_in: List[pd.DataFrame], out_dir: str, compression: s
             empty_table = schema.empty_table()
             feather.write_feather(empty_table, (out_dir / shard_name).as_posix(), compression=comp)
             shards.append({"url": shard_name, "rows": 0, "plane": current_plane_id})
-            # io_utils_logger.info(f"Wrote empty shard {shard_name} for plane {current_plane_id}")
+            # logger.info(f"Wrote empty shard {shard_name} for plane {current_plane_id}")
             continue
 
         # Prepare data for Arrow, using the 'coords' column directly
@@ -916,8 +916,8 @@ def boundaries_to_arrow(dfs_in: List[pd.DataFrame], out_dir: str, compression: s
         "shards": sorted(shards, key=lambda s: s['plane']),  # Sort shards by plane number
     }
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
-    # io_utils_logger.info(f"Done. Total polys: {total_polys}. Total points: {total_points}. Files: {len(shards)}. Output: {out_dir}")
-    io_utils_logger.info(f"Saved at: {out_dir}")
+    # logger.info(f"Done. Total polys: {total_polys}. Total points: {total_points}. Files: {len(shards)}. Output: {out_dir}")
+    logger.info(f"Saved at: {out_dir}")
 
 
 

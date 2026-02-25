@@ -9,7 +9,7 @@ from scipy.sparse import coo_matrix
 import logging
 from .config_manager import ConfigManager
 
-validation_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -195,10 +195,10 @@ class InputValidator:
             Purged spots data
         """
         drop_spots = list(set(spots.gene_name) - set(scdata.index))
-        validation_logger.warning(f'Found {len(drop_spots)} genes that are not included in the single cell data')
+        logger.warning(f'Found {len(drop_spots)} genes that are not included in the single cell data')
         idx = ~np.in1d(spots.gene_name, drop_spots)
         spots = spots.iloc[idx]
-        validation_logger.warning(f'Removed from spots: {drop_spots}')
+        logger.warning(f'Removed from spots: {drop_spots}')
         return spots
 
     @staticmethod
@@ -242,7 +242,7 @@ class InputValidator:
         # Value validation
         # if config.is3D:
         #     config.InsideCellBonus = False
-        #     validation_logger.warning('InsideCellBonus set to False for 3D data')
+        #     logger.warning('InsideCellBonus set to False for 3D data')
 
         if config.cell_type_prior.lower() not in ['uniform', 'weighted']:
             raise ValueError("'cell_type_prior' should be either 'uniform' or 'weighted'")
@@ -251,7 +251,7 @@ class InputValidator:
 
         if config.InsideCellBonus is True:
             config.InsideCellBonus = 2
-            validation_logger.warning('InsideCellBonus was passed-in as True. Overriding with default value of 2')
+            logger.warning('InsideCellBonus was passed-in as True. Overriding with default value of 2')
 
         config.MisreadDensity = InputValidator._dict_checker(config.MisreadDensity, "MisreadDensity")
         config.cell_centroid_prior = InputValidator._dict_checker(config.cell_centroid_prior, "cell_centroid_prior")

@@ -12,7 +12,7 @@ import plotly.graph_objects as go
 from scipy.special import psi, softmax
 
 # Configure logging
-ops_utils_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def expected_covariance(scale_matrix, dof):
@@ -92,7 +92,7 @@ def negative_binomial_loglikelihood(x: np.ndarray, r: float, q: np.ndarray) -> n
         return log_likelihood
 
     except Exception as e:
-        ops_utils_logger.error(f"Error calculating negative binomial log-likelihood: {str(e)}")
+        logger.error(f"Error calculating negative binomial log-likelihood: {str(e)}")
         raise ValueError("Failed to compute log-likelihood. Check input dimensions and values.")
 
 
@@ -411,7 +411,7 @@ def cell_typing_breakdown(obj, label, weights=None, show_plot=True):
     prior_mode = obj.config.get('cell_type_prior', 'uniform')
 
     if prior_mode != 'weighted':
-        ops_utils_logger.warning(
+        logger.warning(
             f"Function available only for 'weighted' cell type prior mode."
         )
         return dict()
@@ -432,7 +432,7 @@ def cell_typing_breakdown(obj, label, weights=None, show_plot=True):
             if key == 'default':
                 continue
             if key not in names:
-                ops_utils_logger.warning(
+                logger.warning(
                     f"Cell type '{key}' in weights dict not found in cell type names. Ignoring.")
                 continue
             vals[key] = val
@@ -737,7 +737,7 @@ def has_converged(
         converged = (delta < tol)
         return converged, delta
     except Exception as e:
-        ops_utils_logger.error(f"Convergence check failed: {str(e)}")
+        logger.error(f"Convergence check failed: {str(e)}")
         raise
 
 

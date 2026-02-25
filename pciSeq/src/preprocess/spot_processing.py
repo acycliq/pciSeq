@@ -12,7 +12,7 @@ from .plane_management import remove_oob
 
 import logging
 
-my_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def process_spots(spots: pd.DataFrame,

@@ -16,7 +16,7 @@ import alphashape
 
 from ..utils.cell_utils import create_circular_masks, find_labels_by_plane_index
 
-genes_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class Genes(object):
@@ -279,12 +279,12 @@ class Genes(object):
     #     file_path = os.path.join(folder, "pointcloud_shape.png")
     #     plt.savefig(file_path)
     #     plt.close()  # Close the figure to free up memory
-    #     genes_logger.info(f"saved at {file_path}")
+    #     logger.info(f"saved at {file_path}")
     #
     #     # 9. Compute the area of the polygon using shapely.
     #     polygon = Polygon(hull_coords_original)
     #     area = polygon.area
-    #     genes_logger.info(f"Area of the shape: {area}")
+    #     logger.info(f"Area of the shape: {area}")
     #
     #     return area
     #
@@ -351,12 +351,12 @@ class Genes(object):
     #     file_path = os.path.join(folder, "pointcloud_shape2.png")
     #     plt.savefig(file_path)
     #     plt.close()  # Close the figure to free up memory
-    #     genes_logger.info(f"saved at {file_path}")
+    #     logger.info(f"saved at {file_path}")
     #
     #     # 9. Compute the area of the polygon using shapely.
     #     polygon = Polygon(hull_coords_original)
     #     area = polygon.area
-    #     genes_logger.info(f"Area of the shape: {area}")
+    #     logger.info(f"Area of the shape: {area}")
     #
     #     return area, polygon
     #
@@ -395,7 +395,7 @@ class Genes(object):
     #
     #     # Log the misread density for a specific gene, e.g. 'Plp1'.
     #     # (This could be parameterized if needed.)
-    #     # genes_logger.info(f"Plp1 misread density: {misreads_per_gene.squeeze().get('Plp1', 'Not found')}")
+    #     # logger.info(f"Plp1 misread density: {misreads_per_gene.squeeze().get('Plp1', 'Not found')}")
     #
     #     # Return the misread counts as a Series.
     #     return misreads_per_gene.squeeze()

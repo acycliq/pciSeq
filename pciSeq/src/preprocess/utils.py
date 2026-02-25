@@ -8,7 +8,7 @@ import numpy as np
 from scipy.sparse import coo_matrix
 import pandas as pd
 
-preprocess_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def log_data_summary(spots: pd.DataFrame,
@@ -24,11 +24,11 @@ def log_data_summary(spots: pd.DataFrame,
     """
     n, h, w = dimensions
 
-    preprocess_logger.info(f'Number of spots passed-in: {spots.shape[0]}')
-    preprocess_logger.info(
+    logger.info(f'Number of spots passed-in: {spots.shape[0]}')
+    logger.info(
         f'Number of segmented cells: {max([d.data.max() for d in coo if len(d.data) > 0])}')
 
     if n == 1:
-        preprocess_logger.info(f'Image dimensions: {w}px × {h}px')
+        logger.info(f'Image dimensions: {w}px × {h}px')
     else:
-        preprocess_logger.info(f'Image dimensions: {n} planes, {w}px × {h}px')
+        logger.info(f'Image dimensions: {n} planes, {w}px × {h}px')

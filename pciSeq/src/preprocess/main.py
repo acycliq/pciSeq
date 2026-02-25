@@ -18,7 +18,7 @@ from .cell_processing import calculate_cell_properties
 from ..core.utils.geometry import get_img_shape
 from .cell_processing import extract_borders
 
-spot_labels_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def _process_plane_borders(i: int, coo_plane: coo_matrix) -> pd.DataFrame:
@@ -45,13 +45,13 @@ def _process_plane_borders(i: int, coo_plane: coo_matrix) -> pd.DataFrame:
 
 def _extract_all_borders(coo: List[coo_matrix]) -> Tuple[pd.DataFrame, List[pd.DataFrame]]:
     """Extract borders for all planes. Runs in a background thread."""
-    spot_labels_logger.info("Border extraction started...")
+    logger.info("Border extraction started...")
     mid_plane = len(coo) // 2
     cell_boundaries_list = Parallel(n_jobs=-1, backend='loky')(
         delayed(_process_plane_borders)(i, d) for i, d in enumerate(coo)
     )
     cell_boundaries = cell_boundaries_list[mid_plane]
-    spot_labels_logger.info("Border extraction complete")
+    logger.info("Border extraction complete")
     return cell_boundaries, cell_boundaries_list
 
 
@@ -107,7 +107,7 @@ def stage_data(spots: pd.DataFrame,
     props_df = calculate_cell_properties(coo, cfg['voxel_size'])
 
     # Launch border extraction in the background, not needed until results are saved
-    spot_labels_logger.info(f"Submitting border extraction for {len(coo)} planes (background task)...")
+    logger.info(f"Submitting border extraction for {len(coo)} planes (background task)...")
     executor = ThreadPoolExecutor(max_workers=1)
     borders_future = executor.submit(_extract_all_borders, coo)
     executor.shutdown(wait=False)

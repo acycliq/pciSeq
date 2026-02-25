@@ -24,7 +24,7 @@ from pciSeq.src.viewer.utils import (copy_viewer_code, make_config_js,
 import logging
 
 
-utils_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 # def init(opts):
@@ -49,7 +49,7 @@ utils_logger = logging.getLogger(__name__)
 #             else:
 #                 raise TypeError("Only integers, floats and lists are allowed")
 #             cfg[item[0]] = val
-#             utils_logger.info('%s is set to %s' % (item[0], cfg[item[0]]))
+#             logger.info('%s is set to %s' % (item[0], cfg[item[0]]))
 #     return cfg
 #
 #
@@ -68,7 +68,7 @@ utils_logger = logging.getLogger(__name__)
 #             fh.setFormatter(formatter)
 #
 #             root_logger.addHandler(fh)
-#             utils_logger.info('Writing to %s' % logfile)
+#             logger.info('Writing to %s' % logfile)
 
 
 def negative_binomial_loglikelihood(x: np.ndarray, r: float, p: np.ndarray) -> np.ndarray:
@@ -97,7 +97,7 @@ def negative_binomial_loglikelihood(x: np.ndarray, r: float, p: np.ndarray) -> n
         return log_likelihood
 
     except Exception as e:
-        utils_logger.error(f"Error calculating negative binomial log-likelihood: {str(e)}")
+        logger.error(f"Error calculating negative binomial log-likelihood: {str(e)}")
         raise ValueError("Failed to compute log-likelihood. Check input dimensions and values.")
 
 
@@ -173,7 +173,7 @@ def has_converged(
         converged = (delta < tol)
         return converged, delta
     except Exception as e:
-        utils_logger.error(f"Convergence check failed: {str(e)}")
+        logger.error(f"Convergence check failed: {str(e)}")
         raise
 
 
@@ -200,7 +200,7 @@ def splitter_mb(filepath, mb_size):
     for line in handle:
         size = os.stat(file_out).st_size
         if size > mb_size * 1024 * 1024:
-            utils_logger.info('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
+            logger.info('saved %s with file size %4.3f MB' % (file_out, size / (1024 * 1024)))
             n += 1
             handle_out.close()
             file_out, handle_out = _get_file(OUT_DIR, filepath, n, header_line)
@@ -473,7 +473,7 @@ def anisotropy_calc(data, voxel_size):
 
 def truncate_data(spots, label_image, z_min, z_max):
     if z_min is not None and z_max is not None:
-        utils_logger.info(' Truncating masks and spots. Keeping those between frame %d and %d only' % (z_min, z_max))
+        logger.info(' Truncating masks and spots. Keeping those between frame %d and %d only' % (z_min, z_max))
         spots = truncate_spots(spots, z_min, z_max)
     return spots, label_image
 
@@ -603,15 +603,15 @@ def fetch_label(x, d):
 #     pickle_dst = os.path.join(debug_dir, 'pciSeq.pickle')
 #     with open(pickle_dst, 'wb') as outf:
 #         pickle.dump(varBayes, outf)
-#         utils_logger.info('Saved at %s' % pickle_dst)
+#         logger.info('Saved at %s' % pickle_dst)
 
 
 def purge_spots(spots, sc):
     drop_spots = list(set(spots.gene_name) - set(sc.index))
-    utils_logger.warning('Found %d genes that are not included in the single cell data' % len(drop_spots))
+    logger.warning('Found %d genes that are not included in the single cell data' % len(drop_spots))
     idx = ~ np.in1d(spots.gene_name, drop_spots)
     spots = spots.iloc[idx]
-    utils_logger.warning('Removed from spots: %s' % drop_spots)
+    logger.warning('Removed from spots: %s' % drop_spots)
     return spots
 
 
@@ -625,7 +625,7 @@ def export_db_table(table_name, out_dir, con):
     df = con.from_redis(table_name)
     fname = os.path.join(out_dir, table_name + '.csv')
     df.to_csv(fname, index=False)
-    utils_logger.info('Saved at %s' % fname)
+    logger.info('Saved at %s' % fname)
 
 
 # def write_data(cellData, geneData, cellBoundaries, varBayes, cfg):
@@ -635,10 +635,10 @@ def export_db_table(table_name, out_dir, con):
 #         os.makedirs(out_dir)
 #
 #     cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
-#     utils_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
+#     logger.info('Saved at %s' % (os.path.join(out_dir, 'cellData.tsv')))
 #
 #     geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
-#     utils_logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
+#     logger.info('Saved at %s' % (os.path.join(out_dir, 'geneData.tsv')))
 #
 #     # Do not change the if-then branching flow. InsideCellBonus can take the value of zero
 #     # and the logic below will ensure that in that case, the segmentation borders will be
@@ -647,10 +647,10 @@ def export_db_table(table_name, out_dir, con):
 #         ellipsoidBoundaries = cellData[['Cell_Num', 'gaussian_contour']]
 #         ellipsoidBoundaries = ellipsoidBoundaries.rename(columns={"Cell_Num": "cell_id", "gaussian_contour": "coords"})
 #         ellipsoidBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-#         utils_logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+#         logger.info(' Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 #     else:
 #         cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-#         utils_logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
+#         logger.info('Saved at %s' % (os.path.join(out_dir, 'cellBoundaries.tsv')))
 #
 #     serialise(varBayes, os.path.join(out_dir, 'debug'))
 
@@ -750,7 +750,7 @@ def _validate_cfg(cfg, coo):
         """
         d = 2
         cfg['InsideCellBonus'] = d
-        utils_logger.warning('InsideCellBonus was passed-in as True. Overriding with the default value of %d' % d)
+        logger.warning('InsideCellBonus was passed-in as True. Overriding with the default value of %d' % d)
 
     if cfg['cell_type_prior'].lower() not in ['uniform'.lower(), 'weighted'.lower()]:
         raise ValueError("'cel_type_prior' should be either 'uniform' or 'weighted' ")

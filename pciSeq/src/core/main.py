@@ -80,7 +80,7 @@ from ...src.diagnostics.controller.diagnostic_controller import DiagnosticContro
 import joblib
 
 # Configure logging
-main_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class VarBayes:
@@ -144,10 +144,10 @@ class VarBayes:
         try:
             self.diagnostic_controller = DiagnosticController()
             if not self.diagnostic_controller.launch_dashboard():
-                main_logger.warning("Failed to launch diagnostics dashboard")
+                logger.warning("Failed to launch diagnostics dashboard")
                 self.diagnostic_controller = None
         except Exception as e:
-            main_logger.warning(f"Failed to initialize diagnostics: {e}")
+            logger.warning(f"Failed to initialize diagnostics: {e}")
             self.diagnostic_controller = None
 
     def _setup_components(self, cells_df, spots_df, scRNAseq) -> None:
@@ -264,7 +264,7 @@ class VarBayes:
                 # 4. calc expected gamma
                 self.gamma_upd()
 
-                main_logger.info("gaussian_upd step has been removed in this version of the software")
+                logger.info("gaussian_upd step has been removed in this version of the software")
                 # 3 update correlation matrix and variance of the gaussian distribution
                 # if self.single_cell.isMissing or (self.config['InsideCellBonus'] is False) or (self.config['is3D']):
                 #     self.gaussian_upd()
@@ -286,7 +286,7 @@ class VarBayes:
                 self.has_converged, delta = utils.has_converged(
                     self.spots, p0, self.config['CellCallTolerance']
                 )
-                main_logger.info('Iteration %d, mean prob change %f' % (i, delta))
+                logger.info('Iteration %d, mean prob change %f' % (i, delta))
 
                 # Update diagnostics using controller
                 self.diagnostics_upd()
@@ -296,7 +296,7 @@ class VarBayes:
                     try:
                         self.on_iteration_callback(self.cells.classProb, i, delta)
                     except Exception as e:
-                        main_logger.warning(f"Real-time viewer callback failed: {e}")
+                        logger.warning(f"Real-time viewer callback failed: {e}")
 
                 # keep track of the deltas
                 self.iter_delta.append(delta)
@@ -310,7 +310,7 @@ class VarBayes:
                     break
 
                 if i == max_iter - 1:
-                    main_logger.info('Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
+                    logger.info('Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
                     cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.config['is3D'])
                     break
         finally:
@@ -319,7 +319,7 @@ class VarBayes:
                 try:
                     self.diagnostic_controller.shutdown()
                 except Exception as e:
-                    main_logger.warning(f"Failed to shutdown diagnostics: {e}")
+                    logger.warning(f"Failed to shutdown diagnostics: {e}")
 
         return cell_df, gene_df
 
@@ -781,7 +781,7 @@ class VarBayes:
                 has_converged=self.has_converged
             )
         except Exception as e:
-            main_logger.warning(f"Failed to update diagnostics: {e}")
+            logger.warning(f"Failed to update diagnostics: {e}")
 
 
     # -------------------------------------------------------------------- #

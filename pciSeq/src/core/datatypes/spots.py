@@ -10,7 +10,7 @@ import opt_einsum as oe
 from dask.delayed import delayed
 from collections import defaultdict
 
-spots_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class Spots(object):

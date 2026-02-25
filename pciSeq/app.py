@@ -11,7 +11,7 @@ from .src.viewer.run_flask import flask_app_start
 from .src.preprocess.main import stage_data
 import logging
 
-app_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -72,7 +72,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         realtime_viewer_ini(cfg)
 
         # 4. Use validated inputs and prepare the data
-        app_logger.info('Preprocessing data')
+        logger.info('Preprocessing data')
         _cells, borders_future, _spots, label_map = stage_data(spots, coo, cfg)
 
         # 5. cell typing (diagnostics are now handled inside VarBayes)
@@ -93,20 +93,20 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
                 dst = pre_launch(cellData, geneData, coo, scRNAseq, cfg)
                 flask_app_start(dst)
 
-        app_logger.info('Done')
+        logger.info('Done')
         return cellData, geneData
 
     except Exception as e:
-        app_logger.error(f"Error in fit function: {str(e)}")
+        logger.error(f"Error in fit function: {str(e)}")
         raise
     finally:
         # Cleanup realtime viewer if it was started
         if viewer is not None:
             try:
                 viewer.stop()
-                app_logger.info('Stopped realtime viewer')
+                logger.info('Stopped realtime viewer')
             except Exception as e:
-                app_logger.warning(f'Failed to stop realtime viewer: {e}')
+                logger.warning(f'Failed to stop realtime viewer: {e}')
 
 
 def cell_type(
@@ -148,7 +148,7 @@ def cell_type(
         # This prevents the callback from being stored in VarBayes.config
         callback = config.pop('realtime_viewer_callback', None)
 
-        app_logger.info('Initializing VarBayes model')
+        logger.info('Initializing VarBayes model')
         varBayes = VarBayes(cells, spots, scRNAseq, config)
 
         # Wire real-time viewer callback if provided
@@ -160,18 +160,18 @@ def cell_type(
                 viewer_instance._varbayes_ref = varBayes
 
             varBayes.on_iteration_callback = callback
-            app_logger.info('Real-time viewer callback enabled')
+            logger.info('Real-time viewer callback enabled')
 
-        app_logger.info('Starting cell typing algorithm')
+        logger.info('Starting cell typing algorithm')
         cellData, geneData = varBayes.run()
 
         if not varBayes.has_converged:
-            app_logger.warning('Cell typing algorithm did not fully converge')
+            logger.warning('Cell typing algorithm did not fully converge')
 
         return cellData, geneData, varBayes
 
     except Exception as e:
-        app_logger.error(f"Error during cell typing: {str(e)}")
+        logger.error(f"Error during cell typing: {str(e)}")
         raise RuntimeError(f"Cell typing failed: {str(e)}") from e
 
 
@@ -220,7 +220,7 @@ def realtime_viewer_ini(cfg):
         )
         viewer.start()
         cfg["realtime_viewer_callback"] = viewer.send_update
-        app_logger.info(f"Started realtime viewer on port {port}")
+        logger.info(f"Started realtime viewer on port {port}")
 
 
 

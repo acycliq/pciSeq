@@ -8,7 +8,7 @@ import getpass
 import subprocess as sp
 import logging
 
-du_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 # class RedisDB:
@@ -74,14 +74,14 @@ du_logger = logging.getLogger(__name__)
 #         try:
 #             out, err, exit_code = subprocess_cmd([exe, 'config', 'set', 'notify-keyspace-events', 'KEA'])
 #             if exit_code != 0:
-#                 du_logger.error(f"notify-keyspace-events failed with exit code: {exit_code}")
-#                 du_logger.error(f"Output: {out.decode('UTF-8').rstrip()}")
-#                 du_logger.error(f"Error: {err.decode('UTF-8').rstrip()}")
+#                 logger.error(f"notify-keyspace-events failed with exit code: {exit_code}")
+#                 logger.error(f"Output: {out.decode('UTF-8').rstrip()}")
+#                 logger.error(f"Error: {err.decode('UTF-8').rstrip()}")
 #                 raise Exception('Failed to enable keyspace events')
-#             du_logger.info(f"Enabling keyspace events... {out.decode('UTF-8').rstrip()}")
+#             logger.info(f"Enabling keyspace events... {out.decode('UTF-8').rstrip()}")
 #             self.keyspace_events_enabled = True
 #         except OSError as ex:
-#             du_logger.error(f"Cannot enable keyspace events. Failed with error: {ex}")
+#             logger.error(f"Cannot enable keyspace events. Failed with error: {ex}")
 #             raise
 
 
@@ -91,19 +91,19 @@ def check_redis_server() -> bool:
     Returns:
         bool: True if Redis is both installed and running, False otherwise
     """
-    du_logger.info("Checking Redis server status...")
+    logger.info("Checking Redis server status...")
     try:
         # Use existing validation function that checks both installation and running status
         code_1, code_2 = validate_redis()
         is_ready = (code_1 == 0 and code_2 == 0)
 
         if not is_ready:
-            du_logger.info(
+            logger.info(
                 "Redis check failed. Diagnostics will not be available unless Redis is installed and running")
         return is_ready
 
     except Exception as e:
-        du_logger.error(f"Redis check failed with error: {e}")
+        logger.error(f"Redis check failed with error: {e}")
         return False
 
 
@@ -114,8 +114,8 @@ def is_redis_running(os):
     exe = "memurai-cli.exe" if check_platform() == "windows" else "redis-cli"
     out, err, exit_code = subprocess_cmd([exe, 'ping'])
     if exit_code != 0:
-        du_logger.info(err.decode('UTF-8'))
-        du_logger.info(" Starting redis server ...")
+        logger.info(err.decode('UTF-8'))
+        logger.info(" Starting redis server ...")
         out, err, exit_code = start_server(os)
     return out, err, exit_code
 
@@ -133,7 +133,7 @@ def start_server(os):
         ## need to add osx here!
         raise Exception('Cannot automatically start redis server under %s. Not implemented. Try manually.' % os)
     if not out.decode('UTF-8') == '':
-        du_logger.info(out.decode('UTF-8').rstrip())
+        logger.info(out.decode('UTF-8').rstrip())
     return out, err, exit_code
 
 
@@ -149,7 +149,7 @@ def stop_server(os):
     else:
         raise Exception('not implemented')
     if not out.decode('UTF-8') == '':
-        du_logger.info(out.decode('UTF-8').rstrip())
+        logger.info(out.decode('UTF-8').rstrip())
     return out, err, exit_code
 
 
@@ -161,7 +161,7 @@ def is_redis_installed(os):
     exe = "memurai.exe" if check_platform() == "windows" else "redis-server"
     out, err, exit_code = subprocess_cmd([exe, '--version'])
     if not err.decode('UTF-8') == '':
-        du_logger.info(err.decode('UTF-8').rstrip())
+        logger.info(err.decode('UTF-8').rstrip())
         if confirm_prompt("Server is not installed, do you want to install it?"):
             out, err, exit_code = install_redis_server(os)
     return out, err, exit_code
@@ -173,7 +173,7 @@ def install_redis_server(os):
     exit_code = None
     if os == "windows":
         msi = locate_msi()
-        du_logger.info("Calling %s" % msi)
+        logger.info("Calling %s" % msi)
         out, err, exit_code = subprocess_cmd([msi])
     elif os in ['linux']:
         sudo_password = getpass.getpass(prompt='sudo password: ')
@@ -199,8 +199,8 @@ def subprocess_cmd(command, passwd=None):
             raise Exception("Subprocess command timed out")
 
         if p.returncode != 0:
-            du_logger.error(f"Command failed with exit code: {p.returncode}")
-            du_logger.error(f"Error: {err.decode('UTF-8')}")
+            logger.error(f"Command failed with exit code: {p.returncode}")
+            logger.error(f"Error: {err.decode('UTF-8')}")
 
         return out, err, p.returncode
 
@@ -236,13 +236,13 @@ def validate_redis():
     status = check_redis_status()
 
     if status['installed'] and status['running']:
-        du_logger.info("Redis is installed and running.")
+        logger.info("Redis is installed and running.")
         return 0, 0
     elif not status['installed']:
-        du_logger.error(f"Redis is not installed. {status['installation_output']}")
+        logger.error(f"Redis is not installed. {status['installation_output']}")
         return 1, 1
     elif not status['running']:
-        du_logger.error(f"Redis is installed but not running. {status['running_output']}")
+        logger.error(f"Redis is installed but not running. {status['running_output']}")
         return 0, 1
 
 
@@ -290,17 +290,17 @@ def check_redis_running(os):
 #     Returns:
 #         bool: True if Redis is both installed and running, False otherwise
 #     """
-#     du_logger.info("Checking Redis server status...")
+#     logger.info("Checking Redis server status...")
 #     try:
 #         # Use existing validation function that checks both installation and running status
 #         code_1, code_2 = validate_redis()
 #         is_ready = (code_1 == 0 and code_2 == 0)
 #
 #         if not is_ready:
-#             du_logger.info(
+#             logger.info(
 #                 "Redis check failed. Diagnostics will not be available unless Redis is installed and running")
 #         return is_ready
 #
 #     except Exception as e:
-#         du_logger.error(f"Redis check failed with error: {e}")
+#         logger.error(f"Redis check failed with error: {e}")
 #         return False

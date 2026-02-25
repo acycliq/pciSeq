@@ -9,7 +9,7 @@ from numba import njit, prange
 import logging
 
 # Configure logging
-cell_utils_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def read_image_objects(img_obj, cfg):
@@ -85,7 +85,7 @@ def recover_original_labels(cellData: pd.DataFrame,
 
     cellBoundaries_list = [d.assign(cell_id=d.cell_id.map(lambda x: reverse_map.get(x))) for d in cellBoundaries_list]
 
-    cell_utils_logger.info("Restored original cell segmentation labels")
+    logger.info("Restored original cell segmentation labels")
     return cellData, geneData, cellBoundaries, cellBoundaries_list
 
 

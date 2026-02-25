@@ -14,7 +14,7 @@ from scipy.sparse import coo_matrix, csr_matrix
 import fastremap
 import logging
 
-label_processing_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def process_labels(coo_list: List[coo_matrix]) -> Tuple[List[coo_matrix], Optional[Dict]]:
@@ -37,7 +37,7 @@ def process_labels(coo_list: List[coo_matrix]) -> Tuple[List[coo_matrix], Option
     is_sequential = len(unique_labels) == unique_labels.max()
 
     if not is_sequential:
-        label_processing_logger.warning('Non-sequential cell labels detected')
+        logger.warning('Non-sequential cell labels detected')
         _, label_map = fastremap.renumber(
             all_data, in_place=False, preserve_zero=True
         )
@@ -47,7 +47,7 @@ def process_labels(coo_list: List[coo_matrix]) -> Tuple[List[coo_matrix], Option
         for coo in coo_list:
             if coo.nnz > 0:
                 fastremap.remap(coo.data, label_map, in_place=True)
-        label_processing_logger.warning('Labels have been renumbered for sequential labelling')
+        logger.warning('Labels have been renumbered for sequential labelling')
     else:
         label_map = None
 

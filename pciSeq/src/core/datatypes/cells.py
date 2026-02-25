@@ -14,7 +14,7 @@ import opt_einsum as oe
 # Local imports
 from ..utils.cell_utils import read_image_objects, keep_labels_unique
 
-cells_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class Cells(object):
