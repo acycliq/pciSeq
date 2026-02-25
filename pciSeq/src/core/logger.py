@@ -68,7 +68,7 @@ def setup_logger(level=None):
 
     # Create color formatter
     color_formatter = colorlog.ColoredFormatter(
-        "%(log_color)s%(asctime)s - %(levelname)s - %(message)s",
+        "%(log_color)s%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         log_colors={
             'DEBUG': 'cyan',
             'INFO': 'green',
