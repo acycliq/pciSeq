@@ -201,8 +201,8 @@ class Cells(object):
         """
         a = a.astype(np.float32)
         b = b.astype(np.float32)
-        self._theta_bar = a / b
-        self._logtheta_bar = self._digamma(a, b)
+        self._theta_bar = a[:, None] / b
+        # self._logtheta_bar = self._digamma(a, b)
 
     def _digamma(self, a, b):
         """

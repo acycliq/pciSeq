@@ -180,8 +180,28 @@ class VarBayes:
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.cells._ini_gene_counts = np.bincount(self.spots.data.label.values, minlength=self.nC)
         self.genes._misread_density = self.genes.calc_misread_density()
-        self.cells.init_theta(self.config['rTheta'], self.config['rTheta'])
         self.spots.init_gamma(self.config['rSpot'], self.config['rSpot'], [self.nC, self.nG, self.nK])
+        self.init_theta()
+
+    def init_theta(self) -> None:
+        geneCounts = self.cells.ini_gene_counts
+        alpha = geneCounts + self.config['rTheta'] - 1
+
+
+
+        mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
+        area_factor = self.cells.ini_cell_props['area_factor']
+        gamma_bar = self.spots.gamma_bar.compute()
+        eta_bar = self.genes.eta_bar
+
+        beta = np.einsum('c, cgk, g, gk -> ck',
+                         area_factor,
+                         gamma_bar,
+                         eta_bar,
+                         mu) + self.config['rTheta']
+
+        self.cells.calc_theta(alpha, beta)
+
 
     def __getstate__(self):
         """
@@ -466,7 +486,7 @@ class VarBayes:
 
             # get the respective cell type probabilities
             cp = self.cells.classProb[sn]
-            log_theta_bar = self.cells.logtheta_bar[sn]
+            log_theta_bar = np.log(self.cells.theta_bar[sn])
             # multiply and sum over cells. In practice this means that when high expected counts
             # are aligned with high cell class probs this term will be high
             term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
@@ -746,20 +766,14 @@ class VarBayes:
     # -------------------------------------------------------------------- #
     def theta_upd(self):
         geneCounts = self.cells.geneCount.sum(axis=1)
-        classProb = self.cells.classProb
-        alpha = np.einsum('ck,c->ck',
-                          classProb,
-                          geneCounts) + self.config['rTheta']
-
-
+        alpha = geneCounts + self.config['rTheta'] - 1
 
         mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
         eta_bar = self.genes.eta_bar
 
-        beta = np.einsum('ck, c, cgk, g, gk -> ck',
-                         classProb,
+        beta = np.einsum('c, cgk, g, gk -> ck',
                          area_factor,
                          gamma_bar,
                          eta_bar,
