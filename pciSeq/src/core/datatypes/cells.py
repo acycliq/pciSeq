@@ -59,6 +59,7 @@ class Cells(object):
         self._nb_contr = None  # placeholder for the genes' contribution to the negative binomial loglik
         self._theta_bar = None
         self._logtheta_bar = None
+        self._nbrs = None
 
     # -------- PROPERTIES -------- #
     @property
@@ -176,6 +177,15 @@ class Cells(object):
     def logtheta_bar(self):
         """Returns the log eta bar for genes (estimated mean of the posterior)."""
         return self._logtheta_bar
+
+    @property
+    def nbrs(self):
+        """Returns the nearest neighbors for each cell"""
+        return self._nbrs
+
+    @nbrs.setter
+    def nbrs(self, val):
+        self._nbrs = val
 
     # -------- METHODS -------- #
 
@@ -317,6 +327,13 @@ class Cells(object):
         out[:, 2, 1] = agg_12
 
         return out.astype(np.float32)
+
+    def nearest_neighbours(self):
+        # get the nearest neighbours of each cell
+        distances, indices = self.nn().kneighbors(self.zyx_coords)
+
+        # drop the 1st column, it is always the cell itself
+        return indices[:, 1:]
 
     # -------------------------- CONVENIENCE METHODS ----------------------- #
     def gene_reads_per_class(self):

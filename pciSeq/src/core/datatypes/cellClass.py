@@ -136,7 +136,8 @@ class CellClass(object):
             # get the values from the dict as a numpy array
             out = np.array(list(weights_dict.values()), dtype=np.float32)
         else:
-            ones = np.ones(self.nK - 1)
-            out = np.append(ones, sum(ones)).astype(np.float32)
+            # ones = np.ones(self.nK - 1)
+            # out = np.append(ones, sum(ones)).astype(np.float32)
+            out = np.ones(self.nK)
 
         return out

@@ -131,7 +131,7 @@ def load_from_url(url: str) -> str:
     return filename
 
 
-def _collect_metadata() -> Dict:
+def collect_metadata() -> Dict:
     """Collect metadata about the environment and analysis run."""
     import platform
     import subprocess
@@ -180,11 +180,7 @@ def serialise(varBayes: Any, debug_dir: str) -> None:
         varBayes: Object to serialize
         debug_dir: Directory to save pickle file
     """
-    varBayes._metadata = _collect_metadata()
-    # logger.info('Metadata: git_commit=%s, date=%s, host=%s',
-    #                      varBayes._metadata.get('git_commit'),
-    #                      varBayes._metadata.get('date'),
-    #                      varBayes._metadata.get('hostname'))
+    varBayes._metadata = collect_metadata()
 
     if not os.path.exists(debug_dir):
         os.makedirs(debug_dir)
