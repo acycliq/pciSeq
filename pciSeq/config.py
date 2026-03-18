@@ -27,6 +27,9 @@ DEFAULT = {
     # in order to make the spot more probable to get assigned to the cell than another spot positioned
     # outside the cell boundaries
     "InsideCellBonus": 0,
+    # MRF coefficient: controls how strongly neighboring cells' class assignments
+    # influence each other. Higher values = more spatial smoothing.
+    "mrf_beta": 1.5,
     # MisreadDensity: Expected number of misread spots. A dictionary contains user-defined values
     # for gene misread densities used in the analysis.
     # The process to determine the misread density for each gene is as follows:

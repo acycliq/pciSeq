@@ -26,11 +26,12 @@ def expected_log_joint(obj):
     """
     log_lik = poisson_process_loglikelihood(obj)
     log_prior_zeta = zeta_prior(obj)
+    log_prior_mrf = mrf_prior(obj)
     log_prior_theta = theta_prior(obj)
     log_prior_gamma = gamma_prior(obj)
     log_prior_eta = eta_prior(obj)
 
-    return log_lik + log_prior_zeta + log_prior_theta + log_prior_gamma + log_prior_eta
+    return log_lik + log_prior_zeta + log_prior_mrf + log_prior_theta + log_prior_gamma + log_prior_eta
 
 def poisson_process_loglikelihood(obj):
     """
@@ -106,6 +107,19 @@ def zeta_prior(obj):
     zeta_ck = obj.cells.classProb       # (nC, nK)
     log_pi = obj.cellTypes.log_prior    # (nK,)
     return np.sum(zeta_ck * log_pi)
+
+
+def mrf_prior(obj):
+    """
+    Computes the MRF (Potts model) contribution to the expected log-joint.
+
+    Encourages neighboring cells to have the same type.
+    = beta * sum_{c,k} q(zeta_ck) * sum_{c' in neighbors(c)} q(zeta_{c',k})
+    """
+    zeta_ck = obj.cells.classProb                           # (nC, nK)
+    beta = obj.config['mrf_beta']
+    mrf_val = zeta_ck[obj.cells.nbrs].sum(axis=1)           # (nC, nK)
+    return beta * np.sum(zeta_ck * mrf_val)
 
 
 def theta_prior(obj):
