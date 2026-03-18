@@ -448,7 +448,6 @@ class VarBayes:
         self.cells.nb_contr = contr
         contr = np.sum(contr, axis=1)
         mrf = self.cells.classProb[self.cells.nbrs].sum(axis=1)
-        mrf[:, -1] = 0  # exclude the zero class from influencing the MRF
         wCellClass = contr + self.cellTypes.log_prior + self.config['mrf_beta'] * mrf
         pCellClass = softmax(wCellClass, axis=1)
 
