@@ -1,4 +1,8 @@
+import logging
+
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 def calc_elbo(obj):
@@ -17,6 +21,16 @@ def total_entropy(obj):
     H_zeta = categorical_entropy(obj.cells.classProb)
     H_gamma = entropy_gamma(obj)
     H_eta = entropy_eta(obj)
+
+    nS = obj.spots.parent_cell_prob.shape[0]
+    nN = obj.spots.parent_cell_prob.shape[1]
+    nC = obj.cells.classProb.shape[0]
+    nK = obj.cells.classProb.shape[1]
+    logger.info('Entropy: H[z]=%.2f (%.4f/spot, max=%.2f) | H[zeta]=%.2f (%.4f/cell, max=%.2f) | H[gamma]=%.2f | H[eta]=%.2f',
+                H_z, H_z / nS, np.log(nN),
+                H_zeta, H_zeta / nC, np.log(nK),
+                H_gamma, H_eta)
+
     return H_z + H_zeta + H_gamma + H_eta
 
 
