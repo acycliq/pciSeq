@@ -166,6 +166,8 @@ class Spots(object):
             b (float): Parameter b for eta calculation.
             dim (list): Dimensionality of gamma values.
         """
+        self._post_shape = np.ones(dim, dtype=np.float32) * a
+        self._post_rate = np.ones(dim, dtype=np.float32) * b
         self._gamma_bar = delayed(np.ones(dim, dtype=np.float32) * (a / b))
         self._log_gamma_bar = delayed(np.ones(dim, dtype=np.float32) * self._digamma(a, b))
 

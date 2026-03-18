@@ -73,6 +73,7 @@ from .datatypes.spots import Spots
 from .datatypes.singleCell import SingleCell
 from .datatypes.cellClass import CellClass
 from .summary import collect_data
+from .utils.elbo import calc_elbo
 # from .analysis import CellExplorer
 from .utils import ops_utils as utils
 from .utils import visualisation
@@ -304,6 +305,10 @@ class VarBayes:
                 if self.single_cell.isMissing:
                     self.mu_upd()
 
+                # Calculate ELBO
+                elbo = calc_elbo(self)
+                logger.info('Iteration %d, ELBO: %f' % (i, elbo))
+
                 self.has_converged, delta = utils.has_converged(
                     self.spots, p0, self.config['CellCallTolerance']
                 )
@@ -409,6 +414,8 @@ class VarBayes:
         beta = self.scaled_exp.compute() * self.genes.eta_bar[:, None] * self.cells.theta_bar[:,None, :]+ cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
+        self.spots._post_shape = rho
+        self.spots._post_rate = beta
         self.spots._log_gamma_bar = delayed(self.spots.logGammaExpectation(rho, beta))
         self.spots._gamma_bar = delayed(self.spots.gammaExpectation(rho, beta))
         self.spots.my_gamma_bar = self.spots._gamma_bar.compute()
