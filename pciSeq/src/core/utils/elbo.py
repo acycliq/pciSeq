@@ -119,6 +119,7 @@ def mrf_prior(obj):
     zeta_ck = obj.cells.classProb                           # (nC, nK)
     beta = obj.config['mrf_beta']
     mrf_val = zeta_ck[obj.cells.nbrs].sum(axis=1)           # (nC, nK)
+    mrf_val[:, -1] = 0  # exclude the zero class from influencing the MRF
     return beta * np.sum(zeta_ck * mrf_val)
 
 
