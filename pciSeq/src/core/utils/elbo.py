@@ -214,10 +214,11 @@ def eta_prior(obj):
 
 def pi_prior(obj):
     """
-    Computes E_q[log p(pi | alpha_0)].
+    Computes E_q[log p(pi | alpha_0)] for the real classes only.
 
     Only active in 'weighted' mode where pi is a Dirichlet random variable.
     In 'uniform' mode pi is fixed, so this term is zero.
+    Zero class is excluded (its weight is fixed, not part of the Dirichlet).
 
     E_q[log p(pi | alpha_0)] = -log B(alpha_0) + sum_k (alpha_0k - 1) * E[log pi_k]
     where E[log pi_k] = psi(alpha_post_k) - psi(sum(alpha_post))
@@ -227,15 +228,14 @@ def pi_prior(obj):
 
     from scipy.special import gammaln, psi
 
-    alpha_0 = obj.cellTypes.ini_alpha()
+    # alpha is (nK-1,) — real classes only, prior alpha_0 = ones
+    alpha_0 = np.ones(obj.cellTypes.nK - 1, dtype=np.float32)
     alpha_post = obj.cellTypes.alpha
 
-    # E[log pi_k] under the Dirichlet posterior
+    # E[log pi_k] under the Dirichlet posterior (real classes only)
     E_log_pi = psi(alpha_post) - psi(alpha_post.sum())
 
-    # -log B(alpha_0) = sum(gammaln(alpha_0k)) - gammaln(sum(alpha_0))  ... wait, B = prod(Gamma)/Gamma(sum)
-    # log B(alpha_0) = sum(gammaln(alpha_0k)) - gammaln(sum(alpha_0k))
-    # so -log B(alpha_0) = gammaln(sum(alpha_0)) - sum(gammaln(alpha_0k))
+    # -log B(alpha_0) = gammaln(sum(alpha_0)) - sum(gammaln(alpha_0k))
     log_norm = gammaln(alpha_0.sum()) - np.sum(gammaln(alpha_0))
 
     return log_norm + np.sum((alpha_0 - 1) * E_log_pi)

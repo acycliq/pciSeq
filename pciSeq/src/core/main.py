@@ -786,12 +786,10 @@ class VarBayes:
             2. Initial alpha values
         """
         # logger.info('Update cell type (marginal) distribution')
-        zeta = self.cells.classProb.sum(axis=0)  # this is the class size (how many cells are in each class)
-        alpha = self.cellTypes.ini_alpha()
-        out = zeta + alpha
-        out[-1] = alpha[-1]  # keep Zero's alpha fixed, it's not a real cell type
-
-        self.cellTypes.alpha = out
+        # Only update real classes (exclude Zero, which is the last column)
+        zeta_real = self.cells.classProb[:, :-1].sum(axis=0)
+        alpha_0 = np.ones(self.cellTypes.nK - 1, dtype=np.float32)
+        self.cellTypes.alpha = zeta_real + alpha_0
 
     # -------------------------------------------------------------------- #
     def theta_upd(self):
