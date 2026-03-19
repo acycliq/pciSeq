@@ -789,6 +789,7 @@ class VarBayes:
         zeta = self.cells.classProb.sum(axis=0)  # this is the class size (how many cells are in each class)
         alpha = self.cellTypes.ini_alpha()
         out = zeta + alpha
+        out[-1] = alpha[-1]  # keep Zero's alpha fixed, it's not a real cell type
 
         self.cellTypes.alpha = out
 
