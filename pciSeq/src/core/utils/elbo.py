@@ -21,17 +21,18 @@ def total_entropy(obj):
     H_zeta = categorical_entropy(obj.cells.classProb)
     H_gamma = entropy_gamma(obj)
     H_eta = entropy_eta(obj)
+    H_pi = entropy_pi(obj)
 
     nS = obj.spots.parent_cell_prob.shape[0]
     nN = obj.spots.parent_cell_prob.shape[1]
     nC = obj.cells.classProb.shape[0]
     nK = obj.cells.classProb.shape[1]
-    logger.info('Entropy: H[z]=%.2f (%.4f/spot, max=%.2f) | H[zeta]=%.2f (%.4f/cell, max=%.2f) | H[gamma]=%.2f | H[eta]=%.2f',
+    logger.info('Entropy: H[z]=%.2f (%.4f/spot, max=%.2f) | H[zeta]=%.2f (%.4f/cell, max=%.2f) | H[gamma]=%.2f | H[eta]=%.2f | H[pi]=%.2f',
                 H_z, H_z / nS, np.log(nN),
                 H_zeta, H_zeta / nC, np.log(nK),
-                H_gamma, H_eta)
+                H_gamma, H_eta, H_pi)
 
-    return H_z + H_zeta + H_gamma + H_eta
+    return H_z + H_zeta + H_gamma + H_eta + H_pi
 
 
 def expected_log_joint(obj):
@@ -44,8 +45,9 @@ def expected_log_joint(obj):
     log_prior_theta = theta_prior(obj)
     log_prior_gamma = gamma_prior(obj)
     log_prior_eta = eta_prior(obj)
+    log_prior_pi = pi_prior(obj)
 
-    return log_lik + log_prior_zeta + log_prior_mrf + log_prior_theta + log_prior_gamma + log_prior_eta
+    return log_lik + log_prior_zeta + log_prior_mrf + log_prior_theta + log_prior_gamma + log_prior_eta + log_prior_pi
 
 def poisson_process_loglikelihood(obj):
     """
@@ -208,6 +210,59 @@ def eta_prior(obj):
     log_pdf = log_norm + (r - 1) * E_log_eta - r * E_eta  # log Gamma pdf evaluated at each gene
 
     return np.sum(log_pdf)
+
+
+def pi_prior(obj):
+    """
+    Computes E_q[log p(pi | alpha_0)].
+
+    Only active in 'weighted' mode where pi is a Dirichlet random variable.
+    In 'uniform' mode pi is fixed, so this term is zero.
+
+    E_q[log p(pi | alpha_0)] = -log B(alpha_0) + sum_k (alpha_0k - 1) * E[log pi_k]
+    where E[log pi_k] = psi(alpha_post_k) - psi(sum(alpha_post))
+    """
+    if obj.config['cell_type_prior'] != 'weighted' and not obj.single_cell.isMissing:
+        return 0.0
+
+    from scipy.special import gammaln, psi
+
+    alpha_0 = obj.cellTypes.ini_alpha()
+    alpha_post = obj.cellTypes.alpha
+
+    # E[log pi_k] under the Dirichlet posterior
+    E_log_pi = psi(alpha_post) - psi(alpha_post.sum())
+
+    # -log B(alpha_0) = sum(gammaln(alpha_0k)) - gammaln(sum(alpha_0))  ... wait, B = prod(Gamma)/Gamma(sum)
+    # log B(alpha_0) = sum(gammaln(alpha_0k)) - gammaln(sum(alpha_0k))
+    # so -log B(alpha_0) = gammaln(sum(alpha_0)) - sum(gammaln(alpha_0k))
+    log_norm = gammaln(alpha_0.sum()) - np.sum(gammaln(alpha_0))
+
+    return log_norm + np.sum((alpha_0 - 1) * E_log_pi)
+
+
+def entropy_pi(obj):
+    """
+    Entropy of q(pi) = Dirichlet(alpha_post).
+
+    Only active in 'weighted' mode. In 'uniform' mode pi is fixed (no entropy).
+
+    H[Dirichlet(alpha)] = log B(alpha) + (sum(alpha) - K) * psi(sum(alpha))
+                          - sum_k (alpha_k - 1) * psi(alpha_k)
+    """
+    if obj.config['cell_type_prior'] != 'weighted' and not obj.single_cell.isMissing:
+        return 0.0
+
+    from scipy.special import gammaln, psi
+
+    alpha = obj.cellTypes.alpha
+    K = len(alpha)
+    alpha_sum = alpha.sum()
+
+    # log B(alpha) = sum(gammaln(alpha_k)) - gammaln(sum(alpha))
+    log_B = np.sum(gammaln(alpha)) - gammaln(alpha_sum)
+
+    return log_B + (alpha_sum - K) * psi(alpha_sum) - np.sum((alpha - 1) * psi(alpha))
 
 
 def categorical_entropy(probs):
