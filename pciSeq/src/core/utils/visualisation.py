@@ -115,10 +115,11 @@ def check_spot(self, spot_id):
     attention = self.spots.attention[row_pos][:-1]
     expr_fluct = self.spots.expr_fluctuations[row_pos][:-1]
     cell_inefficiency = self.spots.cell_inefficiency[row_pos][:-1]
+    gene_inefficiency = self.spots.gene_inefficiency[row_pos][:-1]
     misread = np.log(self.genes.misread_density[gene_name])
 
     # Calculate scores and probabilities
-    scores = mvn_loglik + attention + expr_fluct
+    scores = mvn_loglik + attention + expr_fluct + cell_inefficiency + gene_inefficiency
     scores = np.append(scores, misread)
     probabilities = softmax(scores)
 
@@ -141,6 +142,7 @@ def check_spot(self, spot_id):
         'attention': attention,
         'expr_fluct': expr_fluct,
         'cell_inefficiency': cell_inefficiency,
+        'gene_inefficiency': gene_inefficiency,
         'misread': float(misread),  # Convert numpy float to native Python float
         'score': scores,
         'prob': probabilities,
@@ -153,9 +155,10 @@ def check_spot(self, spot_id):
         'mvn_loglik': mvn_loglik,
         'attention': attention,
         'expr_fluct': expr_fluct,
-        'cell_inefficiency': cell_inefficiency}).set_index(['Name'])
-    df['sum'] = df[['mvn_loglik', 'attention', 'expr_fluct', 'cell_inefficiency']].sum(axis=1)
-    df.loc['misread'] = [np.nan, np.nan, np.nan, np.nan, misread]
+        'cell_inefficiency': cell_inefficiency,
+        'gene_inefficiency': gene_inefficiency}).set_index(['Name'])
+    df['sum'] = df[['mvn_loglik', 'attention', 'expr_fluct', 'cell_inefficiency', 'gene_inefficiency']].sum(axis=1)
+    df.loc['misread'] = [np.nan, np.nan, np.nan, np.nan, np.nan, misread]
 
     spot_to_cell_score_plot(datadict)
     spot_to_cell_prob_plot(datadict)

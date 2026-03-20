@@ -504,6 +504,7 @@ class VarBayes:
         attention = np.zeros(wSpotCell.shape)
         expr_fluctuations = np.zeros(wSpotCell.shape)
         cell_inefficiency = np.zeros(wSpotCell.shape)
+        gene_inefficiency = np.zeros(wSpotCell.shape)
 
         # Materialize once before the loop (same for all neighbors)
         log_gamma_bar_arr = self.spots.log_gamma_bar.compute()
@@ -533,6 +534,7 @@ class VarBayes:
             attention[:, n] = term_1
             expr_fluctuations[:, n] = term_2
             cell_inefficiency[:, n] = term_3
+            gene_inefficiency[:, n] = logeta_bar
 
         # apply inside cell bonus
         bonus_mask = self.spots.bonus_mask * self.config['InsideCellBonus']
@@ -544,6 +546,7 @@ class VarBayes:
         self.spots.attention = attention
         self.spots.expr_fluctuations = expr_fluctuations
         self.spots.cell_inefficiency = cell_inefficiency
+        self.spots.gene_inefficiency = gene_inefficiency
 
         # Since the spot-to-cell assignments changed you need to update the gene counts now
         self.geneCount_upd()
