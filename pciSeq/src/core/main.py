@@ -306,8 +306,8 @@ class VarBayes:
                     self.mu_upd()
 
                 # Calculate ELBO
-                elbo = calc_elbo(self)
-                logger.info('Iteration %d, ELBO: %f' % (i, elbo))
+                # elbo = calc_elbo(self)
+                # logger.info('Iteration %d, ELBO: %f' % (i, elbo))
 
                 self.has_converged, delta = utils.has_converged(
                     self.spots, p0, self.config['CellCallTolerance']
@@ -447,7 +447,11 @@ class VarBayes:
         # for debugging, safe to remove in the future
         self.cells.nb_contr = contr
         contr = np.sum(contr, axis=1)
-        mrf = self.cells.classProb[self.cells.nbrs].sum(axis=1)
+        nbrs_idx = self.cells.nbrs['indices']
+        nbrs_prxmty = 1/self.cells.nbrs['distances']
+        nbr_probs = self.cells.classProb[nbrs_idx]    # (nC, nN, nK)
+        mrf = (nbr_probs * nbrs_prxmty[:, :, None]).sum(axis=1)
+
         wCellClass = contr + self.cellTypes.log_prior + self.config['mrf_beta'] * mrf
         pCellClass = softmax(wCellClass, axis=1)
 

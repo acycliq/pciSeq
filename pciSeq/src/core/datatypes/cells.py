@@ -333,7 +333,10 @@ class Cells(object):
         distances, indices = self.nn().kneighbors(self.zyx_coords)
 
         # drop the 1st column, it is always the cell itself
-        return indices[:, 1:]
+        out = {}
+        out['distances'] = distances[:, 1:]
+        out['indices'] = indices[:, 1:]
+        return out
 
     # -------------------------- CONVENIENCE METHODS ----------------------- #
     def gene_reads_per_class(self):
