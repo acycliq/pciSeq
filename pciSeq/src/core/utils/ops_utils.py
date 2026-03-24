@@ -360,25 +360,67 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     ])
     gene_expression_data.columns = new_columns
 
-    if show_plot:
-        # Step 7: Plot top and bottom genes as subplots
-        fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    # Step 7: Compute the prior and MRF terms for the two classes
+    class_names = list(obj.cells.class_names)
+    pciSeq_idx = class_names.index(pciSeq_class)
+    user_idx = class_names.index(user_class)
 
-        # Calculate the sum of the top n contributions
+    log_prior = obj.cellTypes.log_prior
+    mrf = obj.cells.calc_mrf()
+
+    gene_loglik_pciSeq = my_contr_df[pciSeq_class].sum()
+    gene_loglik_user = my_contr_df[user_class].sum()
+    log_prior_pciSeq = log_prior[pciSeq_idx]
+    log_prior_user = log_prior[user_idx]
+    mrf_pciSeq = mrf[pciSeq_label, pciSeq_idx]
+    mrf_user = mrf[pciSeq_label, user_idx]
+
+    # Log-posterior for the two classes
+    log_post_pciSeq = gene_loglik_pciSeq + log_prior_pciSeq + mrf_pciSeq
+    log_post_user = gene_loglik_user + log_prior_user + mrf_user
+
+    # Posterior probabilities (softmax over just these two classes)
+    log_posts = np.array([log_post_pciSeq, log_post_user])
+    posterior_probs = softmax(log_posts)
+
+    if show_plot:
+        fig, axes = plt.subplots(2, 2, figsize=(14, 12))
+
+        # --- Top row: gene-level log-likelihood differences (unchanged) ---
         top_contribution_sum = my_contr_df.loc[top_genes, 'diff'].sum()
         bottom_contribution_sum = my_contr_df.loc[bottom_genes, 'diff'].sum()
 
-        # Plot top genes
-        my_contr_df.loc[top_genes, 'diff'].plot.bar(ax=axes[0], color='skyblue',
+        my_contr_df.loc[top_genes, 'diff'].plot.bar(ax=axes[0, 0], color='skyblue',
                                                     title=f'Cell: {label} - Top {top_n} contr for class: {pciSeq_class} (Sum: {top_contribution_sum:.2f})')
-        axes[0].set_ylabel('Log-Likelihood Difference')
-        axes[0].set_xlabel('Genes')
+        axes[0, 0].set_ylabel('Log-Likelihood Difference')
+        axes[0, 0].set_xlabel('Genes')
 
-        # Plot bottom genes
-        my_contr_df.loc[bottom_genes, 'diff'].plot.bar(ax=axes[1], color='lightcoral',
+        my_contr_df.loc[bottom_genes, 'diff'].plot.bar(ax=axes[0, 1], color='lightcoral',
                                                        title=f'Cell: {label} - Top {top_n} contr for class: {user_class} (Sum: {bottom_contribution_sum:.2f})')
-        axes[1].set_ylabel('Log-Likelihood Difference')
-        axes[1].set_xlabel('Genes')
+        axes[0, 1].set_ylabel('Log-Likelihood Difference')
+        axes[0, 1].set_xlabel('Genes')
+
+        # --- Bottom-left: grouped bar chart of log-posterior components ---
+        x = np.arange(3)
+        width = 0.35
+        vals_pciSeq = [gene_loglik_pciSeq, log_prior_pciSeq, mrf_pciSeq]
+        vals_user = [gene_loglik_user, log_prior_user, mrf_user]
+
+        axes[1, 0].bar(x - width/2, vals_pciSeq, width, label=pciSeq_class, color='skyblue')
+        axes[1, 0].bar(x + width/2, vals_user, width, label=user_class, color='lightcoral')
+        axes[1, 0].set_xticks(x)
+        axes[1, 0].set_xticklabels(['Gene LogLik', 'Log Prior', 'MRF'])
+        axes[1, 0].set_ylabel('Log-scale value')
+        axes[1, 0].set_title(f'Cell: {label} - Log-posterior components')
+        axes[1, 0].legend()
+        axes[1, 0].axhline(y=0, color='grey', linestyle='--', linewidth=0.5)
+
+        # --- Bottom-right: posterior probabilities ---
+        axes[1, 1].bar([pciSeq_class, user_class],
+                       [posterior_probs[0] * 100, posterior_probs[1] * 100],
+                       color=['skyblue', 'lightcoral'])
+        axes[1, 1].set_ylabel('Posterior Probability (%)')
+        axes[1, 1].set_title(f'Cell: {label} - Posterior probabilities')
 
         plt.tight_layout()
         plt.show()
