@@ -230,7 +230,10 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
             scaled_means BLOB,
             theta_bar BLOB,
             gene_count BLOB,
-            class_prob BLOB
+            class_prob BLOB,
+            theta REAL,
+            assigned_class_idx INTEGER,
+            gamma_assigned BLOB
         )
     ''')
 
@@ -303,6 +306,18 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         ('gene_panel', json.dumps(gene_panel)),
         ('label_map', json.dumps(label_map)),
     ]
+
+    # Per-gene observed spot counts (for η scatter in dashboard)
+    try:
+        if hasattr(spots, 'counts_per_gene') and spots.counts_per_gene is not None:
+            gene_total_spots = spots.counts_per_gene.astype(int).tolist()
+        else:
+            vc = spots.data['gene_name'].value_counts()
+            gene_total_spots = [int(vc.get(g, 0)) for g in gene_panel]
+        meta_items.append(('gene_total_spots', json.dumps(gene_total_spots)))
+    except Exception:
+        pass
+
     cursor.executemany('INSERT INTO metadata VALUES (?, ?)', meta_items)
     # logger.info('Inserted %d metadata entries', len(meta_items))
 
@@ -311,6 +326,15 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     theta_bar_f32 = cells.theta_bar.astype(np.float32)
     gene_count_f32 = cells.geneCount.astype(np.float32)
     class_prob_f32 = cells.classProb.astype(np.float32)
+
+    # Dashboard columns: theta, assigned_class_idx, gamma_assigned
+    # theta = sum_k zeta[c,k] * theta_bar[c,k]
+    theta_scalar = np.einsum('ck,ck->c', class_prob_f32, theta_bar_f32).astype(np.float32)
+    assigned_class_idx = np.argmax(class_prob_f32, axis=1).astype(np.int32)
+
+    # gamma_assigned[c, :] = gamma_bar[c, :, assigned_class[c]]
+    gamma_bar = varBayes.spots.gamma_bar.compute().astype(np.float32)  # (nC, nG, nK)
+    gamma_assigned = gamma_bar[np.arange(nC), :, assigned_class_idx]   # (nC, nG)
 
     batch_size = 10000
     for batch_start in range(0, nC, batch_size):
@@ -323,8 +347,11 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
                 theta_bar_f32[c].tobytes(),
                 gene_count_f32[c].tobytes(),
                 class_prob_f32[c].tobytes(),
+                float(theta_scalar[c]),
+                int(assigned_class_idx[c]),
+                gamma_assigned[c].tobytes(),
             ))
-        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?)', batch_data)
+        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?, ?, ?, ?)', batch_data)
         # if (batch_end % 10000 == 0) or (batch_end == nC):
         #     logger.info('Inserted %d/%d cells', batch_end, nC)
 
