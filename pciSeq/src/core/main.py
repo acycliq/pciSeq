@@ -305,9 +305,9 @@ class VarBayes:
                 if self.single_cell.isMissing:
                     self.mu_upd()
 
-                # Calculate ELBO
-                elbo = calc_elbo(self)
-                logger.info('Iteration %d, ELBO: %f' % (i, elbo))
+                # # Calculate ELBO
+                # elbo = calc_elbo(self)
+                # logger.info('Iteration %d, ELBO: %f' % (i, elbo))
 
                 self.has_converged, delta = utils.has_converged(
                     self.spots, p0, self.config['CellCallTolerance']
@@ -447,8 +447,9 @@ class VarBayes:
         # for debugging, safe to remove in the future
         self.cells.nb_contr = contr
         contr = np.sum(contr, axis=1)
-        mrf = self.cells.classProb[self.cells.nbrs].sum(axis=1)
-        wCellClass = contr + self.cellTypes.log_prior + self.config['mrf_beta'] * mrf
+        mrf = self.cells.calc_mrf()
+        # mrf = self.cells.classProb[self.cells.nbrs].sum(axis=1)
+        wCellClass = contr + self.cellTypes.log_prior + mrf
         pCellClass = softmax(wCellClass, axis=1)
 
         # # save the data to a tmp dir

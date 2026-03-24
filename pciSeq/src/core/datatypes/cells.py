@@ -335,6 +335,11 @@ class Cells(object):
         # drop the 1st column, it is always the cell itself
         return indices[:, 1:]
 
+    def calc_mrf(self):
+        mrf = self.classProb[self.nbrs].sum(axis=1)
+        out = mrf * self.config['mrf_beta']
+        return out
+
     # -------------------------- CONVENIENCE METHODS ----------------------- #
     def gene_reads_per_class(self):
         """Calculate total (weighted by class prob) gene reads for each class.
