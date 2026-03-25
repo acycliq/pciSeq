@@ -299,7 +299,16 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
         top_n (int): Number of top and bottom genes to retrieve (default: 10).
 
     Returns:
-        pd.DataFrame: A DataFrame containing mean expression values and gene counts for the top and bottom genes.
+        gene_expression_data (pd.DataFrame): A DataFrame with columns:
+            - (Cells typed as X, mean counts): Population-level. Average gene counts across ALL cells
+              currently assigned to class X.
+            - (Cells typed as X, NB expected): Cell-specific. What the NB model predicts THIS particular
+              cell should have for each gene if it belonged to class X, accounting for this cell's theta
+              (cell efficiency) and each gene's eta (gene efficiency). This is what actually drives the
+              log-likelihood, not the population mean.
+            - (This cell, counts): The actual observed gene counts for this cell.
+        my_contr_df (pd.DataFrame): Per-gene log-likelihood contributions for the two classes.
+        fig: The matplotlib figure (or None if show_plot=False).
     """
 
     # If original labels have been renumbered find the label it's been mapped to.
@@ -309,7 +318,7 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
         pciSeq_label = label
 
     # Step 1: Calculate gene log-likelihood contributions
-    contr_df, gene_counts, _ = obj.calculate_genes_log_likelihood_contr(label)
+    contr_df, gene_counts, scaled_means_df = obj.calculate_genes_log_likelihood_contr(label)
 
     # Step 2: Get the cell's class from cellData
     pciSeq_class = obj.cells.class_names[obj.cells.classProb[pciSeq_label].argmax()]
@@ -345,7 +354,11 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     # Filter rows and columns
     gene_expression_data = gene_expression_data.loc[selected_genes, [pciSeq_class, user_class]]
 
-    # Merge with gene_counts
+    # Merge with gene_counts and expected counts (scaled_means)
+    expected_counts = scaled_means_df.loc[selected_genes, [pciSeq_class, user_class]]
+    gene_expression_data = gene_expression_data.merge(
+        expected_counts, left_index=True, right_index=True, suffixes=('_mean', '_expected')
+    )
     gene_expression_data = gene_expression_data.merge(
         gene_counts[selected_genes].rename('Cell Gene Counts'),
         left_index=True,
@@ -356,7 +369,9 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     new_columns = pd.MultiIndex.from_tuples([
         (f'Cells typed as {pciSeq_class}', 'mean counts'),
         (f'Cells typed as {user_class}', 'mean counts'),
-        (f'This cell: ({label})', 'counts')
+        (f'Cell {label} NB prediction', f'as {pciSeq_class}'),
+        (f'Cell {label} NB prediction', f'as {user_class}'),
+        (f'This cell: ({label})', 'observed')
     ])
     gene_expression_data.columns = new_columns
 
@@ -383,6 +398,7 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     log_posts = np.array([log_post_pciSeq, log_post_user])
     posterior_probs = softmax(log_posts)
 
+    fig = None
     if show_plot:
         fig, axes = plt.subplots(2, 2, figsize=(14, 12))
 
@@ -425,7 +441,7 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
         plt.tight_layout()
         plt.show()
 
-    return gene_expression_data, my_contr_df, fig if show_plot else None
+    return gene_expression_data, my_contr_df, (fig if show_plot else None)
 
 
 def cell_typing_breakdown(obj, label, weights=None, show_plot=True):
