@@ -333,11 +333,27 @@ class Cells(object):
         distances, indices = self.nn().kneighbors(self.zyx_coords)
 
         # drop the 1st column, it is always the cell itself
-        return indices[:, 1:]
+        out = {
+            'distances': distances[:, 1:],
+            'indices': indices[:, 1:]
+        }
+        return out
 
     def calc_mrf(self):
-        mrf = self.classProb[self.nbrs].sum(axis=1)
-        out = mrf * self.config['mrf_beta']
+        nbrs_idx = self.nbrs['indices']
+
+        # Weight each neighbor by 1/distance so closer cells have more influence.
+        # Normalise so the weights sum to nNeighbors (e.g. 9), matching the
+        # scale of zeta (class probs sum to 1 per neighbor, 9 neighbors total).
+        # This way proximity and zeta contribute equally to the MRF potential.
+        nbrs_prxmty = 1/self.nbrs['distances']
+        nbrs_prxmty = nbrs_prxmty / nbrs_prxmty.sum(axis=1, keepdims=True) * nbrs_idx.shape[1]
+
+        # Proximity-weighted sum of neighbour class probabilities (zeta)
+        nbr_probs = self.classProb[nbrs_idx]  # (nC, nN, nK)
+        mrf = (nbr_probs * nbrs_prxmty[:, :, None]).sum(axis=1)
+        out = mrf * self.config["mrf_beta"]
+
         return out
 
     # -------------------------- CONVENIENCE METHODS ----------------------- #
