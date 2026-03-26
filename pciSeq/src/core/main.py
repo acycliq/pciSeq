@@ -280,7 +280,7 @@ class VarBayes:
                 self.geneCount_upd()
 
                 # 2. update gene-specific misread density
-                # self.rho_upd()
+                self.rho_upd()
 
                 # 3. calc the gene inefficiency
                 self.eta_upd()
