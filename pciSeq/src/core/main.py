@@ -182,6 +182,8 @@ class VarBayes:
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.cells._ini_gene_counts = np.bincount(self.spots.data.label.values, minlength=self.nC)
         self.genes._misread_density = self.genes.calc_misread_density()
+        A_total = self.config['img_dim']['w'] * self.config['img_dim']['h'] * self.config['img_dim']['n_planes']
+        self.genes.init_rho(self.config['MisreadDensity']['default'], A_total)
         self.spots.init_gamma(self.config['rSpot'], self.config['rSpot'], [self.nC, self.nG, self.nK])
         self.init_theta()
 
@@ -277,7 +279,10 @@ class VarBayes:
                 # 1. For each cell, calc the expected gene counts
                 self.geneCount_upd()
 
-                # 2. calc the gene inefficiency
+                # 2. update gene-specific misread density
+                # self.rho_upd()
+
+                # 3. calc the gene inefficiency
                 self.eta_upd()
 
                 # 3. calc the cell inefficiency
@@ -496,11 +501,11 @@ class VarBayes:
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
         logeta_bar = self.genes.logeta_bar[self.spots.gene_id]
 
-        # misread = self.spot_misread_density()
-        misread = self.spots.misread_density(self.genes)
+        # Gene-specific misread density (learned per gene)
+        log_rho = self.genes.log_rho_bar[self.spots.gene_id]
 
         # pre-populate last column
-        wSpotCell[:, -1] = np.log(misread)
+        wSpotCell[:, -1] = log_rho
         mvn_loglik_arr = np.zeros(wSpotCell.shape)
         attention = np.zeros(wSpotCell.shape)
         expr_fluctuations = np.zeros(wSpotCell.shape)
@@ -605,6 +610,23 @@ class VarBayes:
 
         # Update gene counts
         self.geneCount_upd()
+
+    # -------------------------------------------------------------------- #
+    def rho_upd(self) -> None:
+        """Updates gene-specific misread density (rho_g).
+
+        Uses the expected number of background spots per gene to update
+        the Gamma posterior for each gene's misread density.
+        """
+        background_counts = np.bincount(
+            self.spots.gene_id,
+            self.spots.parent_cell_prob[:, -1],
+            minlength=self.nG
+        )
+        self.genes.calc_rho(background_counts)
+        logger.info(f"rho_upd: bg_counts min/max={background_counts.min():.1f}/{background_counts.max():.1f}, "
+                     f"rho_bar min/max={self.genes.rho_bar.min():.2e}/{self.genes.rho_bar.max():.2e}, "
+                     f"log_rho min/max={self.genes.log_rho_bar.min():.4f}/{self.genes.log_rho_bar.max():.4f}")
 
     # -------------------------------------------------------------------- #
     def eta_upd(self) -> None:

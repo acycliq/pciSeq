@@ -156,6 +156,10 @@ DEFAULT = {
     # Runtime attribute (automatically set during execution)
     "is3D": None,
     "rTheta": 25.0,
+    # Shape parameter for the Gamma prior on gene-specific misread density (rho_g).
+    # Higher values anchor rho_g closer to the MisreadDensity prior mean.
+    # With rRho=1 the prior is weak and the data drives the estimate.
+    "rRho": 1000.0,
     # *******************************************************************************
     # Realtime viewer (optional visualization feature)
     # *******************************************************************************

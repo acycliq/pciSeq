@@ -91,9 +91,9 @@ def poisson_process_loglikelihood(obj):
     mvn_loglik = spots.mvn_loglik_arr      # (nS, nN) — spatial: multivariate normal log-pdf
     bonus = spots.bonus_mask * cfg['InsideCellBonus']
 
-    # Background: q(z_s = bg) * log(misread_density)
-    rho0 = obj.genes._misread_density.values[g_s]
-    term2_bg = np.sum(q_z[:, -1] * np.log(rho0))
+    # Background: q(z_s = bg) * E[log rho_g]
+    log_rho = obj.genes.log_rho_bar[g_s]
+    term2_bg = np.sum(q_z[:, -1] * log_rho)
 
     # Signal: for each neighbor cell, sum over classes weighted by q(zeta)
     log_mu_s = log_mu[g_s, :]              # (nS, nK) — precompute, same for all neighbors

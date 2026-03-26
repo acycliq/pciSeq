@@ -116,7 +116,8 @@ def check_spot(self, spot_id):
     expr_fluct = self.spots.expr_fluctuations[row_pos][:-1]
     cell_inefficiency = self.spots.cell_inefficiency[row_pos][:-1]
     gene_inefficiency = self.spots.gene_inefficiency[row_pos][:-1]
-    misread = np.log(self.genes.misread_density[gene_name])
+    gene_idx = np.where(self.genes.gene_panel == gene_name)[0][0]
+    misread = self.genes.log_rho_bar[gene_idx]
 
     # Calculate scores and probabilities
     scores = mvn_loglik + attention + expr_fluct + cell_inefficiency + gene_inefficiency

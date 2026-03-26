@@ -33,6 +33,7 @@ class ConfigManager:
     exclude_planes: list
     is3D: Union[None, bool]
     remove_flat_cells: bool
+    rRho: float
     mean_gene_counts_per_class: int
     mean_gene_counts_per_cell: int
 
