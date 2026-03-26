@@ -117,21 +117,21 @@ class Genes(object):
     def init_rho(self, rho_prior, A_total):
         """Initialise the gene-specific misread density posterior.
 
-        The prior is Gamma(r_rho, beta_rho) with mean = rho_prior.
-        r_rho is set via config['rRho'], beta_rho = r_rho / rho_prior.
+        rho_g = rho_prior * rho_tilde_g, where rho_tilde_g ~ Gamma(r_rho, r_rho)
+        has prior mean 1. Same parametrisation as eta and gamma.
 
         Parameters:
-            rho_prior (float): Prior mean misread density (e.g. 1e-5).
+            rho_prior (float): Baseline misread density (e.g. 1e-5).
             A_total (float): Total area of the ROI in pixels.
         """
-        self._rho_prior_shape = self.config['rRho']
-        self._rho_prior_rate = self.config['rRho'] / rho_prior
+        r = self.config['rRho']
+        self._rho_prior = rho_prior
         self._A_total = A_total
 
-        shape = np.ones(self.nG, dtype=np.float64) * self._rho_prior_shape
-        rate = np.ones(self.nG, dtype=np.float64) * self._rho_prior_rate
-        self._rho_bar = (shape / rate).astype(np.float64)
-        self._log_rho_bar = self._digamma(shape, rate).astype(np.float64)
+        shape = np.ones(self.nG, dtype=np.float64) * r
+        rate = np.ones(self.nG, dtype=np.float64) * r
+        self._rho_bar = rho_prior * (shape / rate)
+        self._log_rho_bar = np.log(rho_prior) + self._digamma(shape, rate)
 
     def calc_rho(self, background_counts):
         """Update the gene-specific misread density posterior.
@@ -140,10 +140,11 @@ class Genes(object):
             background_counts (np.array): Shape (nG,), expected number of
                 background spots per gene (N_bar_{0,g}).
         """
-        shape = self._rho_prior_shape + background_counts
-        rate = self._rho_prior_rate + self._A_total
-        self._rho_bar = (shape / rate).astype(np.float64)
-        self._log_rho_bar = self._digamma(shape, rate).astype(np.float64)
+        r = self.config['rRho']
+        shape = r + background_counts
+        rate = r + self._rho_prior * self._A_total
+        self._rho_bar = self._rho_prior * (shape / rate)
+        self._log_rho_bar = np.log(self._rho_prior) + self._digamma(shape, rate)
 
     def _digamma(self, a, b):
         """
