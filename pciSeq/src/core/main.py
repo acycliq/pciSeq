@@ -318,6 +318,20 @@ class VarBayes:
                     self.spots, p0, self.config['CellCallTolerance']
                 )
                 logger.info('Iteration %d, mean prob change %f' % (i, delta))
+                # --- SMART LOGGING --- 
+                if delta > 0:
+                    p1 = self.spots.parent_cell_prob
+                    p0_val = p0 if p0 is not None else np.zeros_like(p1)
+                    diffs = np.abs(p1 - p0_val)
+                    max_idx = np.unravel_index(np.argmax(diffs), diffs.shape)
+                    spot_idx = max_idx[0]
+                    col_idx = max_idx[1]
+                    gene_name = self.spots.data.gene_name.iloc[spot_idx]
+                    cell_id = self.spots.parent_cell_id[spot_idx, col_idx]
+                    old_prob = p0_val[spot_idx, col_idx]
+                    new_prob = p1[spot_idx, col_idx]
+                    logger.info(f"DIAGNOSTIC: Spot {spot_idx} (Gene: {gene_name}) changed by {delta:.6f}")
+                    logger.info(f"DIAGNOSTIC: Cell {cell_id} Prob: {old_prob:.4f} -> {new_prob:.4f}")
 
                 # Update diagnostics using controller
                 self.diagnostics_upd()
