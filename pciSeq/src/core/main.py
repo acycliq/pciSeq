@@ -285,19 +285,16 @@ class VarBayes:
                 # 3. calc the gene inefficiency
                 self.eta_upd()
 
-                # 3. calc the cell inefficiency
+                # 4. calc the cell inefficiency
                 self.theta_upd()
 
-                # 4. calc expected gamma
+                # 5. calc expected gamma
                 self.gamma_upd()
 
                 logger.info("gaussian_upd step has been removed in this version of the software")
                 # 3 update correlation matrix and variance of the gaussian distribution
                 # if self.single_cell.isMissing or (self.config['InsideCellBonus'] is False) or (self.config['is3D']):
                 #     self.gaussian_upd()
-
-                # 5. assign spots to cells
-                self.spots_to_cell()
 
                 # 6. assign cells to cell types
                 self.cell_to_cellType()
@@ -309,6 +306,9 @@ class VarBayes:
                 # 8. Update single cell data
                 if self.single_cell.isMissing:
                     self.mu_upd()
+
+                # 9. assign spots to cells
+                self.spots_to_cell()
 
                 # # Calculate ELBO
                 # elbo = calc_elbo(self)
