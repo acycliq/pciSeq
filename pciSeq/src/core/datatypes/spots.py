@@ -248,9 +248,11 @@ class Spots(object):
         # sanity_check = neighbors[mask, 0] + 1 == SpotInCell[mask]
         # assert ~any(sanity_check), "a spot is in a cell not closest neighbor!"
 
-        pSpotNeighb = np.zeros([nS, nN], dtype=np.float32)
-        pSpotNeighb[neighbors == SpotInCell.values[:, None]] = 1
-        pSpotNeighb[SpotInCell == 0, -1] = 1
+        # pSpotNeighb = np.zeros([nS, nN], dtype=np.float32)
+        # pSpotNeighb[neighbors == SpotInCell.values[:, None]] = 1
+        # pSpotNeighb[SpotInCell == 0, -1] = 1
+
+        pSpotNeighb = np.full([nS, nN], 1.0 / nN, dtype=np.float32)
 
         # you might have case where the sum across all columns is Zero.
         # That can happen if for example the spot is inside the cell boundaries
