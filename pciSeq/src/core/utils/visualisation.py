@@ -158,8 +158,9 @@ def check_spot(self, spot_id):
         'expr_fluct': expr_fluct,
         'cell_inefficiency': cell_inefficiency,
         'gene_inefficiency': gene_inefficiency}).set_index(['Name'])
+    df['misread'] = np.nan
     df['sum'] = df[['mvn_loglik', 'attention', 'expr_fluct', 'cell_inefficiency', 'gene_inefficiency']].sum(axis=1)
-    df.loc['misread'] = [np.nan, np.nan, np.nan, np.nan, np.nan, misread]
+    df.loc['background'] = [np.nan, np.nan, np.nan, np.nan, np.nan, misread, misread]
 
     spot_to_cell_score_plot(datadict)
     spot_to_cell_prob_plot(datadict)
