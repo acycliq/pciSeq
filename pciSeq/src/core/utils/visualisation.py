@@ -177,10 +177,12 @@ def spot_to_cell_prob_plot(data):
     mvn_loglik = data['mvn_loglik']
     attention = data['attention']
     expr_fluct = data['expr_fluct']
+    cell_inefficiency = data['cell_inefficiency']
+    gene_inefficiency = data['gene_inefficiency']
     misread = data['misread']
 
     # Calculate scores and probabilities
-    scores = mvn_loglik + attention + expr_fluct
+    scores = mvn_loglik + attention + expr_fluct + cell_inefficiency + gene_inefficiency
     scores = np.append(scores, misread)
     prob = softmax(scores)
 
@@ -312,6 +314,16 @@ def spot_to_cell_score_plot(my_dict):
         name='Cell Inefficiency',
         marker_color='#9467bd',
         hovertemplate="<b>%{x}</b><br>Cell Inefficiency"
+                      ": %{y:.2f}<extra></extra>",
+        width=0.7
+    ))
+
+    fig.add_trace(go.Bar(
+        x=labels[:-1],
+        y=my_dict['gene_inefficiency'],
+        name='Gene Inefficiency',
+        marker_color='#8c564b',
+        hovertemplate="<b>%{x}</b><br>Gene Inefficiency"
                       ": %{y:.2f}<extra></extra>",
         width=0.7
     ))
