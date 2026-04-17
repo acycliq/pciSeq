@@ -191,10 +191,8 @@ def serialise(varBayes: Any, debug_dir: str) -> None:
     pickle_mb = os.path.getsize(pickle_dst) / (1024 * 1024)
     logger.info('Saved at %s (%.1f MB)', pickle_dst, pickle_mb)
 
-    # Export diagnostics database to diagnostics folder (sibling of arrow folder)
-    # This allows the viewer to auto-discover it alongside arrow data
-    data_dir = os.path.dirname(debug_dir)  # Go up from debug to data folder
-    export_diagnostics(varBayes, data_dir)
+    arrow_dir = os.path.join(os.path.dirname(debug_dir), 'viewer_data')
+    export_diagnostics(varBayes, arrow_dir)
 
 
 def export_diagnostics(varBayes: Any, output_dir: str) -> None:
@@ -512,7 +510,7 @@ def write_arrow(geneData:pd.DataFrame, cellData:pd.DataFrame, cellBoundaries:pd.
 
 def geneData_to_arrow(df_in: pd.DataFrame, out_dir: str = None) -> None:
 
-    out_dir = Path(out_dir) / "arrow" / 'arrow_spots'
+    out_dir = Path(out_dir) / "viewer_data" / 'arrow_spots'
     out_dir.mkdir(parents=True, exist_ok=True)
 
     shards = []
@@ -605,7 +603,7 @@ def cellData_to_arrow(df_in: pd.DataFrame, out_dir: str = None) -> None:
     Raises:
         ValueError: If required source columns are missing
     """
-    out_dir = Path(out_dir) / "arrow" / "arrow_cells"
+    out_dir = Path(out_dir) / "viewer_data" / "arrow_cells"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Validate required source columns - fail fast if missing
@@ -708,7 +706,7 @@ def validate_df_structure(df):
         raise SystemExit(f"validation failed: {e}")
 
 def boundaries_to_arrow_old(df_in: pd.DataFrame, out_dir: str = None) -> None:
-    out_dir = Path(out_dir) / "arrow" / 'arrow_boundaries'
+    out_dir = Path(out_dir) / "viewer_data" / 'arrow_boundaries'
     out_dir.mkdir(parents=True, exist_ok=True)
 
 
@@ -772,7 +770,7 @@ def boundaries_to_arrow_old(df_in: pd.DataFrame, out_dir: str = None) -> None:
 
 
 def _boundaries_to_arrow(df_in: List[pd.DataFrame], out_dir: str = None) -> None:
-    out_dir = Path(out_dir) / "arrow" / 'arrow_boundaries'
+    out_dir = Path(out_dir) / "viewer_data" / 'arrow_boundaries'
     out_dir.mkdir(parents=True, exist_ok=True)
 
     shards = []
@@ -878,7 +876,7 @@ def boundaries_to_arrow(dfs_in: List[pd.DataFrame], out_dir: str, compression: s
         out_dir: The root directory to save the output 'arrow_boundaries' folder to.
         compression: The compression to use for the Feather files.
     """
-    out_dir = Path(out_dir) / "arrow" / 'arrow_boundaries'
+    out_dir = Path(out_dir) / "viewer_data" / 'arrow_boundaries'
     out_dir.mkdir(parents=True, exist_ok=True)
 
     comp = compression if compression != "none" else None
