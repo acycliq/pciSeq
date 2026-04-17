@@ -265,13 +265,37 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     # Gene Panel
     gene_panel = genes.gene_panel.tolist()
 
-    # Misread Density
+    # Initial misread density (prior estimate, same for all genes unless user-specified)
     misread_series = genes.misread_density
-    if hasattr(misread_series, 'to_dict'):
-        misread_dict = {str(k): float(v) for k, v in misread_series.to_dict().items()}
-    else:
-        logger.error("Diagnostics export skipped: 'misread_density' is missing or invalid.")
+    if misread_series is None:
+        logger.error("Diagnostics export skipped: 'misread_density' is missing.")
         return
+    misread_dict = {str(gene): float(v) for gene, v in zip(genes.gene_panel, misread_series)}
+
+    # Learned misread density (posterior mean rho_bar, updated during EM)
+    rho_bar = genes.rho_bar
+    rho_bar_dict = {str(gene): float(rho) for gene, rho in zip(genes.gene_panel, rho_bar)} if rho_bar is not None else {}
+
+    # Hard misread counts: spots where background (last column) has the highest probability
+    hard_misread_counts = []  # list of ints indexed by gene
+    hard_misread_by_plane = {}  # {gene_name: {plane_id: count}}
+    try:
+        prob = spots.parent_cell_prob  # (nS, nN+1)
+        if prob is not None and len(prob):
+            is_misread = np.argmax(prob, axis=1) == (prob.shape[1] - 1)  # (nS,) bool
+            hard_misread_counts = np.bincount(spots.gene_id, weights=is_misread.astype(np.float32), minlength=len(gene_panel)).astype(int).tolist()
+            if 'plane_id' in spots.data.columns:
+                plane_ids = spots.data['plane_id'].to_numpy()
+                misread_indices = np.where(is_misread)[0]
+                for idx in misread_indices:
+                    gene = gene_panel[spots.gene_id[idx]]
+                    plane = int(plane_ids[idx])
+                    if gene not in hard_misread_by_plane:
+                        hard_misread_by_plane[gene] = {}
+                    plane_counts = hard_misread_by_plane[gene]
+                    plane_counts[plane] = plane_counts.get(plane, 0) + 1
+    except Exception as e:
+        logger.warning('Could not compute hard misread counts: %s', e)
 
     # --- Populate Metadata ---
     # Compute scaled_means for metadata nC (and for cells table)
@@ -301,6 +325,9 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         ('nS', str(int(nS))),
         ('nN', str(int(nN))),
         ('misread_density', json.dumps(misread_dict)),
+        ('rho_bar', json.dumps(rho_bar_dict)),
+        ('hard_misread_counts', json.dumps(hard_misread_counts)),
+        ('hard_misread_by_plane', json.dumps(hard_misread_by_plane)),
 
         # Shared
         ('gene_panel', json.dumps(gene_panel)),
