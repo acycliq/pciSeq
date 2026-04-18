@@ -454,6 +454,16 @@ def write_data(cellData: pd.DataFrame, geneData: pd.DataFrame,
     dst = get_out_dir(cfg['output_path'])
     out_dir = os.path.join(dst, 'data')
 
+    # Attach per-spot hard misread flag before writing Arrow files
+    try:
+        prob = varBayes.spots.parent_cell_prob
+        if prob is not None and len(prob):
+            is_misread = np.argmax(prob, axis=1) == (prob.shape[1] - 1)
+            geneData = geneData.copy()
+            geneData['is_hard_misread'] = is_misread.astype(np.uint8)
+    except Exception as e:
+        logger.warning('Could not attach is_hard_misread to geneData: %s', e)
+
     write_tsv(cellData, geneData, cellBoundaries, out_dir)
     write_arrow(geneData, cellData, cellBoundaries_list, out_dir)
 
@@ -555,6 +565,10 @@ def geneData_to_arrow(df_in: pd.DataFrame, out_dir: str = None) -> None:
             arrays["omp_score"] = pa.array(df["omp_score"].astype("float32"))
         if "omp_intensity" in df.columns:
             arrays["omp_intensity"] = pa.array(df["omp_intensity"].astype("float32"))
+
+        # Hard misread flag (0 or 1)
+        if "is_hard_misread" in df.columns:
+            arrays["is_hard_misread"] = pa.array(df["is_hard_misread"].astype("uint8"))
 
         # NOTE: gene_name and neighbour columns are excluded to match working converter
 
