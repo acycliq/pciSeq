@@ -381,7 +381,7 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     user_idx = class_names.index(user_class)
 
     log_prior = obj.cellTypes.log_prior
-    mrf = obj.cells.calc_mrf()
+    mrf = obj.cells.mrf
 
     gene_loglik_pciSeq = my_contr_df[pciSeq_class].sum()
     gene_loglik_user = my_contr_df[user_class].sum()
@@ -390,13 +390,12 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     mrf_pciSeq = mrf[pciSeq_label, pciSeq_idx]
     mrf_user = mrf[pciSeq_label, user_idx]
 
-    # Log-posterior for the two classes
-    log_post_pciSeq = gene_loglik_pciSeq + log_prior_pciSeq + mrf_pciSeq
-    log_post_user = gene_loglik_user + log_prior_user + mrf_user
-
-    # Posterior probabilities (softmax over just these two classes)
-    log_posts = np.array([log_post_pciSeq, log_post_user])
-    posterior_probs = softmax(log_posts)
+    # Full posterior over ALL classes, reconstructed from the same 3 components
+    gene_loglik_all = contr_df.sum(axis=0).reindex(class_names).values
+    log_post_all = gene_loglik_all + log_prior + mrf[pciSeq_label, :]
+    full_post = softmax(log_post_all)
+    full_pciSeq = full_post[pciSeq_idx]
+    full_user = full_post[user_idx]
 
     fig = None
     if show_plot:
@@ -433,7 +432,7 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
 
         # --- Bottom-right: posterior probabilities ---
         axes[1, 1].bar([pciSeq_class, user_class],
-                       [posterior_probs[0] * 100, posterior_probs[1] * 100],
+                       [full_pciSeq * 100, full_user * 100],
                        color=['skyblue', 'lightcoral'])
         axes[1, 1].set_ylabel('Posterior Probability (%)')
         axes[1, 1].set_title(f'Cell: {label} - Posterior probabilities')
