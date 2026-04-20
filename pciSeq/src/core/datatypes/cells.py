@@ -352,6 +352,29 @@ class Cells(object):
         # Proximity-weighted sum of neighbour class probabilities (zeta)
         nbr_probs = self.classProb[nbrs_idx]  # (nC, nN, nK)
         mrf = (nbr_probs * nbrs_prxmty[:, :, None]).sum(axis=1)
+
+        # Similarity matrix A of shape (nK, nK). A[i, j] = 1 means a neighbour
+        # classified as class j contributes to the MRF support of class i (rows
+        # are receivers, columns are donors). The identity diagonal is the
+        # standard case: a neighbour of class k supports the cell under focus
+        # being class k, and contributes nothing to any other class.
+        # Symmetric off-diagonal 1s pool two similar classes: a neighbour of
+        # either class supports both, which neutralises the MRF between them and
+        # leaves the gene log-likelihood to pick the winner. Without this, a
+        # rare class (e.g. 038 DG-PIR Ex IMN) embedded inside a dense majority
+        # (037 DG Glut) loses the softmax to its sister class even when the gene
+        # evidence slightly favours it, because the neighbourhood votes are
+        # overwhelmingly for the majority. See notes/mrf_similarity_matrix.md
+        # for the full derivation and a worked toy example.
+        class_list = list(self.class_names)
+        A = np.eye(len(class_list), dtype=mrf.dtype)
+        for a, b in [("037 DG Glut", "038 DG-PIR Ex IMN")]:
+            if a in class_list and b in class_list:
+                ia, ib = class_list.index(a), class_list.index(b)
+                A[ia, ib] = A[ib, ia] = 1
+
+        mrf = oe.contract('ck, kj -> cj', mrf, A)  # A is symmetric, so A.T == A
+
         out = mrf * self.config["mrf_beta"]
 
         return out
