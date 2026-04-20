@@ -57,6 +57,7 @@ class Cells(object):
         self._ini_gene_counts = None  # initial gene counts
         self._background_counts = None
         self._nb_contr = None  # placeholder for the genes' contribution to the negative binomial loglik
+        self._mrf = None  # placeholder for the mrf term last used in cell_to_cellType
         self._theta_bar = None
         self._logtheta_bar = None
         self._nbrs = None
@@ -160,6 +161,15 @@ class Cells(object):
     @nb_contr.setter
     def nb_contr(self, val):
         self._nb_contr = val
+
+    # Property useful only for debugging. Safe to remove
+    @property
+    def mrf(self) -> np.ndarray:
+        return self._mrf
+
+    @mrf.setter
+    def mrf(self, val):
+        self._mrf = val
 
     @property
     def ini_gene_counts(self) -> np.ndarray:

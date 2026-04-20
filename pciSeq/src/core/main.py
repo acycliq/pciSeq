@@ -467,6 +467,8 @@ class VarBayes:
         self.cells.nb_contr = contr
         contr = np.sum(contr, axis=1)
         mrf = self.cells.calc_mrf()
+        # stash mrf for debugging (same pattern as nb_contr above)
+        self.cells.mrf = mrf
         # mrf = self.cells.classProb[self.cells.nbrs].sum(axis=1)
         wCellClass = contr + self.cellTypes.log_prior + mrf
         pCellClass = softmax(wCellClass, axis=1)
