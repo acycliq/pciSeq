@@ -570,8 +570,11 @@ class VarBayes:
         self.spots.cell_inefficiency = cell_inefficiency
         self.spots.gene_inefficiency = gene_inefficiency
 
-        # Since the spot-to-cell assignments changed you need to update the gene counts now
-        self.geneCount_upd()
+        # Since the spot-to-cell assignments changed you need to update the gene counts now.
+        # However, this is commented out because it is computationally redundant;
+        # the same operation is explicitly called as Step 1 at the top of the main_loop.
+        # Note: If spots_to_cell ceases to be the final step of the loop, this MUST be uncommented.
+        # self.geneCount_upd()
 
     # -------------------------------------------------------------------- #
     def spots_to_cell_par(self) -> None:
@@ -625,7 +628,10 @@ class VarBayes:
         self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
 
         # Update gene counts
-        self.geneCount_upd()
+        # Commented out because it is computationally redundant;
+        # the same operation is explicitly called as Step 1 at the top of the main_loop.
+        # Note: If spots_to_cell_par ceases to be the final step of the loop, this MUST be uncommented.
+        # self.geneCount_upd()
 
     # -------------------------------------------------------------------- #
     def rho_upd(self) -> None:
