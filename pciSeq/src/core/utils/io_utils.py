@@ -231,7 +231,8 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
             class_prob BLOB,
             theta REAL,
             assigned_class_idx INTEGER,
-            gamma_assigned BLOB
+            gamma_assigned BLOB,
+            mrf BLOB
         )
     ''')
 
@@ -330,6 +331,7 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         # Shared
         ('gene_panel', json.dumps(gene_panel)),
         ('label_map', json.dumps(label_map)),
+        ('log_prior', json.dumps(varBayes.cellTypes.log_prior.astype(np.float32).tolist())),
     ]
 
     # Per-gene observed spot counts (for η scatter in dashboard)
@@ -361,6 +363,9 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     gamma_bar = varBayes.spots.gamma_bar.compute().astype(np.float32)  # (nC, nG, nK)
     gamma_assigned = gamma_bar[np.arange(nC), :, assigned_class_idx]   # (nC, nG)
 
+    # mrf[c, k]
+    mrf_f32 = cells.mrf.astype(np.float32)
+
     batch_size = 10000
     for batch_start in range(0, nC, batch_size):
         batch_end = min(batch_start + batch_size, nC)
@@ -375,8 +380,9 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
                 float(theta_scalar[c]),
                 int(assigned_class_idx[c]),
                 gamma_assigned[c].tobytes(),
+                mrf_f32[c].tobytes(),
             ))
-        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?, ?, ?, ?)', batch_data)
+        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', batch_data)
         # if (batch_end % 10000 == 0) or (batch_end == nC):
         #     logger.info('Inserted %d/%d cells', batch_end, nC)
 
