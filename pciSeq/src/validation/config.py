@@ -40,6 +40,7 @@ _TYPE_SPECS = {
     "realtime_viewer_max_cells": (type(None), int),
     "realtime_viewer_fixed_radius": (type(None), float),
     "rRho": (int, float),
+    "similarity_pairs": (type(None), list),
     "mean_gene_counts_per_class": int,
     "mean_gene_counts_per_cell": int,
 }
@@ -165,12 +166,14 @@ class Config(dict):
             - is3D: Whether data is 3D (multiple planes)
             - is_redis_running: Whether Redis server is available
             - exclude_planes: Normalized to empty list if None
+            - similarity_pairs: Normalized to empty list if None
         """
         from pciSeq.src.diagnostics.utils import check_redis_server
 
         self["is3D"] = self._detect_3d(coo)
         self["is_redis_running"] = check_redis_server()
         self["exclude_planes"] = self["exclude_planes"] or []
+        self["similarity_pairs"] = self["similarity_pairs"] or []
 
     def _detect_3d(self, coo) -> bool:
         """

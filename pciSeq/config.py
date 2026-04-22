@@ -160,6 +160,7 @@ DEFAULT = {
     # Higher values anchor rho_g closer to the MisreadDensity prior mean.
     # With rRho=1 the prior is weak and the data drives the estimate.
     "rRho": 1000.0,
+    "similarity_pairs": None,
     # *******************************************************************************
     # Realtime viewer (optional visualization feature)
     # *******************************************************************************

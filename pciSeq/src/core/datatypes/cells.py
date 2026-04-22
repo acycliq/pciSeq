@@ -378,7 +378,7 @@ class Cells(object):
         # for the full derivation and a worked toy example.
         class_list = list(self.class_names)
         A = np.eye(len(class_list), dtype=mrf.dtype)
-        for a, b in [("037 DG Glut", "038 DG-PIR Ex IMN")]:
+        for a, b in self.config["similarity_pairs"]:
             if a in class_list and b in class_list:
                 ia, ib = class_list.index(a), class_list.index(b)
                 A[ia, ib] = A[ib, ia] = 1

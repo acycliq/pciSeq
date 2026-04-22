@@ -36,6 +36,7 @@ class ConfigManager:
     rRho: float
     mean_gene_counts_per_class: int
     mean_gene_counts_per_cell: int
+    similarity_pairs: list
 
     @classmethod
     def from_opts(cls, opts: Optional[Dict] = None) -> 'ConfigManager':
@@ -80,6 +81,7 @@ class ConfigManager:
 
         # if exclude_planes is None set it to []
         self.exclude_planes = self.exclude_planes or []
+        self.similarity_pairs = self.similarity_pairs or []
 
     def check_is3D(self, input_data: Union[coo_matrix, List[coo_matrix]]) -> bool:
         """
