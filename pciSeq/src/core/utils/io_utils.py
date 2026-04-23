@@ -193,6 +193,7 @@ def serialise(varBayes: Any, debug_dir: str) -> None:
 
     arrow_dir = os.path.join(os.path.dirname(debug_dir), 'viewer_data')
     export_diagnostics(varBayes, arrow_dir)
+    export_raw_single_cell_data(varBayes, arrow_dir)
 
 
 def export_diagnostics(varBayes: Any, output_dir: str) -> None:
@@ -319,6 +320,7 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         ('class_names', json.dumps(cells.class_names.tolist())),
         ('eta_bar', json.dumps(genes.eta_bar.astype(np.float32).tolist())),
         ('mean_gene_reads_per_class', json.dumps(cells.mean_gene_reads_per_class().astype(np.float32).tolist())),
+        ('sc_mean_expression', json.dumps(varBayes.single_cell.mean_expression.values.astype(np.float32).tolist())),
 
         # Spot-related
         ('nS', str(int(nS))),
@@ -426,6 +428,46 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
 
     db_size_mb = os.path.getsize(db_path) / (1024 * 1024)
     logger.info('Saved at: %s (%.1f MB)', db_path, db_size_mb)
+
+
+def export_raw_single_cell_data(varBayes: Any, output_dir: str) -> None:
+    """Export scRNA-seq reference expression to a dedicated SQLite database.
+
+    Writes to {output_dir}/diagnostics/raw_single_cell_data.db
+
+    # TODO: Temporary — kept separate from diagnostics.db because single cell data is
+    #       run-independent (same atlas across hyperparameter sweeps), so the file can be
+    #       generated once and reused without regenerating diagnostics.db. Merge into
+    #       diagnostics.db in a future version.
+
+    Args:
+        varBayes: Fitted VarBayes object
+        output_dir: Base data directory
+    """
+    diagnostics_dir = os.path.join(output_dir, 'diagnostics')
+    os.makedirs(diagnostics_dir, exist_ok=True)
+
+    db_path = os.path.join(diagnostics_dir, 'raw_single_cell_data.db')
+    if os.path.exists(db_path):
+        os.remove(db_path)
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute('CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT)')
+
+    sc = varBayes.single_cell
+    meta_items = [
+        ('gene_panel', json.dumps(varBayes.genes.gene_panel.tolist())),
+        ('class_names', json.dumps(sc.classes.tolist())),
+        ('sc_mean_expression', json.dumps(sc.mean_expression.values.astype(np.float32).tolist())),
+    ]
+
+    cursor.executemany('INSERT INTO metadata VALUES (?, ?)', meta_items)
+    conn.commit()
+    conn.close()
+
+    db_size_mb = os.path.getsize(db_path) / (1024 * 1024)
+    logger.info('Raw single cell data saved at: %s (%.1f MB)', db_path, db_size_mb)
 
 
 def export_db_tables(out_dir: str, con: Any) -> None:
