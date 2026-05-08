@@ -55,6 +55,7 @@ Dependencies:
 - dask: For delayed computations
 """
 import logging
+import datetime
 from typing import Dict, List, Optional, Tuple, Union, Any
 
 # Third-party imports
@@ -122,6 +123,17 @@ class VarBayes:
         # Placeholder for other attributes
         self._scaled_exp = None
         # self._cell_explorer: Optional[CellExplorer] = None
+
+        # Stamp this run so a pickled VarBayes can be traced back to the
+        # exact pciSeq version that produced it.
+        from pciSeq import __version__, __branch__, __commit__, __build_date__
+        self.metadata = {
+            'version': __version__,
+            'branch': __branch__,
+            'commit': __commit__,
+            'build_date': __build_date__,
+            'created_at': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+        }
 
     @staticmethod
     def _validate_config(config: Dict[str, Any]) -> None:
