@@ -2,6 +2,51 @@ import subprocess
 import sys
 import os
 from pciSeq._version import __version__
+
+
+def _resolve_git_info():
+    """Return (commit, branch). Try live git first, fall back to values
+    baked at build time, fall back to 'unknown'."""
+    pkg_dir = os.path.dirname(__file__)
+
+    def _git(args):
+        try:
+            return subprocess.check_output(
+                ['git'] + args,
+                cwd=pkg_dir,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            ).strip()
+        except Exception:
+            return ''
+
+    commit = _git(['rev-parse', '--short', 'HEAD'])
+    branch = _git(['rev-parse', '--abbrev-ref', 'HEAD'])
+    if commit and branch:
+        return commit, branch
+
+    try:
+        from pciSeq._build_info import __commit__ as c, __branch__ as b
+        return c or 'unknown', b or 'unknown'
+    except ImportError:
+        return 'unknown', 'unknown'
+
+
+def _resolve_build_date():
+    """Date setup.py was last run (write time of _build_info.py).
+    'unknown' if the package was imported from a source checkout that
+    has never been built."""
+    try:
+        from pciSeq._build_info import __build_date__
+        return __build_date__ or 'unknown'
+    except ImportError:
+        return 'unknown'
+
+
+__commit__, __branch__ = _resolve_git_info()
+__build_date__ = _resolve_build_date()
+
+
 from pciSeq.app import fit
 from pciSeq.app import cell_type
 from pciSeq.src.preprocess.main import stage_data

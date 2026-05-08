@@ -4,7 +4,40 @@
 #     python -m build                   # new way to build a package
 
 import os
+import subprocess
+import datetime
 from setuptools import setup, find_packages
+
+
+def _git(args):
+    """Run a git command in the source tree, return stripped stdout or ''."""
+    try:
+        return subprocess.check_output(
+            ['git'] + args,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except Exception:
+        return ''
+
+
+def write_build_info():
+    """Bake the current branch and commit hash into pciSeq/_build_info.py.
+
+    This file is gitignored and regenerated on every build, so the values
+    end up in the wheel and survive pip install (where .git is gone).
+    """
+    commit = _git(['rev-parse', '--short', 'HEAD'])
+    branch = _git(['rev-parse', '--abbrev-ref', 'HEAD'])
+    build_date = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    path = os.path.join('pciSeq', '_build_info.py')
+    with open(path, 'w') as f:
+        f.write(f'__commit__ = {commit!r}\n')
+        f.write(f'__branch__ = {branch!r}\n')
+        f.write(f'__build_date__ = {build_date!r}\n')
+
+
+write_build_info()
 
 
 def get_static_files(root):
