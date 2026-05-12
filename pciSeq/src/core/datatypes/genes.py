@@ -130,6 +130,8 @@ class Genes(object):
 
         shape = np.ones(self.nG, dtype=np.float64) * self._rho_prior_shape
         rate = np.ones(self.nG, dtype=np.float64) * self._rho_prior_rate
+        self._post_shape_rho = shape
+        self._post_rate_rho = rate
         self._rho_bar = (shape / rate).astype(np.float64)
         self._log_rho_bar = self._digamma(shape, rate).astype(np.float64)
 
@@ -141,7 +143,9 @@ class Genes(object):
                 background spots per gene (N_bar_{0,g}).
         """
         shape = self._rho_prior_shape + background_counts
-        rate = self._rho_prior_rate + self._A_total
+        rate = np.full(self.nG, self._rho_prior_rate + self._A_total, dtype=np.float64)
+        self._post_shape_rho = shape
+        self._post_rate_rho = rate
         self._rho_bar = (shape / rate).astype(np.float64)
         self._log_rho_bar = self._digamma(shape, rate).astype(np.float64)
 

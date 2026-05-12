@@ -323,8 +323,8 @@ class VarBayes:
                 self.spots_to_cell()
 
                 # # Calculate ELBO
-                # elbo = calc_elbo(self)
-                # logger.info('Iteration %d, ELBO: %f' % (i, elbo))
+                elbo = calc_elbo(self)
+                logger.info('Iteration %d, ELBO: %f' % (i, elbo))
 
                 self.has_converged, delta = utils.has_converged(
                     self.spots, p0, self.config['CellCallTolerance']

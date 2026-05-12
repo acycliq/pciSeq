@@ -14,25 +14,26 @@ def calc_elbo(obj):
 def total_entropy(obj):
     """
     Computes the total entropy of the variational distribution: H[q].
-    = H[q(z)] + H[q(zeta)] + H[q(gamma)] + H[q(eta)]
+    = H[q(z)] + H[q(zeta)] + H[q(gamma)] + H[q(eta)] + H[q(rho)] + H[q(pi)]
     No entropy for theta (point estimate).
     """
     H_z = categorical_entropy(obj.spots.parent_cell_prob)
     H_zeta = categorical_entropy(obj.cells.classProb)
     H_gamma = entropy_gamma(obj)
     H_eta = entropy_eta(obj)
+    H_rho = entropy_rho(obj)
     H_pi = entropy_pi(obj)
 
     nS = obj.spots.parent_cell_prob.shape[0]
     nN = obj.spots.parent_cell_prob.shape[1]
     nC = obj.cells.classProb.shape[0]
     nK = obj.cells.classProb.shape[1]
-    logger.info('Entropy: H[z]=%.2f (%.4f/spot, max=%.2f) | H[zeta]=%.2f (%.4f/cell, max=%.2f) | H[gamma]=%.2f | H[eta]=%.2f | H[pi]=%.2f',
+    logger.info('Entropy: H[z]=%.2f (%.4f/spot, max=%.2f) | H[zeta]=%.2f (%.4f/cell, max=%.2f) | H[gamma]=%.2f | H[eta]=%.2f | H[rho]=%.2f | H[pi]=%.2f',
                 H_z, H_z / nS, np.log(nN),
                 H_zeta, H_zeta / nC, np.log(nK),
-                H_gamma, H_eta, H_pi)
+                H_gamma, H_eta, H_rho, H_pi)
 
-    return H_z + H_zeta + H_gamma + H_eta + H_pi
+    return H_z + H_zeta + H_gamma + H_eta + H_rho + H_pi
 
 
 def expected_log_joint(obj):
@@ -45,9 +46,11 @@ def expected_log_joint(obj):
     log_prior_theta = theta_prior(obj)
     log_prior_gamma = gamma_prior(obj)
     log_prior_eta = eta_prior(obj)
+    log_prior_rho = rho_prior(obj)
     log_prior_pi = pi_prior(obj)
 
-    return log_lik + log_prior_zeta + log_prior_mrf + log_prior_theta + log_prior_gamma + log_prior_eta + log_prior_pi
+    return (log_lik + log_prior_zeta + log_prior_mrf + log_prior_theta
+            + log_prior_gamma + log_prior_eta + log_prior_rho + log_prior_pi)
 
 def poisson_process_loglikelihood(obj):
     """
@@ -55,9 +58,11 @@ def poisson_process_loglikelihood(obj):
 
     The Poisson process log-likelihood has two parts:
 
-    term1 (integrated intensity): The expected total rate over all cells, penalizing
-        the model for predicting spots that were not observed.
-        = -sum_{c,g,k} q(zeta_ck) * theta_ck * mu_gk * A_c * E[gamma_cgk] * E[eta_g]
+    term1 (integrated intensity): The expected total rate over the ROI, penalizing
+        the model for predicting spots that were not observed. Sum of a cell part
+        and a background part:
+        cells: -sum_{c,g,k} q(zeta_ck) * theta_ck * mu_gk * A_c * E[gamma_cgk] * E[eta_g]
+        background: -sum_g E[rho_g] * A_total
 
     term2 (observed spots): For each observed spot, the log-rate at its location,
         marginalized over spot-to-cell assignments q(z) and cell types q(zeta).
@@ -72,8 +77,10 @@ def poisson_process_loglikelihood(obj):
     gamma_cgk = obj.spots.gamma_bar.compute()
     eta_g = obj.genes.eta_bar
 
-    # term1: -integral of expected intensity over all cells
-    term1 = -np.einsum('ck, ck, gk, c, cgk, g -> ', zeta_ck, theta_ck, mu_gk, A_c, gamma_cgk, eta_g)
+    # term1: -integral of expected intensity over the ROI (cells + background)
+    term1_cells = -np.einsum('ck, ck, gk, c, cgk, g -> ', zeta_ck, theta_ck, mu_gk, A_c, gamma_cgk, eta_g)
+    term1_bg = -np.sum(obj.genes.rho_bar) * obj.genes._A_total
+    term1 = term1_cells + term1_bg
 
     # term2: sum over observed spots of log(rate at spot location)
     spots = obj.spots
@@ -127,15 +134,21 @@ def zeta_prior(obj):
 
 def mrf_prior(obj):
     """
-    Computes the MRF (Potts model) contribution to the expected log-joint.
+    Computes E_q[log p_MRF(zeta)] for the proximity-weighted Potts model with
+    class-similarity pooling, matching the form implemented in cells.calc_mrf.
 
-    Encourages neighboring cells to have the same type.
-    = beta * sum_{c,k} q(zeta_ck) * sum_{c' in neighbors(c)} q(zeta_{c',k})
+    For each cell c:
+        mrf_cj = mrf_beta * sum_k A_jk * sum_n prxmty_{c,n} * zeta_{nbrs(c,n), k}
+
+    where prxmty_{c,n} are 1/distance weights normalised so they sum to nNeighbors,
+    and A is a class-similarity matrix (identity plus configured similarity pairs).
+    Both factors are already baked into the matrix returned by calc_mrf.
+
+    The expected MRF contribution under q is:
+        sum_{c,j} q(zeta_cj) * mrf_cj
     """
-    zeta_ck = obj.cells.classProb                           # (nC, nK)
-    beta = obj.config['mrf_beta']
-    mrf_val = zeta_ck[obj.cells.nbrs].sum(axis=1)           # (nC, nK)
-    return beta * np.sum(zeta_ck * mrf_val)
+    mrf = obj.cells.calc_mrf()  # (nC, nK); already contains mrf_beta and matrix A
+    return np.sum(obj.cells.classProb * mrf)
 
 
 def theta_prior(obj):
@@ -210,6 +223,44 @@ def eta_prior(obj):
     log_pdf = log_norm + (r - 1) * E_log_eta - r * E_eta  # log Gamma pdf evaluated at each gene
 
     return np.sum(log_pdf)
+
+
+def rho_prior(obj):
+    """
+    Computes E_q[log p(rho_g | a_0, b_0)] for the gene-specific misread density.
+
+    Prior is Gamma(a_0, b_0) with a_0 = rRho and b_0 = rRho / rho_prior_mean,
+    so the mean of the prior matches the user-supplied default misread density.
+    Note: a_0 != b_0 here (unlike eta and gamma), so the normaliser is
+    a_0*log(b_0) - gammaln(a_0).
+
+    = sum_g [a_0*log(b_0) - gammaln(a_0) + (a_0-1)*E[log rho_g] - b_0*E[rho_g]]
+    """
+    from scipy.special import gammaln
+
+    a_0 = obj.genes._rho_prior_shape
+    b_0 = obj.genes._rho_prior_rate
+    E_rho = obj.genes.rho_bar           # (nG,)
+    E_log_rho = obj.genes.log_rho_bar   # (nG,)
+
+    log_norm = a_0 * np.log(b_0) - gammaln(a_0)
+    log_pdf = log_norm + (a_0 - 1) * E_log_rho - b_0 * E_rho
+    return np.sum(log_pdf)
+
+
+def entropy_rho(obj):
+    """
+    Entropy of q(rho). Not conditional on zeta, so no weighting.
+
+    H = sum_g [alpha - log(beta) + gammaln(alpha) + (1-alpha)*psi(alpha)]
+    """
+    from scipy.special import gammaln, psi
+
+    alpha = obj.genes._post_shape_rho   # (nG,)
+    beta = obj.genes._post_rate_rho     # (nG,)
+
+    entropy = alpha - np.log(beta) + gammaln(alpha) + (1 - alpha) * psi(alpha)
+    return np.sum(entropy)
 
 
 def pi_prior(obj):
