@@ -132,28 +132,12 @@ def load_from_url(url: str) -> str:
 
 
 def collect_metadata() -> Dict:
-    """Collect metadata about the environment and analysis run."""
+    """Runtime environment metadata for a serialised run. Extends the
+    pciSeq-version stamp that VarBayes.metadata already carries from __init__."""
     import platform
-    import subprocess
     import sys
     from datetime import datetime
 
-    # Git commit of the pciSeq code
-    git_commit = None
-    try:
-        pciSeq_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.abspath(__file__)
-        ))))
-        git_commit = subprocess.check_output(
-            ['git', 'rev-parse', '--short', 'HEAD'],
-            cwd=pciSeq_dir,
-            stderr=subprocess.DEVNULL,
-            text=True
-        ).strip()
-    except Exception:
-        pass
-
-    # Key package versions
     pkg_versions = {}
     for pkg in ['numpy', 'scipy', 'pandas', 'pciSeq']:
         try:
@@ -162,15 +146,13 @@ def collect_metadata() -> Dict:
         except ImportError:
             pass
 
-    metadata = {
-        'date': datetime.now().isoformat(),
-        'git_commit': git_commit,
+    return {
+        'serialised_at': datetime.now().isoformat(),
         'hostname': platform.node(),
         'os': f'{platform.system()} {platform.release()}',
         'python_version': sys.version.split()[0],
         'package_versions': pkg_versions,
     }
-    return metadata
 
 
 def serialise(varBayes: Any, debug_dir: str) -> None:
@@ -180,7 +162,7 @@ def serialise(varBayes: Any, debug_dir: str) -> None:
         varBayes: Object to serialize
         debug_dir: Directory to save pickle file
     """
-    varBayes._metadata = collect_metadata()
+    varBayes.metadata.update(collect_metadata())
 
     if not os.path.exists(debug_dir):
         os.makedirs(debug_dir)
