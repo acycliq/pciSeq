@@ -469,10 +469,10 @@ class VarBayes:
         # Get the full log-likelihood matrix using shared computation
         contr = utils.compute_gene_loglikelihood_matrix(self)
 
-        label_map = self.config['label_map']
-        inv_label_map = {v:k for k,v in label_map.items()}
-
-        df_list = [pd.DataFrame(d, columns=self.cells.class_names) for d in contr]
+        # label_map = self.config['label_map']
+        # inv_label_map = {v:k for k,v in label_map.items()}
+        #
+        # df_list = [pd.DataFrame(d, columns=self.cells.class_names) for d in contr]
 
         # populate the genes' contributions to the negative loglik. Property 'nb_contr' is only useful
         # for debugging, safe to remove in the future
