@@ -329,6 +329,10 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     except Exception:
         pass
 
+    # Run provenance: pciSeq version, branch, commit, build_date, created_at,
+    # serialised_at, hostname, os, python_version, package_versions.
+    meta_items.append(('pciSeq_provenance', json.dumps(varBayes.metadata)))
+
     cursor.executemany('INSERT INTO metadata VALUES (?, ?)', meta_items)
     # logger.info('Inserted %d metadata entries', len(meta_items))
 
