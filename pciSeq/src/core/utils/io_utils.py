@@ -303,6 +303,11 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         ('eta_bar', json.dumps(genes.eta_bar.astype(np.float32).tolist())),
         ('mean_gene_reads_per_class', json.dumps(cells.mean_gene_reads_per_class().astype(np.float32).tolist())),
         ('sc_mean_expression', json.dumps(varBayes.single_cell.mean_expression.values.astype(np.float32).tolist())),
+        ('Inefficiency', str(float(varBayes.config['Inefficiency']))),
+        # A_c: per-cell inside-cell-bonus normalisation (paper symbol). Implementation
+        # variable is cells.ini_cell_props['area_factor'] but the name "area" is
+        # misleading. See notes/area_factor_explained.md and notes/spot_hover_chain_spec.md.
+        ('A_c', json.dumps(cells.ini_cell_props['area_factor'].astype(np.float32).tolist())),
 
         # Spot-related
         ('nS', str(int(nS))),
