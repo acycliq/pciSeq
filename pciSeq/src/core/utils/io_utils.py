@@ -297,6 +297,7 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         ('nG', str(nG)),
         ('nK', str(nK)),
         ('rSpot', str(float(varBayes.config['rSpot']))),
+        ('rTheta', str(float(varBayes.config['rTheta']))),
         ('SpotReg', str(float(varBayes.config['SpotReg']))),
         ('class_names', json.dumps(cells.class_names.tolist())),
         ('eta_bar', json.dumps(genes.eta_bar.astype(np.float32).tolist())),
