@@ -349,7 +349,7 @@ class Cells(object):
         }
         return out
 
-    def calc_mrf(self):
+    def calc_mrf(self, effective_beta=None):
         nbrs_idx = self.nbrs['indices']
 
         # Weight each neighbor by 1/distance so closer cells have more influence.
@@ -385,7 +385,10 @@ class Cells(object):
 
         mrf = oe.contract('ck, kj -> cj', mrf, A)  # A is symmetric, so A.T == A
 
-        out = mrf * self.config["mrf_beta"]
+        if effective_beta is None:
+            out = mrf * self.config["mrf_beta"]
+        else:
+            out = mrf * effective_beta
 
         return out
 

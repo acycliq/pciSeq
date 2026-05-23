@@ -452,6 +452,61 @@ class VarBayes:
         self.spots.my_gamma_bar = self.spots._gamma_bar.compute()
 
     # -------------------------------------------------------------------- #
+    def _calc_effective_beta(self) -> np.ndarray:
+        """
+        Per-cell, per-class adaptive cap on the MRF strength. See
+        pciSeq_model/mrf_inflection_point.tex for the derivation.
+
+        For each (c, k) with k a real class, computes
+            beta*_{c,k} = ( |D_k|_struct(c) - bonus_k(c) ) / |N_c|
+        with
+            |D_k|_struct = r_gamma * sum_g log[ (r_gamma + (mu+sigma)*xi) / (r_gamma + sigma*xi) ]
+            bonus_k      = sum_g N_{c,g} * log[ (mu+sigma)/sigma * (r_gamma + sigma*xi) / (r_gamma + (mu+sigma)*xi) ]
+            xi_g         = A_c * eta_bar_g * theta_bar_{c,k}   (A_c approx 1)
+
+        Returns (nC, nK) array. The effective beta used per (c,k) is
+            min(config['mrf_beta'], max(0, beta*_{c,k}))
+        with the Zero column left at config['mrf_beta'] unchanged.
+        Cells with bonus_k >= |D_k|_struct (negative beta*_{c,k}) get the full
+        config beta because data already favours class k over Zero.
+        """
+        r = self.config['rSpot']
+        sigma = self.config['SpotReg']
+        n_nbr = self.config['nNeighbors']
+        beta_cfg = self.config['mrf_beta']
+
+        mu = self.single_cell.mean_expression_adj.values         # (G, K)
+        mu_real = mu[:, :-1]                                     # (G, K-1)
+        eta_bar = np.asarray(self.genes.eta_bar)                 # (G,)
+        theta_bar = np.asarray(self.cells.theta_bar)[:, :-1]     # (nC, K-1)
+        N = np.asarray(self.cells.geneCount)                     # (nC, G)
+        nC, G = N.shape
+        K_real = mu_real.shape[1]
+
+        # per-class loop keeps peak memory at O(nC * G) instead of O(nC * G * K)
+        beta_cap = np.empty((nC, K_real), dtype=np.float32)
+        for k in range(K_real):
+            mu_k = mu_real[:, k].astype(np.float32)              # (G,)
+            tb = theta_bar[:, k].astype(np.float32)              # (nC,)
+            xi = eta_bar.astype(np.float32)[None, :] * tb[:, None]   # (nC, G)
+            num = r + (mu_k[None, :] + sigma) * xi
+            den = r + sigma * xi
+            D_struct = r * np.log(num / den).sum(axis=1)              # (nC,)
+            log_bonus_per_gene = np.log((mu_k + sigma) / sigma)[None, :] \
+                                 + np.log(den / num)
+            bonus = (N * log_bonus_per_gene).sum(axis=1)             # (nC,)
+            beta_cap[:, k] = (D_struct - bonus) / n_nbr
+
+        # When beta_cap < 0 the data already prefers class k over Zero,
+        # so no cap is needed and we use the full configured beta.
+        effective_real = np.where(beta_cap < 0, beta_cfg,
+                                  np.minimum(beta_cfg, beta_cap))
+
+        out = np.full((nC, mu.shape[1]), beta_cfg, dtype=np.float32)
+        out[:, :-1] = effective_real
+        return out
+
+    # -------------------------------------------------------------------- #
     def cell_to_cellType(self) -> None:
         """
         Updates cell type assignment probabilities.
@@ -478,7 +533,9 @@ class VarBayes:
         # for debugging, safe to remove in the future
         self.cells.nb_contr = contr
         contr = np.sum(contr, axis=1)
-        mrf = self.cells.calc_mrf()
+        effective_beta = self._calc_effective_beta()
+        self.cells.effective_beta = effective_beta
+        mrf = self.cells.calc_mrf(effective_beta=effective_beta)
         # stash mrf for debugging (same pattern as nb_contr above)
         self.cells.mrf = mrf
         # mrf = self.cells.classProb[self.cells.nbrs].sum(axis=1)
