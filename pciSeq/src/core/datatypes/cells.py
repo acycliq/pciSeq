@@ -58,6 +58,7 @@ class Cells(object):
         self._background_counts = None
         self._nb_contr = None  # placeholder for the genes' contribution to the negative binomial loglik
         self._mrf = None  # placeholder for the mrf term last used in cell_to_cellType
+        self.effective_beta = None  # mrf cap from the last cell_to_cellType call, kept for inspection
         self._theta_bar = None
         self._logtheta_bar = None
         self._nbrs = None
