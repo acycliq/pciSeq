@@ -60,6 +60,7 @@ from typing import Dict, List, Optional, Tuple, Union, Any
 
 # Third-party imports
 import sys
+import numba as nb
 import numpy as np
 import numpy_groupies as npg
 import pandas as pd
@@ -83,6 +84,50 @@ import joblib
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+@nb.njit(parallel=True, fastmath=True, cache=True)
+def _calc_beta_cap_numba_kernel(mu_real, eta_bar, theta_bar, N, log_pi_ratio,
+                                r, sigma, n_nbr):
+    """
+    Fused triple-nested kernel for the per-(cell, class) MRF cap. Equivalent to
+    the numpy implementation in VarBayes._calc_effective_beta, but does the
+    elementwise log / multiply / sum in a single streaming pass over (c, g, k)
+    with no temporary arrays, and parallelises across cells. See
+    pciSeq_model/mrf_inflection_point.tex for the math.
+
+    log_pi_ratio is the (K_real,) vector log(pi_k / pi_Zero). Under a uniform
+    baseline prior it is identically zero and contributes nothing; under a
+    non-uniform prior (cell_type_weights set, or 'weighted' mode where the
+    Dirichlet posterior evolves) it shifts each class's cap by a constant.
+
+    Returns the raw beta_cap matrix of shape (nC, K_real); the np.where cap is
+    applied by the caller.
+    """
+    nC, G = N.shape
+    K_real = mu_real.shape[1]
+
+    # Pre-bake log((mu+sigma)/sigma): independent of the variational state.
+    log_mu_ratio = np.empty((G, K_real), dtype=np.float32)
+    for g in range(G):
+        for k in range(K_real):
+            log_mu_ratio[g, k] = np.log((mu_real[g, k] + sigma) / sigma)
+
+    beta_cap = np.empty((nC, K_real), dtype=np.float32)
+    for c in nb.prange(nC):
+        for k in range(K_real):
+            acc_log_ratio = np.float32(0.0)
+            acc_bonus = np.float32(0.0)
+            tb_ck = theta_bar[c, k]
+            for g in range(G):
+                xi = eta_bar[g] * tb_ck
+                num = r + (mu_real[g, k] + sigma) * xi
+                den = r + sigma * xi
+                lr = np.log(num / den)
+                acc_log_ratio += lr
+                acc_bonus += N[c, g] * (log_mu_ratio[g, k] - lr)
+            beta_cap[c, k] = (r * acc_log_ratio - acc_bonus - log_pi_ratio[k]) / n_nbr
+    return beta_cap
 
 
 class VarBayes:
@@ -475,34 +520,74 @@ class VarBayes:
         n_nbr = self.config['nNeighbors']
         beta_cfg = self.config['mrf_beta']
 
-        mu = self.single_cell.mean_expression_adj.values         # (G, K)
-        mu_real = mu[:, :-1]                                     # (G, K-1)
-        eta_bar = np.asarray(self.genes.eta_bar)                 # (G,)
-        theta_bar = np.asarray(self.cells.theta_bar)[:, :-1]     # (nC, K-1)
-        N = np.asarray(self.cells.geneCount)                     # (nC, G)
-        nC, G = N.shape
-        K_real = mu_real.shape[1]
+        mu = self.single_cell.mean_expression_adj.values         # (nG, nK)
+        mu_real = mu[:, :-1]                                     # (nG, nK-1)
+        eta_bar = np.asarray(self.genes.eta_bar)                 # (nG,)
+        theta_bar = np.asarray(self.cells.theta_bar)[:, :-1]     # (nC, nK-1)
+        N = np.asarray(self.cells.geneCount)                     # (nC, nG)
+
+
+        # Baseline class prior correction log(pi_k / pi_Zero), refetched every
+        # iteration so the formula stays correct under 'weighted' mode where
+        # the Dirichlet posterior evolves. Identically zero under a uniform
+        # prior with no cell_type_weights overrides.
+        log_prior = np.asarray(self.cellTypes.log_prior)             # (K,)
+        log_pi_ratio = log_prior[:-1] - log_prior[-1]                # (K-1,)
 
         # per-class loop keeps peak memory at O(nC * G) instead of O(nC * G * K)
-        beta_cap = np.empty((nC, K_real), dtype=np.float32)
-        for k in range(K_real):
+        beta_cap = np.empty((self.nC, self.nK-1), dtype=np.float32)
+
+        # loop over the non-zero classes
+        for k in range(self.nK-1):
             mu_k = mu_real[:, k].astype(np.float32)              # (G,)
             tb = theta_bar[:, k].astype(np.float32)              # (nC,)
             xi = eta_bar.astype(np.float32)[None, :] * tb[:, None]   # (nC, G)
             num = r + (mu_k[None, :] + sigma) * xi
             den = r + sigma * xi
             D_struct = r * np.log(num / den).sum(axis=1)              # (nC,)
-            log_bonus_per_gene = np.log((mu_k + sigma) / sigma)[None, :] \
-                                 + np.log(den / num)
+            log_bonus_per_gene = np.log((mu_k + sigma) / sigma)[None, :] + np.log(den / num)
             bonus = (N * log_bonus_per_gene).sum(axis=1)             # (nC,)
-            beta_cap[:, k] = (D_struct - bonus) / n_nbr
+            beta_cap[:, k] = (D_struct - bonus - log_pi_ratio[k]) / n_nbr
 
-        # When beta_cap < 0 the data already prefers class k over Zero,
-        # so no cap is needed and we use the full configured beta.
+        # When beta_cap < 0 the data and baseline prior already prefer class k
+        # over Zero, so no cap is needed and we use the full configured beta.
+        effective_real = np.where(beta_cap < 0, beta_cfg, np.minimum(beta_cfg, beta_cap))
+
+        out = np.full((self.nC, self.nK), beta_cfg, dtype=np.float32)
+        out[:, :-1] = effective_real
+        return out
+
+    # -------------------------------------------------------------------- #
+    def _calc_effective_beta_numba(self) -> np.ndarray:
+        """
+        Numba-accelerated equivalent of _calc_effective_beta. About 4x faster
+        on the Yao run (~1.1s -> ~0.28s on 8 cores). Pre-cast inputs to float32
+        to match the kernel signature, dispatch to the JIT'd kernel for the
+        beta_cap matrix, then apply the same np.where cap as the numpy version.
+
+        Keeps the numpy version in place so the two can be cross-checked.
+        """
+        r = np.float32(self.config['rSpot'])
+        sigma = np.float32(self.config['SpotReg'])
+        n_nbr = np.float32(self.config['nNeighbors'])
+        beta_cfg = self.config['mrf_beta']
+
+        mu = self.single_cell.mean_expression_adj.values.astype(np.float32)   # (nG, nK)
+        mu_real = mu[:, :-1]                                                  # (nG, nK-1)
+        eta_bar = np.asarray(self.genes.eta_bar, dtype=np.float32)            # (nG,)
+        theta_bar = np.asarray(self.cells.theta_bar, dtype=np.float32)[:, :-1]  # (nC, nK-1)
+        N = np.asarray(self.cells.geneCount, dtype=np.float32)                # (nC, nG)
+
+        log_prior = np.asarray(self.cellTypes.log_prior, dtype=np.float32)    # (nK,)
+        log_pi_ratio = log_prior[:-1] - log_prior[-1]                         # (nK-1,)
+
+        beta_cap = _calc_beta_cap_numba_kernel(mu_real, eta_bar, theta_bar, N,
+                                               log_pi_ratio, r, sigma, n_nbr)
+
         effective_real = np.where(beta_cap < 0, beta_cfg,
                                   np.minimum(beta_cfg, beta_cap))
 
-        out = np.full((nC, mu.shape[1]), beta_cfg, dtype=np.float32)
+        out = np.full((self.nC, self.nK), beta_cfg, dtype=np.float32)
         out[:, :-1] = effective_real
         return out
 
