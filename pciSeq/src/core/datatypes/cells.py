@@ -384,7 +384,15 @@ class Cells(object):
                 ia, ib = class_list.index(a), class_list.index(b)
                 A[ia, ib] = A[ib, ia] = 1
 
-        mrf = oe.contract('ck, kj -> cj', mrf, A)  # A is symmetric, so A.T == A
+        # Zero-classified neighbours contribute no MRF support to any class.
+        # Without this, a cell surrounded by Zero neighbours gets dragged toward
+        # Zero by neighbour pressure, which we don't want -- the data should
+        # decide whether the cell is Zero, not the neighbourhood. This breaks
+        # the symmetry of A (Zero column is unchanged, Zero row is now all zeros).
+        assert class_list[-1] == 'Zero', "Last class must be Zero"
+        A[-1, :] = 0
+
+        mrf = oe.contract('ck, kj -> cj', mrf, A)
 
         if effective_beta is None:
             out = mrf * self.config["mrf_beta"]
