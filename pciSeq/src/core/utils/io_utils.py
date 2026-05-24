@@ -214,7 +214,8 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
             theta REAL,
             assigned_class_idx INTEGER,
             gamma_assigned BLOB,
-            mrf BLOB
+            mrf BLOB,
+            effective_beta BLOB
         )
     ''')
 
@@ -359,6 +360,9 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     # mrf[c, k]
     mrf_f32 = cells.mrf.astype(np.float32)
 
+    # effective_beta[c, k]  -- the per-(cell, class) MRF cap from utils/effective_beta.py
+    effective_beta_f32 = cells.effective_beta.astype(np.float32)
+
     batch_size = 10000
     for batch_start in range(0, nC, batch_size):
         batch_end = min(batch_start + batch_size, nC)
@@ -374,8 +378,9 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
                 int(assigned_class_idx[c]),
                 gamma_assigned[c].tobytes(),
                 mrf_f32[c].tobytes(),
+                effective_beta_f32[c].tobytes(),
             ))
-        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', batch_data)
+        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', batch_data)
         # if (batch_end % 10000 == 0) or (batch_end == nC):
         #     logger.info('Inserted %d/%d cells', batch_end, nC)
 
