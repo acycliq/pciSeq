@@ -364,6 +364,23 @@ class Cells(object):
         nbr_probs = self.classProb[nbrs_idx]  # (nC, nN, nK)
         mrf = (nbr_probs * nbrs_prxmty[:, :, None]).sum(axis=1)
 
+        # Row-sum note: at this point sum_k mrf[c, k] = nN per cell. The
+        # A-multiplication and the beta scaling below both break this, but
+        # for different reasons:
+        #   - A modification (Zero-row=0): zeros the Zero column only.
+        #     Real-vs-real differences (e.g. Oligo vs Astro) are preserved
+        #     exactly, so the softmax over real classes is unchanged.
+        #     Zero just loses MRF support.
+        #   - beta scaling: multiplies every entry by beta, which SCALES
+        #     every class-vs-class difference. This intentionally sharpens
+        #     (beta > 1) or flattens (beta < 1) the softmax -- beta is the
+        #     parameter that controls how strongly the MRF influences the
+        #     cell-class decision.
+        # The absolute row sum itself doesn't matter for softmax (which is
+        # shift-invariant under adding a constant to every class). What
+        # matters is the per-class differences, which A and beta shape on
+        # purpose.
+
         # Similarity matrix A of shape (nK, nK). A[i, j] = 1 means a neighbour
         # classified as class j contributes to the MRF support of class i (rows
         # are receivers, columns are donors). The identity diagonal is the
