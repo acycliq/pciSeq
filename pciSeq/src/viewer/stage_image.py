@@ -278,7 +278,7 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
     if use_buffer:
         _stage_image_buffer(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size)
     else:
-        _stage_image_disk(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size, out_dir)
+        _stage_image_disk(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size)
 
     logger.info("Done! MBTiles file created at: %s" % mbtiles_path)
 
@@ -303,38 +303,48 @@ def _plane_buffer_generator(img, num_planes, zoom_levels, plane_prefix):
 
 
 def _stage_image_buffer(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size):
-    """In-memory path: tiles never touch disk."""
+    """In-memory path: tiles never touch disk. The SQLite db is built in a
+    local temp directory and copied to mbtiles_path at the end, so that
+    SQLite never opens the db on a network filesystem (NFS/SMB locking is
+    unreliable and can corrupt the file)."""
     img, original_dims, num_planes = _get_img_details(img)
 
     logger.info('Processing %d plane(s), size: %dx%d' % (num_planes, original_dims[0], original_dims[1]))
     logger.info("Creating tile pyramids and packaging into MBTiles...")
 
-    bufs = _plane_buffer_generator(img, num_planes, zoom_levels, plane_prefix)
-    buffer_to_mbtiles(
-        bufs,
-        mbtiles_path,
-        format="jpg",
-        batch_size=50000,
-        width=original_dims[0],
-        height=original_dims[1],
-        name=name,
-        description=description,
-        voxel_size=voxel_size,
-    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        local_mbtiles = os.path.join(tmpdir, "output.mbtiles")
+        bufs = _plane_buffer_generator(img, num_planes, zoom_levels, plane_prefix)
+        buffer_to_mbtiles(
+            bufs,
+            local_mbtiles,
+            format="jpg",
+            batch_size=50000,
+            width=original_dims[0],
+            height=original_dims[1],
+            name=name,
+            description=description,
+            voxel_size=voxel_size,
+        )
+        shutil.copy2(local_mbtiles, mbtiles_path)
 
 
-def _stage_image_disk(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size, out_dir):
-    """Disk-based path: tiles are written to a temp directory, then imported into MBTiles."""
-    tiles_dir = os.path.join(out_dir, "_tiles_temp")
+def _stage_image_disk(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size):
+    """Disk-based path: tiles AND db are built in a local temp directory,
+    then the finished db is copied to mbtiles_path. Local-first avoids
+    SQLite file-locking issues on network filesystems (NFS/SMB), and the
+    temp directory is auto-cleaned on exit (including on exception)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tiles_dir = os.path.join(tmpdir, "tiles")
+        local_mbtiles = os.path.join(tmpdir, "output.mbtiles")
 
-    try:
-        logger.info("Step 1/3: Creating tile pyramids on disk...")
+        logger.info("Step 1/3: Creating tile pyramids on local disk...")
         result = tile_maker(img, zoom_levels=zoom_levels, out_dir=tiles_dir, plane_prefix=plane_prefix)
 
         logger.info("Step 2/3: Packaging tiles into MBTiles...")
         disk_to_mbtiles(
             tiles_dir,
-            mbtiles_path,
+            local_mbtiles,
             format="jpg",
             batch_size=50000,
             width=result['original_dims'][0],
@@ -344,11 +354,6 @@ def _stage_image_disk(img, mbtiles_path, zoom_levels, name, description, plane_p
             voxel_size=voxel_size,
         )
 
-        logger.info("Step 3/3: Cleaning up temporary files...")
-        shutil.rmtree(tiles_dir)
-
-    except Exception:
-        if os.path.exists(tiles_dir):
-            shutil.rmtree(tiles_dir)
-        raise
+        logger.info("Step 3/3: Copying MBTiles to final destination...")
+        shutil.copy2(local_mbtiles, mbtiles_path)
 
