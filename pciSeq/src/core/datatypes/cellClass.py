@@ -9,7 +9,7 @@ import scipy
 from .singleCell import SingleCell
 from .cells import Cells
 
-cellType_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class CellClass(object):
@@ -65,14 +65,43 @@ class CellClass(object):
         self._alpha = val
 
     @property
+    def zero_weight(self) -> float:
+        """Returns the fixed prior weight for the Zero class."""
+        return self._initial_weights[-1]
+
+    @property
     def pi_bar(self) -> np.ndarray:
-        """Returns the pi bar values for cell types."""
-        return self.alpha / self.alpha.sum()
+        """
+        Returns E[pi] for all classes, shape (nK,).
+
+        Uniform mode: fixed initial weights.
+        Weighted mode: Zero stays fixed, real classes from Dirichlet mean
+            scaled to sum to (1 - zero_weight).
+        """
+        if self.config['cell_type_prior'] == 'uniform' and not self.single_cell_data_missing:
+            return self._initial_weights
+
+        # Dirichlet mean for real classes, scaled by (1 - zero_weight)
+        alpha = self.alpha
+        real_pi = (1 - self.zero_weight) * alpha / alpha.sum()
+        return np.append(real_pi, self.zero_weight)
 
     @property
     def logpi_bar(self) -> np.ndarray:
-        """Returns the log pi bar values for cell types."""
-        return scipy.special.psi(self.alpha) - scipy.special.psi(self.alpha.sum())
+        """
+        Returns E[log pi] for all classes, shape (nK,).
+
+        Uniform mode: log of fixed initial weights.
+        Weighted mode: Zero gets log(zero_weight), real classes get
+            log(1 - zero_weight) + psi(alpha_k) - psi(sum(alpha)).
+        """
+        if self.config['cell_type_prior'] == 'uniform' and not self.single_cell_data_missing:
+            return np.log(self._initial_weights)
+
+        # E[log Dir_k] for real classes, shifted by log(1 - zero_weight)
+        alpha = self.alpha
+        real_logpi = np.log(1 - self.zero_weight) + scipy.special.psi(alpha) - scipy.special.psi(alpha.sum())
+        return np.append(real_logpi, np.log(self.zero_weight))
 
     @property
     def prior(self) -> np.ndarray:
@@ -101,42 +130,38 @@ class CellClass(object):
 
     def ini_prior(self):
         """Initializes the prior probabilities for cell types."""
-        self.alpha = self.ini_alpha()
+        self._initial_weights = self._compute_initial_weights()
+        self.alpha = np.ones(self.nK - 1, dtype=np.float32)
 
-    def ini_alpha(self) -> np.ndarray:
+    def _compute_initial_weights(self) -> np.ndarray:
         """
-        Initializes the alpha values for cell types.
+        Computes the initial probability vector for all classes from config.
+
+        If cell_type_weights is None: flat 1/nK for all classes.
+        If cell_type_weights is set: use the provided values, distribute remaining
+        probability equally among unspecified classes.
 
         Returns:
-            np.array: Initialized alpha values.
+            np.array: Probability vector of shape (nK,), sums to 1.
         """
         cfg_weights = self.config['cell_type_weights']
-        if cfg_weights:
-            # Extract default value if provided, otherwise use 1
-            default_weight = cfg_weights.get('default', 1)
+        if cfg_weights is None:
+            return np.full(self.nK, 1.0 / self.nK, dtype=np.float64)
 
-            # Initialize all cell types with the default weight
-            weights_dict = {name: default_weight for name in self.names}
+        specified = {}
+        for key, val in cfg_weights.items():
+            if key not in self.names:
+                logger.warning(f"Cell type '{key}' in cell_type_weights not found in cell type names. Ignoring.")
+            else:
+                specified[key] = val
 
-            for key in cfg_weights:
-                if key == 'default':
-                    # Skip the 'default' key as it's not a cell type
-                    continue
-                elif key not in self.names:
-                    cellType_logger.warning(f"Cell type '{key}' in cell_type_weights not found in cell type names. Ignoring.")
-                else:
-                    # Override with provided weights where applicable
-                    weights_dict[key] = cfg_weights[key]
+        specified_sum = sum(specified.values())
+        if specified_sum > 1.0:
+            logger.warning(f"cell_type_weights sum to {specified_sum} > 1.0, normalising.")
+        remaining = max(0.0, 1.0 - specified_sum)
+        unspecified = [name for name in self.names if name not in specified]
+        default_weight = remaining / len(unspecified) if unspecified else 0.0
 
-            # Preserve the 'Zero = sum(others)' behavior unless explicitly overridden
-            if 'Zero' not in cfg_weights:
-                vals = list(weights_dict.values())
-                weights_dict["Zero"] = np.sum(vals[:-1])
-
-            # get the values from the dict as a numpy array
-            out = np.array(list(weights_dict.values()), dtype=np.float32)
-        else:
-            ones = np.ones(self.nK - 1)
-            out = np.append(ones, sum(ones)).astype(np.float32)
-
-        return out
+        weights = np.array([specified.get(name, default_weight) for name in self.names], dtype=np.float64)
+        weights /= weights.sum()
+        return weights

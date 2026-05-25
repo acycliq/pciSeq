@@ -14,7 +14,7 @@ import opt_einsum as oe
 # Local imports
 from ..utils.cell_utils import read_image_objects, keep_labels_unique
 
-cells_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class Cells(object):
@@ -56,8 +56,12 @@ class Cells(object):
         self._gene_counts = None
         self._ini_gene_counts = None  # initial gene counts
         self._background_counts = None
-        self.on_planes = dict(zip(_cells_df['label'], _cells_df['values']))
         self._nb_contr = None  # placeholder for the genes' contribution to the negative binomial loglik
+        self._mrf = None  # placeholder for the mrf term last used in cell_to_cellType
+        self.effective_beta = None  # mrf cap from the last cell_to_cellType call, kept for inspection
+        self._theta_bar = None
+        self._logtheta_bar = None
+        self._nbrs = None
 
     # -------- PROPERTIES -------- #
     @property
@@ -159,6 +163,15 @@ class Cells(object):
     def nb_contr(self, val):
         self._nb_contr = val
 
+    # Property useful only for debugging. Safe to remove
+    @property
+    def mrf(self) -> np.ndarray:
+        return self._mrf
+
+    @mrf.setter
+    def mrf(self, val):
+        self._mrf = val
+
     @property
     def ini_gene_counts(self) -> np.ndarray:
         """ Returns an array of shape (nC,) containing the total number of spots
@@ -166,7 +179,65 @@ class Cells(object):
         """
         return self._ini_gene_counts
 
+    @property
+    def theta_bar(self):
+        """Returns the eta bar values for genes."""
+        return self._theta_bar
+
+    @property
+    def logtheta_bar(self):
+        """Returns the log eta bar for genes (estimated mean of the posterior)."""
+        return self._logtheta_bar
+
+    @property
+    def nbrs(self):
+        """Returns the nearest neighbors for each cell"""
+        return self._nbrs
+
+    @nbrs.setter
+    def nbrs(self, val):
+        self._nbrs = val
+
     # -------- METHODS -------- #
+
+    def init_theta(self, a, b):
+        """
+        Initializes eta values for genes.
+
+        Parameters:
+            a (float): Parameter a for eta calculation.
+            b (float): Parameter b for eta calculation.
+        """
+        nK = self.class_names.shape[0]
+        self._theta_bar = np.ones([self.nC, nK], dtype=np.float32) * (a / b)
+        self._logtheta_bar = np.ones([self.nC, nK], dtype=np.float32) * self._digamma(a, b)
+
+    def calc_theta(self, a, b):
+        """
+        Calculates eta values for genes.
+
+        Parameters:
+            a (np.array): Array of parameter a values.
+            b (np.array): Array of parameter b values.
+        """
+        a = a.astype(np.float32)
+        b = b.astype(np.float32)
+        self._theta_bar = a[:, None] / b
+        # self._logtheta_bar = self._digamma(a, b)
+
+    def _digamma(self, a, b):
+        """
+        Calculates the digamma function for theta calculation.
+
+        Parameters:
+            a (np.array): Array of parameter a values.
+            b (np.array): Array of parameter b values.
+
+        Returns:
+            np.array: Digamma values.
+        """
+        return scipy.special.psi(a) - np.log(b)
+
     def ini_centroids(self) -> pd.DataFrame:
         """
         Initializes the centroids for cells.
@@ -267,6 +338,85 @@ class Cells(object):
         out[:, 2, 1] = agg_12
 
         return out.astype(np.float32)
+
+    def nearest_neighbours(self):
+        # get the nearest neighbours of each cell
+        distances, indices = self.nn().kneighbors(self.zyx_coords)
+
+        # drop the 1st column, it is always the cell itself
+        out = {
+            'distances': distances[:, 1:],
+            'indices': indices[:, 1:]
+        }
+        return out
+
+    def calc_mrf(self, effective_beta=None):
+        nbrs_idx = self.nbrs['indices']
+
+        # Weight each neighbor by 1/distance so closer cells have more influence.
+        # Normalise so the weights sum to nNeighbors (e.g. 9), matching the
+        # scale of zeta (class probs sum to 1 per neighbor, 9 neighbors total).
+        # This way proximity and zeta contribute equally to the MRF potential.
+        nbrs_prxmty = 1/self.nbrs['distances']
+        nbrs_prxmty = nbrs_prxmty / nbrs_prxmty.sum(axis=1, keepdims=True) * nbrs_idx.shape[1]
+
+        # Proximity-weighted sum of neighbour class probabilities (zeta)
+        nbr_probs = self.classProb[nbrs_idx]  # (nC, nN, nK)
+        mrf = (nbr_probs * nbrs_prxmty[:, :, None]).sum(axis=1)
+
+        # Row-sum note: at this point sum_k mrf[c, k] = nN per cell. The
+        # A-multiplication and the beta scaling below both break this, but
+        # for different reasons:
+        #   - A modification (Zero-row=0): zeros the Zero column only.
+        #     Real-vs-real differences (e.g. Oligo vs Astro) are preserved
+        #     exactly, so the softmax over real classes is unchanged.
+        #     Zero just loses MRF support.
+        #   - beta scaling: multiplies every entry by beta, which SCALES
+        #     every class-vs-class difference. This intentionally sharpens
+        #     (beta > 1) or flattens (beta < 1) the softmax -- beta is the
+        #     parameter that controls how strongly the MRF influences the
+        #     cell-class decision.
+        # The absolute row sum itself doesn't matter for softmax (which is
+        # shift-invariant under adding a constant to every class). What
+        # matters is the per-class differences, which A and beta shape on
+        # purpose.
+
+        # Similarity matrix A of shape (nK, nK). A[i, j] = 1 means a neighbour
+        # classified as class j contributes to the MRF support of class i (rows
+        # are receivers, columns are donors). The identity diagonal is the
+        # standard case: a neighbour of class k supports the cell under focus
+        # being class k, and contributes nothing to any other class.
+        # Symmetric off-diagonal 1s pool two similar classes: a neighbour of
+        # either class supports both, which neutralises the MRF between them and
+        # leaves the gene log-likelihood to pick the winner. Without this, a
+        # rare class (e.g. 038 DG-PIR Ex IMN) embedded inside a dense majority
+        # (037 DG Glut) loses the softmax to its sister class even when the gene
+        # evidence slightly favours it, because the neighbourhood votes are
+        # overwhelmingly for the majority. See notes/mrf_similarity_matrix.md
+        # for the full derivation and a worked toy example.
+        class_list = list(self.class_names)
+        A = np.eye(len(class_list), dtype=mrf.dtype)
+        for a, b in self.config["similarity_pairs"]:
+            if a in class_list and b in class_list:
+                ia, ib = class_list.index(a), class_list.index(b)
+                A[ia, ib] = A[ib, ia] = 1
+
+        # Zero-classified neighbours contribute no MRF support to any class.
+        # Without this, a cell surrounded by Zero neighbours gets dragged toward
+        # Zero by neighbour pressure, which we don't want -- the data should
+        # decide whether the cell is Zero, not the neighbourhood. This breaks
+        # the symmetry of A (Zero column is unchanged, Zero row is now all zeros).
+        assert class_list[-1] == 'Zero', "Last class must be Zero"
+        A[-1, :] = 0
+
+        mrf = oe.contract('ck, kj -> cj', mrf, A)
+
+        if effective_beta is None:
+            out = mrf * self.config["mrf_beta"]
+        else:
+            out = mrf * effective_beta
+
+        return out
 
     # -------------------------- CONVENIENCE METHODS ----------------------- #
     def gene_reads_per_class(self):

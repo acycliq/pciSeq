@@ -5,6 +5,7 @@ from pathlib import Path
 import pickle
 import tempfile
 import shutil
+import sqlite3
 import pyarrow as pa
 import pyarrow.feather as feather
 from pathlib import Path
@@ -18,7 +19,7 @@ from tqdm import tqdm
 import logging
 
 # Configure logging
-io_utils_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def get_out_dir(path: Optional[str] = None, sub_folder: str = '') -> str:
@@ -65,7 +66,7 @@ def log_file(cfg: Dict) -> None:
         fh.setFormatter(formatter)
 
         root_logger.addHandler(fh)
-        io_utils_logger.info('Writing to %s' % logfile)
+        logger.info('Writing to %s' % logfile)
 
 
 def download_url_to_file(url: str, dst: str, progress: bool = True) -> None:
@@ -125,9 +126,33 @@ def load_from_url(url: str) -> str:
     parts = urlparse(url)
     filename = os.path.basename(parts.path)
     if not os.path.exists(filename):
-        io_utils_logger.info('Downloading: "%s" to %s', url, filename)
+        logger.info('Downloading: "%s" to %s', url, filename)
         download_url_to_file(url, filename)
     return filename
+
+
+def collect_metadata() -> Dict:
+    """Runtime environment metadata for a serialised run. Extends the
+    pciSeq-version stamp that VarBayes.metadata already carries from __init__."""
+    import platform
+    import sys
+    from datetime import datetime
+
+    pkg_versions = {}
+    for pkg in ['numpy', 'scipy', 'pandas', 'pciSeq']:
+        try:
+            mod = __import__(pkg)
+            pkg_versions[pkg] = getattr(mod, '__version__', 'unknown')
+        except ImportError:
+            pass
+
+    return {
+        'serialised_at': datetime.now().isoformat(),
+        'hostname': platform.node(),
+        'os': f'{platform.system()} {platform.release()}',
+        'python_version': sys.version.split()[0],
+        'package_versions': pkg_versions,
+    }
 
 
 def serialise(varBayes: Any, debug_dir: str) -> None:
@@ -137,12 +162,268 @@ def serialise(varBayes: Any, debug_dir: str) -> None:
         varBayes: Object to serialize
         debug_dir: Directory to save pickle file
     """
+    varBayes.metadata.update(collect_metadata())
+
     if not os.path.exists(debug_dir):
         os.makedirs(debug_dir)
     pickle_dst = os.path.join(debug_dir, 'pciSeq.pickle')
     with open(pickle_dst, 'wb') as outf:
         pickle.dump(varBayes, outf)
-        io_utils_logger.info('Saved at %s', pickle_dst)
+
+    pickle_mb = os.path.getsize(pickle_dst) / (1024 * 1024)
+    logger.info('Saved at %s (%.1f MB)', pickle_dst, pickle_mb)
+
+    arrow_dir = os.path.join(os.path.dirname(debug_dir), 'viewer_data')
+    export_diagnostics(varBayes, arrow_dir)
+
+
+def export_diagnostics(varBayes: Any, output_dir: str) -> None:
+    """Export diagnostics data (check_cell and check_spot) to a single SQLite database.
+
+    Writes to {output_dir}/diagnostics/diagnostics.db
+
+    Tables:
+      - metadata: key-value pairs (including JSON arrays)
+      - cells: per-cell diagnostic data
+      - spots: per-spot diagnostic data
+
+    Args:
+        varBayes: Fitted VarBayes object
+        output_dir: Base data directory
+    """
+    diagnostics_dir = os.path.join(output_dir, 'diagnostics')
+    os.makedirs(diagnostics_dir, exist_ok=True)
+
+    db_path = os.path.join(diagnostics_dir, 'diagnostics.db')
+    if os.path.exists(db_path):
+        os.remove(db_path)
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # --- Create Tables ---
+    cursor.execute('CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT)')
+
+    cursor.execute('''
+        CREATE TABLE cells (
+            cell_id INTEGER PRIMARY KEY,
+            scaled_means BLOB,
+            theta_bar BLOB,
+            gene_count BLOB,
+            class_prob BLOB,
+            theta REAL,
+            assigned_class_idx INTEGER,
+            gamma_assigned BLOB,
+            mrf BLOB,
+            effective_beta BLOB
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE spots (
+            spot_id INTEGER PRIMARY KEY,
+            gene_idx INTEGER,
+            x INTEGER,
+            y INTEGER,
+            z INTEGER,
+            neighbor_cell_ids TEXT,
+            mvn_loglik BLOB,
+            attention BLOB,
+            expr_fluct BLOB,
+            cell_inefficiency BLOB
+        )
+    ''')
+
+    # --- Gather Data ---
+    cells = varBayes.cells
+    genes = varBayes.genes
+    spots = varBayes.spots
+
+    # Label Map
+    label_map = {}
+    if varBayes.config.get('label_map'):
+        label_map = {str(k): int(v) for k, v in varBayes.config['label_map'].items()}
+
+    # Gene Panel
+    gene_panel = genes.gene_panel.tolist()
+
+    # Initial misread density (prior estimate, same for all genes unless user-specified)
+    misread_series = genes.misread_density
+    if misread_series is None:
+        logger.error("Diagnostics export skipped: 'misread_density' is missing.")
+        return
+    misread_dict = {str(gene): float(v) for gene, v in zip(genes.gene_panel, misread_series)}
+
+    # Learned misread density (posterior mean rho_bar, updated during EM)
+    rho_bar = genes.rho_bar
+    rho_bar_dict = {str(gene): float(rho) for gene, rho in zip(genes.gene_panel, rho_bar)} if rho_bar is not None else {}
+
+    # Hard misread counts: spots where background (last column) has the highest probability
+    hard_misread_counts = []  # list of ints indexed by gene
+    hard_misread_by_plane = {}  # {gene_name: {plane_id: count}}
+    try:
+        prob = spots.parent_cell_prob  # (nS, nN+1)
+        if prob is not None and len(prob):
+            is_misread = np.argmax(prob, axis=1) == (prob.shape[1] - 1)  # (nS,) bool
+            hard_misread_counts = np.bincount(spots.gene_id, weights=is_misread.astype(np.float32), minlength=len(gene_panel)).astype(int).tolist()
+            if 'plane_id' in spots.data.columns:
+                plane_ids = spots.data['plane_id'].to_numpy()
+                misread_indices = np.where(is_misread)[0]
+                for idx in misread_indices:
+                    gene = gene_panel[spots.gene_id[idx]]
+                    plane = int(plane_ids[idx])
+                    if gene not in hard_misread_by_plane:
+                        hard_misread_by_plane[gene] = {}
+                    plane_counts = hard_misread_by_plane[gene]
+                    plane_counts[plane] = plane_counts.get(plane, 0) + 1
+    except Exception as e:
+        logger.warning('Could not compute hard misread counts: %s', e)
+
+    # --- Populate Metadata ---
+    # Compute scaled_means for metadata nC (and for cells table)
+    # logger.info('Computing scaled_exp for diagnostics export...')
+    scaled_means = varBayes.scaled_exp.compute()
+    nC, nG, nK = scaled_means.shape
+
+    nS = spots.nS
+    # Check if we can get nN (needs neighbor_ids)
+    neighbor_ids = spots.parent_cell_id
+    nN = 0
+    if neighbor_ids is not None:
+        nN = neighbor_ids.shape[1]
+
+    meta_items = [
+        # Cell-related
+        ('nC', str(nC)),
+        ('nG', str(nG)),
+        ('nK', str(nK)),
+        ('rSpot', str(float(varBayes.config['rSpot']))),
+        ('rTheta', str(float(varBayes.config['rTheta']))),
+        ('SpotReg', str(float(varBayes.config['SpotReg']))),
+        ('class_names', json.dumps(cells.class_names.tolist())),
+        ('eta_bar', json.dumps(genes.eta_bar.astype(np.float32).tolist())),
+        ('mean_gene_reads_per_class', json.dumps(cells.mean_gene_reads_per_class().astype(np.float32).tolist())),
+        ('sc_mean_expression', json.dumps(varBayes.single_cell.mean_expression.values.astype(np.float32).tolist())),
+        ('Inefficiency', str(float(varBayes.config['Inefficiency']))),
+        # A_c: per-cell inside-cell-bonus normalisation (paper symbol). Implementation
+        # variable is cells.ini_cell_props['area_factor'] but the name "area" is
+        # misleading. See notes/area_factor_explained.md and notes/spot_hover_chain_spec.md.
+        ('A_c', json.dumps(cells.ini_cell_props['area_factor'].astype(np.float32).tolist())),
+
+        # Spot-related
+        ('nS', str(int(nS))),
+        ('nN', str(int(nN))),
+        ('misread_density', json.dumps(misread_dict)),
+        ('rho_bar', json.dumps(rho_bar_dict)),
+        ('hard_misread_counts', json.dumps(hard_misread_counts)),
+        ('hard_misread_by_plane', json.dumps(hard_misread_by_plane)),
+
+        # Shared
+        ('gene_panel', json.dumps(gene_panel)),
+        ('label_map', json.dumps(label_map)),
+        ('log_prior', json.dumps(varBayes.cellTypes.log_prior.astype(np.float32).tolist())),
+    ]
+
+    # Per-gene observed spot counts (for η scatter in dashboard)
+    try:
+        if hasattr(spots, 'counts_per_gene') and spots.counts_per_gene is not None:
+            gene_total_spots = spots.counts_per_gene.astype(int).tolist()
+        else:
+            vc = spots.data['gene_name'].value_counts()
+            gene_total_spots = [int(vc.get(g, 0)) for g in gene_panel]
+        meta_items.append(('gene_total_spots', json.dumps(gene_total_spots)))
+    except Exception:
+        pass
+
+    # Run provenance: pciSeq version, branch, commit, build_date, created_at,
+    # serialised_at, hostname, os, python_version, package_versions.
+    meta_items.append(('pciSeq_provenance', json.dumps(varBayes.metadata)))
+
+    cursor.executemany('INSERT INTO metadata VALUES (?, ?)', meta_items)
+    # logger.info('Inserted %d metadata entries', len(meta_items))
+
+    # --- Populate Cells Table ---
+    scaled_means_f32 = scaled_means.astype(np.float32)
+    theta_bar_f32 = cells.theta_bar.astype(np.float32)
+    gene_count_f32 = cells.geneCount.astype(np.float32)
+    class_prob_f32 = cells.classProb.astype(np.float32)
+
+    # Dashboard columns: theta, assigned_class_idx, gamma_assigned
+    # theta = sum_k zeta[c,k] * theta_bar[c,k]
+    theta_scalar = np.einsum('ck,ck->c', class_prob_f32, theta_bar_f32).astype(np.float32)
+    assigned_class_idx = np.argmax(class_prob_f32, axis=1).astype(np.int32)
+
+    # gamma_assigned[c, :] = gamma_bar[c, :, assigned_class[c]]
+    gamma_bar = varBayes.spots.gamma_bar.compute().astype(np.float32)  # (nC, nG, nK)
+    gamma_assigned = gamma_bar[np.arange(nC), :, assigned_class_idx]   # (nC, nG)
+
+    # mrf[c, k]
+    mrf_f32 = cells.mrf.astype(np.float32)
+
+    # effective_beta[c, k]  -- the per-(cell, class) MRF cap from utils/effective_beta.py
+    effective_beta_f32 = cells.effective_beta.astype(np.float32)
+
+    batch_size = 10000
+    for batch_start in range(0, nC, batch_size):
+        batch_end = min(batch_start + batch_size, nC)
+        batch_data = []
+        for c in range(batch_start, batch_end):
+            batch_data.append((
+                c,
+                scaled_means_f32[c].tobytes(),
+                theta_bar_f32[c].tobytes(),
+                gene_count_f32[c].tobytes(),
+                class_prob_f32[c].tobytes(),
+                float(theta_scalar[c]),
+                int(assigned_class_idx[c]),
+                gamma_assigned[c].tobytes(),
+                mrf_f32[c].tobytes(),
+                effective_beta_f32[c].tobytes(),
+            ))
+        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', batch_data)
+        # if (batch_end % 10000 == 0) or (batch_end == nC):
+        #     logger.info('Inserted %d/%d cells', batch_end, nC)
+
+    # --- Populate Spots Table ---
+    if spots.mvn_loglik_arr is None or spots.attention is None or spots.expr_fluctuations is None or spots.cell_inefficiency is None or neighbor_ids is None:
+        logger.warning('check_spot data missing; spots table will be empty.')
+    else:
+        mvn_f32 = spots.mvn_loglik_arr.astype(np.float32)
+        attn_f32 = spots.attention.astype(np.float32)
+        expr_f32 = spots.expr_fluctuations.astype(np.float32)
+        cineff_f32 = spots.cell_inefficiency.astype(np.float32)
+        gene_idx = spots.gene_id.astype(np.int32)
+        xs = spots.data['x'].astype(np.int32).to_numpy()
+        ys = spots.data['y'].astype(np.int32).to_numpy()
+        zs = spots.data['z'].astype(np.int32).to_numpy()
+
+        batch_size = 10000
+        for start in range(0, nS, batch_size):
+            end = min(start + batch_size, nS)
+            batch = []
+            for i in range(start, end):
+                neigh_json = json.dumps(list(map(int, neighbor_ids[i].tolist())))
+                batch.append((
+                    int(spots.data.index[i]),
+                    int(gene_idx[i]),
+                    int(xs[i]), int(ys[i]), int(zs[i]),
+                    neigh_json,
+                    mvn_f32[i].tobytes(),
+                    attn_f32[i].tobytes(),
+                    expr_f32[i].tobytes(),
+                    cineff_f32[i].tobytes(),
+                ))
+            cursor.executemany('''
+                INSERT INTO spots (spot_id, gene_idx, x, y, z, neighbor_cell_ids, mvn_loglik, attention, expr_fluct, cell_inefficiency)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', batch)
+            # if (end % 50000 == 0) or (end == nS):
+            #     logger.info('Inserted %d/%d spots', end, nS)
+
+    conn.commit()
+    conn.close()
+
+    db_size_mb = os.path.getsize(db_path) / (1024 * 1024)
+    logger.info('Saved at: %s (%.1f MB)', db_path, db_size_mb)
 
 
 def export_db_tables(out_dir: str, con: Any) -> None:
@@ -168,7 +449,7 @@ def export_db_table(table_name: str, out_dir: str, con: Any) -> None:
     df = con.from_redis(table_name)
     fname = os.path.join(out_dir, table_name + '.csv')
     df.to_csv(fname, index=False)
-    io_utils_logger.info('Saved at %s', fname)
+    logger.info('Saved at %s', fname)
 
 
 def write_data(cellData: pd.DataFrame, geneData: pd.DataFrame,
@@ -176,6 +457,16 @@ def write_data(cellData: pd.DataFrame, geneData: pd.DataFrame,
 
     dst = get_out_dir(cfg['output_path'])
     out_dir = os.path.join(dst, 'data')
+
+    # Attach per-spot hard misread flag before writing Arrow files
+    try:
+        prob = varBayes.spots.parent_cell_prob
+        if prob is not None and len(prob):
+            is_misread = np.argmax(prob, axis=1) == (prob.shape[1] - 1)
+            geneData = geneData.copy()
+            geneData['is_hard_misread'] = is_misread.astype(np.uint8)
+    except Exception as e:
+        logger.warning('Could not attach is_hard_misread to geneData: %s', e)
 
     write_tsv(cellData, geneData, cellBoundaries, out_dir)
     write_arrow(geneData, cellData, cellBoundaries_list, out_dir)
@@ -199,35 +490,41 @@ def write_tsv(cellData: pd.DataFrame, geneData: pd.DataFrame, cellBoundaries: pd
         os.makedirs(out_dir)
 
     # Save cell data
-    cellData.to_csv(os.path.join(out_dir, 'cellData.tsv'), sep='\t', index=False)
-    io_utils_logger.info('Saved at %s', os.path.join(out_dir, 'cellData.tsv'))
+    cellData_path = os.path.join(out_dir, "cellData.tsv")
+    cellData.to_csv(cellData_path, sep='\t', index=False)
+    cellData_mb = os.path.getsize(cellData_path) / (1024 * 1024)
+    logger.info('Saved at: %s (%.1f MB)', cellData_path, cellData_mb)
 
     # Save gene data
+    geneData_path = os.path.join(out_dir, "geneData.tsv")
     geneData.to_csv(os.path.join(out_dir, 'geneData.tsv'), sep='\t', index=False)
-    io_utils_logger.info('Saved at %s', os.path.join(out_dir, 'geneData.tsv'))
+    geneData_mb = os.path.getsize(geneData_path) / (1024 * 1024)
+    logger.info('Saved at: %s (%.1f MB)', geneData_path, geneData_mb)
 
     # Save boundaries
-    cellBoundaries.to_csv(os.path.join(out_dir, 'cellBoundaries.tsv'), sep='\t', index=False)
-    io_utils_logger.info('Saved at %s', os.path.join(out_dir, 'cellBoundaries.tsv'))
+    cellBoundaries_path = os.path.join(out_dir, "cellBoundaries.tsv")
+    cellBoundaries.to_csv(cellBoundaries_path, sep='\t', index=False)
+    cellBoundaries_mb = os.path.getsize(cellBoundaries_path) / (1024 * 1024)
+    logger.info('Saved at %s: (%.1f MB)', cellBoundaries_path, cellBoundaries_mb)
 
 
 def write_arrow(geneData:pd.DataFrame, cellData:pd.DataFrame, cellBoundaries:pd.DataFrame, out_dir: str = None) -> None:
     geneData_to_arrow(geneData, out_dir)
     cellData_to_arrow(cellData, out_dir)
-    # io_utils_logger.info('boundaries_to_arrow_old - Starting')
+    # logger.info('boundaries_to_arrow_old - Starting')
     # boundaries_to_arrow_old(cellBoundaries, out_dir)
-    # io_utils_logger.info('boundaries_to_arrow_old - Ending')
+    # logger.info('boundaries_to_arrow_old - Ending')
 
-    # io_utils_logger.info('boundaries_to_arrow - Starting')
+    # logger.info('boundaries_to_arrow - Starting')
     boundaries_to_arrow(cellBoundaries, out_dir)
-    # io_utils_logger.info('boundaries_to_arrow - Ending')
+    # logger.info('boundaries_to_arrow - Ending')
 
-    # io_utils_logger.info('Saved at %s', os.path.join(out_dir, 'cellBoundaries.tsv'))
+    # logger.info('Saved at %s', os.path.join(out_dir, 'cellBoundaries.tsv'))
 
 
 def geneData_to_arrow(df_in: pd.DataFrame, out_dir: str = None) -> None:
 
-    out_dir = Path(out_dir) / "arrow" / 'arrow_spots'
+    out_dir = Path(out_dir) / "viewer_data" / 'arrow_spots'
     out_dir.mkdir(parents=True, exist_ok=True)
 
     shards = []
@@ -273,6 +570,10 @@ def geneData_to_arrow(df_in: pd.DataFrame, out_dir: str = None) -> None:
         if "omp_intensity" in df.columns:
             arrays["omp_intensity"] = pa.array(df["omp_intensity"].astype("float32"))
 
+        # Hard misread flag (0 or 1)
+        if "is_hard_misread" in df.columns:
+            arrays["is_hard_misread"] = pa.array(df["is_hard_misread"].astype("uint8"))
+
         # NOTE: gene_name and neighbour columns are excluded to match working converter
 
         table = pa.table(arrays)
@@ -296,8 +597,8 @@ def geneData_to_arrow(df_in: pd.DataFrame, out_dir: str = None) -> None:
     # Write gene dictionary (id -> name) using data collected during chunking
     (out_dir / "gene_dict.json").write_text(json.dumps(gene_dict_data, indent=2))
 
-    # io_utils_logger.info(f"Saved {total_rows} rows in {len(shards)} shards at {out_dir}")
-    io_utils_logger.info(f"Saved at {out_dir}")
+    # logger.info(f"Saved {total_rows} rows in {len(shards)} shards at {out_dir}")
+    logger.info(f"Saved at {out_dir}")
 
 
 
@@ -320,7 +621,7 @@ def cellData_to_arrow(df_in: pd.DataFrame, out_dir: str = None) -> None:
     Raises:
         ValueError: If required source columns are missing
     """
-    out_dir = Path(out_dir) / "arrow" / "arrow_cells"
+    out_dir = Path(out_dir) / "viewer_data" / "arrow_cells"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Validate required source columns - fail fast if missing
@@ -379,8 +680,8 @@ def cellData_to_arrow(df_in: pd.DataFrame, out_dir: str = None) -> None:
     manifest = {"format": "arrow-feather", "total_rows": int(total_rows), "shards": shards}
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
 
-    # io_utils_logger.info(f"Saved {total_rows} cell records in {len(shards)} shards at {out_dir}")
-    io_utils_logger.info(f"Saved at {out_dir}")
+    # logger.info(f"Saved {total_rows} cell records in {len(shards)} shards at {out_dir}")
+    logger.info(f"Saved at {out_dir}")
 
 
 def parse_coords(cell: str) -> List[Tuple[float, float]]:
@@ -423,7 +724,7 @@ def validate_df_structure(df):
         raise SystemExit(f"validation failed: {e}")
 
 def boundaries_to_arrow_old(df_in: pd.DataFrame, out_dir: str = None) -> None:
-    out_dir = Path(out_dir) / "arrow" / 'arrow_boundaries'
+    out_dir = Path(out_dir) / "viewer_data" / 'arrow_boundaries'
     out_dir.mkdir(parents=True, exist_ok=True)
 
 
@@ -482,12 +783,12 @@ def boundaries_to_arrow_old(df_in: pd.DataFrame, out_dir: str = None) -> None:
         "shards": shards,
     }
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
-    io_utils_logger.info(f"Done. Total polys: {total_polys}. Total points: {total_points}. Files: {len(shards)}. Output: {out_dir}")
+    logger.info(f"Done. Total polys: {total_polys}. Total points: {total_points}. Files: {len(shards)}. Output: {out_dir}")
 
 
 
 def _boundaries_to_arrow(df_in: List[pd.DataFrame], out_dir: str = None) -> None:
-    out_dir = Path(out_dir) / "arrow" / 'arrow_boundaries'
+    out_dir = Path(out_dir) / "viewer_data" / 'arrow_boundaries'
     out_dir.mkdir(parents=True, exist_ok=True)
 
     shards = []
@@ -578,7 +879,7 @@ def _boundaries_to_arrow(df_in: List[pd.DataFrame], out_dir: str = None) -> None
         "shards": shards,
     }
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
-    io_utils_logger.info(f"Done. Total polys: {total_polys}. Total points: {total_points}. Files: {len(shards)}. Output: {out_dir}")
+    logger.info(f"Done. Total polys: {total_polys}. Total points: {total_points}. Files: {len(shards)}. Output: {out_dir}")
 
 
 
@@ -593,7 +894,7 @@ def boundaries_to_arrow(dfs_in: List[pd.DataFrame], out_dir: str, compression: s
         out_dir: The root directory to save the output 'arrow_boundaries' folder to.
         compression: The compression to use for the Feather files.
     """
-    out_dir = Path(out_dir) / "arrow" / 'arrow_boundaries'
+    out_dir = Path(out_dir) / "viewer_data" / 'arrow_boundaries'
     out_dir.mkdir(parents=True, exist_ok=True)
 
     comp = compression if compression != "none" else None
@@ -615,7 +916,7 @@ def boundaries_to_arrow(dfs_in: List[pd.DataFrame], out_dir: str, compression: s
         # Check for required columns
         required_cols = ['plane_id', 'cell_id', 'coords']
         if not all(col in df_plane.columns for col in required_cols):
-            io_utils_logger.info("Warning: A DataFrame is missing required columns. Skipping.")
+            logger.info("Warning: A DataFrame is missing required columns. Skipping.")
             continue
 
         # Get the plane ID - use index as fallback for empty DataFrames
@@ -645,7 +946,7 @@ def boundaries_to_arrow(dfs_in: List[pd.DataFrame], out_dir: str, compression: s
             empty_table = schema.empty_table()
             feather.write_feather(empty_table, (out_dir / shard_name).as_posix(), compression=comp)
             shards.append({"url": shard_name, "rows": 0, "plane": current_plane_id})
-            # io_utils_logger.info(f"Wrote empty shard {shard_name} for plane {current_plane_id}")
+            # logger.info(f"Wrote empty shard {shard_name} for plane {current_plane_id}")
             continue
 
         # Prepare data for Arrow, using the 'coords' column directly
@@ -681,10 +982,8 @@ def boundaries_to_arrow(dfs_in: List[pd.DataFrame], out_dir: str, compression: s
         "shards": sorted(shards, key=lambda s: s['plane']),  # Sort shards by plane number
     }
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
-    # io_utils_logger.info(f"Done. Total polys: {total_polys}. Total points: {total_points}. Files: {len(shards)}. Output: {out_dir}")
-    io_utils_logger.info(f"Saved at: {out_dir}")
-
-
+    # logger.info(f"Done. Total polys: {total_polys}. Total points: {total_points}. Files: {len(shards)}. Output: {out_dir}")
+    logger.info(f"Saved at: {out_dir}")
 
 
 

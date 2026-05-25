@@ -5,12 +5,11 @@ import pandas as pd
 from typing import Dict, List, Tuple, Any, Optional, Union
 from numbers import Number
 import math
-from numba import jit
 from numba import njit, prange
 import logging
 
 # Configure logging
-cell_utils_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def read_image_objects(img_obj, cfg):
@@ -86,7 +85,7 @@ def recover_original_labels(cellData: pd.DataFrame,
 
     cellBoundaries_list = [d.assign(cell_id=d.cell_id.map(lambda x: reverse_map.get(x))) for d in cellBoundaries_list]
 
-    cell_utils_logger.info("Restored original cell segmentation labels")
+    logger.info("Restored original cell segmentation labels")
     return cellData, geneData, cellBoundaries, cellBoundaries_list
 
 
@@ -131,82 +130,6 @@ def keep_labels_unique(scdata: pd.DataFrame) -> pd.DataFrame:
 
     # Drop the total column and return
     return scdata.drop(['total'], axis=1)
-
-
-@jit(nopython=True, parallel=True)
-def _find_labels_in_slices_numba(label_image, max_label):
-    """
-    Numba-accelerated function to find slice indices for each label.
-
-    Args:
-        label_image: 3D numpy array of label values
-        max_label: Maximum label value in the array
-
-    Returns:
-        result_exists: Boolean array indicating if a label exists
-        result_slices: 2D array where each row can store slice indices for a label
-        result_counts: Array counting how many slices each label appears in
-    """
-    n_slices = label_image.shape[0]
-
-    # Pre-allocate arrays for results
-    result_exists = np.zeros(max_label + 1, dtype=np.bool_)
-    result_slices = np.zeros((max_label + 1, n_slices), dtype=np.int32)
-    result_counts = np.zeros(max_label + 1, dtype=np.int32)
-
-    # Process each slice
-    for slice_idx in prange(n_slices):
-        slice_data = label_image[slice_idx]
-
-        # Track labels we've already seen in this slice
-        seen_labels = np.zeros(max_label + 1, dtype=np.bool_)
-
-        # Scan through all elements in the slice
-        for i in range(slice_data.shape[0]):
-            for j in range(slice_data.shape[1]):
-                label = slice_data[i, j]
-
-                # Skip zero labels and labels we've already seen in this slice
-                if label > 0 and not seen_labels[label]:
-                    seen_labels[label] = True
-                    result_exists[label] = True
-                    result_slices[label, result_counts[label]] = slice_idx
-                    result_counts[label] += 1
-
-    return result_exists, result_slices, result_counts
-
-
-def find_labels(label_image):
-    """
-    Efficiently find which slices contain each unique label value using Numba.
-    Returns sorted slice indices for each label.
-
-    Args:
-        label_image: 3D numpy array of label values
-
-    Returns:
-        Dictionary mapping each non-zero label value to a sorted list of slice indices
-        where that label appears
-    """
-    # Ensure input is the right type for Numba
-    label_image = np.asarray(label_image, dtype=np.int32)
-
-    # Find the maximum label to determine array sizes
-    max_label = np.max(label_image)
-
-    # Call the Numba-optimized function
-    result_exists, result_slices, result_counts = _find_labels_in_slices_numba(label_image, max_label)
-
-    # Convert the raw arrays to a more useful dictionary format with sorted indices
-    result = {}
-    for label in range(1, max_label + 1):
-        if result_exists[label]:
-            # Extract only the valid indices (up to the count for this label)
-            # and sort them
-            indices = result_slices[label, :result_counts[label]]
-            result[label] = np.sort(indices).tolist()
-
-    return result
 
 
 @njit(parallel=True)

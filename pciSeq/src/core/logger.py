@@ -58,7 +58,21 @@ def attach_to_log():
 
 
 def setup_logger(level=None):
+    """
+    Configure pciSeq logging with colored console output.
 
+    WARNING: This function clears all existing root logger handlers and replaces
+    them with pciSeq's own handler. If pciSeq is embedded inside a larger
+    application that has its own logging setup, do NOT call this function —
+    the parent application's handlers will be wiped out. Only call setup_logger()
+    when pciSeq is the top-level application.
+
+    Args:
+        level: logging level (e.g. logging.DEBUG, logging.INFO). Defaults to INFO.
+
+    Returns:
+        The configured 'pciSeq' logger instance.
+    """
     if level is None:
         level = logging.INFO
 
@@ -68,7 +82,7 @@ def setup_logger(level=None):
 
     # Create color formatter
     color_formatter = colorlog.ColoredFormatter(
-        "%(log_color)s%(asctime)s - %(levelname)s - %(message)s",
+        "%(log_color)s%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         log_colors={
             'DEBUG': 'cyan',
             'INFO': 'green',

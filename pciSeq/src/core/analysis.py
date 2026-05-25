@@ -35,7 +35,7 @@ from ...src.core.utils.io_utils import get_out_dir
 from ...src.viewer.utils import get_pciSeq_install_dir
 
 # Configure logging
-analysis_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 # class CellExplorer:
@@ -302,12 +302,12 @@ analysis_logger = logging.getLogger(__name__)
 #         loglik_data = self.gene_loglik_contributions(cell_num, user_class)
 #         with open(os.path.join(output_dir, 'gene_loglik_contr.json'), 'w') as fp:
 #             json.dump(loglik_data, fp)
-#             analysis_logger.info(f'saved at {os.path.join(output_dir, "gene_loglik_contr.json")}')
+#             logger.info(f'saved at {os.path.join(output_dir, "gene_loglik_contr.json")}')
 #
 #         # Save the data files
 #         with open(os.path.join(output_dir, "spot_dist.json"), "w") as f:
 #             json.dump(spot_dist, f)
-#             analysis_logger.info(f'saved at {os.path.join(output_dir, "spot_dist.json")}')
+#             logger.info(f'saved at {os.path.join(output_dir, "spot_dist.json")}')
 #
 #         pciSeq_dir = get_pciSeq_install_dir()
 #         src = os.path.join(pciSeq_dir, 'static', 'cell_analysis')

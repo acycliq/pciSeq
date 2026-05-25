@@ -57,7 +57,8 @@ def base_opts():
         "rGene": 20,
         "Inefficiency": 1.0,
         "InsideCellBonus": 0,
-        "MisreadDensity": {"default": 0.0},
+        "mrf_beta": 1.0,
+        "MisreadDensity": {"default": 1e-6},
         "cell_centroid_prior": 10,
         "cell_cov_prior": 10,
         "SpotReg": 0.1,
@@ -76,6 +77,10 @@ def base_opts():
         "remove_flat_cells": True,
         "mean_gene_counts_per_class": 60,
         "mean_gene_counts_per_cell": 30,
+        "img_dim": {"w": 100, "h": 100, "n_planes": 10},
+        "rRho": 1000.0,
+        "rTheta": 25.0,
+        "label_map": {},
     }
 
 

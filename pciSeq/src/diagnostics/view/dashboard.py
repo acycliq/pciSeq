@@ -14,7 +14,7 @@ import logging
 from pciSeq.src.diagnostics.constants import DiagnosticKeys
 from pciSeq.src.diagnostics.model.diagnostic_model import DiagnosticModel
 
-dashboard_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class DiagnosticDashboard:
@@ -101,7 +101,7 @@ class DiagnosticDashboard:
                 bar_chart = self._create_barchart(df, nominal_col='gene', val_col='gene_efficiency')
                 st.altair_chart(bar_chart, use_container_width=True)
             except json.JSONDecodeError as e:
-                dashboard_logger.info('guru meditation....')
+                logger.info('guru meditation....')
 
     def _render_cell_distribution(self, title) -> None:
         """Render cell type distribution visualization."""
@@ -128,7 +128,7 @@ class DiagnosticDashboard:
                 )
                 st.altair_chart(bar_chart, use_container_width=True)
             except json.JSONDecodeError as e:
-                dashboard_logger.info('guru meditation....')
+                logger.info('guru meditation....')
 
 
 def main():
@@ -139,7 +139,7 @@ def main():
         dashboard.render()
     except Exception as e:
         st.error(f"Dashboard initialization failed: {e}")
-        dashboard_logger.error(f"Dashboard error: {e}", exc_info=True)
+        logger.error(f"Dashboard error: {e}", exc_info=True)
 
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@ import plotly.graph_objects as go
 from scipy.special import psi, softmax
 
 # Configure logging
-ops_utils_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def expected_covariance(scale_matrix, dof):
@@ -92,7 +92,7 @@ def negative_binomial_loglikelihood(x: np.ndarray, r: float, q: np.ndarray) -> n
         return log_likelihood
 
     except Exception as e:
-        ops_utils_logger.error(f"Error calculating negative binomial log-likelihood: {str(e)}")
+        logger.error(f"Error calculating negative binomial log-likelihood: {str(e)}")
         raise ValueError("Failed to compute log-likelihood. Check input dimensions and values.")
 
 
@@ -106,7 +106,8 @@ def compute_gene_loglikelihood_matrix(obj) -> np.ndarray:
     Args:
         obj: VarBayes object containing the following attributes:
             - scaled_exp: A delayed or computed array of scaled expression values (shape: nC x nG x nK)
-            - genes.eta_bar: Gene efficiency parameters (shape: nG)
+            - genes.eta_bar: Gene efficiency (shape: nG)
+            - cells.theta_bar: Cell inefficiency (shape: nC)
             - config['SpotReg']: Regularization parameter for spot-level noise
             - config['rSpot']: Dispersion parameter for the negative binomial distribution
             - cells.geneCount: Observed gene counts for all cells (shape: nC x nG)
@@ -120,7 +121,7 @@ def compute_gene_loglikelihood_matrix(obj) -> np.ndarray:
     scaled_means = obj.scaled_exp.compute()
 
     # Calculate scaled expression adjusted by gene efficiency and regularization
-    ScaledExp = np.einsum('cgk,g->cgk', scaled_means, obj.genes.eta_bar) + obj.config['SpotReg']
+    ScaledExp = np.einsum('cgk,g,ck->cgk', scaled_means, obj.genes.eta_bar, obj.cells.theta_bar) + obj.config['SpotReg']
 
     # Calculate negative binomial probabilities
     pNegBin = ScaledExp / (obj.config['rSpot'] + ScaledExp)
@@ -298,7 +299,16 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
         top_n (int): Number of top and bottom genes to retrieve (default: 10).
 
     Returns:
-        pd.DataFrame: A DataFrame containing mean expression values and gene counts for the top and bottom genes.
+        gene_expression_data (pd.DataFrame): A DataFrame with columns:
+            - (Cells typed as X, mean counts): Population-level. Average gene counts across ALL cells
+              currently assigned to class X.
+            - (Cells typed as X, NB expected): Cell-specific. What the NB model predicts THIS particular
+              cell should have for each gene if it belonged to class X, accounting for this cell's theta
+              (cell efficiency) and each gene's eta (gene efficiency). This is what actually drives the
+              log-likelihood, not the population mean.
+            - (This cell, counts): The actual observed gene counts for this cell.
+        my_contr_df (pd.DataFrame): Per-gene log-likelihood contributions for the two classes.
+        fig: The matplotlib figure (or None if show_plot=False).
     """
 
     # If original labels have been renumbered find the label it's been mapped to.
@@ -308,7 +318,7 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
         pciSeq_label = label
 
     # Step 1: Calculate gene log-likelihood contributions
-    contr_df, gene_counts, _ = obj.calculate_genes_log_likelihood_contr(label)
+    contr_df, gene_counts, scaled_means_df = obj.calculate_genes_log_likelihood_contr(label)
 
     # Step 2: Get the cell's class from cellData
     pciSeq_class = obj.cells.class_names[obj.cells.classProb[pciSeq_label].argmax()]
@@ -344,7 +354,11 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     # Filter rows and columns
     gene_expression_data = gene_expression_data.loc[selected_genes, [pciSeq_class, user_class]]
 
-    # Merge with gene_counts
+    # Merge with gene_counts and expected counts (scaled_means)
+    expected_counts = scaled_means_df.loc[selected_genes, [pciSeq_class, user_class]]
+    gene_expression_data = gene_expression_data.merge(
+        expected_counts, left_index=True, right_index=True, suffixes=('_mean', '_expected')
+    )
     gene_expression_data = gene_expression_data.merge(
         gene_counts[selected_genes].rename('Cell Gene Counts'),
         left_index=True,
@@ -355,34 +369,78 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     new_columns = pd.MultiIndex.from_tuples([
         (f'Cells typed as {pciSeq_class}', 'mean counts'),
         (f'Cells typed as {user_class}', 'mean counts'),
-        (f'This cell: ({label})', 'counts')
+        (f'Cell {label} NB prediction', f'as {pciSeq_class}'),
+        (f'Cell {label} NB prediction', f'as {user_class}'),
+        (f'This cell: ({label})', 'observed')
     ])
     gene_expression_data.columns = new_columns
 
-    if show_plot:
-        # Step 7: Plot top and bottom genes as subplots
-        fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    # Step 7: Compute the prior and MRF terms for the two classes
+    class_names = list(obj.cells.class_names)
+    pciSeq_idx = class_names.index(pciSeq_class)
+    user_idx = class_names.index(user_class)
 
-        # Calculate the sum of the top n contributions
+    log_prior = obj.cellTypes.log_prior
+    mrf = obj.cells.mrf
+
+    gene_loglik_pciSeq = my_contr_df[pciSeq_class].sum()
+    gene_loglik_user = my_contr_df[user_class].sum()
+    log_prior_pciSeq = log_prior[pciSeq_idx]
+    log_prior_user = log_prior[user_idx]
+    mrf_pciSeq = mrf[pciSeq_label, pciSeq_idx]
+    mrf_user = mrf[pciSeq_label, user_idx]
+
+    # Full posterior over ALL classes, reconstructed from the same 3 components
+    gene_loglik_all = contr_df.sum(axis=0).reindex(class_names).values
+    log_post_all = gene_loglik_all + log_prior + mrf[pciSeq_label, :]
+    full_post = softmax(log_post_all)
+    full_pciSeq = full_post[pciSeq_idx]
+    full_user = full_post[user_idx]
+
+    fig = None
+    if show_plot:
+        fig, axes = plt.subplots(2, 2, figsize=(14, 12))
+
+        # --- Top row: gene-level log-likelihood differences (unchanged) ---
         top_contribution_sum = my_contr_df.loc[top_genes, 'diff'].sum()
         bottom_contribution_sum = my_contr_df.loc[bottom_genes, 'diff'].sum()
 
-        # Plot top genes
-        my_contr_df.loc[top_genes, 'diff'].plot.bar(ax=axes[0], color='skyblue',
+        my_contr_df.loc[top_genes, 'diff'].plot.bar(ax=axes[0, 0], color='skyblue',
                                                     title=f'Cell: {label} - Top {top_n} contr for class: {pciSeq_class} (Sum: {top_contribution_sum:.2f})')
-        axes[0].set_ylabel('Log-Likelihood Difference')
-        axes[0].set_xlabel('Genes')
+        axes[0, 0].set_ylabel('Log-Likelihood Difference')
+        axes[0, 0].set_xlabel('Genes')
 
-        # Plot bottom genes
-        my_contr_df.loc[bottom_genes, 'diff'].plot.bar(ax=axes[1], color='lightcoral',
+        my_contr_df.loc[bottom_genes, 'diff'].plot.bar(ax=axes[0, 1], color='lightcoral',
                                                        title=f'Cell: {label} - Top {top_n} contr for class: {user_class} (Sum: {bottom_contribution_sum:.2f})')
-        axes[1].set_ylabel('Log-Likelihood Difference')
-        axes[1].set_xlabel('Genes')
+        axes[0, 1].set_ylabel('Log-Likelihood Difference')
+        axes[0, 1].set_xlabel('Genes')
+
+        # --- Bottom-left: grouped bar chart of log-posterior components ---
+        x = np.arange(3)
+        width = 0.35
+        vals_pciSeq = [gene_loglik_pciSeq, log_prior_pciSeq, mrf_pciSeq]
+        vals_user = [gene_loglik_user, log_prior_user, mrf_user]
+
+        axes[1, 0].bar(x - width/2, vals_pciSeq, width, label=pciSeq_class, color='skyblue')
+        axes[1, 0].bar(x + width/2, vals_user, width, label=user_class, color='lightcoral')
+        axes[1, 0].set_xticks(x)
+        axes[1, 0].set_xticklabels(['Gene LogLik', 'Log Prior', 'MRF'])
+        axes[1, 0].set_ylabel('Log-scale value')
+        axes[1, 0].set_title(f'Cell: {label} - Log-posterior components')
+        axes[1, 0].legend()
+        axes[1, 0].axhline(y=0, color='grey', linestyle='--', linewidth=0.5)
+
+        # --- Bottom-right: posterior probabilities ---
+        axes[1, 1].bar([pciSeq_class, user_class],
+                       [full_pciSeq * 100, full_user * 100],
+                       color=['skyblue', 'lightcoral'])
+        axes[1, 1].set_ylabel('Posterior Probability (%)')
+        axes[1, 1].set_title(f'Cell: {label} - Posterior probabilities')
 
         plt.tight_layout()
         plt.show()
 
-    return gene_expression_data, my_contr_df, fig if show_plot else None
+    return gene_expression_data, my_contr_df, (fig if show_plot else None)
 
 
 def cell_typing_breakdown(obj, label, weights=None, show_plot=True):
@@ -410,7 +468,7 @@ def cell_typing_breakdown(obj, label, weights=None, show_plot=True):
     prior_mode = obj.config.get('cell_type_prior', 'uniform')
 
     if prior_mode != 'weighted':
-        ops_utils_logger.warning(
+        logger.warning(
             f"Function available only for 'weighted' cell type prior mode."
         )
         return dict()
@@ -431,7 +489,7 @@ def cell_typing_breakdown(obj, label, weights=None, show_plot=True):
             if key == 'default':
                 continue
             if key not in names:
-                ops_utils_logger.warning(
+                logger.warning(
                     f"Cell type '{key}' in weights dict not found in cell type names. Ignoring.")
                 continue
             vals[key] = val
@@ -736,7 +794,7 @@ def has_converged(
         converged = (delta < tol)
         return converged, delta
     except Exception as e:
-        ops_utils_logger.error(f"Convergence check failed: {str(e)}")
+        logger.error(f"Convergence check failed: {str(e)}")
         raise
 
 

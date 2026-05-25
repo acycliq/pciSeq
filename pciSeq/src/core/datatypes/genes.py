@@ -16,7 +16,7 @@ import alphashape
 
 from ..utils.cell_utils import create_circular_masks, find_labels_by_plane_index
 
-genes_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class Genes(object):
@@ -43,6 +43,8 @@ class Genes(object):
         self._logeta_bar = None
         self.nG = len(self.gene_panel)
         self._misread_density = None
+        self._rho_bar = None
+        self._log_rho_bar = None
         self.config = config
 
     @property
@@ -74,6 +76,16 @@ class Genes(object):
         """
         return self._misread_density
 
+    @property
+    def rho_bar(self):
+        """Returns the expected misread density per gene (posterior mean)."""
+        return self._rho_bar
+
+    @property
+    def log_rho_bar(self):
+        """Returns E[log rho_g] per gene (digamma of posterior)."""
+        return self._log_rho_bar
+
     def init_eta(self, a, b):
         """
         Initializes eta values for genes.
@@ -82,6 +94,8 @@ class Genes(object):
             a (float): Parameter a for eta calculation.
             b (float): Parameter b for eta calculation.
         """
+        self._post_shape = np.ones(self.nG, dtype=np.float32) * a
+        self._post_rate = np.ones(self.nG, dtype=np.float32) * b
         self._eta_bar = np.ones(self.nG, dtype=np.float32) * (a / b)
         self._logeta_bar = np.ones(self.nG, dtype=np.float32) * self._digamma(a, b)
 
@@ -95,8 +109,45 @@ class Genes(object):
         """
         a = a.astype(np.float32)
         b = b.astype(np.float32)
+        self._post_shape = a
+        self._post_rate = b
         self._eta_bar = a / b
         self._logeta_bar = self._digamma(a, b)
+
+    def init_rho(self, rho_prior, A_total):
+        """Initialise the gene-specific misread density posterior.
+
+        The prior is Gamma(r_rho, beta_rho) with mean = rho_prior.
+        r_rho is set via config['rRho'], beta_rho = r_rho / rho_prior.
+
+        Parameters:
+            rho_prior (float): Prior mean misread density (e.g. 1e-5).
+            A_total (float): Total area of the ROI in pixels.
+        """
+        self._rho_prior_shape = self.config['rRho']
+        self._rho_prior_rate = self.config['rRho'] / rho_prior
+        self._A_total = A_total
+
+        shape = np.ones(self.nG, dtype=np.float64) * self._rho_prior_shape
+        rate = np.ones(self.nG, dtype=np.float64) * self._rho_prior_rate
+        self._post_shape_rho = shape
+        self._post_rate_rho = rate
+        self._rho_bar = (shape / rate).astype(np.float64)
+        self._log_rho_bar = self._digamma(shape, rate).astype(np.float64)
+
+    def calc_rho(self, background_counts):
+        """Update the gene-specific misread density posterior.
+
+        Parameters:
+            background_counts (np.array): Shape (nG,), expected number of
+                background spots per gene (N_bar_{0,g}).
+        """
+        shape = self._rho_prior_shape + background_counts
+        rate = np.full(self.nG, self._rho_prior_rate + self._A_total, dtype=np.float64)
+        self._post_shape_rho = shape
+        self._post_rate_rho = rate
+        self._rho_bar = (shape / rate).astype(np.float64)
+        self._log_rho_bar = self._digamma(shape, rate).astype(np.float64)
 
     def _digamma(self, a, b):
         """
@@ -279,12 +330,12 @@ class Genes(object):
     #     file_path = os.path.join(folder, "pointcloud_shape.png")
     #     plt.savefig(file_path)
     #     plt.close()  # Close the figure to free up memory
-    #     genes_logger.info(f"saved at {file_path}")
+    #     logger.info(f"saved at {file_path}")
     #
     #     # 9. Compute the area of the polygon using shapely.
     #     polygon = Polygon(hull_coords_original)
     #     area = polygon.area
-    #     genes_logger.info(f"Area of the shape: {area}")
+    #     logger.info(f"Area of the shape: {area}")
     #
     #     return area
     #
@@ -351,12 +402,12 @@ class Genes(object):
     #     file_path = os.path.join(folder, "pointcloud_shape2.png")
     #     plt.savefig(file_path)
     #     plt.close()  # Close the figure to free up memory
-    #     genes_logger.info(f"saved at {file_path}")
+    #     logger.info(f"saved at {file_path}")
     #
     #     # 9. Compute the area of the polygon using shapely.
     #     polygon = Polygon(hull_coords_original)
     #     area = polygon.area
-    #     genes_logger.info(f"Area of the shape: {area}")
+    #     logger.info(f"Area of the shape: {area}")
     #
     #     return area, polygon
     #
@@ -395,7 +446,7 @@ class Genes(object):
     #
     #     # Log the misread density for a specific gene, e.g. 'Plp1'.
     #     # (This could be parameterized if needed.)
-    #     # genes_logger.info(f"Plp1 misread density: {misreads_per_gene.squeeze().get('Plp1', 'Not found')}")
+    #     # logger.info(f"Plp1 misread density: {misreads_per_gene.squeeze().get('Plp1', 'Not found')}")
     #
     #     # Return the misread counts as a Series.
     #     return misreads_per_gene.squeeze()

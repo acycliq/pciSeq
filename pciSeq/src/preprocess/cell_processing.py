@@ -1,8 +1,8 @@
-""" Functions to extract the cell boundaries """
+""" Functions to extract the cell boundaries and calculate cell properties """
 from typing import List
 import numpy as np
 import pandas as pd
-import skimage.measure as skmeas
+from numba import njit
 from multiprocessing import Pool, cpu_count
 from multiprocessing.dummy import Pool as ThreadPool
 
@@ -107,52 +107,106 @@ def parse_chaincode(c):
     return np.uint64(c.objectID), p
 
 
-def calculate_cell_properties(masks: np.ndarray, voxel_size: List[float]) -> pd.DataFrame:
+@njit
+def _accumulate_cell_props(all_lab, all_row, all_col, all_z, n):
+    """Single pass: accumulate counts, coordinate sums and z extents."""
+    counts = np.zeros(n, dtype=np.int64)
+    sum_x = np.zeros(n, dtype=np.float64)
+    sum_y = np.zeros(n, dtype=np.float64)
+    sum_z = np.zeros(n, dtype=np.float64)
+    z_min = np.full(n, 999999, dtype=np.int32)
+    z_max = np.full(n, -1, dtype=np.int32)
+
+    for i in range(len(all_lab)):
+        lab = all_lab[i]
+        counts[lab] += 1
+        sum_x[lab] += all_col[i]
+        sum_y[lab] += all_row[i]
+        sum_z[lab] += all_z[i]
+        z_val = all_z[i]
+        if z_val < z_min[lab]:
+            z_min[lab] = z_val
+        if z_val > z_max[lab]:
+            z_max[lab] = z_val
+
+    return counts, sum_x, sum_y, sum_z, z_min, z_max
+
+
+def calculate_cell_properties(coo_list: List, voxel_size: List[float]) -> pd.DataFrame:
     """
-    Calculate cell properties from segmentation masks.
+    Calculate cell properties directly from sparse matrices.
+    Gives identical results to skimage.regionprops but without
+    converting to dense arrays.
+
+    To verify against regionprops::
+
+        masks = np.stack([coo.toarray() for coo in coo_list])
+        scaling = [voxel_size[2]/voxel_size[0],
+                   voxel_size[1]/voxel_size[0],
+                   voxel_size[0]/voxel_size[0]]
+        props = skmeas.regionprops_table(
+            masks, spacing=scaling,
+            properties=['label', 'area', 'centroid', 'bbox'])
+        df = pd.DataFrame(props)
+        # mean area per plane: divide volume by the number of planes the cell spans
+        df['area'] = df['area'] / (df['bbox-3'] - df['bbox-0'])
 
     Parameters
     ----------
-    masks : np.ndarray
-        3D array of cell labels
+    coo_list : List[coo_matrix]
+        List of sparse matrices containing cell labels, one per z-plane
     voxel_size : List[float]
-        Physical size of voxels [z, y, x]
+        Physical size of voxels [x, y, z]
 
     Returns
     -------
     pd.DataFrame
-        Cell properties including position and size
+        Cell properties: label, area (mean per slice), z_cell, y_cell, x_cell
     """
     scaling = [voxel_size[0] / voxel_size[0], voxel_size[1] / voxel_size[0], voxel_size[2] / voxel_size[0]]
-    scaling = scaling[::-1]  # Convert to zyx order, same as the image
+    scaling = scaling[::-1]  # zyx order
+    sz, sy, sx = scaling
 
-    properties = ['label', 'area', 'centroid', 'equivalent_diameter_area', 'bbox']
-    props = skmeas.regionprops_table(
-        label_image=masks,
-        spacing=scaling,
-        properties=properties
+    max_label = max(coo.data.max() for coo in coo_list if coo.nnz > 0)
+    n = max_label + 1
+    total_nnz = sum(coo.nnz for coo in coo_list)
+
+    # Concat all sparse data into flat arrays
+    all_lab = np.empty(total_nnz, dtype=np.int32)
+    all_col = np.empty(total_nnz, dtype=np.float32)
+    all_row = np.empty(total_nnz, dtype=np.float32)
+    all_z = np.empty(total_nnz, dtype=np.int32)
+
+    offset = 0
+    for plane_idx, coo in enumerate(coo_list):
+        k = coo.nnz
+        if k == 0:
+            continue
+        s = slice(offset, offset + k)
+        all_lab[s] = coo.data
+        all_col[s] = coo.col
+        all_row[s] = coo.row
+        all_z[s] = plane_idx
+        offset += k
+
+    # Single compiled pass over all sparse data
+    counts, sum_x, sum_y, sum_z, z_min, z_max = _accumulate_cell_props(
+        all_lab[:offset], all_row[:offset], all_col[:offset], all_z[:offset], n
     )
 
-    props_df = pd.DataFrame(props)
-    props_df['mean_area_per_slice'] = (
-            props_df['area'].values /
-            (props_df['bbox-3'].values - props_df['bbox-0'].values)
-    )
+    # Extract valid labels (skip background)
+    valid = counts > 0
+    valid[0] = False
+    lab_ids = np.where(valid)[0]
 
-    props_df = props_df.rename(columns={
-        "mean_area_per_slice": 'area',
-        'area': 'volume',
-        'centroid-0': 'z_cell',
-        'centroid-1': 'y_cell',
-        'centroid-2': 'x_cell'
-    })
+    c = counts[lab_ids].astype(np.float64)
+    z_extent = (z_max[lab_ids] - z_min[lab_ids] + 1).astype(np.float64)
+    mean_area = (c * (sz * sy * sx)) / z_extent
 
-    props_df = props_df[['label', 'area', 'z_cell', 'y_cell', 'x_cell']]
-
-    return props_df.astype({
-        "label": np.uint32,
-        "area": np.uint32,
-        'z_cell': np.float32,
-        'y_cell': np.float32,
-        'x_cell': np.float32
+    return pd.DataFrame({
+        'label': lab_ids.astype(np.uint32),
+        'area': mean_area.astype(np.uint32),
+        'z_cell': (sum_z[lab_ids] / c * sz).astype(np.float32),
+        'y_cell': (sum_y[lab_ids] / c * sy).astype(np.float32),
+        'x_cell': (sum_x[lab_ids] / c * sx).astype(np.float32),
     })

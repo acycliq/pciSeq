@@ -55,6 +55,7 @@ Dependencies:
 - dask: For delayed computations
 """
 import logging
+import datetime
 from typing import Dict, List, Optional, Tuple, Union, Any
 
 # Third-party imports
@@ -73,14 +74,16 @@ from .datatypes.spots import Spots
 from .datatypes.singleCell import SingleCell
 from .datatypes.cellClass import CellClass
 from .summary import collect_data
+from .utils.elbo import calc_elbo
 # from .analysis import CellExplorer
 from .utils import ops_utils as utils
 from .utils import visualisation
+from .utils.effective_beta import compute_effective_beta
 from ...src.diagnostics.controller.diagnostic_controller import DiagnosticController
 import joblib
 
 # Configure logging
-main_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class VarBayes:
@@ -122,6 +125,17 @@ class VarBayes:
         self._scaled_exp = None
         # self._cell_explorer: Optional[CellExplorer] = None
 
+        # Stamp this run so a pickled VarBayes can be traced back to the
+        # exact pciSeq version that produced it.
+        from pciSeq import __version__, __branch__, __commit__, __build_date__
+        self.metadata = {
+            'version': __version__,
+            'branch': __branch__,
+            'commit': __commit__,
+            'build_date': __build_date__,
+            'created_at': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+        }
+
     @staticmethod
     def _validate_config(config: Dict[str, Any]) -> None:
         """Check for required config parameters."""
@@ -144,10 +158,10 @@ class VarBayes:
         try:
             self.diagnostic_controller = DiagnosticController()
             if not self.diagnostic_controller.launch_dashboard():
-                main_logger.warning("Failed to launch diagnostics dashboard")
+                logger.warning("Failed to launch diagnostics dashboard")
                 self.diagnostic_controller = None
         except Exception as e:
-            main_logger.warning(f"Failed to initialize diagnostics: {e}")
+            logger.warning(f"Failed to initialize diagnostics: {e}")
             self.diagnostic_controller = None
 
     def _setup_components(self, cells_df, spots_df, scRNAseq) -> None:
@@ -174,12 +188,37 @@ class VarBayes:
         been applied directly to the expression data from scRNAseq
         """
         self.cellTypes.ini_prior()
+        self.cells.nbrs = self.cells.nearest_neighbours()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
         self.genes.init_eta(self.config['rGene'], self.config['rGene'])
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.cells._ini_gene_counts = np.bincount(self.spots.data.label.values, minlength=self.nC)
         self.genes._misread_density = self.genes.calc_misread_density()
+        A_total = self.config['img_dim']['w'] * self.config['img_dim']['h'] * self.config['img_dim']['n_planes']
+        self.genes.init_rho(self.config['MisreadDensity']['default'], A_total)
+        self.spots.init_gamma(self.config['rSpot'], self.config['rSpot'], [self.nC, self.nG, self.nK])
+        self.init_theta()
+
+    def init_theta(self) -> None:
+        geneCounts = self.cells.ini_gene_counts
+        alpha = geneCounts + self.config['rTheta'] - 1
+
+
+
+        mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
+        area_factor = self.cells.ini_cell_props['area_factor']
+        gamma_bar = self.spots.gamma_bar.compute()
+        eta_bar = self.genes.eta_bar
+
+        beta = np.einsum('c, cgk, g, gk -> ck',
+                         area_factor,
+                         gamma_bar,
+                         eta_bar,
+                         mu) + self.config['rTheta']
+
+        self.cells.calc_theta(alpha, beta)
+
 
     def __getstate__(self):
         """
@@ -253,22 +292,25 @@ class VarBayes:
                 # 1. For each cell, calc the expected gene counts
                 self.geneCount_upd()
 
-                # 2. calc expected gamma
+                # 2. update gene-specific misread density
+                self.rho_upd()
+
+                # 3. calc the gene inefficiency
+                self.eta_upd()
+
+                # 4. calc the cell inefficiency
+                self.theta_upd()
+
+                # 5. calc expected gamma
                 self.gamma_upd()
 
-                main_logger.info("gaussian_upd step has been removed in this version of the software")
+                logger.info("gaussian_upd step has been removed in this version of the software")
                 # 3 update correlation matrix and variance of the gaussian distribution
                 # if self.single_cell.isMissing or (self.config['InsideCellBonus'] is False) or (self.config['is3D']):
                 #     self.gaussian_upd()
 
-                # 4. assign cells to cell types
+                # 6. assign cells to cell types
                 self.cell_to_cellType()
-
-                # 5. assign spots to cells
-                self.spots_to_cell()
-
-                # 6. update gene efficiency
-                self.eta_upd()
 
                 # 7. update the dirichlet distribution
                 if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):
@@ -278,10 +320,31 @@ class VarBayes:
                 if self.single_cell.isMissing:
                     self.mu_upd()
 
+                # 9. assign spots to cells
+                self.spots_to_cell()
+
+                # # Calculate ELBO
+                elbo = calc_elbo(self)
+                logger.info('Iteration %d, ELBO: %f' % (i, elbo))
+
                 self.has_converged, delta = utils.has_converged(
                     self.spots, p0, self.config['CellCallTolerance']
                 )
-                main_logger.info('Iteration %d, mean prob change %f' % (i, delta))
+                logger.info('Iteration %d, mean prob change %f' % (i, delta))
+                # --- SMART LOGGING --- 
+                if delta > 0:
+                    p1 = self.spots.parent_cell_prob
+                    p0_val = p0 if p0 is not None else np.zeros_like(p1)
+                    diffs = np.abs(p1 - p0_val)
+                    max_idx = np.unravel_index(np.argmax(diffs), diffs.shape)
+                    spot_idx = max_idx[0]
+                    col_idx = max_idx[1]
+                    gene_name = self.spots.data.gene_name.iloc[spot_idx]
+                    cell_id = self.spots.parent_cell_id[spot_idx, col_idx]
+                    old_prob = p0_val[spot_idx, col_idx]
+                    new_prob = p1[spot_idx, col_idx]
+                    logger.info(f"DIAGNOSTIC: Spot {spot_idx} (Gene: {gene_name}) changed by {delta:.6f}")
+                    logger.info(f"DIAGNOSTIC: Cell {cell_id} Prob: {old_prob:.4f} -> {new_prob:.4f}")
 
                 # Update diagnostics using controller
                 self.diagnostics_upd()
@@ -291,7 +354,7 @@ class VarBayes:
                     try:
                         self.on_iteration_callback(self.cells.classProb, i, delta)
                     except Exception as e:
-                        main_logger.warning(f"Real-time viewer callback failed: {e}")
+                        logger.warning(f"Real-time viewer callback failed: {e}")
 
                 # keep track of the deltas
                 self.iter_delta.append(delta)
@@ -305,7 +368,7 @@ class VarBayes:
                     break
 
                 if i == max_iter - 1:
-                    main_logger.info('Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
+                    logger.info('Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
                     cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.config['is3D'])
                     break
         finally:
@@ -314,7 +377,7 @@ class VarBayes:
                 try:
                     self.diagnostic_controller.shutdown()
                 except Exception as e:
-                    main_logger.warning(f"Failed to shutdown diagnostics: {e}")
+                    logger.warning(f"Failed to shutdown diagnostics: {e}")
 
         return cell_df, gene_df
 
@@ -380,11 +443,14 @@ class VarBayes:
         self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
                                                     self.single_cell.mean_expression_adj.values))
 
-        beta = self.scaled_exp.compute() * self.genes.eta_bar[:, None] + cfg['rSpot']
+        beta = self.scaled_exp.compute() * self.genes.eta_bar[:, None] * self.cells.theta_bar[:,None, :]+ cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
+        self.spots._post_shape = rho
+        self.spots._post_rate = beta
         self.spots._log_gamma_bar = delayed(self.spots.logGammaExpectation(rho, beta))
         self.spots._gamma_bar = delayed(self.spots.gammaExpectation(rho, beta))
+        self.spots.my_gamma_bar = self.spots._gamma_bar.compute()
 
     # -------------------------------------------------------------------- #
     def cell_to_cellType(self) -> None:
@@ -404,12 +470,38 @@ class VarBayes:
         # Get the full log-likelihood matrix using shared computation
         contr = utils.compute_gene_loglikelihood_matrix(self)
 
+        # label_map = self.config['label_map']
+        # inv_label_map = {v:k for k,v in label_map.items()}
+        #
+        # df_list = [pd.DataFrame(d, columns=self.cells.class_names) for d in contr]
+
         # populate the genes' contributions to the negative loglik. Property 'nb_contr' is only useful
         # for debugging, safe to remove in the future
         self.cells.nb_contr = contr
         contr = np.sum(contr, axis=1)
-        wCellClass = contr + self.cellTypes.log_prior
+        effective_beta = compute_effective_beta(self)
+        self.cells.effective_beta = effective_beta
+        mrf = self.cells.calc_mrf(effective_beta=effective_beta)
+        # stash mrf for debugging (same pattern as nb_contr above)
+        self.cells.mrf = mrf
+        # mrf = self.cells.classProb[self.cells.nbrs].sum(axis=1)
+        wCellClass = contr + self.cellTypes.log_prior + mrf
         pCellClass = softmax(wCellClass, axis=1)
+
+        # # save the data to a tmp dir
+        # if (self.iter_num < 10) or (self.iter_num > 70):
+        #     from pathlib import Path
+        #     out_dir = Path("/tmp/pciSeq/data/flatfiles") / f"iter_{self.iter_num}"
+        #     out_dir.mkdir(parents=True, exist_ok=True)
+        #
+        #     for i, d in enumerate(df_list):
+        #         d.to_csv(out_dir / f"contr_{i}.csv", index=False)
+        #
+        #     pd.DataFrame(mrf, columns=self.cells.class_names).to_csv(out_dir / "mrf.csv")
+        #
+        #     # if log_prior is (K,) make it a single row; if it's already (1,K) or (N,K) this also works if you adjust
+        #     pd.DataFrame([self.cellTypes.log_prior], columns=self.cells.class_names).to_csv(out_dir / "log_prior.csv")
+        #     logger.info(f"[iter {self.iter_num}] Saving debug CSVs to: {out_dir}")
 
         self.cells.classProb = pCellClass
 
@@ -440,14 +532,19 @@ class VarBayes:
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
         logeta_bar = self.genes.logeta_bar[self.spots.gene_id]
 
-        # misread = self.spot_misread_density()
-        misread = self.spots.misread_density(self.genes)
+        # Gene-specific misread density (learned per gene)
+        log_rho = self.genes.log_rho_bar[self.spots.gene_id]
 
         # pre-populate last column
-        wSpotCell[:, -1] = np.log(misread)
+        wSpotCell[:, -1] = log_rho
         mvn_loglik_arr = np.zeros(wSpotCell.shape)
         attention = np.zeros(wSpotCell.shape)
         expr_fluctuations = np.zeros(wSpotCell.shape)
+        cell_inefficiency = np.zeros(wSpotCell.shape)
+        gene_inefficiency = np.zeros(wSpotCell.shape)
+
+        # Materialize once before the loop (same for all neighbors)
+        log_gamma_bar_arr = self.spots.log_gamma_bar.compute()
 
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
         for n in range(nN - 1):
@@ -456,22 +553,25 @@ class VarBayes:
 
             # get the respective cell type probabilities
             cp = self.cells.classProb[sn]
-
+            log_theta_bar = np.log(self.cells.theta_bar[sn])
             # multiply and sum over cells. In practice this means that when high expected counts
             # are aligned with high cell class probs this term will be high
             term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
 
-            log_gamma_bar = self.spots.log_gamma_bar.compute()
-            log_gamma_bar = log_gamma_bar[self.spots.parent_cell_id[:, n], self.spots.gene_id]
+            log_gamma_bar = log_gamma_bar_arr[self.spots.parent_cell_id[:, n], self.spots.gene_id]
 
             term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
 
+            term_3 = np.einsum('ij, ij -> i', cp, log_theta_bar)
+
             # wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik[:, n]
             mvn_loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
-            wSpotCell[:, n] = term_1 + term_2 + mvn_loglik
+            wSpotCell[:, n] = term_1 + term_2 + term_3 + logeta_bar + mvn_loglik
             mvn_loglik_arr[:, n] = mvn_loglik
             attention[:, n] = term_1
             expr_fluctuations[:, n] = term_2
+            cell_inefficiency[:, n] = term_3
+            gene_inefficiency[:, n] = logeta_bar
 
         # apply inside cell bonus
         bonus_mask = self.spots.bonus_mask * self.config['InsideCellBonus']
@@ -482,9 +582,14 @@ class VarBayes:
         self.spots.mvn_loglik_arr = mvn_loglik_arr
         self.spots.attention = attention
         self.spots.expr_fluctuations = expr_fluctuations
+        self.spots.cell_inefficiency = cell_inefficiency
+        self.spots.gene_inefficiency = gene_inefficiency
 
-        # Since the spot-to-cell assignments changed you need to update the gene counts now
-        self.geneCount_upd()
+        # Since the spot-to-cell assignments changed you need to update the gene counts now.
+        # However, this is commented out because it is computationally redundant;
+        # the same operation is explicitly called as Step 1 at the top of the main_loop.
+        # Note: If spots_to_cell ceases to be the final step of the loop, this MUST be uncommented.
+        # self.geneCount_upd()
 
     # -------------------------------------------------------------------- #
     def spots_to_cell_par(self) -> None:
@@ -538,7 +643,27 @@ class VarBayes:
         self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
 
         # Update gene counts
-        self.geneCount_upd()
+        # Commented out because it is computationally redundant;
+        # the same operation is explicitly called as Step 1 at the top of the main_loop.
+        # Note: If spots_to_cell_par ceases to be the final step of the loop, this MUST be uncommented.
+        # self.geneCount_upd()
+
+    # -------------------------------------------------------------------- #
+    def rho_upd(self) -> None:
+        """Updates gene-specific misread density (rho_g).
+
+        Uses the expected number of background spots per gene to update
+        the Gamma posterior for each gene's misread density.
+        """
+        background_counts = np.bincount(
+            self.spots.gene_id,
+            self.spots.parent_cell_prob[:, -1],
+            minlength=self.nG
+        )
+        self.genes.calc_rho(background_counts)
+        logger.info(f"rho_upd: bg_counts min/max={background_counts.min():.1f}/{background_counts.max():.1f}, "
+                     f"rho_bar min/max={self.genes.rho_bar.min():.2e}/{self.genes.rho_bar.max():.2e}, "
+                     f"log_rho min/max={self.genes.log_rho_bar.min():.4f}/{self.genes.log_rho_bar.max():.4f}")
 
     # -------------------------------------------------------------------- #
     def eta_upd(self) -> None:
@@ -563,6 +688,7 @@ class VarBayes:
         mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
+        theta_bar = self.cells.theta_bar
 
         zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
         zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
@@ -573,11 +699,12 @@ class VarBayes:
         # Note. We should exclude the "cell" that is meant to keep the
         # misreads, ie exclude the background, hence the relevant indexing below
         # starts at 1
-        class_total_counts = oe.contract('ck, gk, c, cgk -> g',
+        class_total_counts = oe.contract('ck, gk, c, cgk, ck -> g',
                                          classProb[:, :-1],
                                          mu.values[:, :-1],
                                          area_factor,
-                                         gamma_bar[:, :, :-1], optimize='optimal')
+                                         gamma_bar[:, :, :-1],
+                                         theta_bar[:,:-1], optimize='optimal')
         # background_counts = self.cells.background_counts
         background_counts = np.bincount(self.spots.gene_id, self.spots.parent_cell_prob[:, -1], minlength=self.nG)
 
@@ -722,12 +849,29 @@ class VarBayes:
             2. Initial alpha values
         """
         # logger.info('Update cell type (marginal) distribution')
-        zeta = self.cells.classProb.sum(axis=0)  # this is the class size (how many cells are in each class)
-        alpha = self.cellTypes.ini_alpha()
-        out = zeta + alpha
+        # Only update real classes (exclude Zero, which is the last column)
+        zeta_real = self.cells.classProb[:, :-1].sum(axis=0)
+        alpha_0 = np.ones(self.cellTypes.nK - 1, dtype=np.float32)
+        self.cellTypes.alpha = zeta_real + alpha_0
 
-        self.cellTypes.alpha = out
+    # -------------------------------------------------------------------- #
+    def theta_upd(self):
+        geneCounts = self.cells.geneCount.sum(axis=1)
+        alpha = geneCounts + self.config['rTheta'] - 1
 
+        mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
+        area_factor = self.cells.ini_cell_props['area_factor']
+        gamma_bar = self.spots.gamma_bar.compute()
+        eta_bar = self.genes.eta_bar
+
+        beta = np.einsum('c, cgk, g, gk -> ck',
+                         area_factor,
+                         gamma_bar,
+                         eta_bar,
+                         mu) + self.config['rTheta']
+
+        self.cells.calc_theta(alpha, beta)
+        print('ok')
 
     # -------------------------------------------------------------------- #
     def diagnostics_upd(self) -> None:
@@ -742,7 +886,7 @@ class VarBayes:
                 has_converged=self.has_converged
             )
         except Exception as e:
-            main_logger.warning(f"Failed to update diagnostics: {e}")
+            logger.warning(f"Failed to update diagnostics: {e}")
 
 
     # -------------------------------------------------------------------- #
@@ -773,4 +917,3 @@ class VarBayes:
 
     # def trellis_plot(self, label, flatfile_folder):
     #     return visualisation.trellis_plot(self, label, flatfile_folder)
-

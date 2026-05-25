@@ -5,7 +5,7 @@ from scipy.sparse import coo_matrix
 from pciSeq import config
 from pciSeq.src.core.utils.io_utils import log_file
 from pciSeq.src.diagnostics.utils import check_redis_server
-config_manager_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -33,8 +33,10 @@ class ConfigManager:
     exclude_planes: list
     is3D: Union[None, bool]
     remove_flat_cells: bool
+    rRho: float
     mean_gene_counts_per_class: int
     mean_gene_counts_per_cell: int
+    similarity_pairs: list
 
     @classmethod
     def from_opts(cls, opts: Optional[Dict] = None) -> 'ConfigManager':
@@ -49,9 +51,9 @@ class ConfigManager:
         for key in opts:
             if key in cfg_dict:
                 cfg_dict[key] = opts[key]
-                config_manager_logger.info(f'{key} is set to {opts[key]}')
+                logger.info(f'{key} is set to {opts[key]}')
             else:
-                config_manager_logger.warning(f"Unrecognized configuration option: '{key}'! "
+                logger.warning(f"Unrecognized configuration option: '{key}'! "
                                               f"Valid options are: {', '.join(sorted(cfg_dict.keys()))}")
 
         log_file(cfg_dict)
@@ -79,6 +81,7 @@ class ConfigManager:
 
         # if exclude_planes is None set it to []
         self.exclude_planes = self.exclude_planes or []
+        self.similarity_pairs = self.similarity_pairs or []
 
     def check_is3D(self, input_data: Union[coo_matrix, List[coo_matrix]]) -> bool:
         """

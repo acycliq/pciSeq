@@ -277,13 +277,7 @@ class Validator:
             )
         cfg['cell_type_prior'] = cfg['cell_type_prior'].lower()
 
-        # Validate cell_type_weights only allowed with weighted prior
-        if cfg.get('cell_type_weights') is not None:
-            if cfg['cell_type_prior'] != 'weighted':
-                raise ValueError(
-                    "cell_type_weights can only be used when cell_type_prior='weighted'. "
-                    f"Currently cell_type_prior='{cfg['cell_type_prior']}'"
-                )
+        # cell_type_weights sets initial prior probabilities in both modes
 
         # Normalize InsideCellBonus boolean to numeric
         if cfg['InsideCellBonus'] is True:

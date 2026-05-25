@@ -7,8 +7,10 @@ import numpy as np
 import pandas as pd
 import scipy
 import opt_einsum as oe
+from dask.delayed import delayed
+from collections import defaultdict
 
-spots_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class Spots(object):
@@ -53,6 +55,8 @@ class Spots(object):
         self.mvn_loglik_arr = None
         self.attention = None
         self.expr_fluctuations = None
+        self.cell_inefficiency = None
+        self.gamma_terms = defaultdict(list) # placeholder to keep gamma per iteration (for debugging)
 
     def __getstate__(self):
         """
@@ -153,6 +157,35 @@ class Spots(object):
         return bonus_mask
 
     # ---------------- METHODS ---------------- #
+    def init_gamma(self, a, b, dim):
+        """
+        Initializes eta values for genes.
+
+        Parameters:
+            a (float): Parameter a for eta calculation.
+            b (float): Parameter b for eta calculation.
+            dim (list): Dimensionality of gamma values.
+        """
+        self._post_shape = np.ones(dim, dtype=np.float32) * a
+        self._post_rate = np.ones(dim, dtype=np.float32) * b
+        self._gamma_bar = delayed(np.ones(dim, dtype=np.float32) * (a / b))
+        self._log_gamma_bar = delayed(np.ones(dim, dtype=np.float32) * self._digamma(a, b))
+
+
+    def _digamma(self, a, b):
+        """
+        Calculates the digamma function for eta calculation.
+
+        Parameters:
+            a (np.array): Array of parameter a values.
+            b (np.array): Array of parameter b values.
+
+        Returns:
+            np.array: Digamma values.
+        """
+        return scipy.special.psi(a) - np.log(b)
+
+
     def read(self, spots_df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Reads and processes spot data, excluding specified genes.
@@ -215,9 +248,11 @@ class Spots(object):
         # sanity_check = neighbors[mask, 0] + 1 == SpotInCell[mask]
         # assert ~any(sanity_check), "a spot is in a cell not closest neighbor!"
 
-        pSpotNeighb = np.zeros([nS, nN], dtype=np.float32)
-        pSpotNeighb[neighbors == SpotInCell.values[:, None]] = 1
-        pSpotNeighb[SpotInCell == 0, -1] = 1
+        # pSpotNeighb = np.zeros([nS, nN], dtype=np.float32)
+        # pSpotNeighb[neighbors == SpotInCell.values[:, None]] = 1
+        # pSpotNeighb[SpotInCell == 0, -1] = 1
+
+        pSpotNeighb = np.full([nS, nN], 1.0 / nN, dtype=np.float32)
 
         # you might have case where the sum across all columns is Zero.
         # That can happen if for example the spot is inside the cell boundaries

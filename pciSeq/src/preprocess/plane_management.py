@@ -12,7 +12,7 @@ from copy import deepcopy
 from multiprocessing import Pool, cpu_count
 import logging
 
-plane_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def remove_oob(spots: pd.DataFrame, img_shape: List[int]) -> pd.DataFrame:
@@ -156,7 +156,7 @@ def remove_flat_cells(coo_list: List[coo_matrix]) -> Tuple[List[coo_matrix], pd.
 
     # 3: Log removal summary
     if removed_cells:
-        plane_logger.warning(
+        logger.warning(
             f'Removed {len(set(removed_cells))} single-plane cells from {len(set(removed_planes))} planes.'
         )
 
@@ -256,7 +256,7 @@ def remove_flat_cells_par(coo_list: List[coo_matrix]) -> Tuple[List[coo_matrix],
 
     # 3: Log removal summary
     if removed_cells:
-        plane_logger.warning(
+        logger.warning(
             f'Removed {len(set(removed_cells))} single-plane cells from {len(set(removed_planes))} planes.'
         )
 

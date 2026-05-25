@@ -114,10 +114,13 @@ def check_spot(self, spot_id):
     mvn_loglik = self.spots.mvn_loglik_arr[row_pos][:-1]
     attention = self.spots.attention[row_pos][:-1]
     expr_fluct = self.spots.expr_fluctuations[row_pos][:-1]
-    misread = np.log(self.genes.misread_density[gene_name])
+    cell_inefficiency = self.spots.cell_inefficiency[row_pos][:-1]
+    gene_inefficiency = self.spots.gene_inefficiency[row_pos][:-1]
+    gene_idx = np.where(self.genes.gene_panel == gene_name)[0][0]
+    misread = self.genes.log_rho_bar[gene_idx]
 
     # Calculate scores and probabilities
-    scores = mvn_loglik + attention + expr_fluct
+    scores = mvn_loglik + attention + expr_fluct + cell_inefficiency + gene_inefficiency
     scores = np.append(scores, misread)
     probabilities = softmax(scores)
 
@@ -139,6 +142,8 @@ def check_spot(self, spot_id):
         'mvn_loglik': mvn_loglik,
         'attention': attention,
         'expr_fluct': expr_fluct,
+        'cell_inefficiency': cell_inefficiency,
+        'gene_inefficiency': gene_inefficiency,
         'misread': float(misread),  # Convert numpy float to native Python float
         'score': scores,
         'prob': probabilities,
@@ -150,9 +155,12 @@ def check_spot(self, spot_id):
         # 'internal_tag':self.spots.parent_cell_id[row_pos][:-1],
         'mvn_loglik': mvn_loglik,
         'attention': attention,
-        'expr_fluct': expr_fluct}).set_index(['Name'])
-    df['sum'] = df[['mvn_loglik', 'attention', 'expr_fluct']].sum(axis=1)
-    df.loc['misread'] = [np.nan, np.nan, np.nan, misread]
+        'expr_fluct': expr_fluct,
+        'cell_inefficiency': cell_inefficiency,
+        'gene_inefficiency': gene_inefficiency}).set_index(['Name'])
+    df['misread'] = np.nan
+    df['sum'] = df[['mvn_loglik', 'attention', 'expr_fluct', 'cell_inefficiency', 'gene_inefficiency']].sum(axis=1)
+    df.loc['background'] = [np.nan, np.nan, np.nan, np.nan, np.nan, misread, misread]
 
     spot_to_cell_score_plot(datadict)
     spot_to_cell_prob_plot(datadict)
@@ -170,10 +178,12 @@ def spot_to_cell_prob_plot(data):
     mvn_loglik = data['mvn_loglik']
     attention = data['attention']
     expr_fluct = data['expr_fluct']
+    cell_inefficiency = data['cell_inefficiency']
+    gene_inefficiency = data['gene_inefficiency']
     misread = data['misread']
 
     # Calculate scores and probabilities
-    scores = mvn_loglik + attention + expr_fluct
+    scores = mvn_loglik + attention + expr_fluct + cell_inefficiency + gene_inefficiency
     scores = np.append(scores, misread)
     prob = softmax(scores)
 
@@ -262,6 +272,7 @@ def spot_to_cell_score_plot(my_dict):
     mvn_loglik = my_dict['mvn_loglik']
     attention = my_dict['attention']
     expr_fluct = my_dict['expr_fluct']
+    cell_inefficiency = my_dict['cell_inefficiency']
     misread = my_dict['misread']
 
     # Labels
@@ -295,6 +306,26 @@ def spot_to_cell_score_plot(my_dict):
         name='Expr Fluctuations',
         marker_color='#2ca02c',
         hovertemplate="<b>%{x}</b><br>Expr Fluct: %{y:.2f}<extra></extra>",
+        width=0.7
+    ))
+
+    fig.add_trace(go.Bar(
+        x=labels[:-1],
+        y=cell_inefficiency,
+        name='Cell Inefficiency',
+        marker_color='#9467bd',
+        hovertemplate="<b>%{x}</b><br>Cell Inefficiency"
+                      ": %{y:.2f}<extra></extra>",
+        width=0.7
+    ))
+
+    fig.add_trace(go.Bar(
+        x=labels[:-1],
+        y=my_dict['gene_inefficiency'],
+        name='Gene Inefficiency',
+        marker_color='#8c564b',
+        hovertemplate="<b>%{x}</b><br>Gene Inefficiency"
+                      ": %{y:.2f}<extra></extra>",
         width=0.7
     ))
 

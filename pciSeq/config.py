@@ -27,6 +27,9 @@ DEFAULT = {
     # in order to make the spot more probable to get assigned to the cell than another spot positioned
     # outside the cell boundaries
     "InsideCellBonus": 0,
+    # MRF coefficient: controls how strongly neighboring cells' class assignments
+    # influence each other. Higher values = more spatial smoothing.
+    "mrf_beta": 1.0,
     # MisreadDensity: Expected number of misread spots. A dictionary contains user-defined values
     # for gene misread densities used in the analysis.
     # The process to determine the misread density for each gene is as follows:
@@ -112,15 +115,19 @@ DEFAULT = {
     # cell radius. If None then pciSeq will calc that as the mean radius across all cells.
     # Otherwise it will use the value provided below
     "cell_radius": None,
-    # cell type prior: The prior distribution on the classes. It expresses the view on
-    # how likely each class is to occur a-priori. It can be either 'uniform' or 'weighted'
-    # 'uniform' means that the Zero class gets 50% and the remaining 50% is equally split
-    # on the cell classes.
-    # 'weighted' means that the cell type which is more likely to occur will be given more
-    # weight. These weights are calculated dynamically within the algorithm based on
-    # a Dirichlet distribution assumption.
+    # cell type prior: The prior distribution on the classes. It can be 'uniform' or 'weighted'.
+    # 'uniform': weights stay fixed throughout the algorithm.
+    # 'weighted': the real class weights are updated each iteration via a Dirichlet distribution.
+    #   The Zero class weight always stays fixed (it is not part of the Dirichlet).
+    # In both modes the initial weights come from cell_type_weights (or defaults if None).
     "cell_type_prior": "uniform",
-    "cell_type_weights": None,
+    # cell_type_weights: A dictionary of prior probabilities for cell types.
+    # If None: Zero = 0.5, the remaining 0.5 is split equally across real classes.
+    # If set: specify probabilities for any subset of classes. Unspecified classes
+    #   share the remaining probability equally. Zero defaults to 0.5 if not specified.
+    # Example: {"Zero": 0.4, "037 DG Glut": 0.1} gives Zero 40%, DG Glut 10%,
+    #   and the rest share the remaining 50% equally.
+    "cell_type_weights": {"Zero": 0.5},
     # Runtime attribute (automatically set during execution)
     "is_redis_running": False,
     # *******************************************************************************
@@ -141,6 +148,12 @@ DEFAULT = {
     "remove_flat_cells": True,
     # Runtime attribute (automatically set during execution)
     "is3D": None,
+    "rTheta": 25.0,
+    # Shape parameter for the Gamma prior on gene-specific misread density (rho_g).
+    # Higher values anchor rho_g closer to the MisreadDensity prior mean.
+    # With rRho=1 the prior is weak and the data drives the estimate.
+    "rRho": 1000.0,
+    "similarity_pairs": None,
     # *******************************************************************************
     # Realtime viewer (optional visualization feature)
     # *******************************************************************************
