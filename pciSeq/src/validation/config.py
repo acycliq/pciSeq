@@ -164,7 +164,6 @@ class Config(dict):
         Updates:
             - is3D: Whether data is 3D (multiple planes)
             - is_redis_running: Whether Redis server is available
-            - exclude_planes: Normalized to empty list if None
             - similarity_pairs: Normalized to empty list if None
         """
         from pciSeq.src.diagnostics.utils import check_redis_server

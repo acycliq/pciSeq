@@ -42,7 +42,7 @@ def plane_quality_control(spots: pd.DataFrame,
                           cfg: Dict) -> Tuple[pd.DataFrame, List[coo_matrix], int, pd.DataFrame]:
     """
     Perform quality control on 3D segmentation and spatial data.
-    Handles plane exclusion and removes single-plane cells.
+    Removes single-plane cells.
 
     Parameters
     ----------
@@ -51,7 +51,7 @@ def plane_quality_control(spots: pd.DataFrame,
     coo : List[coo_matrix]
         Label matrices
     cfg : Dict
-        Configuration with optional exclude_planes
+        Configuration
 
     Returns
     -------
@@ -61,55 +61,9 @@ def plane_quality_control(spots: pd.DataFrame,
     min_plane = 0
     removed = pd.DataFrame()
 
-    # Note: exclude_planes feature has been removed due to coordinate system complexity
-    # Users should filter their input data before passing to pciSeq
-
     if cfg['remove_flat_cells']:
         coo, removed = remove_flat_cells_par(coo)
     return spots, coo, min_plane, removed
-
-
-def label_image_remove_planes(coo: List[coo_matrix], cfg: Dict) -> List[coo_matrix]:
-    """Remove specified planes from label image."""
-    arr = np.arange(len(coo))
-    return [coo[d] for d in arr if d not in cfg['exclude_planes']]
-
-
-def spots_remove_planes(spots: pd.DataFrame, cfg: Dict) -> Tuple[pd.DataFrame, int]:
-    """
-    Remove spots from excluded planes and adjust z coordinates.
-    !!!!!!! MUST BE REVIEWED !!!!!
-
-    Parameters
-    ----------
-    spots : pd.DataFrame
-        Spot data
-    cfg : Dict
-        Configuration with exclude_planes
-
-    Returns
-    -------
-    Tuple[pd.DataFrame, int]
-        Processed spots and minimum plane number
-    """
-    int_z = np.floor(spots.z_plane)
-    mask = [d not in cfg['exclude_planes'] for d in int_z]
-    spots = spots[mask].copy()
-
-    # Find first kept plane
-    if cfg['exclude_planes']:
-        diff = np.diff(cfg['exclude_planes']) - 1
-        if np.all(diff == 0):
-            min_plane = max(cfg['exclude_planes']) + 1
-        else:
-            iLeft = list(diff > 0).index(True)
-            min_plane = cfg['exclude_planes'][iLeft] + 1
-
-        spots.loc[:, 'z_plane'] = spots.z_plane - min_plane
-    else:
-        min_plane = 0
-
-    return spots, min_plane
 
 
 def remove_flat_cells(coo_list: List[coo_matrix]) -> Tuple[List[coo_matrix], pd.DataFrame]:
