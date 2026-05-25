@@ -914,6 +914,3 @@ class VarBayes:
 
     def cell_typing_breakdown(self, label, weights=None, show_plot=True):
         return utils.cell_typing_breakdown(self, label, weights, show_plot)
-
-    # def trellis_plot(self, label, flatfile_folder):
-    #     return visualisation.trellis_plot(self, label, flatfile_folder)
