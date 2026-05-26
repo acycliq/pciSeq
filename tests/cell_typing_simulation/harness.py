@@ -149,6 +149,40 @@ def make_pointclouds(cells_df, cell_grid, radius=18, rng=None):
     return pd.concat(pointclouds, ignore_index=True)
 
 
+# ------------------------------------------------------------------ #
+# 5. Build the 3D label image
+# ------------------------------------------------------------------ #
+def build_label_image(cell_grid, radius=18):
+    """Paint each cell as a solid sphere in a uint16 3D volume.
+
+    Background voxels are 0, voxels inside cell k carry cell_grid.cell_label[k].
+    Image bounds are derived from the grid with a 2*radius margin.
+    """
+    margin = 2 * radius
+    n_z = int(cell_grid["z"].max() + margin)
+    n_y = int(cell_grid["y"].max() + margin)
+    n_x = int(cell_grid["x"].max() + margin)
+
+    label_image = np.zeros((n_z, n_y, n_x), dtype=np.uint16)
+    r = int(radius)
+
+    for row in cell_grid.itertuples(index=False):
+        zc, yc, xc = int(row.z), int(row.y), int(row.x)
+        lbl = int(row.cell_label)
+
+        z_min, z_max = max(zc - r, 0), min(zc + r + 1, n_z)
+        y_min, y_max = max(yc - r, 0), min(yc + r + 1, n_y)
+        x_min, x_max = max(xc - r, 0), min(xc + r + 1, n_x)
+
+        zz, yy, xx = np.ogrid[z_min:z_max, y_min:y_max, x_min:x_max]
+        mask = (zz - zc) ** 2 + (yy - yc) ** 2 + (xx - xc) ** 2 <= r ** 2
+
+        sub = label_image[z_min:z_max, y_min:y_max, x_min:x_max]
+        sub[mask] = lbl
+
+    return label_image
+
+
 if __name__ == "__main__":
     import pciSeq
     pciSeq.attach_to_log()
@@ -176,7 +210,7 @@ if __name__ == "__main__":
 
     # 3. place cells on a grid
     RADIUS = 18
-    SPACING_FACTOR = 6
+    SPACING_FACTOR = 2
     cells_df = sim_dfs[0]
     cell_grid = make_grid(cells_df, radius=RADIUS, spacing_factor=SPACING_FACTOR, rng=rng)
     logger.info(f"placed {len(cell_grid)} cells on a grid "
@@ -189,3 +223,27 @@ if __name__ == "__main__":
     logger.info(f"  columns: {list(spots_df.columns)}")
     logger.info(f"  spots per cell (first 5): "
                 f"{spots_df.groupby('cell_label').size().head(5).to_dict()}")
+
+    # 5. build the 3D label image
+    label_image = build_label_image(cell_grid, radius=RADIUS)
+    logger.info(f"label image shape (z, y, x) = {label_image.shape}, "
+                f"nonzero voxels = {int((label_image > 0).sum())}")
+
+    # View in napari
+    SHOW_NAPARI = True
+    if SHOW_NAPARI:
+        import napari
+        viewer = napari.Viewer(ndisplay=3)
+        viewer.add_labels(label_image, name="Cells")
+        viewer.add_points(
+            spots_df[["z", "y", "x"]].values,
+            properties={
+                "label": spots_df["cell_label"].values,
+                "gene": spots_df["gene_name"].values,
+            },
+            face_color="label",
+            face_colormap="turbo",
+            size=1.5,
+            name="Spots",
+        )
+        napari.run()
