@@ -184,6 +184,77 @@ def build_label_image(cell_grid, radius=18):
 
 
 # ------------------------------------------------------------------ #
+# 7. Confusion matrix
+# ------------------------------------------------------------------ #
+def confusion_matrix(cellData, actual_labels, class_names=None):
+    """Probability-weighted (n_classes x n_classes) confusion matrix.
+
+    For each cell with true class k, adds its full posterior vector
+    to row k. So diagonal entry [k,k] is the total posterior mass
+    pciSeq put on the correct class for cells of class k.
+    """
+    if class_names is None:
+        predicted_classes = set()
+        for cls_list in cellData["ClassName"].values:
+            predicted_classes.update(cls_list)
+        class_names = sorted(set(actual_labels.values()) | predicted_classes)
+
+    class_to_idx = {c: i for i, c in enumerate(class_names)}
+    nK = len(class_names)
+    cm = np.zeros((nK, nK), dtype=float)
+
+    for cell_num, cls_list, prob_list in zip(
+        cellData["Cell_Num"].astype(int).values,
+        cellData["ClassName"].values,
+        cellData["Prob"].values,
+    ):
+        truth = actual_labels.get(int(cell_num))
+        if truth is None:
+            continue
+        truth_idx = class_to_idx.get(truth)
+        if truth_idx is None:
+            continue
+        for cls_name, prob in zip(cls_list, prob_list):
+            pred_idx = class_to_idx.get(cls_name)
+            if pred_idx is not None:
+                cm[truth_idx, pred_idx] += float(prob)
+
+    out = pd.DataFrame(cm, index=class_names, columns=class_names)
+    out.index.name = "truth"
+    out.columns.name = "predicted"
+    return out
+
+
+def plot_confusion_matrix(cm, title="Confusion matrix", normalize=True):
+    """Interactive plotly heatmap of the confusion matrix."""
+    import plotly.express as px
+
+    mat = cm.copy()
+    if normalize:
+        row_sum = mat.sum(axis=1).replace(0, 1.0)
+        mat = mat.div(row_sum, axis=0)
+
+    fig = px.imshow(
+        mat.values, x=list(mat.columns), y=list(mat.index),
+        labels=dict(x="Predicted class", y="True class", color="Mass"),
+        color_continuous_scale="Viridis", zmin=0.0, zmax=1.0 if normalize else None,
+        aspect="equal",
+    )
+    fig.update_traces(
+        xgap=0.25, ygap=0.25,
+        hovertemplate="Truth: %{y}<br>Predicted: %{x}<br>Mass: %{z:.3f}<extra></extra>",
+        colorbar=dict(len=0.5, y=0.5),
+    )
+    fig.update_layout(
+        title=title, xaxis_tickangle=45,
+        xaxis=dict(showgrid=True, gridwidth=1, gridcolor="lightgray"),
+        yaxis=dict(showgrid=True, gridwidth=1, gridcolor="lightgray"),
+        autosize=False, width=1000, height=1000,
+    )
+    return fig
+
+
+# ------------------------------------------------------------------ #
 # 6. Run pciSeq
 # ------------------------------------------------------------------ #
 def run_pciseq(spots_df, label_image, reference, rSpot=2.0, opts=None):
@@ -219,7 +290,7 @@ def run_pciseq(spots_df, label_image, reference, rSpot=2.0, opts=None):
         "MisreadDensity": 3e-20,
         "nNeighbors": 6,
         "CellCallTolerance": 0.5,
-        "voxel_size": [1, 1, 1],
+        "voxel_size": [1, 1, 1]
     }
     if opts:
         final_opts.update(opts)
@@ -283,10 +354,16 @@ if __name__ == "__main__":
 
         # Quick check: does pciSeq's best class match the truth?
         actual_labels = dict(zip(cell_grid["cell_label"].astype(int), cell_grid["class_name"]))
-        best_class = cellData.ClassName.map(lambda d: d[0]).values
-        cell_nums = cellData.Cell_Num.astype(int).values
-        n_correct = sum(actual_labels.get(cn) == bc for cn, bc in zip(cell_nums, best_class))
-        logger.info(f"  best-class accuracy: {n_correct}/{len(best_class)} ({n_correct / len(best_class):.2%})")
+
+        # 7. confusion matrix
+        cm = confusion_matrix(cellData, actual_labels)
+        fig = plot_confusion_matrix(cm, normalize=True)
+
+        results_dir = Path(__file__).resolve().parent / "results" / "harness"
+        results_dir.mkdir(parents=True, exist_ok=True)
+        fig.write_html(str(results_dir / "confusion_matrix.html"))
+        logger.info(f"saved confusion matrix to {results_dir / 'confusion_matrix.html'}")
+        fig.show()
 
     # View in napari
     if SHOW_NAPARI:
