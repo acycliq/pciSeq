@@ -183,6 +183,57 @@ def build_label_image(cell_grid, radius=18):
     return label_image
 
 
+# ------------------------------------------------------------------ #
+# 6. Run pciSeq
+# ------------------------------------------------------------------ #
+def run_pciseq(spots_df, label_image, reference, rSpot=2.0, opts=None):
+    """Feed spots and the label image into pciSeq.fit.
+
+    Three pieces of plumbing:
+      1. Rename z -> z_plane, add intensity and score columns
+         (pciSeq expects them, our simulator doesn't have them).
+      2. Slice the 3D label image into per-plane sparse matrices.
+      3. Build the opts dict with defaults matching the simulator.
+
+    rSpot is its own arg so the caller can keep it locked to the
+    same value used in simulate_nb_cells.
+    """
+    from scipy.sparse import coo_matrix
+    import pciSeq
+
+    spots = spots_df.copy()
+    spots = spots.rename(columns={"z": "z_plane"})
+    spots["intensity"] = np.float32(1.0)
+    spots["score"] = np.float32(1.0)
+
+    coo = [coo_matrix(plane) for plane in label_image]
+
+    if opts and "rSpot" in opts:
+        raise ValueError(
+            "Pass rSpot as its own arg, not inside opts. "
+            "It must stay locked to the simulator's value."
+        )
+
+    final_opts = {
+        "Inefficiency": 1.0,
+        "SpotReg": 0.1,
+        "rSpot": rSpot,
+        "InsideCellBonus": 0.0,
+        "MisreadDensity": 3e-20,
+        "nNeighbors": 6,
+        "CellCallTolerance": 0.5,
+        "voxel_size": [1, 1, 1],
+    }
+    if opts:
+        final_opts.update(opts)
+
+    pciSeq.attach_to_log()
+    cellData, geneData = pciSeq.fit(
+        spots=spots, coo=coo, scRNAseq=reference, opts=final_opts,
+    )
+    return cellData, geneData
+
+
 if __name__ == "__main__":
     import pciSeq
     pciSeq.attach_to_log()
@@ -210,7 +261,7 @@ if __name__ == "__main__":
 
     # 3. place cells on a grid
     RADIUS = 18
-    SPACING_FACTOR = 2
+    SPACING_FACTOR = 6
     cells_df = sim_dfs[0]
     cell_grid = make_grid(cells_df, radius=RADIUS, spacing_factor=SPACING_FACTOR, rng=rng)
     logger.info(f"placed {len(cell_grid)} cells on a grid "
@@ -229,8 +280,27 @@ if __name__ == "__main__":
     logger.info(f"label image shape (z, y, x) = {label_image.shape}, "
                 f"nonzero voxels = {int((label_image > 0).sum())}")
 
+    # 6. run pciSeq
+    RUN_PCISEQ = True
+    if RUN_PCISEQ:
+        cellData, geneData = run_pciseq(spots_df, label_image, scRNAseq, rSpot=RSPOT)
+        logger.info(f"pciSeq returned {cellData.shape[0]} cells")
+
+        # Quick check: does pciSeq's best class match the truth?
+        actual_labels = dict(zip(
+            cell_grid["cell_label"].astype(int), cell_grid["class_name"],
+        ))
+        best_class = cellData.ClassName.map(lambda d: d[0]).values
+        cell_nums = cellData.Cell_Num.astype(int).values
+        n_correct = sum(
+            actual_labels.get(cn) == bc
+            for cn, bc in zip(cell_nums, best_class)
+        )
+        logger.info(f"  best-class accuracy: {n_correct}/{len(best_class)} "
+                    f"({n_correct / len(best_class):.2%})")
+
     # View in napari
-    SHOW_NAPARI = True
+    SHOW_NAPARI = False
     if SHOW_NAPARI:
         import napari
         viewer = napari.Viewer(ndisplay=3)
