@@ -108,6 +108,47 @@ def make_grid(cells_df, radius=18, spacing_factor=6, rng=None):
     })
 
 
+# ------------------------------------------------------------------ #
+# 4. Sample point clouds inside each sphere
+# ------------------------------------------------------------------ #
+def make_pointclouds(cells_df, cell_grid, radius=18, rng=None):
+    """For each cell on the grid, draw spots from a 3D Gaussian.
+
+    For each placed cell, looks up its gene counts in cells_df and
+    draws that many spots from N(centroid, radius * I). Returns a
+    long-form DataFrame: gene_name, z, y, x, cell_label, class_name.
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    pointclouds = []
+    for row in cell_grid.itertuples(index=False):
+        counts_vec = cells_df[row.class_name].values
+        gene_names = cells_df.index.values
+        n_spots = int(counts_vec.sum())
+        if n_spots == 0:
+            continue
+
+        positions = rng.normal(
+            loc=[row.z, row.y, row.x],
+            scale=radius,
+            size=(n_spots, 3),
+        )
+        pointclouds.append(pd.DataFrame({
+            "gene_name": np.repeat(gene_names, counts_vec),
+            "z": positions[:, 0].astype(np.float32),
+            "y": positions[:, 1].astype(np.float32),
+            "x": positions[:, 2].astype(np.float32),
+            "cell_label": np.int32(row.cell_label),
+            "class_name": row.class_name,
+        }))
+
+    if not pointclouds:
+        return pd.DataFrame(columns=["gene_name", "z", "y", "x",
+                                      "cell_label", "class_name"])
+    return pd.concat(pointclouds, ignore_index=True)
+
+
 if __name__ == "__main__":
     import pciSeq
     pciSeq.attach_to_log()
@@ -141,3 +182,10 @@ if __name__ == "__main__":
     logger.info(f"placed {len(cell_grid)} cells on a grid "
                 f"(radius={RADIUS}, spacing={SPACING_FACTOR}x)")
     logger.info(f"\n{cell_grid.head(5).to_string(index=False)}")
+
+    # 4. sample point clouds inside each sphere
+    spots_df = make_pointclouds(cells_df, cell_grid, radius=RADIUS, rng=rng)
+    logger.info(f"sampled {len(spots_df)} spots across {cell_grid.cell_label.nunique()} cells")
+    logger.info(f"  columns: {list(spots_df.columns)}")
+    logger.info(f"  spots per cell (first 5): "
+                f"{spots_df.groupby('cell_label').size().head(5).to_dict()}")
