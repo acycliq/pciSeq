@@ -209,10 +209,7 @@ def run_pciseq(spots_df, label_image, reference, rSpot=2.0, opts=None):
     coo = [coo_matrix(plane) for plane in label_image]
 
     if opts and "rSpot" in opts:
-        raise ValueError(
-            "Pass rSpot as its own arg, not inside opts. "
-            "It must stay locked to the simulator's value."
-        )
+        raise ValueError("Pass rSpot as its own arg, not inside opts. It must stay locked to the simulator's value.")
 
     final_opts = {
         "Inefficiency": 1.0,
@@ -228,9 +225,7 @@ def run_pciseq(spots_df, label_image, reference, rSpot=2.0, opts=None):
         final_opts.update(opts)
 
     pciSeq.attach_to_log()
-    cellData, geneData = pciSeq.fit(
-        spots=spots, coo=coo, scRNAseq=reference, opts=final_opts,
-    )
+    cellData, geneData = pciSeq.fit(spots=spots, coo=coo, scRNAseq=reference, opts=final_opts)
     return cellData, geneData
 
 
@@ -238,9 +233,15 @@ if __name__ == "__main__":
     import pciSeq
     pciSeq.attach_to_log()
 
-    N_PER_CLASS = 10000
-    RSPOT = 2.0
-    SEED = 42
+    # ---- All settings in one place -------------------------------- #
+    N_PER_CLASS    = 10000
+    RSPOT          = 2.0
+    RADIUS         = 18
+    SPACING_FACTOR = 6
+    SEED           = 42
+    RUN_PCISEQ     = True
+    SHOW_NAPARI    = False
+    # --------------------------------------------------------------- #
 
     # 1. get the single cell data
     scRNAseq = get_scRNAseq()
@@ -260,47 +261,34 @@ if __name__ == "__main__":
     logger.info(f"  simulated mean (top 5 genes): {avg[cls][top_genes].round(2).to_dict()}")
 
     # 3. place cells on a grid
-    RADIUS = 18
-    SPACING_FACTOR = 6
     cells_df = sim_dfs[0]
     cell_grid = make_grid(cells_df, radius=RADIUS, spacing_factor=SPACING_FACTOR, rng=rng)
-    logger.info(f"placed {len(cell_grid)} cells on a grid "
-                f"(radius={RADIUS}, spacing={SPACING_FACTOR}x)")
+    logger.info(f"placed {len(cell_grid)} cells on a grid (radius={RADIUS}, spacing={SPACING_FACTOR}x)")
     logger.info(f"\n{cell_grid.head(5).to_string(index=False)}")
 
     # 4. sample point clouds inside each sphere
     spots_df = make_pointclouds(cells_df, cell_grid, radius=RADIUS, rng=rng)
     logger.info(f"sampled {len(spots_df)} spots across {cell_grid.cell_label.nunique()} cells")
     logger.info(f"  columns: {list(spots_df.columns)}")
-    logger.info(f"  spots per cell (first 5): "
-                f"{spots_df.groupby('cell_label').size().head(5).to_dict()}")
+    logger.info(f"  spots per cell (first 5): {spots_df.groupby('cell_label').size().head(5).to_dict()}")
 
     # 5. build the 3D label image
     label_image = build_label_image(cell_grid, radius=RADIUS)
-    logger.info(f"label image shape (z, y, x) = {label_image.shape}, "
-                f"nonzero voxels = {int((label_image > 0).sum())}")
+    logger.info(f"label image shape (z, y, x) = {label_image.shape}, nonzero voxels = {int((label_image > 0).sum())}")
 
     # 6. run pciSeq
-    RUN_PCISEQ = True
     if RUN_PCISEQ:
         cellData, geneData = run_pciseq(spots_df, label_image, scRNAseq, rSpot=RSPOT)
         logger.info(f"pciSeq returned {cellData.shape[0]} cells")
 
         # Quick check: does pciSeq's best class match the truth?
-        actual_labels = dict(zip(
-            cell_grid["cell_label"].astype(int), cell_grid["class_name"],
-        ))
+        actual_labels = dict(zip(cell_grid["cell_label"].astype(int), cell_grid["class_name"]))
         best_class = cellData.ClassName.map(lambda d: d[0]).values
         cell_nums = cellData.Cell_Num.astype(int).values
-        n_correct = sum(
-            actual_labels.get(cn) == bc
-            for cn, bc in zip(cell_nums, best_class)
-        )
-        logger.info(f"  best-class accuracy: {n_correct}/{len(best_class)} "
-                    f"({n_correct / len(best_class):.2%})")
+        n_correct = sum(actual_labels.get(cn) == bc for cn, bc in zip(cell_nums, best_class))
+        logger.info(f"  best-class accuracy: {n_correct}/{len(best_class)} ({n_correct / len(best_class):.2%})")
 
     # View in napari
-    SHOW_NAPARI = False
     if SHOW_NAPARI:
         import napari
         viewer = napari.Viewer(ndisplay=3)
