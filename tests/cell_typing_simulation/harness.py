@@ -71,6 +71,43 @@ def simulate_nb_cells(reference, n_per_class=1000, rSpot=2.0, rng=None):
     ]
 
 
+# ------------------------------------------------------------------ #
+# 3. Place cells on a grid
+# ------------------------------------------------------------------ #
+def make_grid(cells_df, radius=18, spacing_factor=6, rng=None):
+    """Place one sphere per class on a regular xy grid with random z.
+
+    Takes one DataFrame from simulate_nb_cells (n_genes x n_classes).
+    Each column becomes one sphere. Returns a DataFrame with one row
+    per placed cell: cell_label, class_name, z, y, x.
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    class_names = list(cells_df.columns)
+    n_cells = len(class_names)
+
+    grid_y = int(np.sqrt(n_cells))
+    grid_x = int(np.ceil(n_cells / grid_y))
+    spacing = spacing_factor * radius
+
+    y_coords = np.arange(grid_y) * spacing + spacing // 2
+    x_coords = np.arange(grid_x) * spacing + spacing // 2
+    X, Y = np.meshgrid(x_coords, y_coords)
+    X = X.flatten()[:n_cells]
+    Y = Y.flatten()[:n_cells]
+
+    z_coords = rng.integers(2 * radius, 4 * radius + 1, size=n_cells)
+
+    return pd.DataFrame({
+        "cell_label": np.arange(n_cells, dtype=np.int32) + 1,
+        "class_name": class_names,
+        "z": z_coords.astype(np.int32),
+        "y": Y.astype(np.int32),
+        "x": X.astype(np.int32),
+    })
+
+
 if __name__ == "__main__":
     import pciSeq
     pciSeq.attach_to_log()
@@ -95,3 +132,12 @@ if __name__ == "__main__":
     logger.info(f"class: {cls}")
     logger.info(f"  reference mean (top 5 genes): {scRNAseq[cls][top_genes].to_dict()}")
     logger.info(f"  simulated mean (top 5 genes): {avg[cls][top_genes].round(2).to_dict()}")
+
+    # 3. place cells on a grid
+    RADIUS = 18
+    SPACING_FACTOR = 6
+    cells_df = sim_dfs[0]
+    cell_grid = make_grid(cells_df, radius=RADIUS, spacing_factor=SPACING_FACTOR, rng=rng)
+    logger.info(f"placed {len(cell_grid)} cells on a grid "
+                f"(radius={RADIUS}, spacing={SPACING_FACTOR}x)")
+    logger.info(f"\n{cell_grid.head(5).to_string(index=False)}")
