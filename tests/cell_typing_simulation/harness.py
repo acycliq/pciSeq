@@ -297,9 +297,9 @@ def run_pciseq(spots_df, label_image, reference, rSpot=2.0, opts=None):
         "InsideCellBonus": 0.0,
         "MisreadDensity": 3e-20,
         "nNeighbors": 6,
-        "CellCallTolerance": 0.5,
+        "CellCallTolerance": 0.02,
         "voxel_size": [1, 1, 1],
-        "rTheta": 660,  # mean total gene count per cell across all classes in the Yao reference
+        "rTheta": 2,  # mean total gene count per cell across all classes in the Yao reference
         "mrf_beta": 0,
     }
     if opts:
@@ -319,7 +319,7 @@ if __name__ == "__main__":
     N_RUNS         = 100
     RSPOT          = 2.0
     RADIUS         = 18
-    SPACING_FACTOR = 6
+    SPACING_FACTOR = 2
     SEED           = 42
     SHOW_NAPARI    = False
     # --------------------------------------------------------------- #
