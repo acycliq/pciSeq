@@ -290,7 +290,9 @@ def run_pciseq(spots_df, label_image, reference, rSpot=2.0, opts=None):
         "MisreadDensity": 3e-20,
         "nNeighbors": 6,
         "CellCallTolerance": 0.5,
-        "voxel_size": [1, 1, 1]
+        "voxel_size": [1, 1, 1],
+        "rTheta": 660,  # mean total gene count per cell across all classes in the Yao reference
+        "mrf_beta": 0,
     }
     if opts:
         final_opts.update(opts)
@@ -306,11 +308,11 @@ if __name__ == "__main__":
 
     # ---- All settings in one place -------------------------------- #
     N_PER_CLASS    = 10000
+    N_RUNS         = 1000
     RSPOT          = 2.0
     RADIUS         = 18
     SPACING_FACTOR = 6
     SEED           = 42
-    RUN_PCISEQ     = True
     SHOW_NAPARI    = False
     # --------------------------------------------------------------- #
 
@@ -323,49 +325,39 @@ if __name__ == "__main__":
     sim_dfs = simulate_nb_cells(scRNAseq, n_per_class=N_PER_CLASS, rSpot=RSPOT, rng=rng)
     logger.info(f"generated {len(sim_dfs)} sets, each {sim_dfs[0].shape}")
 
-    # Sanity check: the mean across all sets should be close to the reference
-    avg = sum(sim_dfs) / len(sim_dfs)
-    cls = scRNAseq.columns[0]
-    top_genes = scRNAseq[cls].nlargest(5).index
-    logger.info(f"class: {cls}")
-    logger.info(f"  reference mean (top 5 genes): {scRNAseq[cls][top_genes].to_dict()}")
-    logger.info(f"  simulated mean (top 5 genes): {avg[cls][top_genes].round(2).to_dict()}")
+    # 3-7. loop: place on grid, make pointclouds, build label image, run pciSeq, accumulate confusion matrix
+    GLOBAL_CLASSES = sorted(scRNAseq.columns.tolist())
+    cm_total = pd.DataFrame(0.0, index=GLOBAL_CLASSES, columns=GLOBAL_CLASSES)
+    cm_total.index.name = "truth"
+    cm_total.columns.name = "predicted"
 
-    # 3. place cells on a grid
-    cells_df = sim_dfs[0]
-    cell_grid = make_grid(cells_df, radius=RADIUS, spacing_factor=SPACING_FACTOR, rng=rng)
-    logger.info(f"placed {len(cell_grid)} cells on a grid (radius={RADIUS}, spacing={SPACING_FACTOR}x)")
-    logger.info(f"\n{cell_grid.head(5).to_string(index=False)}")
+    for i in range(N_RUNS):
+        logger.info(f"[run {i + 1}/{N_RUNS}]")
+        cells_df = sim_dfs[i]
 
-    # 4. sample point clouds inside each sphere
-    spots_df = make_pointclouds(cells_df, cell_grid, radius=RADIUS, rng=rng)
-    logger.info(f"sampled {len(spots_df)} spots across {cell_grid.cell_label.nunique()} cells")
-    logger.info(f"  columns: {list(spots_df.columns)}")
-    logger.info(f"  spots per cell (first 5): {spots_df.groupby('cell_label').size().head(5).to_dict()}")
+        # Shuffle which class lands at which grid position
+        shuffled_cols = list(cells_df.columns)
+        rng.shuffle(shuffled_cols)
+        cells_df = cells_df[shuffled_cols]
 
-    # 5. build the 3D label image
-    label_image = build_label_image(cell_grid, radius=RADIUS)
-    logger.info(f"label image shape (z, y, x) = {label_image.shape}, nonzero voxels = {int((label_image > 0).sum())}")
-
-    # 6. run pciSeq
-    if RUN_PCISEQ:
+        cell_grid = make_grid(cells_df, radius=RADIUS, spacing_factor=SPACING_FACTOR, rng=rng)
+        spots_df = make_pointclouds(cells_df, cell_grid, radius=RADIUS, rng=rng)
+        label_image = build_label_image(cell_grid, radius=RADIUS)
         cellData, geneData = run_pciseq(spots_df, label_image, scRNAseq, rSpot=RSPOT)
-        logger.info(f"pciSeq returned {cellData.shape[0]} cells")
-
-        # Quick check: does pciSeq's best class match the truth?
         actual_labels = dict(zip(cell_grid["cell_label"].astype(int), cell_grid["class_name"]))
+        cm = confusion_matrix(cellData, actual_labels, class_names=GLOBAL_CLASSES)
+        cm_total = cm_total + cm
 
-        # 7. confusion matrix
-        cm = confusion_matrix(cellData, actual_labels)
-        fig = plot_confusion_matrix(cm, normalize=True)
+    cm_avg = cm_total / N_RUNS
+    fig = plot_confusion_matrix(cm_avg, normalize=True)
 
-        results_dir = Path(__file__).resolve().parent / "results" / "harness"
-        results_dir.mkdir(parents=True, exist_ok=True)
-        fig.write_html(str(results_dir / "confusion_matrix.html"))
-        logger.info(f"saved confusion matrix to {results_dir / 'confusion_matrix.html'}")
-        fig.show()
+    results_dir = Path(__file__).resolve().parent / "results" / "harness"
+    results_dir.mkdir(parents=True, exist_ok=True)
+    fig.write_html(str(results_dir / "confusion_matrix.html"))
+    logger.info(f"saved confusion matrix to {results_dir / 'confusion_matrix.html'}")
+    fig.show()
 
-    # View in napari
+    # View in napari (uses the last iteration's data)
     if SHOW_NAPARI:
         import napari
         viewer = napari.Viewer(ndisplay=3)
