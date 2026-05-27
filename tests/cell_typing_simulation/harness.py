@@ -225,6 +225,14 @@ def confusion_matrix(cellData, actual_labels, class_names=None):
     return out
 
 
+def diagonal_accuracy(cm):
+    """Average fraction of posterior mass on the correct class."""
+    mat = cm.values if hasattr(cm, 'values') else cm
+    row_sums = mat.sum(axis=1, keepdims=True)
+    row_sums[row_sums == 0] = 1.0
+    return float(np.trace(mat / row_sums) / mat.shape[0])
+
+
 def plot_confusion_matrix(cm, title="Confusion matrix", normalize=True):
     """Interactive plotly heatmap of the confusion matrix."""
     import plotly.express as px
@@ -308,7 +316,7 @@ if __name__ == "__main__":
 
     # ---- All settings in one place -------------------------------- #
     N_PER_CLASS    = 10000
-    N_RUNS         = 1000
+    N_RUNS         = 100
     RSPOT          = 2.0
     RADIUS         = 18
     SPACING_FACTOR = 6
@@ -349,7 +357,10 @@ if __name__ == "__main__":
         cm_total = cm_total + cm
 
     cm_avg = cm_total / N_RUNS
-    fig = plot_confusion_matrix(cm_avg, normalize=True)
+    diag_acc = diagonal_accuracy(cm_avg)
+    logger.info(f"diagonal accuracy: {diag_acc:.4f} (1.0 = perfect, {1/len(GLOBAL_CLASSES):.3f} = chance)")
+
+    fig = plot_confusion_matrix(cm_avg, title=f"Confusion matrix (diag acc = {diag_acc:.3f}, N={N_RUNS})")
 
     results_dir = Path(__file__).resolve().parent / "results" / "harness"
     results_dir.mkdir(parents=True, exist_ok=True)
