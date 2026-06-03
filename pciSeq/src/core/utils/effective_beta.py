@@ -25,7 +25,7 @@ import numpy as np
 
 
 @nb.njit(parallel=True, fastmath=True, cache=True)
-def _calc_beta_cap_numba_kernel(mu_real, eta_bar, theta_bar, N, log_pi_ratio,
+def _calc_beta_cap_numba_kernel(mu_real, eta_bar, theta_bar, theta_zero, N, log_pi_ratio,
                                 r, sigma, n_nbr):
     """
     Fused triple-nested kernel for the per-(cell, class) MRF cap. Equivalent
@@ -52,19 +52,50 @@ def _calc_beta_cap_numba_kernel(mu_real, eta_bar, theta_bar, N, log_pi_ratio,
 
     beta_cap = np.empty((nC, K_real), dtype=np.float32)
     for c in nb.prange(nC):
+        tz_c = theta_zero[c]                                  # theta_{c,Zero}
         for k in range(K_real):
             acc_log_ratio = np.float32(0.0)
             acc_bonus = np.float32(0.0)
-            tb_ck = theta_bar[c, k]
+            tb_ck = theta_bar[c, k]                           # theta_{c,k}
+            log_theta_ratio = np.log(tb_ck / tz_c)           # log(theta_{c,k}/theta_{c,Zero})
             for g in range(G):
-                xi = eta_bar[g] * tb_ck
-                num = r + (mu_real[g, k] + sigma) * xi
-                den = r + sigma * xi
+                num = r + (mu_real[g, k] + sigma) * (eta_bar[g] * tb_ck)   # r + m_k  (theta_{c,k})
+                den = r + sigma * (eta_bar[g] * tz_c)                       # r + m_0  (theta_{c,Zero})
                 lr = np.log(num / den)
                 acc_log_ratio += lr
-                acc_bonus += N[c, g] * (log_mu_ratio[g, k] - lr)
+                # bonus_g = N * log[ (mu+sigma)/sigma * theta_{c,k}/theta_{c,Zero} * den/num ]
+                acc_bonus += N[c, g] * (log_mu_ratio[g, k] + log_theta_ratio - lr)
             beta_cap[c, k] = (r * acc_log_ratio - acc_bonus - log_pi_ratio[k]) / n_nbr
     return beta_cap
+
+def beta_cap(obj):
+    eta_bar = obj.genes.eta_bar
+    theta_bar = obj.cells.theta_bar
+    mu = obj.single_cell.mean_expression_adj.values
+    spotReg = obj.config["SpotReg"]
+    r = obj.config["rSpot"]
+    beta_cfg = obj.config["mrf_beta"]
+
+    a = r + np.einsum("gk,g,ck->cgk", mu[:,:-1] + spotReg, eta_bar, theta_bar[:,:-1])
+    b = r + np.einsum("g,c->cg", spotReg * eta_bar, theta_bar[:,-1])   # (nC, nG)  Zero floor, theta_{c,Zero}
+    theta_ratio = theta_bar[:, :-1] / theta_bar[:, -1][:, None]        # (nC, nK-1)  theta_{c,k}/theta_{c,Zero}
+
+    struct = r * np.log(a / b[:, :, None]).sum(axis=1)
+
+    bonus = (
+        obj.cells.geneCount[:, :, None]
+        * np.log((mu[:, :-1] + spotReg) / spotReg * theta_ratio[:, None, :] * (b[:, :, None] / a))
+    ).sum(axis=1)
+
+    log_prior = np.log(obj.cellTypes.prior[:-1] / obj.cellTypes.prior[-1])
+
+    beta_cap = (struct - bonus - log_prior) / obj.config["nNeighbors"]
+    beta_cap = np.where(beta_cap < 0, beta_cfg, np.minimum(beta_cfg, beta_cap))
+
+    out = np.full((obj.nC, obj.nK), beta_cfg, dtype=np.float32)
+    out[:, :-1] = beta_cap
+
+    return out
 
 
 def compute_effective_beta(obj) -> np.ndarray:
@@ -83,7 +114,9 @@ def compute_effective_beta(obj) -> np.ndarray:
     mu = obj.single_cell.mean_expression_adj.values       # (nG, nK)
     mu_real = mu[:, :-1]                                  # (nG, nK-1)
     eta_bar = np.asarray(obj.genes.eta_bar)               # (nG,)
-    theta_bar = np.asarray(obj.cells.theta_bar)[:, :-1]   # (nC, nK-1)
+    theta_bar_full = np.asarray(obj.cells.theta_bar)      # (nC, nK)
+    theta_bar = theta_bar_full[:, :-1]                    # (nC, nK-1)  capture under each real class
+    theta_zero = theta_bar_full[:, -1]                    # (nC,)       capture under the Zero class
     geneCount = np.asarray(obj.cells.geneCount)           # (nC, nG)
 
     # Baseline class prior correction log(pi_k / pi_Zero), refetched every
@@ -93,16 +126,25 @@ def compute_effective_beta(obj) -> np.ndarray:
     log_prior = np.asarray(obj.cellTypes.log_prior)       # (nK,)
     log_pi_ratio = log_prior[:-1] - log_prior[-1]         # (nK-1,)
 
+    # The Zero floor uses theta_{c,Zero} (capture under the Zero class), which is
+    # the same for every k, so build it once. The class-k mean uses theta_{c,k}.
+    eta32 = eta_bar.astype(np.float32)
+    tz = theta_zero.astype(np.float32)                    # theta_{c,Zero}
+    xi_z = eta32[None, :] * tz[:, None]                   # (nC, nG)  eta * theta_{c,Zero}
+    den = r + spotReg * xi_z                              # r + m_0,  Zero floor
+    log_tz = np.log(tz)
+
     # per-class loop keeps peak memory at O(nC * nG) instead of O(nC * nG * nK)
     beta_cap = np.empty((obj.nC, obj.nK - 1), dtype=np.float32)
     for k in range(obj.nK - 1):
         mu_k = mu_real[:, k].astype(np.float32)
-        tb = theta_bar[:, k].astype(np.float32)
-        xi = eta_bar.astype(np.float32)[None, :] * tb[:, None]
-        num = r + (mu_k[None, :] + spotReg) * xi
-        den = r + spotReg * xi
+        tb = theta_bar[:, k].astype(np.float32)           # theta_{c,k}
+        xi_k = eta32[None, :] * tb[:, None]               # (nC, nG)  eta * theta_{c,k}
+        num = r + (mu_k[None, :] + spotReg) * xi_k        # r + m_k
         D_struct = r * np.log(num / den).sum(axis=1)
-        log_bonus_per_gene = np.log((mu_k + spotReg) / spotReg)[None, :] + np.log(den / num)
+        # m_k/m_0 = (mu+eps)/eps * theta_{c,k}/theta_{c,Zero}  (eta cancels, theta does not)
+        log_mk_over_m0 = np.log((mu_k + spotReg) / spotReg)[None, :] + (np.log(tb) - log_tz)[:, None]
+        log_bonus_per_gene = log_mk_over_m0 + np.log(den / num)
         bonus = (geneCount * log_bonus_per_gene).sum(axis=1)
         beta_cap[:, k] = (D_struct - bonus - log_pi_ratio[k]) / n_nbr
 
@@ -130,13 +172,15 @@ def compute_effective_beta_numba(obj) -> np.ndarray:
     mu = obj.single_cell.mean_expression_adj.values.astype(np.float32)       # (nG, nK)
     mu_real = mu[:, :-1]                                                     # (nG, nK-1)
     eta_bar = np.asarray(obj.genes.eta_bar, dtype=np.float32)                # (nG,)
-    theta_bar = np.asarray(obj.cells.theta_bar, dtype=np.float32)[:, :-1]    # (nC, nK-1)
+    theta_full = np.asarray(obj.cells.theta_bar, dtype=np.float32)           # (nC, nK)
+    theta_bar = theta_full[:, :-1]                                          # (nC, nK-1)  theta_{c,k}
+    theta_zero = theta_full[:, -1]                                          # (nC,)       theta_{c,Zero}
     geneCount = np.asarray(obj.cells.geneCount, dtype=np.float32)            # (nC, nG)
 
     log_prior = np.asarray(obj.cellTypes.log_prior, dtype=np.float32)        # (nK,)
     log_pi_ratio = log_prior[:-1] - log_prior[-1]                            # (nK-1,)
 
-    beta_cap = _calc_beta_cap_numba_kernel(mu_real, eta_bar, theta_bar, geneCount,
+    beta_cap = _calc_beta_cap_numba_kernel(mu_real, eta_bar, theta_bar, theta_zero, geneCount,
                                            log_pi_ratio, r, spotReg, n_nbr)
 
     effective_real = np.where(beta_cap < 0, beta_cfg, np.minimum(beta_cfg, beta_cap))

@@ -78,7 +78,7 @@ from .utils.elbo import calc_elbo
 # from .analysis import CellExplorer
 from .utils import ops_utils as utils
 from .utils import visualisation
-from .utils.effective_beta import compute_effective_beta
+from .utils.effective_beta import compute_effective_beta_numba
 from ...src.diagnostics.controller.diagnostic_controller import DiagnosticController
 import joblib
 
@@ -479,7 +479,7 @@ class VarBayes:
         # for debugging, safe to remove in the future
         self.cells.nb_contr = contr
         contr = np.sum(contr, axis=1)
-        effective_beta = compute_effective_beta(self)
+        effective_beta = compute_effective_beta_numba(self)
         self.cells.effective_beta = effective_beta
         mrf = self.cells.calc_mrf(effective_beta=effective_beta)
         # stash mrf for debugging (same pattern as nb_contr above)
