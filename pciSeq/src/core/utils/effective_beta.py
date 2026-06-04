@@ -5,9 +5,11 @@ step. See pciSeq_model/mrf_inflection_point.tex for the full derivation.
 For each cell c and each real class k, computes
     beta*_{c,k} = ( |D_k|_struct(c) - bonus_k(c) - log(pi_k / pi_Zero) ) / |N_c|
 with
-    |D_k|_struct = r_gamma * sum_g log[ (r_gamma + (mu+sigma)*xi) / (r_gamma + sigma*xi) ]
-    bonus_k      = sum_g N_{c,g} * log[ (mu+sigma)/sigma * (r_gamma + sigma*xi) / (r_gamma + (mu+sigma)*xi) ]
+    |D_k|_struct = r_gamma * sum_g log[ (r_gamma + mu*xi) / (r_gamma + sigma*xi) ]
+    bonus_k      = sum_g N_{c,g} * log[ mu/sigma * (r_gamma + sigma*xi) / (r_gamma + mu*xi) ]
     xi_g         = A_c * eta_bar_g * theta_bar_{c,k}   (A_c approx 1)
+    (mu = mean_expression_adj, which already carries the SpotReg regulariser
+     sigma baked in; the Zero floor uses sigma directly = the Zero column of mu.)
 
 The effective beta used per (c, k) is then
     min(config['mrf_beta'], max(0, beta*_{c,k}))
@@ -44,11 +46,12 @@ def _calc_beta_cap_numba_kernel(mu_real, eta_bar, theta_bar, theta_zero, N, log_
     nC, G = N.shape
     K_real = mu_real.shape[1]
 
-    # Pre-bake log((mu+sigma)/sigma): independent of the variational state.
+    # Pre-bake log(mu/sigma): mu already carries the SpotReg regulariser (baked
+    # into mean_expression_adj), so no extra +sigma on the class mean here.
     log_mu_ratio = np.empty((G, K_real), dtype=np.float32)
     for g in range(G):
         for k in range(K_real):
-            log_mu_ratio[g, k] = np.log((mu_real[g, k] + sigma) / sigma)
+            log_mu_ratio[g, k] = np.log(mu_real[g, k] / sigma)
 
     beta_cap = np.empty((nC, K_real), dtype=np.float32)
     for c in nb.prange(nC):
@@ -59,11 +62,11 @@ def _calc_beta_cap_numba_kernel(mu_real, eta_bar, theta_bar, theta_zero, N, log_
             tb_ck = theta_bar[c, k]                           # theta_{c,k}
             log_theta_ratio = np.log(tb_ck / tz_c)           # log(theta_{c,k}/theta_{c,Zero})
             for g in range(G):
-                num = r + (mu_real[g, k] + sigma) * (eta_bar[g] * tb_ck)   # r + m_k  (theta_{c,k})
+                num = r + mu_real[g, k] * (eta_bar[g] * tb_ck)             # r + m_k  (mu has eps baked in)
                 den = r + sigma * (eta_bar[g] * tz_c)                       # r + m_0  (theta_{c,Zero})
                 lr = np.log(num / den)
                 acc_log_ratio += lr
-                # bonus_g = N * log[ (mu+sigma)/sigma * theta_{c,k}/theta_{c,Zero} * den/num ]
+                # bonus_g = N * log[ mu/sigma * theta_{c,k}/theta_{c,Zero} * den/num ]
                 acc_bonus += N[c, g] * (log_mu_ratio[g, k] + log_theta_ratio - lr)
             beta_cap[c, k] = (r * acc_log_ratio - acc_bonus - log_pi_ratio[k]) / n_nbr
     return beta_cap
@@ -76,7 +79,7 @@ def beta_cap(obj):
     r = obj.config["rSpot"]
     beta_cfg = obj.config["mrf_beta"]
 
-    a = r + np.einsum("gk,g,ck->cgk", mu[:,:-1] + spotReg, eta_bar, theta_bar[:,:-1])
+    a = r + np.einsum("gk,g,ck->cgk", mu[:,:-1], eta_bar, theta_bar[:,:-1])
     b = r + np.einsum("g,c->cg", spotReg * eta_bar, theta_bar[:,-1])   # (nC, nG)  Zero floor, theta_{c,Zero}
     theta_ratio = theta_bar[:, :-1] / theta_bar[:, -1][:, None]        # (nC, nK-1)  theta_{c,k}/theta_{c,Zero}
 
@@ -84,7 +87,7 @@ def beta_cap(obj):
 
     bonus = (
         obj.cells.geneCount[:, :, None]
-        * np.log((mu[:, :-1] + spotReg) / spotReg * theta_ratio[:, None, :] * (b[:, :, None] / a))
+        * np.log((mu[:, :-1]) / spotReg * theta_ratio[:, None, :] * (b[:, :, None] / a))
     ).sum(axis=1)
 
     log_prior = np.log(obj.cellTypes.prior[:-1] / obj.cellTypes.prior[-1])
@@ -140,10 +143,10 @@ def compute_effective_beta(obj) -> np.ndarray:
         mu_k = mu_real[:, k].astype(np.float32)
         tb = theta_bar[:, k].astype(np.float32)           # theta_{c,k}
         xi_k = eta32[None, :] * tb[:, None]               # (nC, nG)  eta * theta_{c,k}
-        num = r + (mu_k[None, :] + spotReg) * xi_k        # r + m_k
+        num = r + mu_k[None, :] * xi_k                    # r + m_k  (mu has eps baked in)
         D_struct = r * np.log(num / den).sum(axis=1)
-        # m_k/m_0 = (mu+eps)/eps * theta_{c,k}/theta_{c,Zero}  (eta cancels, theta does not)
-        log_mk_over_m0 = np.log((mu_k + spotReg) / spotReg)[None, :] + (np.log(tb) - log_tz)[:, None]
+        # m_k/m_0 = mu/eps * theta_{c,k}/theta_{c,Zero}  (eta cancels, theta does not)
+        log_mk_over_m0 = np.log(mu_k / spotReg)[None, :] + (np.log(tb) - log_tz)[:, None]
         log_bonus_per_gene = log_mk_over_m0 + np.log(den / num)
         bonus = (geneCount * log_bonus_per_gene).sum(axis=1)
         beta_cap[:, k] = (D_struct - bonus - log_pi_ratio[k]) / n_nbr

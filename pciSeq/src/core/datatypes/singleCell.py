@@ -141,10 +141,10 @@ class SingleCell(object):
         me = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")
 
         # apply the inefficiency
-        me = me * self.config['Inefficiency']
+        me = me * self.config['Inefficiency'] + self.config['SpotReg']
 
         # log mean expression
-        lme = np.log(me + self.config['SpotReg'])
+        lme = np.log(me)
         return me, lme
 
     def _gene_expressions(self, fitted, scale):

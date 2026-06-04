@@ -72,7 +72,7 @@ def poisson_process_loglikelihood(obj):
     """
     zeta_ck = obj.cells.classProb
     theta_ck = obj.cells.theta_bar
-    mu_gk = obj.single_cell.mean_expression_adj.values + obj.config['SpotReg']
+    mu_gk = obj.single_cell.mean_expression_adj.values
     A_c = obj.cells.ini_cell_props['area_factor']
     gamma_cgk = obj.spots.gamma_bar.compute()
     eta_g = obj.genes.eta_bar

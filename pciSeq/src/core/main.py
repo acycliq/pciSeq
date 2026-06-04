@@ -206,7 +206,7 @@ class VarBayes:
 
 
 
-        mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
+        mu = self.single_cell.mean_expression_adj
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
         eta_bar = self.genes.eta_bar
@@ -685,7 +685,7 @@ class VarBayes:
         #     'The sum of the background spots and the total gene counts should be equal to the number of spots'
 
         classProb = self.cells.classProb
-        mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
+        mu = self.single_cell.mean_expression_adj
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
         theta_bar = self.cells.theta_bar
@@ -859,7 +859,7 @@ class VarBayes:
         geneCounts = self.cells.geneCount.sum(axis=1)
         alpha = geneCounts + self.config['rTheta'] - 1
 
-        mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
+        mu = self.single_cell.mean_expression_adj
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
         eta_bar = self.genes.eta_bar
