@@ -41,9 +41,15 @@ _N_FLOOR = np.float32(1e-3)
 
 def _neighbour_count(obj) -> np.ndarray:
     """
-    Real-class block of cells.neighbour_support, floored away from zero.
-    Returns an (nC, nK-1) float32 array of n_{c,k}.
+    Denominator the per-(cell, class) cap divides by, an (nC, nK-1) float32 array.
+    Controlled by config['mrf_cap_denominator']:
+      "soft"       -> n_{c,k}, the proximity-weighted soft count of neighbours
+                      actually in class k (cells.neighbour_support), floored.
+      "worst_case" -> nNeighbors everywhere (the old /nN cap).
     """
+    if obj.config.get('mrf_cap_denominator', 'soft') == 'worst_case':
+        n_nbr = np.float32(obj.config['nNeighbors'])
+        return np.full((obj.nC, obj.nK - 1), n_nbr, dtype=np.float32)
     n_ck = np.asarray(obj.cells.neighbour_support(), dtype=np.float32)[:, :-1]
     return np.maximum(n_ck, _N_FLOOR)
 
