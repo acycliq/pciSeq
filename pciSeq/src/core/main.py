@@ -479,9 +479,14 @@ class VarBayes:
         # for debugging, safe to remove in the future
         self.cells.nb_contr = contr
         contr = np.sum(contr, axis=1)
-        effective_beta = compute_effective_beta_numba(self)
-        self.cells.effective_beta = effective_beta
-        mrf = self.cells.calc_mrf(effective_beta=effective_beta)
+        if self.config.get('apply_mrf_cap', True):
+            effective_beta = compute_effective_beta_numba(self)
+            self.cells.effective_beta = effective_beta
+            mrf = self.cells.calc_mrf(effective_beta=effective_beta)
+        else:
+            # cap off: flat mrf_beta everywhere, no per-(cell, class) cap
+            self.cells.effective_beta = None
+            mrf = self.cells.calc_mrf()
         # stash mrf for debugging (same pattern as nb_contr above)
         self.cells.mrf = mrf
         # mrf = self.cells.classProb[self.cells.nbrs].sum(axis=1)

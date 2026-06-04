@@ -30,6 +30,10 @@ DEFAULT = {
     # MRF coefficient: controls how strongly neighboring cells' class assignments
     # influence each other. Higher values = more spatial smoothing.
     "mrf_beta": 1.0,
+    # If True the per-(cell, class) adaptive cap (effective_beta) is applied to the
+    # MRF. If False the cap is skipped entirely and a flat mrf_beta is used for
+    # every cell (the mrf_cap_shrink knob below then has no effect).
+    "apply_mrf_cap": True,
     # Shrink factor on the per-(cell, class) MRF cap. The cap sits at the beta
     # where the MRF push would exactly tie the data+prior preference for Zero;
     # rho < 1 keeps the push at rho * (that margin), so Zero wins by a (1-rho)
