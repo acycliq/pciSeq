@@ -350,7 +350,17 @@ class Cells(object):
         }
         return out
 
-    def calc_mrf(self, effective_beta=None):
+    def neighbour_support(self):
+        """
+        Proximity-weighted soft count of neighbours in each class, after the
+        similarity-pooling matrix A. Row c, column k holds n_{c,k}: the
+        effective number of neighbours pushing cell c toward class k. This is
+        exactly the quantity that beta multiplies in the MRF potential, so
+        calc_mrf is just this times beta, and the MRF cap divides by it.
+
+        Returns an (nC, nK) array. The Zero column is identically 0 (the Zero
+        row of A is zeroed, so no neighbour ever supports the Zero class).
+        """
         nbrs_idx = self.nbrs['indices']
 
         # Weight each neighbor by 1/distance so closer cells have more influence.
@@ -410,6 +420,11 @@ class Cells(object):
         A[-1, :] = 0
 
         mrf = oe.contract('ck, kj -> cj', mrf, A)
+
+        return mrf
+
+    def calc_mrf(self, effective_beta=None):
+        mrf = self.neighbour_support()
 
         if effective_beta is None:
             out = mrf * self.config["mrf_beta"]

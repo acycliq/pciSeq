@@ -3,13 +3,21 @@ Per-(cell, class) adaptive cap on the MRF strength used in the cell-typing
 step. See pciSeq_model/mrf_inflection_point.tex for the full derivation.
 
 For each cell c and each real class k, computes
-    beta*_{c,k} = ( |D_k|_struct(c) - bonus_k(c) - log(pi_k / pi_Zero) ) / |N_c|
-with
+    beta*_{c,k} = rho * ( |D_k|_struct(c) - bonus_k(c) - log(pi_k / pi_Zero) ) / n_{c,k}
+with rho = config['mrf_cap_shrink'] (a safety margin: rho=1 puts the MRF push at
+the exact tie with the data+prior preference for Zero, rho<1 keeps Zero ahead by
+a (1-rho) margin), and
     |D_k|_struct = r_gamma * sum_g log[ (r_gamma + mu*xi) / (r_gamma + sigma*xi) ]
     bonus_k      = sum_g N_{c,g} * log[ mu/sigma * (r_gamma + sigma*xi) / (r_gamma + mu*xi) ]
     xi_g         = A_c * eta_bar_g * theta_bar_{c,k}   (A_c approx 1)
     (mu = mean_expression_adj, which already carries the SpotReg regulariser
      sigma baked in; the Zero floor uses sigma directly = the Zero column of mu.)
+    n_{c,k}      = proximity-weighted soft count of neighbours of cell c that
+                  sit in class k (cells.neighbour_support), i.e. exactly the
+                  coefficient of beta in the MRF push toward class k. Using this
+                  instead of the worst-case nNeighbors stops the cap from
+                  over-suppressing beta for classes that occupy only part of the
+                  neighbourhood.
 
 The effective beta used per (c, k) is then
     min(config['mrf_beta'], max(0, beta*_{c,k}))
@@ -25,10 +33,24 @@ kernel that runs about 4x faster on a 24k-cell run.
 import numba as nb
 import numpy as np
 
+# Floor on n_{c,k}. Below this a class barely sits in the neighbourhood, so its
+# MRF push (beta * n_{c,k}) is negligible regardless of beta; the floor only
+# keeps the division finite and lets such (c, k) pass through the full beta.
+_N_FLOOR = np.float32(1e-3)
+
+
+def _neighbour_count(obj) -> np.ndarray:
+    """
+    Real-class block of cells.neighbour_support, floored away from zero.
+    Returns an (nC, nK-1) float32 array of n_{c,k}.
+    """
+    n_ck = np.asarray(obj.cells.neighbour_support(), dtype=np.float32)[:, :-1]
+    return np.maximum(n_ck, _N_FLOOR)
+
 
 @nb.njit(parallel=True, fastmath=True, cache=True)
 def _calc_beta_cap_numba_kernel(mu_real, eta_bar, theta_bar, theta_zero, N, log_pi_ratio,
-                                r, sigma, n_nbr):
+                                r, sigma, n_ck, rho):
     """
     Fused triple-nested kernel for the per-(cell, class) MRF cap. Equivalent
     to ``compute_effective_beta`` but does the elementwise log / multiply /
@@ -68,7 +90,7 @@ def _calc_beta_cap_numba_kernel(mu_real, eta_bar, theta_bar, theta_zero, N, log_
                 acc_log_ratio += lr
                 # bonus_g = N * log[ mu/sigma * theta_{c,k}/theta_{c,Zero} * den/num ]
                 acc_bonus += N[c, g] * (log_mu_ratio[g, k] + log_theta_ratio - lr)
-            beta_cap[c, k] = (r * acc_log_ratio - acc_bonus - log_pi_ratio[k]) / n_nbr
+            beta_cap[c, k] = rho * (r * acc_log_ratio - acc_bonus - log_pi_ratio[k]) / n_ck[c, k]
     return beta_cap
 
 def beta_cap(obj):
@@ -77,6 +99,7 @@ def beta_cap(obj):
     mu = obj.single_cell.mean_expression_adj.values
     spotReg = obj.config["SpotReg"]
     r = obj.config["rSpot"]
+    rho = obj.config["mrf_cap_shrink"]
     beta_cfg = obj.config["mrf_beta"]
 
     a = r + np.einsum("gk,g,ck->cgk", mu[:,:-1], eta_bar, theta_bar[:,:-1])
@@ -92,7 +115,8 @@ def beta_cap(obj):
 
     log_prior = np.log(obj.cellTypes.prior[:-1] / obj.cellTypes.prior[-1])
 
-    beta_cap = (struct - bonus - log_prior) / obj.config["nNeighbors"]
+    n_ck = _neighbour_count(obj)                                       # (nC, nK-1)  n_{c,k}
+    beta_cap = rho * (struct - bonus - log_prior) / n_ck
     beta_cap = np.where(beta_cap < 0, beta_cfg, np.minimum(beta_cfg, beta_cap))
 
     out = np.full((obj.nC, obj.nK), beta_cfg, dtype=np.float32)
@@ -111,8 +135,10 @@ def compute_effective_beta(obj) -> np.ndarray:
     """
     r = obj.config['rSpot']
     spotReg = obj.config['SpotReg']
-    n_nbr = obj.config['nNeighbors']
+    rho = obj.config['mrf_cap_shrink']
     beta_cfg = obj.config['mrf_beta']
+
+    n_ck = _neighbour_count(obj)                          # (nC, nK-1)  n_{c,k}
 
     mu = obj.single_cell.mean_expression_adj.values       # (nG, nK)
     mu_real = mu[:, :-1]                                  # (nG, nK-1)
@@ -149,7 +175,7 @@ def compute_effective_beta(obj) -> np.ndarray:
         log_mk_over_m0 = np.log(mu_k / spotReg)[None, :] + (np.log(tb) - log_tz)[:, None]
         log_bonus_per_gene = log_mk_over_m0 + np.log(den / num)
         bonus = (geneCount * log_bonus_per_gene).sum(axis=1)
-        beta_cap[:, k] = (D_struct - bonus - log_pi_ratio[k]) / n_nbr
+        beta_cap[:, k] = rho * (D_struct - bonus - log_pi_ratio[k]) / n_ck[:, k]
 
     # When beta_cap < 0 the data and baseline prior already prefer class k
     # over Zero, so no cap is needed and we use the full configured beta.
@@ -169,7 +195,7 @@ def compute_effective_beta_numba(obj) -> np.ndarray:
     """
     r = np.float32(obj.config['rSpot'])
     spotReg = np.float32(obj.config['SpotReg'])
-    n_nbr = np.float32(obj.config['nNeighbors'])
+    rho = np.float32(obj.config['mrf_cap_shrink'])
     beta_cfg = obj.config['mrf_beta']
 
     mu = obj.single_cell.mean_expression_adj.values.astype(np.float32)       # (nG, nK)
@@ -183,8 +209,13 @@ def compute_effective_beta_numba(obj) -> np.ndarray:
     log_prior = np.asarray(obj.cellTypes.log_prior, dtype=np.float32)        # (nK,)
     log_pi_ratio = log_prior[:-1] - log_prior[-1]                            # (nK-1,)
 
+    # n_{c,k}: proximity-weighted soft count of neighbours in class k, the same
+    # quantity beta multiplies in calc_mrf. Floored away from zero so classes
+    # absent from the neighbourhood (push = beta*0 = 0 anyway) don't divide by 0.
+    n_ck = _neighbour_count(obj)                                             # (nC, nK-1)
+
     beta_cap = _calc_beta_cap_numba_kernel(mu_real, eta_bar, theta_bar, theta_zero, geneCount,
-                                           log_pi_ratio, r, spotReg, n_nbr)
+                                           log_pi_ratio, r, spotReg, n_ck, rho)
 
     effective_real = np.where(beta_cap < 0, beta_cfg, np.minimum(beta_cfg, beta_cap))
 

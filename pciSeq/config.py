@@ -30,6 +30,12 @@ DEFAULT = {
     # MRF coefficient: controls how strongly neighboring cells' class assignments
     # influence each other. Higher values = more spatial smoothing.
     "mrf_beta": 1.0,
+    # Shrink factor on the per-(cell, class) MRF cap. The cap sits at the beta
+    # where the MRF push would exactly tie the data+prior preference for Zero;
+    # rho < 1 keeps the push at rho * (that margin), so Zero wins by a (1-rho)
+    # margin instead of landing on a coin-flip tie. rho=1 is the bare tie,
+    # rho->0 muzzles the MRF. See pciSeq_model/mrf_inflection_point.tex.
+    "mrf_cap_shrink": 0.98,
     # MisreadDensity: Expected number of misread spots. A dictionary contains user-defined values
     # for gene misread densities used in the analysis.
     # The process to determine the misread density for each gene is as follows:
