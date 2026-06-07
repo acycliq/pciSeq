@@ -1,0 +1,44 @@
+/**
+ * Global styling for the pciSeq docs.
+ * Kept small on purpose: a calm accent colour and a little breathing room
+ * around the diagrams. Everything else is the Docusaurus default.
+ */
+
+:root {
+  --ifm-color-primary: #2e7d6b;
+  --ifm-color-primary-dark: #299463;
+  --ifm-color-primary-darker: #277658;
+  --ifm-color-primary-darkest: #205c47;
+  --ifm-color-primary-light: #33a06f;
+  --ifm-color-primary-lighter: #3fb37d;
+  --ifm-color-primary-lightest: #5fc394;
+  --ifm-code-font-size: 95%;
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #4fc3a1;
+  --ifm-color-primary-dark: #38b894;
+  --ifm-color-primary-darker: #34ad8b;
+  --ifm-color-primary-darkest: #2b8f72;
+  --ifm-color-primary-light: #66cbae;
+  --ifm-color-primary-lighter: #71cfb5;
+  --ifm-color-primary-lightest: #93dbc7;
+}
+
+/* Centre the hand-made diagrams and give them room. */
+.docs-figure {
+  margin: 2rem auto;
+  text-align: center;
+}
+
+.docs-figure img,
+.docs-figure svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.docs-figure figcaption {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  opacity: 0.75;
+}

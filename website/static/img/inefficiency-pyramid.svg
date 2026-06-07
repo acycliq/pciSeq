@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 480" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <defs>
+    <style>
+      .tier { stroke: #ffffff; stroke-width: 2; }
+      .name { fill: #ffffff; font-weight: 700; font-size: 22px; }
+      .desc { fill: #ffffff; font-size: 13px; opacity: 0.92; }
+      .axis { fill: #6b7280; font-size: 13px; font-style: italic; }
+      .axislabel { fill: #374151; font-size: 14px; font-weight: 600; }
+    </style>
+  </defs>
+
+  <!-- apex: gamma (narrowest, most idiosyncratic) -->
+  <polygon class="tier" fill="#205c47" points="380,30 470,140 290,140" />
+  <text class="name" x="380" y="95" text-anchor="middle">gamma</text>
+  <text class="desc" x="380" y="120" text-anchor="middle">one gene, one cell</text>
+
+  <!-- theta: per cell -->
+  <polygon class="tier" fill="#277658" points="290,140 470,140 520,250 240,250" />
+  <text class="name" x="380" y="185" text-anchor="middle">theta</text>
+  <text class="desc" x="380" y="212" text-anchor="middle">one cell, all its genes</text>
+
+  <!-- eta: per gene -->
+  <polygon class="tier" fill="#33a06f" points="240,250 520,250 570,360 190,360" />
+  <text class="name" x="380" y="298" text-anchor="middle">eta</text>
+  <text class="desc" x="380" y="325" text-anchor="middle">one gene, all cells</text>
+
+  <!-- base: Inefficiency (widest, fully systematic) -->
+  <polygon class="tier" fill="#5fc394" points="190,360 570,360 630,460 130,460" />
+  <text class="name" x="380" y="405" text-anchor="middle" fill="#0f2c22">Inefficiency</text>
+  <text class="desc" x="380" y="432" text-anchor="middle" fill="#0f2c22">the whole experiment at once</text>
+
+  <!-- granularity axis on the right -->
+  <line x1="690" y1="60" x2="690" y2="450" stroke="#9ca3af" stroke-width="2" marker-end="url(#arrow)" />
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#9ca3af" />
+    </marker>
+  </defs>
+  <text class="axis" x="705" y="80" transform="rotate(90 705,80)">more idiosyncratic</text>
+  <text class="axis" x="705" y="300" transform="rotate(90 705,300)">more systematic</text>
+
+  <!-- left caption -->
+  <text class="axislabel" x="70" y="250" text-anchor="middle" transform="rotate(-90 70,250)">scope of the correction</text>
+</svg>
