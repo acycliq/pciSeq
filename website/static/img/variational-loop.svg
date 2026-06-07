@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;600&amp;display=swap');
+      
+      .arc-path { fill: rgba(255, 255, 255, 0.05); stroke: rgba(255, 255, 255, 0.2); stroke-width: 1; }
+      .arc-highlight { fill: rgba(72, 187, 120, 0.1); stroke: #48BB78; stroke-width: 1.5; }
+      .text-label { fill: #FFFFFF; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+      .center-title { fill: #FFFFFF; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 300; letter-spacing: 0.4em; opacity: 0.4; }
+      .arrowhead { fill: rgba(255, 255, 255, 0.8); }
+      .arrowhead-highlight { fill: #48BB78; }
+    </style>
+
+    <!-- Paths for the text to follow -->
+    <path id="txtPath1" d="M 400,90 A 160,160 0 0,1 560,250" />
+    <path id="txtPath2" d="M 560,250 A 160,160 0 0,1 400,410" />
+    <path id="txtPath3" d="M 400,410 A 160,160 0 0,1 240,250" />
+    <path id="txtPath4" d="M 240,250 A 160,160 0 0,1 400,90" />
+  </defs>
+
+  <!-- Central Title -->
+  <text x="400" y="255" text-anchor="middle" class="center-title">THE VARIATIONAL LOOP</text>
+  <circle cx="400" cy="250" r="100" fill="none" stroke="white" stroke-width="0.5" stroke-dasharray="2 6" opacity="0.2" />
+
+  <g>
+    <!-- Segment 1: Misread Density (Top Right) -->
+    <path class="arc-path" d="M 405,60 A 190,190 0 0,1 590,245 L 540,245 A 140,140 0 0,0 405,110 Z" />
+    <path class="arrowhead" d="M 590,245 L 605,235 L 590,265 L 575,235 Z" />
+    <text class="text-label">
+      <textPath href="#txtPath1" startOffset="50%" text-anchor="middle">Misread Density</textPath>
+    </text>
+
+    <!-- Segment 2: Warping Reference (Bottom Right) -->
+    <path class="arc-path arc-highlight" d="M 590,255 A 190,190 0 0,1 405,440 L 405,390 A 140,140 0 0,0 540,255 Z" />
+    <path class="arrowhead arrowhead-highlight" d="M 405,440 L 415,455 L 385,440 L 415,425 Z" />
+    <text class="text-label">
+      <textPath href="#txtPath2" startOffset="50%" text-anchor="middle">Warping Reference</textPath>
+    </text>
+
+    <!-- Segment 3: Cell Typing (Bottom Left) -->
+    <path class="arc-path" d="M 395,440 A 190,190 0 0,1 210,255 L 260,255 A 140,140 0 0,0 395,390 Z" />
+    <path class="arrowhead" d="M 210,255 L 195,265 L 210,235 L 225,265 Z" />
+    <text class="text-label">
+      <textPath href="#txtPath3" startOffset="50%" text-anchor="middle">Cell Typing</textPath>
+    </text>
+
+    <!-- Segment 4: Spot Assignment (Top Left) -->
+    <path class="arc-path" d="M 210,245 A 190,190 0 0,1 395,60 L 395,110 A 140,140 0 0,0 260,245 Z" />
+    <path class="arrowhead" d="M 395,60 L 385,45 L 415,60 L 385,75 Z" />
+    <text class="text-label">
+      <textPath href="#txtPath4" startOffset="50%" text-anchor="middle">Spot Assignment</textPath>
+    </text>
+  </g>
+</svg>

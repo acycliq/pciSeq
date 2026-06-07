@@ -19,16 +19,7 @@ question, passing notes to each other until they all agree.
 
 ## The four building blocks
 
-```mermaid
-flowchart LR
-    A([Estimate the<br/>misread density<br/>per gene]) --> B([Warp the<br/>single-cell<br/>reference])
-    B --> C([Assign cells<br/>to cell types])
-    C --> D([Assign spots<br/>to cells])
-    D -. updated counts .-> A
-
-    classDef block fill:#2e7d6b,stroke:#205c47,color:#fff,rx:8,ry:8;
-    class A,B,C,D block;
-```
+![The pciSeq variational loop](../../static/img/variational-loop.svg)
 
 <div className="docs-figure">
 <figcaption>The variational loop. Each block feeds the next, and the last block feeds
