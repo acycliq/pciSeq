@@ -1,44 +1,50 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 480" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
+  <!-- Zen Dark-Friendly Palette -->
   <defs>
     <style>
-      .tier { stroke: #ffffff; stroke-width: 2; }
-      .name { fill: #ffffff; font-weight: 700; font-size: 22px; }
-      .desc { fill: #ffffff; font-size: 13px; opacity: 0.92; }
-      .axis { fill: #6b7280; font-size: 13px; font-style: italic; }
-      .axislabel { fill: #374151; font-size: 14px; font-weight: 600; }
+      .line { stroke: #FFFFFF; stroke-width: 1; fill: none; opacity: 0.8; }
+      .projection { stroke: #FFFFFF; stroke-width: 0.5; stroke-dasharray: 2 4; opacity: 0.4; }
+      .label-main { fill: #FFFFFF; font-family: 'Inter', system-ui, sans-serif; font-size: 18px; font-weight: 300; letter-spacing: 0.1em; }
+      .label-sub { fill: #A0AEC0; font-family: 'Inter', system-ui, sans-serif; font-size: 12px; font-style: italic; letter-spacing: 0.05em; }
+      .dot { fill: #FFFFFF; }
+      .accent-dot { fill: #48BB78; }
     </style>
   </defs>
 
-  <!-- apex: gamma (narrowest, most idiosyncratic) -->
-  <polygon class="tier" fill="#205c47" points="380,30 470,140 290,140" />
-  <text class="name" x="380" y="95" text-anchor="middle">gamma</text>
-  <text class="desc" x="380" y="120" text-anchor="middle">one gene, one cell</text>
+  <!-- Level 4: GAMMA -->
+  <path class="line" d="M380 80 L420 80 L400 60 Z" fill="rgba(255, 255, 255, 0.1)"/>
+  <circle class="accent-dot" cx="400" cy="73" r="2"/>
+  <text x="440" y="75" class="label-main">γ <tspan class="label-sub">(gamma)</tspan></text>
+  <text x="440" y="95" class="label-sub">One gene, one cell.</text>
 
-  <!-- theta: per cell -->
-  <polygon class="tier" fill="#277658" points="290,140 470,140 520,250 240,250" />
-  <text class="name" x="380" y="185" text-anchor="middle">theta</text>
-  <text class="desc" x="380" y="212" text-anchor="middle">one cell, all its genes</text>
+  <!-- Level 3: THETA -->
+  <path class="line" d="M340 180 L460 180 L440 150 L360 150 Z" fill="rgba(255, 255, 255, 0.05)"/>
+  <text x="480" y="165" class="label-main">θ <tspan class="label-sub">(theta)</tspan></text>
+  <text x="480" y="185" class="label-sub">One cell, all genes.</text>
 
-  <!-- eta: per gene -->
-  <polygon class="tier" fill="#33a06f" points="240,250 520,250 570,360 190,360" />
-  <text class="name" x="380" y="298" text-anchor="middle">eta</text>
-  <text class="desc" x="380" y="325" text-anchor="middle">one gene, all cells</text>
+  <!-- Level 2: ETA -->
+  <path class="line" d="M280 300 L520 300 L490 260 L310 260 Z" fill="rgba(255, 255, 255, 0.03)"/>
+  <text x="540" y="280" class="label-main">η <tspan class="label-sub">(eta)</tspan></text>
+  <text x="540" y="300" class="label-sub">One gene, all cells.</text>
 
-  <!-- base: Inefficiency (widest, fully systematic) -->
-  <polygon class="tier" fill="#5fc394" points="190,360 570,360 630,460 130,460" />
-  <text class="name" x="380" y="405" text-anchor="middle" fill="#0f2c22">Inefficiency</text>
-  <text class="desc" x="380" y="432" text-anchor="middle" fill="#0f2c22">the whole experiment at once</text>
+  <!-- Level 1: SYSTEMIC -->
+  <path class="line" d="M180 440 L620 440 L580 380 L220 380 Z" fill="rgba(255, 255, 255, 0.02)"/>
+  <text x="640" y="410" class="label-main">Global <tspan class="label-sub">Inefficiency</tspan></text>
+  <text x="640" y="430" class="label-sub">Rescales the whole experiment.</text>
 
-  <!-- granularity axis on the right -->
-  <line x1="690" y1="60" x2="690" y2="450" stroke="#9ca3af" stroke-width="2" marker-end="url(#arrow)" />
-  <defs>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
-      <path d="M0,0 L10,5 L0,10 z" fill="#9ca3af" />
-    </marker>
-  </defs>
-  <text class="axis" x="705" y="80" transform="rotate(90 705,80)">more idiosyncratic</text>
-  <text class="axis" x="705" y="300" transform="rotate(90 705,300)">more systematic</text>
+  <!-- Connectors -->
+  <line class="projection" x1="400" y1="80" x2="400" y2="380"/>
+  <line class="projection" x1="340" y1="180" x2="180" y2="440"/>
+  <line class="projection" x1="460" y1="180" x2="620" y2="440"/>
 
-  <!-- left caption -->
-  <text class="axislabel" x="70" y="250" text-anchor="middle" transform="rotate(-90 70,250)">scope of the correction</text>
+  <!-- Intersection Dots -->
+  <circle class="dot" cx="400" cy="80" r="1.5"/>
+  <circle class="dot" cx="340" cy="180" r="1.5"/>
+  <circle class="dot" cx="460" cy="180" r="1.5"/>
+  <circle class="dot" cx="280" cy="300" r="1.5"/>
+  <circle class="dot" cx="520" cy="300" r="1.5"/>
+  
+  <!-- Side indicator -->
+  <line x1="80" y1="60" x2="80" y2="440" stroke="#718096" stroke-width="1"/>
+  <text x="70" y="250" transform="rotate(-90 70,250)" class="label-sub" style="fill:#718096; font-size: 14px;">GRANULARITY INCREASES</text>
 </svg>

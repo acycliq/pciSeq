@@ -64,11 +64,9 @@ broad, systematic factor sits at the base, affecting everything at once. As you 
 the corrections get narrower and more specific, until you reach gamma at the apex,
 which speaks about just one gene in just one cell.
 
-<figure className="docs-figure">
-  <img src="/img/inefficiency-pyramid.svg" alt="A pyramid of the four scaling factors. The base is the fully systematic Inefficiency constant; above it eta (per gene), then theta (per cell), and at the apex gamma (per gene per cell), the most idiosyncratic." />
-  <figcaption>The same idea, four levels of granularity. Wide and systematic at the
-  bottom, narrow and idiosyncratic at the top.</figcaption>
-</figure>
+![A pyramid of the four scaling factors](../../static/img/inefficiency-pyramid.svg)
+
+<div className="docs-figure"><figcaption>The same idea, four levels of granularity. Wide and systematic at the bottom, narrow and idiosyncratic at the top.</figcaption></div>
 
 Why have all four instead of one? Because mismatch lives at all of these levels at once.
 There is a global scale difference between the two technologies (handled at the base),
