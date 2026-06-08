@@ -15,7 +15,7 @@
   <path d="M 70,54 L 76,68 L 70,64 L 64,68 Z" fill="#4a5568" />
   <text class="axis" transform="rotate(-90 90,230)" x="90" y="230" text-anchor="middle">GRANULARITY INCREASES</text>
 
-  <!-- tiers: apex (most idiosyncratic) down to the systematic base -->
+  <!-- tiers: apex (most idiosyncratic) down to the systemic base -->
   <path class="tier" fill="#5fc394" d="M 300,60.0 L 342.9,141.0 L 257.1,141.0 Z" />
   <path class="tier" fill="#3fa07a" d="M 252.9,149.0 L 347.1,149.0 L 387.9,226.0 L 212.1,226.0 Z" />
   <path class="tier" fill="#2f7d63" d="M 207.9,234.0 L 392.1,234.0 L 432.9,311.0 L 167.1,311.0 Z" />

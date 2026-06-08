@@ -8,45 +8,45 @@ slug: /
 
 # What is pciSeq?
 
-**pciSeq** (probabilistic cell typing by in situ sequencing) takes the raw output of
-an in situ sequencing experiment and answers two questions at the same time:
+**pciSeq** (probabilistic cell typing by in situ sequencing) processes the output of an
+in situ sequencing experiment and addresses two coupled questions simultaneously:
 
 1. **Which cell does each RNA spot belong to?**
-2. **What cell type is each cell?**
+2. **What is the type of each cell?**
 
-These two questions are tangled together. You cannot confidently say what type a cell
-is until you know which spots are inside it, and you cannot confidently assign a spot
-to a cell until you have a sense of what that cell is. pciSeq deals with this by
-**going back and forth** between the two answers, refining both a little at a time
-until they stop changing. That back-and-forth is the heart of the method.
+The two questions are interdependent. The type of a cell cannot be determined with
+confidence without knowing which spots lie within it, and a spot cannot be assigned to a
+cell without an estimate of that cell's type. pciSeq resolves this by estimating both
+quantities jointly, refining them in alternation until they stabilise.
 
-## What goes in
+## Inputs
 
-- **Spots.** A table of detected RNA reads: which gene each one is, and where it sits
-  in space (`x`, `y`, and a `z`-plane for 3D data).
-- **A segmentation.** A label image marking which pixels belong to which cell, usually
-  from a DAPI nuclear stain.
-- **A single-cell reference.** A table of average expression per gene for each known
-  cell type, taken from a separate scRNA-seq experiment. This is the "dictionary" of
-  what each cell type is supposed to look like.
+- **Spots.** A table of detected RNA reads, each with its gene identity and spatial
+  location (`x`, `y`, and a `z`-plane for 3D data).
+- **A segmentation.** A label image indicating which pixels belong to which cell,
+  typically derived from a DAPI nuclear stain.
+- **Cell type definitions.** A table of average expression per gene for each known cell
+  type, obtained from a separate scRNA-seq experiment. These provide the reference
+  profiles of the candidate cell types.
 
-## What comes out
+## Outputs
 
-- A **cell type** for every cell, given as a probability over the known types (so you
-  also see how confident the call is).
-- A **parent cell** for every spot, again as a probability (a spot can be shared
-  between neighbours, or flagged as background noise).
+- A **cell type** for every cell, expressed as a probability distribution over the known
+  types, which also conveys the confidence of the assignment.
+- A **parent cell** for every spot, again as a probability: a spot may be shared between
+  neighbouring cells or attributed to the background.
 
-## Why probabilities, not hard labels
+## Why probabilities rather than hard labels
 
-Segmentation boundaries are fuzzy, genes are detected imperfectly, and some reads are
-just noise. Instead of pretending these are certain, pciSeq keeps everything as a
-probability and lets the evidence accumulate. A spot that clearly sits inside one cell
-and matches its expression gets assigned with high confidence; an ambiguous spot near a
-boundary is split. The same is true for cell types.
+Segmentation boundaries are imprecise, gene detection is imperfect, and a fraction of
+reads are noise. Rather than committing to single answers, pciSeq represents every
+assignment as a probability and lets the evidence accumulate across iterations. A spot
+that lies clearly within one cell and matches its expression is assigned with high
+confidence; an ambiguous spot near a boundary is divided between cells. The same applies
+to cell types.
 
 ## Where to go next
 
-The rest of these docs walk through **how the algorithm actually works**, one building
-block at a time. Start with the [overview](how-it-works/overview.md) to see the whole
-loop, then read each block in order.
+The following pages describe how the algorithm works, one building block at a time. Begin
+with the [overview](how-it-works/overview.md) for the structure of the loop, then read
+the blocks in order.
