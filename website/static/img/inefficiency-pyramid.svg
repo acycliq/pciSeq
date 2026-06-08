@@ -1,50 +1,44 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
-  <!-- Zen Dark-Friendly Palette -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 460">
   <defs>
     <style>
-      .line { stroke: #FFFFFF; stroke-width: 1; fill: none; opacity: 0.8; }
-      .projection { stroke: #FFFFFF; stroke-width: 0.5; stroke-dasharray: 2 4; opacity: 0.4; }
-      .label-main { fill: #FFFFFF; font-family: 'Inter', system-ui, sans-serif; font-size: 18px; font-weight: 300; letter-spacing: 0.1em; }
-      .label-sub { fill: #A0AEC0; font-family: 'Inter', system-ui, sans-serif; font-size: 12px; font-style: italic; letter-spacing: 0.05em; }
-      .dot { fill: #FFFFFF; }
-      .accent-dot { fill: #48BB78; }
+      .tier { stroke: rgba(255,255,255,0.35); stroke-width: 1; stroke-linejoin: round; }
+      .glyph { fill: #ffffff; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 26px; font-weight: 600; }
+      .name { fill: #cbd5e0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 14px; font-style: italic; }
+      .desc { fill: #ffffff; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; opacity: 0.7; }
+      .axis { fill: #718096; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; letter-spacing: 0.15em; }
+      .leader { stroke: rgba(255,255,255,0.18); stroke-width: 1; stroke-dasharray: 2 4; }
     </style>
   </defs>
 
-  <!-- Level 4: GAMMA -->
-  <path class="line" d="M380 80 L420 80 L400 60 Z" fill="rgba(255, 255, 255, 0.1)"/>
-  <circle class="accent-dot" cx="400" cy="73" r="2"/>
-  <text x="440" y="75" class="label-main">γ <tspan class="label-sub">(gamma)</tspan></text>
-  <text x="440" y="95" class="label-sub">One gene, one cell.</text>
+  <!-- granularity axis: line + explicit arrowhead, both centred on x=70 -->
+  <line x1="70" y1="396" x2="70" y2="66" stroke="#4a5568" stroke-width="1.5" />
+  <path d="M 70,54 L 76,68 L 70,64 L 64,68 Z" fill="#4a5568" />
+  <text class="axis" transform="rotate(-90 90,230)" x="90" y="230" text-anchor="middle">GRANULARITY INCREASES</text>
 
-  <!-- Level 3: THETA -->
-  <path class="line" d="M340 180 L460 180 L440 150 L360 150 Z" fill="rgba(255, 255, 255, 0.05)"/>
-  <text x="480" y="165" class="label-main">θ <tspan class="label-sub">(theta)</tspan></text>
-  <text x="480" y="185" class="label-sub">One cell, all genes.</text>
+  <!-- tiers: apex (most idiosyncratic) down to the systematic base -->
+  <path class="tier" fill="#5fc394" d="M 300,60.0 L 342.9,141.0 L 257.1,141.0 Z" />
+  <path class="tier" fill="#3fa07a" d="M 252.9,149.0 L 347.1,149.0 L 387.9,226.0 L 212.1,226.0 Z" />
+  <path class="tier" fill="#2f7d63" d="M 207.9,234.0 L 392.1,234.0 L 432.9,311.0 L 167.1,311.0 Z" />
+  <path class="tier" fill="#1f5a4a" d="M 162.9,319.0 L 437.1,319.0 L 477.9,396.0 L 122.1,396.0 Z" />
 
-  <!-- Level 2: ETA -->
-  <path class="line" d="M280 300 L520 300 L490 260 L310 260 Z" fill="rgba(255, 255, 255, 0.03)"/>
-  <text x="540" y="280" class="label-main">η <tspan class="label-sub">(eta)</tspan></text>
-  <text x="540" y="300" class="label-sub">One gene, all cells.</text>
+  <!-- leader lines from each tier's right edge to its label -->
+  <line class="leader" x1="343" y1="100.5" x2="540" y2="100.5" />
+  <line class="leader" x1="368" y1="187.5" x2="540" y2="187.5" />
+  <line class="leader" x1="413" y1="272.5" x2="540" y2="272.5" />
+  <line class="leader" x1="458" y1="357.5" x2="540" y2="357.5" />
 
-  <!-- Level 1: SYSTEMIC -->
-  <path class="line" d="M180 440 L620 440 L580 380 L220 380 Z" fill="rgba(255, 255, 255, 0.02)"/>
-  <text x="640" y="410" class="label-main">Global <tspan class="label-sub">Inefficiency</tspan></text>
-  <text x="640" y="430" class="label-sub">Rescales the whole experiment.</text>
+  <!-- labels -->
+  <g>
+    <text x="550" y="96" class="glyph">&#947; <tspan class="name">(gamma)</tspan></text>
+    <text x="550" y="116" class="desc">one gene, one cell, one class</text>
 
-  <!-- Connectors -->
-  <line class="projection" x1="400" y1="80" x2="400" y2="380"/>
-  <line class="projection" x1="340" y1="180" x2="180" y2="440"/>
-  <line class="projection" x1="460" y1="180" x2="620" y2="440"/>
+    <text x="550" y="183" class="glyph">&#952; <tspan class="name">(theta)</tspan></text>
+    <text x="550" y="203" class="desc">one cell, one class (all genes)</text>
 
-  <!-- Intersection Dots -->
-  <circle class="dot" cx="400" cy="80" r="1.5"/>
-  <circle class="dot" cx="340" cy="180" r="1.5"/>
-  <circle class="dot" cx="460" cy="180" r="1.5"/>
-  <circle class="dot" cx="280" cy="300" r="1.5"/>
-  <circle class="dot" cx="520" cy="300" r="1.5"/>
-  
-  <!-- Side indicator -->
-  <line x1="80" y1="60" x2="80" y2="440" stroke="#718096" stroke-width="1"/>
-  <text x="70" y="250" transform="rotate(-90 70,250)" class="label-sub" style="fill:#718096; font-size: 14px;">GRANULARITY INCREASES</text>
+    <text x="550" y="268" class="glyph">&#951; <tspan class="name">(eta)</tspan></text>
+    <text x="550" y="288" class="desc">one gene, all cells</text>
+
+    <text x="550" y="353" class="glyph" font-size="20">Inefficiency</text>
+    <text x="550" y="373" class="desc">the whole experiment at once</text>
+  </g>
 </svg>

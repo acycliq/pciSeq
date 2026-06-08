@@ -48,21 +48,30 @@ From the broadest to the most specific:
   detected more efficiently than others; eta captures that. It is the same for every
   cell, but different for every gene.
 
-- **theta** ($\theta_c$) - one factor **per cell**, shared across all genes. Some cells
-  simply yield more transcripts than the reference predicts, others fewer; theta is a
-  whole-cell **dial** that stretches or shrinks that cell's expected counts across the
-  board.
+- **theta** ($\theta_{c,k}$) - one factor **per cell, for each candidate cell type**.
+  Some cells simply yield more transcripts than the reference predicts, others fewer;
+  theta is a whole-cell **dial** that stretches or shrinks that cell's expected counts
+  across all its genes. It is worked out separately for every type the cell might be,
+  because what counts as "expected" depends on which type you are testing it against.
 
-- **gamma** ($\gamma_{g,c}$) - one factor **per gene, per cell**. This is the most
-  fine-grained and idiosyncratic correction: it adjusts a single gene in a single cell.
+- **gamma** ($\gamma_{g,c,k}$) - one factor **per gene, per cell, per candidate type**.
+  This is the most fine-grained and idiosyncratic correction: it adjusts a single gene
+  in a single cell, and again it is computed separately for each type that cell might be.
   It soaks up the leftover mismatch that none of the broader factors could explain.
+
+Notice the split. The two broad factors, **Inefficiency** and **eta**, are the same no
+matter what type a cell turns out to be. The two fine ones, **theta** and **gamma**, are
+**conditional on the class**: they are recomputed for each candidate type, because the
+expectation they correct against is itself class-specific. This is why
+[block 3](cell-to-celltype.md) can use them while it scores a cell against every type at
+once.
 
 ## A pyramid of granularity
 
 It helps to picture these stacked by how much of the experiment each one touches. The
 broad, systematic factor sits at the base, affecting everything at once. As you climb,
 the corrections get narrower and more specific, until you reach gamma at the apex,
-which speaks about just one gene in just one cell.
+which speaks about just one gene, in just one cell, under just one candidate type.
 
 ![A pyramid of the four scaling factors](../../static/img/inefficiency-pyramid.svg)
 
@@ -85,16 +94,17 @@ $$
 $$
 
 - **gamma** compares the observed counts of *one gene in one cell* against what the
-  reference predicts for that same gene and cell.
+  reference predicts for that same gene and cell, *assuming a given type*.
 - **theta** compares the observed total counts of *one cell* against the total the
-  reference predicts for it.
+  reference predicts for it, *assuming a given type*.
 - **eta** compares the observed counts of *one gene across all cells* against the total
   predicted for that gene.
 
 In every case: take what you saw, divide by what you expected, and you get a factor that
 is **above 1 when you saw more than expected** and **below 1 when you saw less**. The
 only thing that changes between them is *how much you pool together* before taking the
-ratio: one gene-cell pair, one whole cell, or one whole gene.
+ratio: one gene-cell pair under one type, one whole cell under one type, or one whole
+gene.
 
 Once you see that, the whole block collapses into a single idea repeated at different
 zoom levels: **observed over expected, again and again.**
