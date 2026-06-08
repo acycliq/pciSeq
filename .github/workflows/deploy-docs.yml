@@ -1,0 +1,63 @@
+# Builds the Docusaurus docs in website/ and publishes them to GitHub Pages
+# at https://acycliq.github.io/pciSeq_3d/.
+#
+# One-time setup in the repo (only needed once):
+#   Settings -> Pages -> Build and deployment -> Source: "GitHub Actions"
+#
+# After that, every push to dev_3d that touches website/ rebuilds and
+# redeploys the site. You can also run it by hand from the Actions tab
+# (workflow_dispatch).
+name: Deploy docs
+
+on:
+  push:
+    branches: [dev_3d]
+    paths:
+      - 'website/**'
+      - '.github/workflows/deploy-docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Build Docusaurus
+        working-directory: website
+        run: |
+          npm ci
+          npm run build
+
+      - name: Disable Jekyll processing
+        run: touch website/build/.nojekyll
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
