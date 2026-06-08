@@ -9,7 +9,7 @@ RNA-seq reference, so both answers come out as probabilities rather than hard la
 
 ## Documentation
 
-Full docs, including a plain-language walkthrough of how the algorithm works, are at
+Full docs, including a walkthrough of how the algorithm works, are at
 **[docs](https://acycliq.github.io/pciSeq_3d/)**.
 
 [//]: # (- [What is pciSeq?]&#40;https://acycliq.github.io/pciSeq_3d/&#41;)
