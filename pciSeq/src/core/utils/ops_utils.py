@@ -790,8 +790,28 @@ def has_converged(
         p0 = np.zeros_like(p1)
 
     try:
-        delta = np.max(np.abs(p1 - p0))
+        diff = np.abs(p1 - p0)
+        delta = diff.max()
         converged = (delta < tol)
+
+        # Distribution of the change, not just the worst element. The stopping
+        # rule uses the max (L-infinity), which a single oscillating cell can hold
+        # hostage. These extra numbers show whether the run is broadly unsettled or
+        # essentially converged except for a handful of spots. Read-only diagnostic;
+        # it does not affect the returned convergence decision.
+        per_spot = diff.max(axis=1)  # largest change per spot, over its candidate cells
+        n_spots = per_spot.shape[0]
+        n_over = int((per_spot > tol).sum())
+        logger.info(
+            "convergence detail: max=%.6f | spots over tol(%.3f)=%d/%d (%.4f%%) | "
+            "mean per-spot=%.2e | 99pct=%.4f | 99.9pct=%.4f" % (
+                delta, tol, n_over, n_spots, 100.0 * n_over / n_spots,
+                float(per_spot.mean()),
+                float(np.percentile(per_spot, 99.0)),
+                float(np.percentile(per_spot, 99.9)),
+            )
+        )
+
         return converged, delta
     except Exception as e:
         logger.error(f"Convergence check failed: {str(e)}")
