@@ -58,7 +58,7 @@ class Cells(object):
         self._background_counts = None
         self._nb_contr = None  # placeholder for the genes' contribution to the negative binomial loglik
         self._mrf = None  # placeholder for the mrf term last used in cell_to_cellType
-        self.effective_beta = None  # mrf cap from the last cell_to_cellType call, kept for inspection
+        self.effective_beta = None  # placeholder for a future per-(cell, class) MRF cap; currently always None
         self._theta_bar = None
         self._logtheta_bar = None
         self._nbrs = None
@@ -350,13 +350,11 @@ class Cells(object):
         }
         return out
 
-    def neighbour_support(self):
+    def calc_mrf(self):
         """
-        Proximity-weighted soft count of neighbours in each class, after the
-        similarity-pooling matrix A. Row c, column k holds n_{c,k}: the
-        effective number of neighbours pushing cell c toward class k. This is
-        exactly the quantity that beta multiplies in the MRF potential, so
-        calc_mrf is just this times beta, and the MRF cap divides by it.
+        MRF term for the cell-typing step. For each cell c and class k it is
+        mrf_beta times the proximity-weighted, similarity-pooled support from
+        the cell's neighbours for class k.
 
         Returns an (nC, nK) array. The Zero column is identically 0 (the Zero
         row of A is zeroed, so no neighbour ever supports the Zero class).
@@ -421,17 +419,7 @@ class Cells(object):
 
         mrf = oe.contract('ck, kj -> cj', mrf, A)
 
-        return mrf
-
-    def calc_mrf(self, effective_beta=None):
-        mrf = self.neighbour_support()
-
-        if effective_beta is None:
-            out = mrf * self.config["mrf_beta"]
-        else:
-            out = mrf * effective_beta
-
-        return out
+        return mrf * self.config["mrf_beta"]
 
     # -------------------------- CONVENIENCE METHODS ----------------------- #
     def gene_reads_per_class(self):

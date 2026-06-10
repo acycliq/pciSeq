@@ -360,9 +360,9 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     # mrf[c, k]
     mrf_f32 = cells.mrf.astype(np.float32)
 
-    # effective_beta[c, k]  -- the per-(cell, class) MRF cap from utils/effective_beta.py.
-    # When apply_mrf_cap is off, no cap is computed (None); a flat mrf_beta was applied
-    # to every cell, so record that for the diagnostics to stay consistent.
+    # effective_beta[c, k]  -- placeholder column kept for a future per-(cell, class)
+    # MRF cap. The cap has been removed, so cells.effective_beta is always None and
+    # this records the flat mrf_beta that was applied to every cell.
     if cells.effective_beta is not None:
         effective_beta_f32 = cells.effective_beta.astype(np.float32)
     else:

@@ -30,35 +30,6 @@ DEFAULT = {
     # MRF coefficient: controls how strongly neighboring cells' class assignments
     # influence each other. Higher values = more spatial smoothing.
     "mrf_beta": 1.0,
-    # If True the per-(cell, class) adaptive cap (effective_beta) is applied to the
-    # MRF. If False the cap is skipped entirely and a flat mrf_beta is used for
-    # every cell (the mrf_cap_shrink knob below then has no effect).
-    "apply_mrf_cap": True,
-    # Shrink factor on the per-(cell, class) MRF cap. The cap sits at the beta
-    # where the MRF push would exactly tie the data+prior preference for Zero;
-    # rho < 1 keeps the push at rho * (that margin), so Zero wins by a (1-rho)
-    # margin instead of landing on a coin-flip tie. rho=1 is the bare tie,
-    # rho->0 muzzles the MRF. See pciSeq_model/mrf_inflection_point.tex.
-    "mrf_cap_shrink": 0.98,
-    # What neighbour count the per-(cell, class) cap divides by. The cap for class
-    # k is (data+prior margin for Zero over k) / denominator, and the MRF push
-    # toward k is beta * (real proximity-weighted number of neighbours in class k).
-    #
-    #   "soft"       -> divide by n_{c,k}, the proximity-weighted soft count of
-    #                   neighbours actually in class k (cells.neighbour_support).
-    #                   This is the same quantity the MRF push multiplies, so the
-    #                   cap is calibrated to the real neighbourhood and does not
-    #                   over-suppress beta for classes that occupy only part of it.
-    #
-    #   "worst_case" -> divide by nNeighbors, i.e. assume the worst case that ALL
-    #                   neighbours are class k. This under-shoots beta (push ends
-    #                   up at n_{c,k}/nNeighbors of the margin), giving Zero a big
-    #                   built-in margin. Reproduces the original /nN cap exactly
-    #                   when combined with mrf_cap_shrink = 1.0.
-    #
-    # Both converge to nearly the same cell-typing (~99.6% identical assignments
-    # on the test data); this mostly controls how hard the cap throttles beta.
-    "mrf_cap_denominator": "soft",
     # MisreadDensity: Expected number of misread spots. A dictionary contains user-defined values
     # for gene misread densities used in the analysis.
     # The process to determine the misread density for each gene is as follows:

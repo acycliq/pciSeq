@@ -78,7 +78,6 @@ from .utils.elbo import calc_elbo
 # from .analysis import CellExplorer
 from .utils import ops_utils as utils
 from .utils import visualisation
-from .utils.effective_beta import compute_effective_beta_numba
 from ...src.diagnostics.controller.diagnostic_controller import DiagnosticController
 import joblib
 
@@ -423,7 +422,7 @@ class VarBayes:
 
                         # Neighbour cells that drive this cell's MRF. The MRF support is a
                         # distance-weighted vote of these neighbours' classes (reconstructed
-                        # here exactly as in cells.neighbour_support). Watching them across
+                        # here exactly as in cells.calc_mrf). Watching them across
                         # iterations shows which neighbours flip and produce the MRF swing.
                         nbr_ids = self.cells.nbrs['indices'][moved_cell]
                         nbr_dist = self.cells.nbrs['distances'][moved_cell]
@@ -605,14 +604,7 @@ class VarBayes:
         # for debugging, safe to remove in the future
         self.cells.nb_contr = contr
         contr = np.sum(contr, axis=1)
-        if self.config.get('apply_mrf_cap', True):
-            effective_beta = compute_effective_beta_numba(self)
-            self.cells.effective_beta = effective_beta
-            mrf = self.cells.calc_mrf(effective_beta=effective_beta)
-        else:
-            # cap off: flat mrf_beta everywhere, no per-(cell, class) cap
-            self.cells.effective_beta = None
-            mrf = self.cells.calc_mrf()
+        mrf = self.cells.calc_mrf()
         # stash mrf for debugging (same pattern as nb_contr above)
         self.cells.mrf = mrf
         # mrf = self.cells.classProb[self.cells.nbrs].sum(axis=1)
