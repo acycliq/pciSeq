@@ -65,64 +65,6 @@ def plane_quality_control(spots: pd.DataFrame,
     return spots, coo, removed
 
 
-def remove_flat_cells(coo_list: List[coo_matrix]) -> Tuple[List[coo_matrix], pd.DataFrame]:
-    """
-    Remove cells that exist in only one plane
-
-    Parameters
-    ----------
-    coo_list : List[coo_matrix]
-        List of sparse matrices containing cell labels per z-plane
-
-    Returns
-    -------
-    Tuple[List[coo_matrix], pd.DataFrame]
-        - Modified matrices with single-plane cells removed
-        - DataFrame recording which cells were removed and from which planes
-    """
-    # Fast path for empty input
-    if not coo_list:
-        return [], pd.DataFrame()
-
-    # 1: Identify single-plane cells
-    # 1.1: Get all unique labels present in each plane
-    labels_per_frame = [np.unique(d.data) for d in coo_list]
-    # 1.2: Count how many times each label appears across all planes
-    label_counts = np.bincount([d for labels in labels_per_frame for d in labels])
-    # 1.3: Get the labels that appear in only one plane
-    single_page_labels = set(d for d, count in enumerate(label_counts) if count == 1)
-
-    # 2: Process each plane and track removals
-    removed_cells = []
-    removed_planes = []
-
-    for i, coo in enumerate(coo_list):
-        # Find intersection of current plane's labels with single-plane labels
-        intersected_labels = set(coo.data).intersection(single_page_labels)
-        for label in intersected_labels:
-            # set all occurrences of the current label to zero
-            coo.data[coo.data == label] = 0
-            coo.eliminate_zeros()
-            # record keeping
-            removed_cells.append(label)
-            removed_planes.append(i)
-
-    # 3: Log removal summary
-    if removed_cells:
-        logger.warning(
-            f'Removed {len(set(removed_cells))} single-plane cells from {len(set(removed_planes))} planes.'
-        )
-
-    # Step 4: Create removal record
-    removal_record = pd.DataFrame({
-        'removed_cell_label': removed_cells,
-        'frame_num': removed_planes,
-        'comment': 'Original labels from segmentation masks'
-    })
-
-    return coo_list, removal_record
-
-
 def process_plane(args):
     """
     Helper function to process a single plane in parallel.

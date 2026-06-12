@@ -60,18 +60,19 @@ def extract_borders_dip(label_image, offset_x=0, offset_y=0, exclude_labels=(0,)
 
 
 def extract_borders(cell_labels):
-    '''
-    Extracts the cell boundaries from the label image array. Same as 'extract_borders_dip()' but a lot faster.
+    """
+    Extracts the cell boundaries from the label image array. Same as
+    'extract_borders_dip()' but a lot faster.
+
     Parameters
     ----------
-    label_image:    The label image array, typically obtained from some image segmentation
-                    application and maps every pixel on the image to a cell label.
+    cell_labels:    The label image array, typically obtained from some image
+                    segmentation application, mapping every pixel to a cell label.
 
     Returns
     -------
-    Returns a dataframe with columns 'labels' and 'coords'
+    Returns a dataframe with columns 'label' and 'coords'
     """
-    '''
     cell_boundaries = pd.DataFrame()
     borders_list = _extract_borders(cell_labels)
     d = dict(borders_list)
