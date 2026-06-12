@@ -7,9 +7,6 @@ from typing import List, Tuple, Dict
 import numpy as np
 import pandas as pd
 from scipy.sparse import coo_matrix
-from collections import defaultdict
-from copy import deepcopy
-from multiprocessing import Pool, cpu_count
 import logging
 
 logger = logging.getLogger(__name__)
@@ -61,42 +58,21 @@ def plane_quality_control(spots: pd.DataFrame,
     removed = pd.DataFrame()
 
     if cfg['remove_flat_cells']:
-        coo, removed = remove_flat_cells_par(coo)
+        coo, removed = remove_flat_cells(coo)
     return spots, coo, removed
 
 
-def process_plane(args):
+def remove_flat_cells(coo_list: List[coo_matrix]) -> Tuple[List[coo_matrix], pd.DataFrame]:
     """
-    Helper function to process a single plane in parallel.
+    Remove cells that exist in only one z-plane (segmentation artefacts).
 
-    Parameters
-    ----------
-    args : Tuple[int, coo_matrix, set]
-        A tuple containing:
-        - Index of the plane (int)
-        - The sparse matrix (coo_matrix)
-        - Set of single-plane labels to remove (set)
-
-    Returns
-    -------
-    Tuple[int, coo_matrix, List[int]]
-        - Index of the plane (int)
-        - Modified sparse matrix (coo_matrix)
-        - List of removed cell labels (List[int])
-    """
-    i, coo, single_page_labels = args
-    # Find intersection of current plane's labels with single-plane labels
-    mask = np.isin(coo.data, list(single_page_labels))
-    removed_cells = coo.data[mask].tolist() if np.any(mask) else []
-    # Remove single-plane cells
-    coo.data[mask] = 0
-    coo.eliminate_zeros()
-    return i, coo, removed_cells
-
-
-def remove_flat_cells_par(coo_list: List[coo_matrix]) -> Tuple[List[coo_matrix], pd.DataFrame]:
-    """
-    Remove cells that exist in only one plane. Parallelised version of remove_flat_cells
+    Edits the matrices in place and does the masking vectorised in-process. An
+    earlier version deep-copied the whole stack and farmed the planes out to a
+    multiprocessing Pool; both serialised the entire segmentation and dominated
+    the runtime, while the actual work (flipping a handful of labels to zero) is
+    tiny. We don't copy: nothing downstream needs the caller's coo_list pristine
+    (process_labels also edits it in place right after), and on a big 3D stack a
+    copy is wasted time and memory.
 
     Parameters
     ----------
@@ -106,7 +82,7 @@ def remove_flat_cells_par(coo_list: List[coo_matrix]) -> Tuple[List[coo_matrix],
     Returns
     -------
     Tuple[List[coo_matrix], pd.DataFrame]
-        - Modified matrices with single-plane cells removed.
+        - The same matrices, edited in place, with single-plane cells removed.
         - DataFrame recording which cells were removed and from which planes.
     """
     # Fast path for empty input
@@ -117,37 +93,23 @@ def remove_flat_cells_par(coo_list: List[coo_matrix]) -> Tuple[List[coo_matrix],
     if not all(isinstance(coo, coo_matrix) for coo in coo_list):
         raise ValueError("All elements in coo_list must be of type coo_matrix.")
 
-    # Make a deep copy of the input to avoid in-place modification
-    coo_list = deepcopy(coo_list)
+    # 1: how many planes does each label appear in? Each plane's unique labels
+    # concatenated, then a label whose total count is 1 lives in a single plane.
+    per_plane_labels = np.concatenate([np.unique(coo.data) for coo in coo_list])
+    labels, counts = np.unique(per_plane_labels, return_counts=True)
+    single_page_labels = labels[counts == 1]
 
-    # 1: Identify single-plane cells
-    # Use a dictionary to count occurrences of each label across all planes
-    label_counts = defaultdict(int)
-    for coo in coo_list:
-        unique_labels = np.unique(coo.data)
-        for label in unique_labels:
-            label_counts[label] += 1
-
-    # Get the labels that appear in only one plane
-    single_page_labels = {label for label, count in label_counts.items() if count == 1}
-
-    # 2: Process each plane in parallel
+    # 2: zero those labels out, plane by plane, in place.
     removed_cells = []
     removed_planes = []
-
-    # Prepare arguments for parallel processing
-    args = [(i, coo, single_page_labels) for i, coo in enumerate(coo_list)]
-
-    # Use multiprocessing to process planes in parallel
-    with Pool(processes=cpu_count()) as pool:
-        results = pool.map(process_plane, args)
-
-    # Reconstruct the modified coo_list and track removals
-    for i, coo, cells in results:
-        coo_list[i] = coo
-        if cells:
-            removed_cells.extend(cells)
-            removed_planes.extend([i] * len(cells))
+    if single_page_labels.size:
+        for i, coo in enumerate(coo_list):
+            mask = np.isin(coo.data, single_page_labels)
+            if mask.any():
+                removed_cells.extend(coo.data[mask].tolist())
+                removed_planes.extend([i] * int(mask.sum()))
+                coo.data[mask] = 0
+                coo.eliminate_zeros()
 
     # 3: Log removal summary
     if removed_cells:

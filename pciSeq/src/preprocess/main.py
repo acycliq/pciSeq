@@ -10,7 +10,7 @@ import pandas as pd
 from scipy.sparse import coo_matrix
 import logging
 from joblib import Parallel, delayed
-from .label_processing import process_labels, get_unique_labels
+from .label_processing import process_labels
 from .spot_processing import process_spots, assign_spot_labels
 from .utils import log_data_summary
 from .plane_management import plane_quality_control
@@ -117,12 +117,26 @@ def stage_data(spots: pd.DataFrame,
 
     # Validate results. Explicit raises (not asserts) so the checks still run
     # under python -O; on real data we always want these integrity checks active.
-    n_labels = len(set(np.concatenate(get_unique_labels(coo))))
+    # Both checks use cheap numpy ops, not python set() over millions of rows.
+    #
+    # n_labels = how many distinct cell labels are in the stack. We mark them in a
+    # presence array (a scatter, O(nnz)) instead of np.unique per plane (a sort per
+    # plane), which is a lot cheaper on a big 3D stack.
+    max_label = max((int(m.data.max()) for m in coo if m.nnz), default=0)
+    present = np.zeros(max_label + 1, dtype=bool)
+    for m in coo:
+        if m.nnz:
+            present[m.data] = True
+    n_labels = int(present[1:].sum())  # exclude background (label 0)
     if props_df.shape[0] != n_labels:
         raise RuntimeError(
             f"cell property rows ({props_df.shape[0]}) do not match the number of cell labels ({n_labels})"
         )
-    if not set(spots.label[spots.label > 0]) <= set(props_df.label):
+
+    # every spot must be assigned to a cell label that has computed properties
+    spot_labels = np.unique(spots.label.values)
+    spot_labels = spot_labels[spot_labels > 0]
+    if not np.isin(spot_labels, props_df.label.values).all():
         raise RuntimeError("some spots are assigned to cell labels with no computed properties")
 
     cells = props_df.rename(columns={'x_cell': 'x0', 'y_cell': 'y0', 'z_cell': 'z0'})
