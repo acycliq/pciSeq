@@ -356,8 +356,7 @@ class Cells(object):
         mrf_beta times the proximity-weighted, similarity-pooled support from
         the cell's neighbours for class k.
 
-        Returns an (nC, nK) array. The Zero column is identically 0 (the Zero
-        row of A is zeroed, so no neighbour ever supports the Zero class).
+        Returns an (nC, nK) array.
         """
         nbrs_idx = self.nbrs['indices']
 
@@ -373,21 +372,13 @@ class Cells(object):
         mrf = (nbr_probs * nbrs_prxmty[:, :, None]).sum(axis=1)
 
         # Row-sum note: at this point sum_k mrf[c, k] = nN per cell. The
-        # A-multiplication and the beta scaling below both break this, but
-        # for different reasons:
-        #   - A modification (Zero-row=0): zeros the Zero column only.
-        #     Real-vs-real differences (e.g. Oligo vs Astro) are preserved
-        #     exactly, so the softmax over real classes is unchanged.
-        #     Zero just loses MRF support.
-        #   - beta scaling: multiplies every entry by beta, which SCALES
-        #     every class-vs-class difference. This intentionally sharpens
-        #     (beta > 1) or flattens (beta < 1) the softmax -- beta is the
-        #     parameter that controls how strongly the MRF influences the
-        #     cell-class decision.
-        # The absolute row sum itself doesn't matter for softmax (which is
-        # shift-invariant under adding a constant to every class). What
-        # matters is the per-class differences, which A and beta shape on
-        # purpose.
+        # A-multiplication (similarity pooling) and the beta scaling below both
+        # change this, but it doesn't matter: the softmax in cell_to_cellType is
+        # shift-invariant (adding a constant to every class changes nothing).
+        # What matters is the per-class differences. beta in particular scales
+        # every class-vs-class difference, which is how it controls how strongly
+        # the MRF sways the cell-class decision (beta > 1 sharpens, beta < 1
+        # flattens the softmax).
 
         # Similarity matrix A of shape (nK, nK). A[i, j] = 1 means a neighbour
         # classified as class j contributes to the MRF support of class i (rows
@@ -409,13 +400,18 @@ class Cells(object):
                 ia, ib = class_list.index(a), class_list.index(b)
                 A[ia, ib] = A[ib, ia] = 1
 
-        # Zero-classified neighbours contribute no MRF support to any class.
-        # Without this, a cell surrounded by Zero neighbours gets dragged toward
-        # Zero by neighbour pressure, which we don't want -- the data should
-        # decide whether the cell is Zero, not the neighbourhood. This breaks
-        # the symmetry of A (Zero column is unchanged, Zero row is now all zeros).
-        assert class_list[-1] == 'Zero', "Last class must be Zero"
-        A[-1, :] = 0
+        # Zero-exclusion (currently disabled, see the dated note below).
+        # If the two commented lines below were active they would zero the Zero
+        # row of A, so a Zero-classified neighbour would contribute no MRF
+        # support to any class. That stops a cell sitting among Zero neighbours
+        # from being dragged toward Zero, leaving the data to decide. It breaks
+        # A's symmetry: the Zero column stays, the Zero row goes to all zeros.
+        #
+        # 12-Jun-2026: Removing this, because it makes my Zero-cells to be
+        # taken over by Lymphoid (when cell class prior is uniform).
+        # Probably will be put back in the future when the mrf cap is done
+        # assert class_list[-1] == 'Zero', "Last class must be Zero"
+        # A[-1, :] = 0
 
         mrf = oe.contract('ck, kj -> cj', mrf, A)
 
