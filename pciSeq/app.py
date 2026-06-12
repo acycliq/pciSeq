@@ -23,7 +23,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     *args : tuple
         Positional arguments:
         - args[0]: pd.DataFrame containing spot data
-        - args[1]: scipy.sparse.coo_matrix containing gene expression data
+        - args[1]: list of scipy.sparse.coo_matrix (one per z-plane), the label image
 
     **kwargs : dict
         Keyword arguments (preferred method):
@@ -53,7 +53,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     ValueError
         If required arguments (spots and coo) are missing or invalid
     RuntimeError
-        If cell typing algorithm fails to converge
+        If the cell typing algorithm fails (non-convergence only logs a warning)
 
     Notes
     -----
@@ -68,8 +68,8 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         # 2. Validate all inputs (spots, coo, scRNA, config)
         spots, coo, scdata, cfg = validate_inputs(spots, coo, scRNAseq, opts)
 
-        # 3. Start realtime viewer if requested
-        realtime_viewer_ini(cfg)
+        # 3. Start realtime viewer if requested (keep the handle so we can stop it)
+        viewer = realtime_viewer_ini(cfg)
 
         # 4. Use validated inputs and prepare the data
         logger.info('Preprocessing data')
@@ -141,7 +141,7 @@ def cell_type(
     ValueError
         If input data is invalid or incompatible
     RuntimeError
-        If cell typing algorithm fails to converge
+        If the cell typing algorithm fails (non-convergence only logs a warning)
     """
     try:
         # Extract callback from config BEFORE creating VarBayes
@@ -184,43 +184,49 @@ def parse_args(*args, **kwargs) -> Tuple[pd.DataFrame, Any, Optional[pd.DataFram
     Raises:
         ValueError: If required arguments are missing or invalid
     """
-    # Check if we have the minimum required arguments
-    if not {'spots', 'coo'}.issubset(set(kwargs)) and len(args) < 2:
-        raise ValueError('Need to provide the spots and the coo matrix either as keyword '
-                         'arguments or as the first and second positional arguments.')
-
-    # Get spots from kwargs if present, otherwise from args
-    spots = kwargs['spots'] if 'spots' in kwargs else args[0]
-
-    # Get coo from kwargs if present, otherwise from args
-    coo = kwargs['coo'] if 'coo' in kwargs else args[1]
-    if isinstance(coo, np.ndarray):
-        coo = [coo_matrix(d) for d in coo]
-
-    # Optional arguments
+    # spots and coo can come either as the first two positional args or as
+    # keywords. Resolve each on its own (keyword wins) so that a missing one
+    # gives a clear error below instead of an IndexError or a wrong slot.
+    spots = kwargs.get('spots', args[0] if len(args) > 0 else None)
+    coo = kwargs.get('coo', args[1] if len(args) > 1 else None)
     scRNAseq = kwargs.get('scRNAseq', None)
     opts = kwargs.get('opts', None)
 
     if spots is None or coo is None:
-        raise ValueError("Both 'spots' and 'coo' must be provided")
+        raise ValueError('Need to provide both spots and coo, either as the first two '
+                         'positional arguments or as the spots= and coo= keyword arguments.')
+
+    # a 3D stack can arrive as a single ndarray; turn it into the list of sparse
+    # matrices (one per z-plane) that the rest of the pipeline expects.
+    if isinstance(coo, np.ndarray):
+        coo = [coo_matrix(d) for d in coo]
 
     return spots, coo, scRNAseq, opts
 
 
 def realtime_viewer_ini(cfg):
-    if cfg.get("realtime_viewer", False):
-        from .src.realtime_viewer import RealtimeViewerServer
+    """Start the realtime viewer if the config asks for it.
 
-        port = cfg.get("realtime_viewer_port", 5001)
-        max_cells = cfg.get("realtime_viewer_max_cells", None)
-        fixed_radius = cfg.get("realtime_viewer_fixed_radius", None)
+    Returns the running viewer so the caller can stop it later, or None when
+    the viewer is switched off. The send_update callback is passed on through
+    cfg, which cell_type later picks up and wires into the model.
+    """
+    if not cfg.get("realtime_viewer", False):
+        return None
 
-        viewer = RealtimeViewerServer(
-            port=port, max_cells=max_cells, fixed_radius=fixed_radius
-        )
-        viewer.start()
-        cfg["realtime_viewer_callback"] = viewer.send_update
-        logger.info(f"Started realtime viewer on port {port}")
+    from .src.realtime_viewer import RealtimeViewerServer
+
+    port = cfg.get("realtime_viewer_port", 5001)
+    max_cells = cfg.get("realtime_viewer_max_cells", None)
+    fixed_radius = cfg.get("realtime_viewer_fixed_radius", None)
+
+    viewer = RealtimeViewerServer(
+        port=port, max_cells=max_cells, fixed_radius=fixed_radius
+    )
+    viewer.start()
+    cfg["realtime_viewer_callback"] = viewer.send_update
+    logger.info(f"Started realtime viewer on port {port}")
+    return viewer
 
 
 
