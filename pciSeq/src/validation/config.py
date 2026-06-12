@@ -85,38 +85,25 @@ class Config(dict):
 
     def _merge_user_opts(self, opts: Dict[str, Any]) -> None:
         """
-        Merge user options with defaults.
+        Merge user options onto the defaults.
 
-        Logs each override and warns about unrecognized keys.
-        Unrecognized keys are still preserved (e.g., for callbacks).
+        Logs each override. Any key that isn't in config.DEFAULT raises a
+        KeyError, so a typo in an option name fails loudly instead of being
+        silently ignored.
 
         Args:
             opts: User configuration dictionary
         """
         valid_keys = set(config.DEFAULT.keys())
 
-        # Determine strictness once per merge (opts value takes precedence)
-        # If True then it will drop an exception otherwise a Warning
-        strict = True
         for key, value in opts.items():
-            if key in valid_keys:
-                self[key] = value
-                logger.info(f"Config override: {key} = {value}")
-            else:
-                # Preserve unknown keys but emit a warning so callers notice
-                # these keys are ignored by the core algorithm parameters.
-                self[key] = value
+            if key not in valid_keys:
                 allowed = ", ".join(sorted(valid_keys))
-                if strict:
-                    raise KeyError(
-                        f"Unrecognized configuration option: '{key}'! Valid options are: {allowed}"
-                    )
-                else:
-                    logger.warning(
-                        "Unrecognized configuration option: '%s'! Valid options are: %s",
-                        key,
-                        allowed,
-                    )
+                raise KeyError(
+                    f"Unrecognized configuration option: '{key}'! Valid options are: {allowed}"
+                )
+            self[key] = value
+            logger.info(f"Config override: {key} = {value}")
 
     def _validate_types(self) -> None:
         """

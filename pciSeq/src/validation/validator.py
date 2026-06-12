@@ -255,8 +255,7 @@ class Validator:
         Handles:
             - Rejection of deprecated parameters (exclude_planes)
             - cell_type_prior validation and normalization
-            - cell_type_weights validation (requires cell_type_prior='weighted')
-            - InsideCellBonus conversion (True → 2)
+            - InsideCellBonus conversion (True to 2)
             - Dict parameter normalization (MisreadDensity, priors)
         """
         cfg = self.config
@@ -276,8 +275,6 @@ class Validator:
                 f"got '{cfg['cell_type_prior']}'"
             )
         cfg['cell_type_prior'] = cfg['cell_type_prior'].lower()
-
-        # cell_type_weights sets initial prior probabilities in both modes
 
         # Normalize InsideCellBonus boolean to numeric
         if cfg['InsideCellBonus'] is True:
