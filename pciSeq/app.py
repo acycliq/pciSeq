@@ -73,7 +73,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
         # 4. Use validated inputs and prepare the data
         logger.info('Preprocessing data')
-        _cells, borders_future, _spots, label_map = stage_data(spots, coo, cfg)
+        _cells, borders_future, _spots = stage_data(spots, coo, cfg)
 
         # 5. cell typing (diagnostics are now handled inside VarBayes)
         cellData, geneData, varBayes = cell_type(_cells, _spots, scdata, cfg, viewer)
@@ -82,6 +82,8 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         cellBoundaries, cellBoundaries_list = borders_future.result()
 
         # 7 if labels have been remapped, switch to the original ones
+        # (stage_data put label_map in cfg; that's the single home now)
+        label_map = cfg.get('label_map')
         if label_map is not None:
             cellData, geneData, cellBoundaries, cellBoundaries_list = recover_original_labels(cellData, geneData, cellBoundaries, cellBoundaries_list, label_map)
 

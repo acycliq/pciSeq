@@ -3,7 +3,7 @@ Main preprocessing module for pciSeq spatial transcriptomics data.
 Orchestrates the complete preprocessing pipeline.
 """
 
-from typing import List, Tuple, Dict, Optional
+from typing import List, Tuple, Dict
 from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 import pandas as pd
@@ -57,7 +57,7 @@ def _extract_all_borders(coo: List[coo_matrix]) -> Tuple[pd.DataFrame, List[pd.D
 
 def stage_data(spots: pd.DataFrame,
                coo: List[coo_matrix],
-               cfg: Dict) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, Optional[Dict]]:
+               cfg: Dict) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Process spots and label images for cell typing analysis.
 
@@ -79,8 +79,11 @@ def stage_data(spots: pd.DataFrame,
         Border extraction runs in the background and only blocks when .result() is called.
     processed_spots : pd.DataFrame
         Processed spots with cell assignments
-    label_map : Optional[Dict]
-        Label remapping if labels were reordered
+
+    Note
+    ----
+    The label remapping (label_map) and image dimensions (img_dim) are written
+    into cfg as runtime state, the same way Config.set_runtime_attrs adds is3D.
     """
     # Perform quality control on 3D data
     if cfg['is3D']:
@@ -89,7 +92,8 @@ def stage_data(spots: pd.DataFrame,
 
     # Process label matrices
     coo, label_map = process_labels(coo)
-    cfg['label_map'] = label_map  # Dont quite like it here, need to make it more transparent!!
+    # runtime-derived run state, kept in cfg alongside is3D/is_redis_running (see Config.set_runtime_attrs)
+    cfg['label_map'] = label_map
 
     img_dim = {'n_planes': len(coo),
                'w': coo[0].shape[1],
@@ -118,4 +122,4 @@ def stage_data(spots: pd.DataFrame,
     cells = props_df.rename(columns={'x_cell': 'x0', 'y_cell': 'y0', 'z_cell': 'z0'})
     processed_spots = spots[['x', 'y', 'z', 'plane_id', 'label', 'gene_name', 'score', 'intensity']].rename_axis('spot_id')
 
-    return cells, borders_future, processed_spots, label_map
+    return cells, borders_future, processed_spots
