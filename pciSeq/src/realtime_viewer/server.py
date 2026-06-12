@@ -7,6 +7,7 @@ cell assignment updates during VarBayes algorithm execution.
 
 from flask import Flask, send_from_directory
 from flask_socketio import SocketIO
+from werkzeug.serving import make_server
 import numpy as np
 import threading
 import logging
@@ -77,6 +78,7 @@ class RealtimeViewerServer:
             ping_timeout=60,
         )
         self.server_thread = None
+        self._server = None  # the werkzeug server, so stop() can shut it down
         self._is_running = False
         self._setup_routes()
         logger.info("RealtimeViewerServer initialized (not started yet)")
@@ -317,17 +319,15 @@ class RealtimeViewerServer:
             logger.warning("Server already running")
             return
 
-        self.server_thread = threading.Thread(
-            target=lambda: self.socketio.run(
-                self.app,
-                host=self.host,
-                port=self.port,
-                debug=False,
-                use_reloader=False,
-                allow_unsafe_werkzeug=True,  # Safe for local development
-            )
-        )
-        self.server_thread.daemon = True
+        # Build the werkzeug server ourselves so we keep a handle we can shut
+        # down later. socketio.run() hides its server, and socketio.stop() only
+        # works via a werkzeug hook that was removed in werkzeug 2.1+, so it
+        # can't stop this stack. The socket.io middleware is already attached to
+        # app.wsgi_app, so serving the plain app here still serves the socket.io
+        # (long-polling) transport.
+        self._server = make_server(self.host, self.port, self.app, threaded=True)
+        self.server_thread = threading.Thread(target=self._server.serve_forever)
+        self.server_thread.daemon = True  # safety net in case stop() is never called
         self.server_thread.start()
         self._is_running = True
 
@@ -340,10 +340,17 @@ class RealtimeViewerServer:
             logger.info(f"Opening browser at {url}")
 
     def stop(self):
-        """Stop server."""
-        if self._is_running:
-            # logger.info("Realtime viewer server stopped")
-            self._is_running = False
+        """Stop the server and release the port."""
+        if not self._is_running:
+            return
+        self._is_running = False
+        if self._server is not None:
+            self._server.shutdown()  # thread-safe, unblocks serve_forever()
+            if self.server_thread is not None:
+                self.server_thread.join(timeout=5)
+            self._server.server_close()  # release the socket / port
+            self._server = None
+        logger.info("Realtime viewer server stopped")
 
     def attach(self, varBayes):
         """Bind this viewer to a running model.
