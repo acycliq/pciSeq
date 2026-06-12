@@ -121,7 +121,7 @@ def compute_gene_loglikelihood_matrix(obj) -> np.ndarray:
     scaled_means = obj.scaled_exp.compute()
 
     # Calculate scaled expression adjusted by gene efficiency and regularization
-    ScaledExp = np.einsum('cgk,g,ck->cgk', scaled_means, obj.genes.eta_bar, obj.cells.theta_bar)
+    ScaledExp = np.einsum('cgk,g,ck->cgk', scaled_means, obj.genes.eta_bar, obj.cells.theta_bar) + obj.config['SpotReg']
 
     # Calculate negative binomial probabilities
     pNegBin = ScaledExp / (obj.config['rSpot'] + ScaledExp)

@@ -141,10 +141,13 @@ class SingleCell(object):
         me = expr.rename_axis('gene_name').rename_axis("class_name", axis="columns")
 
         # apply the inefficiency
-        me = me * self.config['Inefficiency'] + self.config['SpotReg']
+        me = me * self.config['Inefficiency']
 
-        # log mean expression
-        lme = np.log(me)
+        # log mean expression. SpotReg stays inside the log here (we can't carry
+        # it as a separate term because some entries of me are 0, eg the Zero
+        # class, and log(0) blows up). Note this means me itself does NOT carry
+        # SpotReg, so every place that uses me as a rate adds SpotReg itself.
+        lme = np.log(me + self.config['SpotReg'])
         return me, lme
 
     def _gene_expressions(self, fitted, scale):
