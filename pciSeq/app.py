@@ -76,7 +76,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         _cells, borders_future, _spots, label_map = stage_data(spots, coo, cfg)
 
         # 5. cell typing (diagnostics are now handled inside VarBayes)
-        cellData, geneData, varBayes = cell_type(_cells, _spots, scdata, cfg)
+        cellData, geneData, varBayes = cell_type(_cells, _spots, scdata, cfg, viewer)
 
         # 6. Resolve borders (blocks only if extraction hasn't finished yet)
         cellBoundaries, cellBoundaries_list = borders_future.result()
@@ -113,7 +113,8 @@ def cell_type(
         cells: pd.DataFrame,
         spots: pd.DataFrame,
         scRNAseq: Optional[pd.DataFrame],
-        config: Dict[str, Any]
+        config: Dict[str, Any],
+        viewer: Optional[Any] = None
 ) -> Tuple[pd.DataFrame, pd.DataFrame, VarBayes]:
     """
     Perform cell typing using Variational Bayes algorithm.
@@ -128,6 +129,9 @@ def cell_type(
         Single-cell RNA sequencing reference data. Can be None if not using reference data
     config : Dict[str, Any]
         Configuration dictionary containing algorithm parameters
+    viewer : optional
+        A running RealtimeViewerServer to stream iterations to, or None.
+        When given, it is bound to the model via viewer.attach(varBayes).
 
     Returns
     -------
@@ -144,22 +148,12 @@ def cell_type(
         If the cell typing algorithm fails (non-convergence only logs a warning)
     """
     try:
-        # Extract callback from config BEFORE creating VarBayes
-        # This prevents the callback from being stored in VarBayes.config
-        callback = config.pop('realtime_viewer_callback', None)
-
         logger.info('Initializing VarBayes model')
         varBayes = VarBayes(cells, spots, scRNAseq, config)
 
-        # Wire real-time viewer callback if provided
-        if callback is not None:
-            # If callback is a bound method (e.g., viewer.send_update),
-            # set the VarBayes reference so it can access cells data
-            if hasattr(callback, '__self__'):
-                viewer_instance = callback.__self__
-                viewer_instance._varbayes_ref = varBayes
-
-            varBayes.on_iteration_callback = callback
+        # Wire the realtime viewer to the model, if one is running.
+        if viewer is not None:
+            viewer.attach(varBayes)
             logger.info('Real-time viewer callback enabled')
 
         logger.info('Starting cell typing algorithm')
@@ -208,8 +202,8 @@ def realtime_viewer_ini(cfg):
     """Start the realtime viewer if the config asks for it.
 
     Returns the running viewer so the caller can stop it later, or None when
-    the viewer is switched off. The send_update callback is passed on through
-    cfg, which cell_type later picks up and wires into the model.
+    the viewer is switched off. cell_type wires it into the model via
+    viewer.attach(varBayes).
     """
     if not cfg.get("realtime_viewer", False):
         return None
@@ -224,7 +218,6 @@ def realtime_viewer_ini(cfg):
         port=port, max_cells=max_cells, fixed_radius=fixed_radius
     )
     viewer.start()
-    cfg["realtime_viewer_callback"] = viewer.send_update
     logger.info(f"Started realtime viewer on port {port}")
     return viewer
 

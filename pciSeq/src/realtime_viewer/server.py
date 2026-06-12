@@ -26,25 +26,15 @@ class RealtimeViewerServer:
     and has zero impact on the algorithm when not used.
 
     Usage:
-        # In your run script
-        from pciSeq.src.realtime_viewer import RealtimeViewerServer
+        Turn it on through the fit() options. fit() creates, starts, binds and
+        stops the viewer for you, so you do not touch this class directly:
 
-        viewer = RealtimeViewerServer(port=5001)
-        viewer.start()
-
-        # Pass as callback to fit() via opts
         cellData, geneData = fit(
             spots=spots,
             coo=coo,
             scRNAseq=scRNAseq,
-            opts={
-                'realtime_viewer_callback': viewer.send_update,
-                'max_iter': 100,
-            }
+            opts={'realtime_viewer': True, 'realtime_viewer_port': 5001},
         )
-
-        # Cleanup when done
-        viewer.stop()
 
     Args:
         port (int): Port number for the server (default: 5001)
@@ -65,7 +55,7 @@ class RealtimeViewerServer:
         # Optional payload controls
         self.max_cells = max_cells  # if set, send only top-N cells (by confidence)
         self.fixed_radius = fixed_radius  # if set, send this radius for all cells
-        self._varbayes_ref = None  # Will be set by app.py when callback is wired
+        self._varbayes_ref = None  # set by attach() once a model is bound
         self._geometry_sent = False
         self._geometry_cache = None
         self._num_cells_expected = (
@@ -354,6 +344,16 @@ class RealtimeViewerServer:
         if self._is_running:
             # logger.info("Realtime viewer server stopped")
             self._is_running = False
+
+    def attach(self, varBayes):
+        """Bind this viewer to a running model.
+
+        Keeps a reference to the model so send_update can read its cell data,
+        and registers send_update as the model's per-iteration callback. This
+        is the single place app.cell_type hooks the viewer to the algorithm.
+        """
+        self._varbayes_ref = varBayes
+        varBayes.on_iteration_callback = self.send_update
 
     def send_update(self, cells_classProb, iteration, delta):
         """
