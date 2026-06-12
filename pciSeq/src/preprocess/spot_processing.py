@@ -36,7 +36,8 @@ def process_spots(spots: pd.DataFrame,
     spots = spots.assign(plane_id=spots.z_plane.astype(np.int32))
 
     # make sure the index is consecutive
-    assert spots.shape[0] == spots.index.max() + 1, "Spot indices are not consecutive"
+    if spots.shape[0] != spots.index.max() + 1:
+        raise ValueError("Spot indices are not consecutive")
     return spots
 
 

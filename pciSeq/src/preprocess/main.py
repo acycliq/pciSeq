@@ -115,9 +115,15 @@ def stage_data(spots: pd.DataFrame,
     borders_future = executor.submit(_extract_all_borders, coo)
     executor.shutdown(wait=False)
 
-    # Validate results
-    assert props_df.shape[0] == len(set(np.concatenate(get_unique_labels(coo))))
-    assert set(spots.label[spots.label > 0]) <= set(props_df.label)
+    # Validate results. Explicit raises (not asserts) so the checks still run
+    # under python -O; on real data we always want these integrity checks active.
+    n_labels = len(set(np.concatenate(get_unique_labels(coo))))
+    if props_df.shape[0] != n_labels:
+        raise RuntimeError(
+            f"cell property rows ({props_df.shape[0]}) do not match the number of cell labels ({n_labels})"
+        )
+    if not set(spots.label[spots.label > 0]) <= set(props_df.label):
+        raise RuntimeError("some spots are assigned to cell labels with no computed properties")
 
     cells = props_df.rename(columns={'x_cell': 'x0', 'y_cell': 'y0', 'z_cell': 'z0'})
     processed_spots = spots[['x', 'y', 'z', 'plane_id', 'label', 'gene_name', 'score', 'intensity']].rename_axis('spot_id')
