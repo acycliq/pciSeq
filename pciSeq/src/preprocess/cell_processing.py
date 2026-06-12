@@ -101,7 +101,6 @@ def _extract_borders(label_image):
 
 def parse_chaincode(c):
     p = c.Polygon().Simplify()
-    p = p + np.array([0, 0])
     p = np.uint64(p).tolist()
     p.append(p[0])  # append the first pair at the end to close the polygon
     return np.uint64(c.objectID), p

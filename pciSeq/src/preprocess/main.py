@@ -84,9 +84,8 @@ def stage_data(spots: pd.DataFrame,
     """
     # Perform quality control on 3D data
     if cfg['is3D']:
-        spots, coo, min_plane, removed = plane_quality_control(spots, coo, cfg)
-        if removed.shape[0] > 0:
-            removed.frame_num = removed.frame_num + min_plane
+        # the removal record is logged inside plane_quality_control; not needed here
+        spots, coo, _ = plane_quality_control(spots, coo, cfg)
 
     # Process label matrices
     coo, label_map = process_labels(coo)

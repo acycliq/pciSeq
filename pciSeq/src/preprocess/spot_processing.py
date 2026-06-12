@@ -51,9 +51,10 @@ def assign_spot_labels(spots: pd.DataFrame, coo: List[coo_matrix]) -> pd.DataFra
     Returns:
         Spots DataFrame with assigned labels
     """
-    spots = spots.assign(label=np.zeros(spots.shape[0], dtype=np.uint32))
-
-    # Group by 'plane_id', apply the function, and reset the index so the result aligns with df.
+    # Group by 'plane_id', look up each spot's label in its plane, and reset the
+    # index so the result aligns back with the full spots frame. Background spots
+    # (not inside any cell) get label 0 straight from the label-image lookup.
+    # Written in place (no full-frame copy); the caller reassigns the return.
     spots['label'] = (spots.groupby('plane_id')[['x','y','plane_id']]
                       .apply(inside_cell, coo, include_groups=True)
                       .reset_index(level=0, drop=True).squeeze()

@@ -39,7 +39,7 @@ def remove_oob(spots: pd.DataFrame, img_shape: List[int]) -> pd.DataFrame:
 
 def plane_quality_control(spots: pd.DataFrame,
                           coo: List[coo_matrix],
-                          cfg: Dict) -> Tuple[pd.DataFrame, List[coo_matrix], int, pd.DataFrame]:
+                          cfg: Dict) -> Tuple[pd.DataFrame, List[coo_matrix], pd.DataFrame]:
     """
     Perform quality control on 3D segmentation and spatial data.
     Removes single-plane cells.
@@ -55,15 +55,14 @@ def plane_quality_control(spots: pd.DataFrame,
 
     Returns
     -------
-    Tuple[pd.DataFrame, List[coo_matrix], int, pd.DataFrame]
-        Processed spots, processed coo, minimum plane, removed cells
+    Tuple[pd.DataFrame, List[coo_matrix], pd.DataFrame]
+        Processed spots, processed coo, removed cells
     """
-    min_plane = 0
     removed = pd.DataFrame()
 
     if cfg['remove_flat_cells']:
         coo, removed = remove_flat_cells_par(coo)
-    return spots, coo, min_plane, removed
+    return spots, coo, removed
 
 
 def remove_flat_cells(coo_list: List[coo_matrix]) -> Tuple[List[coo_matrix], pd.DataFrame]:
