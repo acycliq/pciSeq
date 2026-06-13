@@ -98,7 +98,7 @@ def check_libvips():
 
 
 if check_libvips():
-    from pciSeq.src.viewer.stage_image import tile_maker, stage_image
+    from pciSeq.src.tiling.stage_image import tile_maker, stage_image
 else:
     def tile_maker():
         logger.warning('>>>> tile_maker() isnt available because libvips is not installed. Please see '
