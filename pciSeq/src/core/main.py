@@ -74,11 +74,9 @@ from .datatypes.singleCell import SingleCell
 from .datatypes.cellClass import CellClass
 from .summary import collect_data
 from .utils.elbo import calc_elbo
-# from .analysis import CellExplorer
 from .utils import ops_utils as utils
 from .utils import visualisation
 from .utils import iteration_diagnostics
-import joblib
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -422,11 +420,6 @@ class VarBayes:
         # Get the full log-likelihood matrix using shared computation
         contr = utils.compute_gene_loglikelihood_matrix(self)
 
-        # label_map = self.config['label_map']
-        # inv_label_map = {v:k for k,v in label_map.items()}
-        #
-        # df_list = [pd.DataFrame(d, columns=self.cells.class_names) for d in contr]
-
         # populate the genes' contributions to the negative loglik. Property 'nb_contr' is only useful
         # for debugging, safe to remove in the future
         self.cells.nb_contr = contr
@@ -437,21 +430,6 @@ class VarBayes:
         # mrf = self.cells.classProb[self.cells.nbrs].sum(axis=1)
         wCellClass = contr + self.cellTypes.log_prior + mrf
         pCellClass = softmax(wCellClass, axis=1)
-
-        # # save the data to a tmp dir
-        # if (self.iter_num < 10) or (self.iter_num > 70):
-        #     from pathlib import Path
-        #     out_dir = Path("/tmp/pciSeq/data/flatfiles") / f"iter_{self.iter_num}"
-        #     out_dir.mkdir(parents=True, exist_ok=True)
-        #
-        #     for i, d in enumerate(df_list):
-        #         d.to_csv(out_dir / f"contr_{i}.csv", index=False)
-        #
-        #     pd.DataFrame(mrf, columns=self.cells.class_names).to_csv(out_dir / "mrf.csv")
-        #
-        #     # if log_prior is (K,) make it a single row; if it's already (1,K) or (N,K) this also works if you adjust
-        #     pd.DataFrame([self.cellTypes.log_prior], columns=self.cells.class_names).to_csv(out_dir / "log_prior.csv")
-        #     logger.info(f"[iter {self.iter_num}] Saving debug CSVs to: {out_dir}")
 
         self.cells.classProb = pCellClass
 
@@ -504,6 +482,7 @@ class VarBayes:
             # get the respective cell type probabilities
             cp = self.cells.classProb[sn]
             log_theta_bar = np.log(self.cells.theta_bar[sn])
+
             # multiply and sum over cells. In practice this means that when high expected counts
             # are aligned with high cell class probs this term will be high
             term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
@@ -773,12 +752,6 @@ class VarBayes:
 
     def calculate_genes_log_likelihood_contr(self, label):
         return utils.calculate_genes_log_likelihood_contr(self, label)
-
-    # def plot_loglik_contr(self, df):
-    #     return utils.plot_loglik_contr(df)
-
-    # def visualize_fit(self, gene_counts, scaled_means):
-    #     return utils.visualize_fit(gene_counts, scaled_means)
 
     def check_cell(self, my_label, user_class, top_n=10, show_plot=True):
         return utils.check_cell(self, my_label, user_class, top_n, show_plot)
