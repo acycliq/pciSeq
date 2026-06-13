@@ -92,7 +92,7 @@ def stage_data(spots: pd.DataFrame,
 
     # Process label matrices
     coo, label_map = process_labels(coo)
-    # runtime-derived run state, kept in cfg alongside is3D/is_redis_running (see Config.set_runtime_attrs)
+    # runtime-derived run state, kept in cfg alongside is3D (see Config.set_runtime_attrs)
     cfg['label_map'] = label_map
 
     img_dim = {'n_planes': len(coo),

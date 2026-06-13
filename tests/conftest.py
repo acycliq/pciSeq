@@ -66,8 +66,6 @@ def base_opts():
         "rSpot": 2,
         "save_data": False,
         "output_path": "default",
-        "launch_diagnostics": False,
-        "is_redis_running": False,
         "cell_radius": None,
         "cell_type_prior": "uniform",
         "cell_type_weights": None,

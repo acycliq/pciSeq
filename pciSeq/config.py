@@ -109,7 +109,6 @@ DEFAULT = {
     "save_data": True,
     # Set here where the results will be saved. If default then they will be saved at your system's temp folder
     "output_path": "default",
-    "launch_diagnostics": False,
     # cell radius. If None then pciSeq will calc that as the mean radius across all cells.
     # Otherwise it will use the value provided below
     "cell_radius": None,
@@ -126,8 +125,6 @@ DEFAULT = {
     # Example: {"Zero": 0.4, "037 DG Glut": 0.1} gives Zero 40%, DG Glut 10%,
     #   and the rest share the remaining 50% equally.
     "cell_type_weights": {"Zero": 0.5},
-    # Runtime attribute (automatically set during execution)
-    "is_redis_running": False,
     # *******************************************************************************
     # Hyperparameters below added for 3D
     # *******************************************************************************

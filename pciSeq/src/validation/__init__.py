@@ -26,7 +26,7 @@ def validate_inputs(
 
     This is the main entry point for the validation system. It:
         1. Creates and configures a Config object
-        2. Sets runtime attributes (is3D, Redis availability)
+        2. Sets runtime attributes (is3D)
         3. Runs comprehensive validation via Validator
         4. Returns validated, cleaned inputs
 

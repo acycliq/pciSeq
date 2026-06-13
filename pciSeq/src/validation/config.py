@@ -25,8 +25,6 @@ _TYPE_SPECS = {
     "rSpot": (int, float),
     "save_data": bool,
     "output_path": str,
-    "launch_diagnostics": bool,
-    "is_redis_running": bool,
     "cell_radius": (type(None), float),
     "cell_type_prior": str,
     "cell_type_weights": (type(None), dict),
@@ -149,13 +147,9 @@ class Config(dict):
 
         Updates:
             - is3D: Whether data is 3D (multiple planes)
-            - is_redis_running: Whether Redis server is available
             - similarity_pairs: Normalized to empty list if None
         """
-        from pciSeq.src.diagnostics.utils import check_redis_server
-
         self["is3D"] = self._detect_3d(coo)
-        self["is_redis_running"] = check_redis_server()
         self["similarity_pairs"] = self["similarity_pairs"] or []
 
     def _detect_3d(self, coo) -> bool:

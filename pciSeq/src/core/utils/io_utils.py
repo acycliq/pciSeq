@@ -1,7 +1,5 @@
 """File and data I/O operations."""
 import os
-import subprocess
-from email.parser import BytesHeaderParser
 import numpy as np
 from pathlib import Path
 import pickle
@@ -45,13 +43,6 @@ def get_out_dir(path: Optional[str] = None, sub_folder: str = '') -> str:
 
     out_dir.mkdir(parents=True, exist_ok=True)
     return str(out_dir)
-
-
-def get_pciSeq_install_dir():
-    p = subprocess.run(['pip', 'show', 'pciSeq'], stdout=subprocess.PIPE)
-    h = BytesHeaderParser().parsebytes(p.stdout)
-    assert h['Location'] is not None, 'Could not locate pciSeq installation folder, maybe the package is not installed.'
-    return os.path.join(h['Location'], 'pciSeq')
 
 
 def log_file(cfg: Dict) -> None:
