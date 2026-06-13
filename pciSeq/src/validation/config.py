@@ -24,6 +24,8 @@ _TYPE_SPECS = {
     "nNeighbors": int,
     "rSpot": (int, float),
     "save_data": bool,
+    "compute_elbo": bool,
+    "profile_steps": bool,
     "output_path": str,
     "cell_radius": (type(None), float),
     "cell_type_prior": str,

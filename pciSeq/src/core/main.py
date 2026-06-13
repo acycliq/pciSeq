@@ -55,6 +55,7 @@ Dependencies:
 """
 import logging
 import datetime
+import time
 from typing import Dict, List, Optional, Tuple, Union, Any
 
 # Third-party imports
@@ -225,6 +226,16 @@ class VarBayes:
         cell_df, gene_df = self.main_loop()
         return cell_df, gene_df
 
+    def _step(self, name, fn):
+        """Run one update step. When config['profile_steps'] is on, record its
+        wall-time into self._step_times. When off, this is just fn() with no overhead."""
+        if not self.config.get('profile_steps', False):
+            fn()
+            return
+        t0 = time.perf_counter()
+        fn()
+        self._step_times[name] = time.perf_counter() - t0
+
     # -------------------------------------------------------------------- #
     def main_loop(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Main algorithm loop.
@@ -261,20 +272,22 @@ class VarBayes:
         for i in range(max_iter):
             self.iter_num = i
 
+            self._step_times = {}
+
             # 1. For each cell, calc the expected gene counts
-            self.geneCount_upd()
+            self._step('geneCount_upd', self.geneCount_upd)
 
             # 2. update gene-specific misread density
-            self.rho_upd()
+            self._step('rho_upd', self.rho_upd)
 
             # 3. calc the gene inefficiency
-            self.eta_upd()
+            self._step('eta_upd', self.eta_upd)
 
             # 4. calc the cell inefficiency
-            self.theta_upd()
+            self._step('theta_upd', self.theta_upd)
 
             # 5. calc expected gamma
-            self.gamma_upd()
+            self._step('gamma_upd', self.gamma_upd)
 
             logger.info("gaussian_upd step has been removed in this version of the software")
             # 3 update correlation matrix and variance of the gaussian distribution
@@ -284,22 +297,29 @@ class VarBayes:
             # 6. assign cells to cell types
             # keep the class probs from before the update so we can compare a moved cell's type before vs after
             classProb_before = self.cells.classProb.copy()
-            self.cell_to_cellType()
+            self._step('cell_to_cellType', self.cell_to_cellType)
 
             # 7. update the dirichlet distribution
             if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):
-                self.dalpha_upd()
+                self._step('dalpha_upd', self.dalpha_upd)
 
             # 8. Update single cell data
             if self.single_cell.isMissing:
-                self.mu_upd()
+                self._step('mu_upd', self.mu_upd)
 
             # 9. assign spots to cells
-            self.spots_to_cell()
+            self._step('spots_to_cell', self.spots_to_cell)
 
-            # # Calculate ELBO
-            elbo = calc_elbo(self)
-            logger.info('Iteration %d, ELBO: %f' % (i, elbo))
+            if self.config.get('profile_steps', False):
+                _total = sum(self._step_times.values())
+                _bd = ' '.join('%s=%.2f' % (k, v) for k, v in self._step_times.items())
+                logger.info('STEP TIMES iter %d (total %.2fs): %s', i, _total, _bd)
+
+            # ELBO is for monitoring only (it does not feed convergence), and it is
+            # expensive: several passes over the nC x nG x nK tensor. So it is optional.
+            if self.config.get('compute_elbo', False):
+                elbo = calc_elbo(self)
+                logger.info('Iteration %d, ELBO: %f' % (i, elbo))
 
             self.has_converged, delta = utils.has_converged(
                 self.spots, p0, self.config['CellCallTolerance']
@@ -473,6 +493,9 @@ class VarBayes:
 
         # Materialize once before the loop (same for all neighbors)
         log_gamma_bar_arr = self.spots.log_gamma_bar.compute()
+        # log(theta_bar) is identical for every neighbor, so log the small [nC, nK]
+        # array once here instead of re-logging the gathered [nS, nK] inside the loop.
+        log_theta_bar_all = np.log(self.cells.theta_bar)
 
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
         for n in range(nN - 1):
@@ -481,7 +504,7 @@ class VarBayes:
 
             # get the respective cell type probabilities
             cp = self.cells.classProb[sn]
-            log_theta_bar = np.log(self.cells.theta_bar[sn])
+            log_theta_bar = log_theta_bar_all[sn]
 
             # multiply and sum over cells. In practice this means that when high expected counts
             # are aligned with high cell class probs this term will be high
