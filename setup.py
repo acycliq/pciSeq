@@ -132,8 +132,7 @@ setup(
     install_requires=install_deps,
     include_package_data=True,
     package_data={
-        "pciSeq": get_static_files(os.path.join("pciSeq", "static"))
-        + get_static_files(os.path.join("pciSeq", "src", "realtime_viewer"))
+        "pciSeq": get_static_files(os.path.join("pciSeq", "src", "realtime_viewer"))
     },
     classifiers=[
         "Programming Language :: Python :: 3",
