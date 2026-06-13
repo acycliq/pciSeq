@@ -25,7 +25,6 @@ _TYPE_SPECS = {
     "rSpot": (int, float),
     "save_data": bool,
     "output_path": str,
-    "launch_viewer": (bool, str),
     "launch_diagnostics": bool,
     "is_redis_running": bool,
     "cell_radius": (type(None), float),

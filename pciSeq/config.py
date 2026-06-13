@@ -109,8 +109,6 @@ DEFAULT = {
     "save_data": True,
     # Set here where the results will be saved. If default then they will be saved at your system's temp folder
     "output_path": "default",
-    # if true the viewer will be launched once convergence has been achieved
-    "launch_viewer": False,
     "launch_diagnostics": False,
     # cell radius. If None then pciSeq will calc that as the mean radius across all cells.
     # Otherwise it will use the value provided below

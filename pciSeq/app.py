@@ -6,8 +6,6 @@ from .src.validation import validate_inputs
 from .src.core.main import VarBayes
 from .src.core.utils.cell_utils import recover_original_labels
 from .src.core.utils.io_utils import write_data
-from .src.viewer.utils import pre_launch
-from .src.viewer.run_flask import flask_app_start
 from .src.preprocess.main import stage_data
 import logging
 
@@ -87,13 +85,9 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         if label_map is not None:
             cellData, geneData, cellBoundaries, cellBoundaries_list = recover_original_labels(cellData, geneData, cellBoundaries, cellBoundaries_list, label_map)
 
-        # 8. Save data and launch viewer if needed
-        if cfg['save_data'] or cfg['launch_viewer']:
+        # 8. Save data
+        if cfg['save_data']:
             write_data(cellData, geneData, cellBoundaries, cellBoundaries_list, varBayes, cfg)
-
-            if cfg['launch_viewer']:
-                dst = pre_launch(cellData, geneData, coo, scRNAseq, cfg)
-                flask_app_start(dst)
 
         logger.info('Done')
         return cellData, geneData

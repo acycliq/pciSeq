@@ -2,7 +2,7 @@ import os
 import redis
 import pickle
 from sys import platform
-from ...src.viewer.utils import get_pciSeq_install_dir
+from ...src.core.utils.io_utils import get_pciSeq_install_dir
 from ...src.diagnostics import config
 import getpass
 import subprocess as sp

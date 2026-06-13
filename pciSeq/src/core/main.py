@@ -141,7 +141,7 @@ class VarBayes:
         required = ['exclude_genes', 'max_iter', 'CellCallTolerance',
                     'rGene', 'Inefficiency', 'InsideCellBonus', 'MisreadDensity',
                     'cell_centroid_prior', 'cell_cov_prior', 'SpotReg', 'nNeighbors', 'rSpot',
-                    'save_data', 'output_path', 'launch_viewer', 'launch_diagnostics',
+                    'save_data', 'output_path', 'launch_diagnostics',
                     'is_redis_running', 'cell_radius', 'cell_type_prior', 'is3D',
                     'mean_gene_counts_per_class', 'mean_gene_counts_per_cell']
         missing = [param for param in required if param not in config]
