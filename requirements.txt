@@ -1,4 +1,5 @@
 pytest
 jupyterlab
+scikit-image   # test-only: validates the regionprops reimplementation in test_process_labels.py
 -e .
 
