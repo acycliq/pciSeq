@@ -228,9 +228,9 @@ class VarBayes:
         return cell_df, gene_df
 
     def _step(self, name, fn):
-        """Run one update step. When config['profile_steps'] is on, record its
-        wall-time into self._step_times. When off, this is just fn() with no overhead."""
-        if not self.config.get('profile_steps', False):
+        """Run one update step. When config['verbose'] is on, record its wall-time
+        into self._step_times. When off, this is just fn() with no overhead."""
+        if not self.config.get('verbose', False):
             fn()
             return
         t0 = time.perf_counter()
@@ -314,19 +314,19 @@ class VarBayes:
             # and can be swapped in on this line when needed.
             self._step('spots_to_cell', self.spots_to_cell_numba)
 
-            if self.config.get('profile_steps', False):
+            if self.config.get('verbose', False):
                 _total = sum(self._step_times.values())
                 _bd = ' '.join('%s=%.2f' % (k, v) for k, v in self._step_times.items())
                 logger.info('STEP TIMES iter %d (total %.2fs): %s', i, _total, _bd)
 
-            # ELBO is for monitoring only (it does not feed convergence), and it is
-            # expensive: several passes over the nC x nG x nK tensor. So it is optional.
-            if self.config.get('compute_elbo', False):
+            # ELBO is monitoring only (it does not feed convergence) and is expensive
+            # (several passes over the nC x nG x nK tensor), so compute it only when verbose.
+            if self.config.get('verbose', False):
                 elbo = calc_elbo(self)
                 logger.info('Iteration %d, ELBO: %f' % (i, elbo))
 
             self.has_converged, delta = utils.has_converged(
-                self.spots, p0, self.config['CellCallTolerance']
+                self.spots, p0, self.config['CellCallTolerance'], self.config.get('verbose', False)
             )
             iteration_diagnostics.log_iteration_diagnostics(self, i, delta, p0, classProb_before)
 
@@ -612,9 +612,10 @@ class VarBayes:
             minlength=self.nG
         )
         self.genes.calc_rho(background_counts)
-        logger.info(f"rho_upd: bg_counts min/max={background_counts.min():.1f}/{background_counts.max():.1f}, "
-                     f"rho_bar min/max={self.genes.rho_bar.min():.2e}/{self.genes.rho_bar.max():.2e}, "
-                     f"log_rho min/max={self.genes.log_rho_bar.min():.4f}/{self.genes.log_rho_bar.max():.4f}")
+        if self.config.get('verbose', False):
+            logger.info(f"rho_upd: bg_counts min/max={background_counts.min():.1f}/{background_counts.max():.1f}, "
+                         f"rho_bar min/max={self.genes.rho_bar.min():.2e}/{self.genes.rho_bar.max():.2e}, "
+                         f"log_rho min/max={self.genes.log_rho_bar.min():.4f}/{self.genes.log_rho_bar.max():.4f}")
 
     # -------------------------------------------------------------------- #
     def eta_upd(self) -> None:
@@ -822,7 +823,6 @@ class VarBayes:
                          mu) + self.config['rTheta']
 
         self.cells.calc_theta(alpha, beta)
-        print('ok')
 
     # -------------------------------------------------------------------- #
     def heatmap_counts_per_class(self):

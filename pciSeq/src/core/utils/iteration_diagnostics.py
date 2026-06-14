@@ -9,8 +9,8 @@ def log_iteration_diagnostics(vb, i, delta, p0, classProb_before):
     """Read-only per-iteration diagnostic logging. Changes no model state."""
     # note: this is the single largest spot-to-cell prob change, not a mean
     logger.info('Iteration %d, max spot-to-cell prob change %f' % (i, delta))
-    # --- SMART LOGGING ---
-    if delta > 0:
+    # the detailed per-iteration breakdown below is logged only when verbose is on
+    if delta > 0 and vb.config.get('verbose', False):
         p1 = vb.spots.parent_cell_prob
         p0_val = p0 if p0 is not None else np.zeros_like(p1)
         diffs = np.abs(p1 - p0_val)
