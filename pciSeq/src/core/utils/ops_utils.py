@@ -354,8 +354,17 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     # Filter rows and columns
     gene_expression_data = gene_expression_data.loc[selected_genes, [pciSeq_class, user_class]]
 
-    # Merge with gene_counts and expected counts (scaled_means)
-    expected_counts = scaled_means_df.loc[selected_genes, [pciSeq_class, user_class]]
+    # Merge with gene_counts and the NB prediction (the expected counts the model
+    # actually uses in the likelihood). scaled_means_df on its own is area_factor * mu;
+    # the NB mean that drives the log-likelihood is scaled_means * eta_g * theta_ck + SpotReg,
+    # so we have to put eta (gene efficiency) and theta (this cell's efficiency) back in.
+    # This matches compute_gene_loglikelihood_matrix and the JS viewer's diagnostics.js.
+    nb_values = np.einsum('gk, g, k -> gk',
+                          scaled_means_df.values,
+                          obj.genes.eta_bar,
+                          obj.cells.theta_bar[pciSeq_label]) + obj.config['SpotReg']
+    nb_prediction = pd.DataFrame(nb_values, index=scaled_means_df.index, columns=scaled_means_df.columns)
+    expected_counts = nb_prediction.loc[selected_genes, [pciSeq_class, user_class]]
     gene_expression_data = gene_expression_data.merge(
         expected_counts, left_index=True, right_index=True, suffixes=('_mean', '_expected')
     )
