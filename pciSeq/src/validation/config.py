@@ -26,7 +26,6 @@ _TYPE_SPECS = {
     "save_data": bool,
     "compute_elbo": bool,
     "profile_steps": bool,
-    "numba_spots": bool,
     "output_path": str,
     "cell_radius": (type(None), float),
     "cell_type_prior": str,

@@ -66,7 +66,6 @@ import pandas as pd
 from dask.delayed import delayed
 from scipy.special import softmax
 import opt_einsum as oe
-from numba import njit, prange
 
 # Local imports
 from .datatypes.cells import Cells
@@ -79,44 +78,10 @@ from .utils.elbo import calc_elbo
 from .utils import ops_utils as utils
 from .utils import visualisation
 from .utils import iteration_diagnostics
+from .utils.numba_kernels import spots_to_cell_numba_kernel
 
 # Configure logging
 logger = logging.getLogger(__name__)
-
-
-@njit(parallel=True, cache=True)
-def _spots_to_cell_numba_kernel(parent, gene_id, classProb, log_gamma_bar, log_theta,
-                                expected_counts, logeta_bar, nNb,
-                                wSpotCell, attention, expr_fluct, cell_ineff, gene_ineff):
-    """Fused gather + dot for the spot-to-cell terms, parallel over spots.
-
-    For each spot s and each of its nNb nearest cells, accumulates the three
-    score terms straight out of the gathered rows (no [nS, nK] intermediates):
-      term_1 = sum_k expected_counts[s,k] * classProb[cell,k]
-      term_2 = sum_k classProb[cell,k]   * log_gamma_bar[cell, gene_s, k]
-      term_3 = sum_k classProb[cell,k]   * log_theta[cell,k]
-    mvn_loglik and the misread column are handled by the caller.
-    """
-    nS = parent.shape[0]
-    nK = classProb.shape[1]
-    for s in prange(nS):
-        g = gene_id[s]
-        le = logeta_bar[s]
-        for n in range(nNb):
-            cell = parent[s, n]
-            t1 = 0.0
-            t2 = 0.0
-            t3 = 0.0
-            for k in range(nK):
-                cpk = classProb[cell, k]
-                t1 += expected_counts[s, k] * cpk
-                t2 += cpk * log_gamma_bar[cell, g, k]
-                t3 += cpk * log_theta[cell, k]
-            wSpotCell[s, n] = t1 + t2 + t3 + le
-            attention[s, n] = t1
-            expr_fluct[s, n] = t2
-            cell_ineff[s, n] = t3
-            gene_ineff[s, n] = le
 
 
 class VarBayes:
@@ -344,10 +309,10 @@ class VarBayes:
                 self._step('mu_upd', self.mu_upd)
 
             # 9. assign spots to cells
-            # numba kernel is the default fast path; the loop spots_to_cell is kept as
-            # the readable reference and can be switched back in with numba_spots=False.
-            _spots_fn = self.spots_to_cell_numba if self.config.get('numba_spots', True) else self.spots_to_cell
-            self._step('spots_to_cell', _spots_fn)
+            # spots_to_cell_numba (the numba kernel) is the fast path used here.
+            # spots_to_cell (the plain numpy loop) is kept as the readable reference
+            # and can be swapped in on this line when needed.
+            self._step('spots_to_cell', self.spots_to_cell_numba)
 
             if self.config.get('profile_steps', False):
                 _total = sum(self._step_times.values())
@@ -532,8 +497,8 @@ class VarBayes:
 
         # Materialize once before the loop (same for all neighbors)
         log_gamma_bar_arr = self.spots.log_gamma_bar.compute()
-        # log(theta_bar) is identical for every neighbor, so log the small [nC, nK]
-        # array once here instead of re-logging the gathered [nS, nK] inside the loop.
+        # log(theta_bar) is identical for every neighbor, so take the log of the small
+        # [nC, nK] array once here instead of taking it inside the loop on every neighbor.
         log_theta_bar_all = np.log(self.cells.theta_bar)
 
         # loop over the first nN-1 closest cells. The nN-th column is reserved for the misreads
@@ -583,10 +548,12 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def spots_to_cell_numba(self) -> None:
-        """A/B twin of spots_to_cell using the numba parallel kernel above to fuse
-        the gather + dot product (no [nS, nK] intermediates) across all cores.
-        mvn_loglik is still computed the existing way and added afterwards.
-        Must give identical parent_cell_prob; kept separate for A/B comparison.
+        """Faster version of spots_to_cell using the numba kernel in utils.numba_kernels.
+
+        It computes the same terms, but reads straight from the arrays without building
+        the large temporary arrays the numpy version does, and runs on all cores.
+        mvn_loglik is still computed the old way and added afterwards. Gives the same
+        parent_cell_prob as spots_to_cell; kept separate so the two can be compared.
         """
         nN = self.nN
         nNb = nN - 1
@@ -610,10 +577,10 @@ class VarBayes:
         cell_inefficiency = np.zeros([nS, nN])
         gene_inefficiency = np.zeros([nS, nN])
 
-        # fused gather + dot for term_1/2/3, parallel over spots (no intermediates)
-        _spots_to_cell_numba_kernel(parent, gene_id, classProb, log_gamma_bar_arr, log_theta_bar_all,
-                                    expected_counts, logeta_bar, nNb,
-                                    wSpotCell, attention, expr_fluctuations, cell_inefficiency, gene_inefficiency)
+        # numba kernel fills in term_1/2/3 for all spots (see utils.numba_kernels)
+        spots_to_cell_numba_kernel(parent, gene_id, classProb, log_gamma_bar_arr, log_theta_bar_all,
+                                   expected_counts, logeta_bar, nNb,
+                                   wSpotCell, attention, expr_fluctuations, cell_inefficiency, gene_inefficiency)
 
         # mvn_loglik is not in the kernel yet; compute per neighbour and add it in
         for n in range(nNb):
