@@ -74,10 +74,12 @@ def base_opts():
         "remove_flat_cells": True,
         "mean_gene_counts_per_class": 60,
         "mean_gene_counts_per_cell": 30,
-        "img_dim": {"w": 100, "h": 100, "n_planes": 10},
         "rRho": 1000.0,
         "rTheta": 25.0,
-        "label_map": {},
+        # similarity_pairs is a valid fit() option (normalised to [] by Config), so it can
+        # live here. img_dim and label_map are injected by the pipeline at runtime and are
+        # not accepted by fit(), so they are added in minimal_varbayes instead, see below.
+        "similarity_pairs": [],
     }
 
 
@@ -148,9 +150,13 @@ def minimal_varbayes(rng, base_opts):
         }
     )
 
+    # base_opts holds the user-facing options. Building VarBayes directly also needs the
+    # keys the real pipeline injects at runtime (img_dim, label_map), so add them here.
+    opts = {**base_opts, "img_dim": {"w": 100, "h": 100, "n_planes": 10}, "label_map": {}}
+
     # Instantiate VarBayes
     vb = VarBayes(
-        spots_df=spots_df, cells_df=cells_df, scRNAseq=scref_df, config=base_opts
+        spots_df=spots_df, cells_df=cells_df, scRNAseq=scref_df, config=opts
     )
 
     return vb
