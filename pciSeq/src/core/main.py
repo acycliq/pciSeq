@@ -51,7 +51,6 @@ Dependencies:
 - pandas: For data management
 - scipy: For statistical operations
 - numpy_groupies: For group operations
-- dask: For delayed computations
 """
 import logging
 import datetime
@@ -63,7 +62,6 @@ import sys
 import numpy as np
 import numpy_groupies as npg
 import pandas as pd
-from dask.delayed import delayed
 from scipy.special import softmax
 import opt_einsum as oe
 
@@ -188,7 +186,7 @@ class VarBayes:
 
         mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
         area_factor = self.cells.ini_cell_props['area_factor']
-        gamma_bar = self.spots.gamma_bar.compute()
+        gamma_bar = self.spots.gamma_bar
         eta_bar = self.genes.eta_bar
 
         beta = np.einsum('c, cgk, g, gk -> ck',
@@ -216,7 +214,7 @@ class VarBayes:
         Get scaled expression values.
 
         Returns:
-            delayed: Dask delayed object containing scaled expression computation
+            np.ndarray: the scaled expression array
         """
         return self._scaled_exp
 
@@ -407,24 +405,24 @@ class VarBayes:
         values using scaled expression and spot regularization parameters.
 
         Updates:
-            - self._scaled_exp: Delayed computation of scaled expression
+            - self._scaled_exp: scaled expression
             - self.spots._log_gamma_bar: Log of expected gamma values
             - self.spots._gamma_bar: Expected gamma values
         """
         cells = self.cells
         cfg = self.config
 
-        self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
-                                                    self.single_cell.mean_expression_adj.values))
+        self._scaled_exp = utils.scaled_exp(cells.ini_cell_props['area_factor'],
+                                            self.single_cell.mean_expression_adj.values)
 
-        beta = self.scaled_exp.compute() * self.genes.eta_bar[:, None] * self.cells.theta_bar[:,None, :]+ cfg['rSpot']
+        beta = self.scaled_exp * self.genes.eta_bar[:, None] * self.cells.theta_bar[:,None, :]+ cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
         self.spots._post_shape = rho
         self.spots._post_rate = beta
-        self.spots._log_gamma_bar = delayed(self.spots.logGammaExpectation(rho, beta))
-        self.spots._gamma_bar = delayed(self.spots.gammaExpectation(rho, beta))
-        self.spots.my_gamma_bar = self.spots._gamma_bar.compute()
+        self.spots._log_gamma_bar = self.spots.logGammaExpectation(rho, beta)
+        self.spots._gamma_bar = self.spots.gammaExpectation(rho, beta)
+        self.spots.my_gamma_bar = self.spots._gamma_bar
 
     # -------------------------------------------------------------------- #
     def cell_to_cellType(self) -> None:
@@ -496,7 +494,7 @@ class VarBayes:
         gene_inefficiency = np.zeros(wSpotCell.shape)
 
         # Materialize once before the loop (same for all neighbors)
-        log_gamma_bar_arr = self.spots.log_gamma_bar.compute()
+        log_gamma_bar_arr = self.spots.log_gamma_bar
         # log(theta_bar) is identical for every neighbor, so take the log of the small
         # [nC, nK] array once here instead of taking it inside the loop on every neighbor.
         log_theta_bar_all = np.log(self.cells.theta_bar)
@@ -574,7 +572,7 @@ class VarBayes:
         expected_counts = np.ascontiguousarray(self.single_cell.log_mean_expression.loc[gn].values)  # [nS, nK]
         logeta_bar = np.ascontiguousarray(self.genes.logeta_bar[self.spots.gene_id])     # [nS]
         log_rho = self.genes.log_rho_bar[self.spots.gene_id]                             # [nS]
-        log_gamma_bar_arr = np.ascontiguousarray(self.spots.log_gamma_bar.compute())     # [nC, nG, nK]
+        log_gamma_bar_arr = np.ascontiguousarray(self.spots.log_gamma_bar)     # [nC, nG, nK]
         log_theta_bar_all = np.ascontiguousarray(np.log(self.cells.theta_bar))           # [nC, nK]
         classProb = np.ascontiguousarray(self.cells.classProb)                           # [nC, nK]
         parent = np.ascontiguousarray(self.spots.parent_cell_id)                         # [nS, nN]
@@ -656,7 +654,7 @@ class VarBayes:
         classProb = self.cells.classProb
         mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
         area_factor = self.cells.ini_cell_props['area_factor']
-        gamma_bar = self.spots.gamma_bar.compute()
+        gamma_bar = self.spots.gamma_bar
         theta_bar = self.cells.theta_bar
 
         zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
@@ -797,7 +795,7 @@ class VarBayes:
         """
         classProb = self.cells.classProb[1:, :-1].copy()
         geneCount = self.cells.geneCount[1:, :].copy()
-        gamma_bar = self.spots.gamma_bar.compute()[1:, :, :-1]
+        gamma_bar = self.spots.gamma_bar[1:, :, :-1]
         area_factor = self.cells.ini_cell_props['area_factor'][1:]
 
         numer = oe.contract('ck, cg -> gk', classProb, geneCount, optimize='optimal')
@@ -830,7 +828,7 @@ class VarBayes:
 
         mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
         area_factor = self.cells.ini_cell_props['area_factor']
-        gamma_bar = self.spots.gamma_bar.compute()
+        gamma_bar = self.spots.gamma_bar
         eta_bar = self.genes.eta_bar
 
         beta = np.einsum('c, cgk, g, gk -> ck',

@@ -282,7 +282,7 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     # --- Populate Metadata ---
     # Compute scaled_means for metadata nC (and for cells table)
     # logger.info('Computing scaled_exp for diagnostics export...')
-    scaled_means = varBayes.scaled_exp.compute()
+    scaled_means = varBayes.scaled_exp
     nC, nG, nK = scaled_means.shape
 
     nS = spots.nS
@@ -354,7 +354,7 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     assigned_class_idx = np.argmax(class_prob_f32, axis=1).astype(np.int32)
 
     # gamma_assigned[c, :] = gamma_bar[c, :, assigned_class[c]]
-    gamma_bar = varBayes.spots.gamma_bar.compute().astype(np.float32)  # (nC, nG, nK)
+    gamma_bar = varBayes.spots.gamma_bar.astype(np.float32)  # (nC, nG, nK)
     gamma_assigned = gamma_bar[np.arange(nC), :, assigned_class_idx]   # (nC, nG)
 
     # mrf[c, k]

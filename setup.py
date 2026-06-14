@@ -62,7 +62,6 @@ def get_static_files(root):
 install_deps = [
     "numpy_groupies",
     "pandas",
-    "dask",
     "scipy",
     "scikit-learn",
     "tqdm",

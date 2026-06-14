@@ -118,7 +118,7 @@ def compute_gene_loglikelihood_matrix(obj) -> np.ndarray:
                    gene g in cell c for cell type k
     """
     # Compute scaled expression (expensive operation done once)
-    scaled_means = obj.scaled_exp.compute()
+    scaled_means = obj.scaled_exp
 
     # Calculate scaled expression adjusted by gene efficiency and regularization
     ScaledExp = np.einsum('cgk,g,ck->cgk', scaled_means, obj.genes.eta_bar, obj.cells.theta_bar) + obj.config['SpotReg']
@@ -169,7 +169,7 @@ def calculate_genes_log_likelihood_contr(obj, label: int) -> Tuple[DataFrame, Se
     contr = compute_gene_loglikelihood_matrix(obj)
 
     # Get scaled expression and gene counts
-    scaled_means = obj.scaled_exp.compute()
+    scaled_means = obj.scaled_exp
     cgc = obj.cells.geneCount
 
     # Return values for the specified cell

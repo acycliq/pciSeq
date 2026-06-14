@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 import scipy
 import opt_einsum as oe
-from dask.delayed import delayed
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
@@ -168,8 +167,8 @@ class Spots(object):
         """
         self._post_shape = np.ones(dim, dtype=np.float32) * a
         self._post_rate = np.ones(dim, dtype=np.float32) * b
-        self._gamma_bar = delayed(np.ones(dim, dtype=np.float32) * (a / b))
-        self._log_gamma_bar = delayed(np.ones(dim, dtype=np.float32) * self._digamma(a, b))
+        self._gamma_bar = np.ones(dim, dtype=np.float32) * (a / b)
+        self._log_gamma_bar = np.ones(dim, dtype=np.float32) * self._digamma(a, b)
 
 
     def _digamma(self, a, b):

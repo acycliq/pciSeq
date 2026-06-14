@@ -74,7 +74,7 @@ def poisson_process_loglikelihood(obj):
     theta_ck = obj.cells.theta_bar
     mu_gk = obj.single_cell.mean_expression_adj.values + obj.config['SpotReg']
     A_c = obj.cells.ini_cell_props['area_factor']
-    gamma_cgk = obj.spots.gamma_bar.compute()
+    gamma_cgk = obj.spots.gamma_bar
     eta_g = obj.genes.eta_bar
 
     # term1: -integral of expected intensity over the ROI (cells + background)
@@ -92,8 +92,6 @@ def poisson_process_loglikelihood(obj):
     log_mu = np.log(mu_gk)                 # (nG, nK)
     log_theta = np.log(theta_ck)           # (nC, nK) — point estimate, so E[log] = log
     E_log_gamma = spots.log_gamma_bar      # (nC, nG, nK) — E_q[log gamma] = psi(a) - log(b)
-    if hasattr(E_log_gamma, 'compute'):
-        E_log_gamma = E_log_gamma.compute()
     E_log_eta = obj.genes.logeta_bar       # (nG,) — E_q[log eta] = psi(a) - log(b)
     mvn_loglik = spots.mvn_loglik_arr      # (nS, nN) — spatial: multivariate normal log-pdf
     bonus = spots.bonus_mask * cfg['InsideCellBonus']
@@ -190,11 +188,7 @@ def gamma_prior(obj):
     r = obj.config['rSpot']
 
     E_gamma = obj.spots.gamma_bar               # (nC, nG, nK)
-    if hasattr(E_gamma, 'compute'):
-        E_gamma = E_gamma.compute()
     E_log_gamma = obj.spots.log_gamma_bar       # (nC, nG, nK)
-    if hasattr(E_log_gamma, 'compute'):
-        E_log_gamma = E_log_gamma.compute()
 
     # log p(gamma) = r*log(r) - gammaln(r) + (r-1)*E[log gamma] - r*E[gamma]
     log_norm = r * np.log(r) - gammaln(r)       # normalising constant of the Gamma pdf
