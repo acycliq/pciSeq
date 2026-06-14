@@ -66,6 +66,7 @@ import pandas as pd
 from dask.delayed import delayed
 from scipy.special import softmax
 import opt_einsum as oe
+from numba import njit, prange
 
 # Local imports
 from .datatypes.cells import Cells
@@ -81,6 +82,41 @@ from .utils import iteration_diagnostics
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+@njit(parallel=True, cache=True)
+def _spots_to_cell_numba_kernel(parent, gene_id, classProb, log_gamma_bar, log_theta,
+                                expected_counts, logeta_bar, nNb,
+                                wSpotCell, attention, expr_fluct, cell_ineff, gene_ineff):
+    """Fused gather + dot for the spot-to-cell terms, parallel over spots.
+
+    For each spot s and each of its nNb nearest cells, accumulates the three
+    score terms straight out of the gathered rows (no [nS, nK] intermediates):
+      term_1 = sum_k expected_counts[s,k] * classProb[cell,k]
+      term_2 = sum_k classProb[cell,k]   * log_gamma_bar[cell, gene_s, k]
+      term_3 = sum_k classProb[cell,k]   * log_theta[cell,k]
+    mvn_loglik and the misread column are handled by the caller.
+    """
+    nS = parent.shape[0]
+    nK = classProb.shape[1]
+    for s in prange(nS):
+        g = gene_id[s]
+        le = logeta_bar[s]
+        for n in range(nNb):
+            cell = parent[s, n]
+            t1 = 0.0
+            t2 = 0.0
+            t3 = 0.0
+            for k in range(nK):
+                cpk = classProb[cell, k]
+                t1 += expected_counts[s, k] * cpk
+                t2 += cpk * log_gamma_bar[cell, g, k]
+                t3 += cpk * log_theta[cell, k]
+            wSpotCell[s, n] = t1 + t2 + t3 + le
+            attention[s, n] = t1
+            expr_fluct[s, n] = t2
+            cell_ineff[s, n] = t3
+            gene_ineff[s, n] = le
 
 
 class VarBayes:
@@ -308,7 +344,10 @@ class VarBayes:
                 self._step('mu_upd', self.mu_upd)
 
             # 9. assign spots to cells
-            self._step('spots_to_cell', self.spots_to_cell)
+            # numba kernel is the default fast path; the loop spots_to_cell is kept as
+            # the readable reference and can be switched back in with numba_spots=False.
+            _spots_fn = self.spots_to_cell_numba if self.config.get('numba_spots', True) else self.spots_to_cell
+            self._step('spots_to_cell', _spots_fn)
 
             if self.config.get('profile_steps', False):
                 _total = sum(self._step_times.values())
@@ -516,7 +555,6 @@ class VarBayes:
 
             term_3 = np.einsum('ij, ij -> i', cp, log_theta_bar)
 
-            # wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik[:, n]
             mvn_loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
             wSpotCell[:, n] = term_1 + term_2 + term_3 + logeta_bar + mvn_loglik
             mvn_loglik_arr[:, n] = mvn_loglik
@@ -542,6 +580,57 @@ class VarBayes:
         # the same operation is explicitly called as Step 1 at the top of the main_loop.
         # Note: If spots_to_cell ceases to be the final step of the loop, this MUST be uncommented.
         # self.geneCount_upd()
+
+    # -------------------------------------------------------------------- #
+    def spots_to_cell_numba(self) -> None:
+        """A/B twin of spots_to_cell using the numba parallel kernel above to fuse
+        the gather + dot product (no [nS, nK] intermediates) across all cores.
+        mvn_loglik is still computed the existing way and added afterwards.
+        Must give identical parent_cell_prob; kept separate for A/B comparison.
+        """
+        nN = self.nN
+        nNb = nN - 1
+        nS = self.spots.data.gene_name.shape[0]
+
+        gn = self.spots.data.gene_name.values
+        expected_counts = np.ascontiguousarray(self.single_cell.log_mean_expression.loc[gn].values)  # [nS, nK]
+        logeta_bar = np.ascontiguousarray(self.genes.logeta_bar[self.spots.gene_id])     # [nS]
+        log_rho = self.genes.log_rho_bar[self.spots.gene_id]                             # [nS]
+        log_gamma_bar_arr = np.ascontiguousarray(self.spots.log_gamma_bar.compute())     # [nC, nG, nK]
+        log_theta_bar_all = np.ascontiguousarray(np.log(self.cells.theta_bar))           # [nC, nK]
+        classProb = np.ascontiguousarray(self.cells.classProb)                           # [nC, nK]
+        parent = np.ascontiguousarray(self.spots.parent_cell_id)                         # [nS, nN]
+        gene_id = np.ascontiguousarray(self.spots.gene_id)                               # [nS]
+
+        wSpotCell = np.zeros([nS, nN], dtype=np.float64)
+        wSpotCell[:, -1] = log_rho
+        mvn_loglik_arr = np.zeros([nS, nN])
+        attention = np.zeros([nS, nN])
+        expr_fluctuations = np.zeros([nS, nN])
+        cell_inefficiency = np.zeros([nS, nN])
+        gene_inefficiency = np.zeros([nS, nN])
+
+        # fused gather + dot for term_1/2/3, parallel over spots (no intermediates)
+        _spots_to_cell_numba_kernel(parent, gene_id, classProb, log_gamma_bar_arr, log_theta_bar_all,
+                                    expected_counts, logeta_bar, nNb,
+                                    wSpotCell, attention, expr_fluctuations, cell_inefficiency, gene_inefficiency)
+
+        # mvn_loglik is not in the kernel yet; compute per neighbour and add it in
+        for n in range(nNb):
+            sn = parent[:, n]
+            mvn = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
+            wSpotCell[:, n] += mvn
+            mvn_loglik_arr[:, n] = mvn
+
+        bonus_mask = self.spots.bonus_mask * self.config['InsideCellBonus']
+        wSpotCell += bonus_mask
+
+        self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
+        self.spots.mvn_loglik_arr = mvn_loglik_arr
+        self.spots.attention = attention
+        self.spots.expr_fluctuations = expr_fluctuations
+        self.spots.cell_inefficiency = cell_inefficiency
+        self.spots.gene_inefficiency = gene_inefficiency
 
     # -------------------------------------------------------------------- #
     def rho_upd(self) -> None:

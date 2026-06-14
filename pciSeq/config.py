@@ -114,6 +114,10 @@ DEFAULT = {
     # Boolean. If True, log the wall-time of each update step in the main loop. For
     # profiling where the iteration time goes. No effect on the result, off by default.
     "profile_steps": False,
+    # Boolean. spots_to_cell implementation: True (default) uses the fast numba
+    # (fused, multi-core) kernel; False falls back to the readable per-neighbour loop
+    # (same result, slower). The loop is kept as the reference implementation.
+    "numba_spots": True,
     # Set here where the results will be saved. If default then they will be saved at your system's temp folder
     "output_path": "default",
     # cell radius. If None then pciSeq will calc that as the mean radius across all cells.
