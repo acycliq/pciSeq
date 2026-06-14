@@ -105,7 +105,7 @@ def compute_gene_loglikelihood_matrix(obj) -> np.ndarray:
 
     Args:
         obj: VarBayes object containing the following attributes:
-            - scaled_exp: A delayed or computed array of scaled expression values (shape: nC x nG x nK)
+            - scaled_exp: Scaled expression values (shape: nC x nG x nK)
             - genes.eta_bar: Gene efficiency (shape: nG)
             - cells.theta_bar: Cell inefficiency (shape: nC)
             - config['SpotReg']: Regularization parameter for spot-level noise
@@ -148,7 +148,7 @@ def calculate_genes_log_likelihood_contr(obj, label: int) -> Tuple[DataFrame, Se
 
     Args:
         obj: An object containing the following attributes:
-            - scaled_exp: A delayed or computed array of scaled expression values (shape: nC x nG x nK).
+            - scaled_exp: Scaled expression values (shape: nC x nG x nK).
             - genes.eta_bar: Gene efficiency parameters (shape: nG).
             - config['SpotReg']: Regularization parameter for spot-level noise.
             - config['rSpot']: Dispersion parameter for the negative binomial distribution.

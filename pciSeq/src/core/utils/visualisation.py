@@ -93,13 +93,17 @@ def heatmap_counts_per_class(obj):
 
 def check_spot(self, spot_id):
     """
-    Analyze a spot by creating visualization charts and returning score/probability arrays.
+    Show the spot-to-cell score breakdown for one spot.
+
+    Draws the score-decomposition and assignment-probability charts, then returns the
+    breakdown as a table.
 
     Parameters:
     spot_id (int): The ID of the spot to analyze
 
     Returns:
-    tuple: (scores_array, probabilities_array)s
+    pd.DataFrame: One row per candidate cell (plus a background row), with the score
+        terms, the misread value, and their sum.
     """
     # Get data for the specified spot
     # First find the row position of the spot_id
