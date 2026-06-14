@@ -260,6 +260,11 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     rho_bar = genes.rho_bar
     rho_bar_dict = {str(gene): float(rho) for gene, rho in zip(genes.gene_panel, rho_bar)} if rho_bar is not None else {}
 
+    # E[log rho] per gene. This is the exact term the model uses for the background
+    # (misread) column in spots_to_cell, not log(rho_bar), since E[log rho] != log(E[rho]).
+    log_rho_bar = genes.log_rho_bar
+    log_rho_bar_dict = {str(gene): float(v) for gene, v in zip(genes.gene_panel, log_rho_bar)} if log_rho_bar is not None else {}
+
     # Hard misread counts: spots where background (last column) has the highest probability
     hard_misread_counts = []  # list of ints indexed by gene
     hard_misread_by_plane = {}  # {gene_name: {plane_id: count}}
@@ -317,6 +322,7 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         ('nN', str(int(nN))),
         ('misread_density', json.dumps(misread_dict)),
         ('rho_bar', json.dumps(rho_bar_dict)),
+        ('log_rho_bar', json.dumps(log_rho_bar_dict)),
         ('hard_misread_counts', json.dumps(hard_misread_counts)),
         ('hard_misread_by_plane', json.dumps(hard_misread_by_plane)),
 
