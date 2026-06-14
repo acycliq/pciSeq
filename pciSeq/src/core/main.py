@@ -548,12 +548,23 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def spots_to_cell_numba(self) -> None:
-        """Faster version of spots_to_cell using the numba kernel in utils.numba_kernels.
+        """Compute the spot-to-cell assignment probabilities (numba version).
 
-        It computes the same terms, but reads straight from the arrays without building
-        the large temporary arrays the numpy version does, and runs on all cores.
-        mvn_loglik is still computed the old way and added afterwards. Gives the same
-        parent_cell_prob as spots_to_cell; kept separate so the two can be compared.
+        This is the fast path used by default. spots_to_cell is the equivalent plain
+        numpy loop, kept as the readable reference; the two must give the same result,
+        which is checked in tests/test_spots_to_cell_ab.py.
+
+        Returns
+        -------
+        None
+            Sets self.spots.parent_cell_prob and the per-spot diagnostic arrays
+            (attention, expr_fluctuations, cell_inefficiency, gene_inefficiency,
+            mvn_loglik_arr).
+
+        Notes
+        -----
+        The three score terms are computed by spots_to_cell_numba_kernel in
+        utils.numba_kernels. mvn_loglik is computed the same way as in spots_to_cell.
         """
         nN = self.nN
         nNb = nN - 1
@@ -598,6 +609,12 @@ class VarBayes:
         self.spots.expr_fluctuations = expr_fluctuations
         self.spots.cell_inefficiency = cell_inefficiency
         self.spots.gene_inefficiency = gene_inefficiency
+
+        # Since the spot-to-cell assignments changed you need to update the gene counts now.
+        # However, this is commented out because it is computationally redundant;
+        # the same operation is explicitly called as Step 1 at the top of the main_loop.
+        # Note: If spots_to_cell ceases to be the final step of the loop, this MUST be uncommented.
+        # self.geneCount_upd()
 
     # -------------------------------------------------------------------- #
     def rho_upd(self) -> None:
