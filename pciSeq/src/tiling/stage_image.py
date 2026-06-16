@@ -1,5 +1,6 @@
 import shutil
 import os
+import re
 import tempfile
 import pyvips
 import logging
@@ -237,7 +238,7 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
 
 
 def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, plane_prefix="plane_",
-                voxel_size=None, use_buffer=True):
+                voxel_size=None, use_buffer=True, tint=None):
     """
     Process an image into a viewable format (MBTiles).
 
@@ -249,7 +250,9 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
             - str: path to a 2D image file (legacy support)
         out_dir: (str) Output directory for the .mbtiles file. Default: system temp directory.
         zoom_levels: (int) Number of zoom levels to produce. Default is 8.
-        name: (str) Short identifier for the dataset. Optional.
+        name: (str) Short identifier for the dataset. Optional. Also used as the
+                    output filename (e.g. name="S10_gcamp_10" -> S10_gcamp_10.mbtiles).
+                    If empty, the file is named output.mbtiles.
                     Example: "WT94_DAPI"
         description: (str) Detailed description of the dataset. Optional.
                     Example: "DAPI background for WT94 mouse cortex, 84 z-planes at 0.9um spacing"
@@ -259,6 +262,9 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
         use_buffer: (bool) If True (default), tiles are created in memory via dzsave_buffer()
                     and inserted directly into the MBTiles database. If False, tiles are written
                     to disk first (uses more disk I/O but less memory).
+        tint: (str) Hex colour like "#00FF00" that the viewer uses to tint this
+                    grayscale baselayer. Optional. If not given, no tint is written
+                    and the viewer renders the layer in grayscale.
 
     Returns:
         str: path to the created .mbtiles file.
@@ -270,15 +276,19 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
-    mbtiles_path = os.path.join(out_dir, "output.mbtiles")
+    # name the output file after `name` so it is self-identifying and the viewer
+    # can use the filename stem as the channel id. Non filename-safe characters
+    # are replaced with '_'. If `name` is empty, fall back to output.mbtiles.
+    safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", name.strip()) if name and name.strip() else ""
+    mbtiles_path = os.path.join(out_dir, f"{safe_name}.mbtiles" if safe_name else "output.mbtiles")
 
     logger.info("Starting image processing...")
     logger.info("Output directory: %s" % out_dir)
 
     if use_buffer:
-        _stage_image_buffer(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size)
+        _stage_image_buffer(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size, tint)
     else:
-        _stage_image_disk(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size)
+        _stage_image_disk(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size, tint)
 
     logger.info("Done! MBTiles file created at: %s" % mbtiles_path)
 
@@ -302,7 +312,7 @@ def _plane_buffer_generator(img, num_planes, zoom_levels, plane_prefix):
         yield plane.dzsave_buffer(basename=f'{plane_prefix}{z}', layout='google', suffix='.jpg', background=0)
 
 
-def _stage_image_buffer(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size):
+def _stage_image_buffer(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size, tint=None):
     """In-memory path: tiles never touch disk. The SQLite db is built in a
     local temp directory and copied to mbtiles_path at the end, so that
     SQLite never opens the db on a network filesystem (NFS/SMB locking is
@@ -325,11 +335,12 @@ def _stage_image_buffer(img, mbtiles_path, zoom_levels, name, description, plane
             name=name,
             description=description,
             voxel_size=voxel_size,
+            tint=tint,
         )
         shutil.copy2(local_mbtiles, mbtiles_path)
 
 
-def _stage_image_disk(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size):
+def _stage_image_disk(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size, tint=None):
     """Disk-based path: tiles AND db are built in a local temp directory,
     then the finished db is copied to mbtiles_path. Local-first avoids
     SQLite file-locking issues on network filesystems (NFS/SMB), and the
@@ -352,6 +363,7 @@ def _stage_image_disk(img, mbtiles_path, zoom_levels, name, description, plane_p
             name=name,
             description=description,
             voxel_size=voxel_size,
+            tint=tint,
         )
 
         logger.info("Step 3/3: Copying MBTiles to final destination...")
