@@ -225,10 +225,6 @@ def _write_metadata(cur, con, count, plane_ids, zoom_levels, image_format, silen
         metadata["width"] = str(kwargs["width"])
     if kwargs.get("height"):
         metadata["height"] = str(kwargs["height"])
-    if kwargs.get("voxel_size"):
-        voxel_size = kwargs["voxel_size"]
-        if isinstance(voxel_size, (list, tuple)) and len(voxel_size) == 3:
-            metadata["voxel_size"] = ",".join(str(v) for v in voxel_size)
     if kwargs.get("tint"):
         # hex colour the viewer uses to tint this grayscale baselayer, e.g. "#00FF00".
         # if it isn't a #RRGGBB string we skip it, so the viewer just falls back to grayscale.
@@ -275,7 +271,6 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
             description: Dataset description (optional)
             width: Image width in pixels (optional)
             height: Image height in pixels (optional)
-            voxel_size: [x, y, z] voxel size in microns (optional)
             tint: "#RRGGBB" hex the viewer uses to tint this grayscale layer.
                   Written to the metadata 'tint' key; invalid/absent -> grayscale (optional)
     """
@@ -401,7 +396,7 @@ def buffer_to_mbtiles(bufs, mbtiles_file, **kwargs):
         mbtiles_file: Output MBTiles file path
         **kwargs: Same as disk_to_mbtiles (format, batch_size, compression,
                   compression_chunk, silent, name, description, width, height,
-                  voxel_size, tint)
+                  tint)
     """
     silent = kwargs.get("silent", False)
     image_format = kwargs.get("format", "png")
