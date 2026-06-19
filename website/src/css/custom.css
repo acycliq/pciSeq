@@ -1,29 +1,179 @@
 /**
- * Global styling for the pciSeq docs.
- * Kept small on purpose: a calm accent colour and a little breathing room
- * around the diagrams. Everything else is the Docusaurus default.
+ * pciSeq Docs — Brand-Aligned "Zen" Theme.
+ * Aesthetics harmonised with the pciSeq Viewer docs
+ * (pciSeq_viewer/website/src/css/custom.css): same Inter font, type scale,
+ * line width, sidebar, tables and emerald accent. Keep the two in sync.
  */
 
+/* Fonts: Inter, matching the viewer app's UI font (config/constants.js).
+   Loaded from Google Fonts, same source and weights as the app. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 :root {
-  --ifm-color-primary: #2e7d6b;
-  --ifm-color-primary-dark: #299463;
-  --ifm-color-primary-darker: #277658;
-  --ifm-color-primary-darkest: #205c47;
-  --ifm-color-primary-light: #33a06f;
-  --ifm-color-primary-lighter: #3fb37d;
-  --ifm-color-primary-lightest: #5fc394;
+  /* pciSeq Emerald Green Palette */
+  --ifm-color-primary: #10b981; /* Emerald 500 - Matches professional bio-tech tools */
+  --ifm-color-primary-dark: #059669;
+  --ifm-color-primary-darker: #047857;
+  --ifm-color-primary-darkest: #064e3b;
+  --ifm-color-primary-light: #34d399;
+  --ifm-color-primary-lighter: #6ee7b7;
+  --ifm-color-primary-lightest: #a7f3d0;
   --ifm-code-font-size: 95%;
+
+  /* Typography */
+  --ifm-font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --ifm-font-family-monospace: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --ifm-heading-font-weight: 600;
+
+  /* Layout & Spacing */
+  --ifm-global-radius: 6px;
+  --ifm-navbar-background-color: #ffffff;
+  --ifm-navbar-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --ifm-footer-background-color: #f3f4f7;
+
+  /* Sidebar */
+  --ifm-menu-color: #555;
+  --ifm-menu-color-active: #10b981;
 }
 
 [data-theme='dark'] {
-  --ifm-color-primary: #4fc3a1;
-  --ifm-color-primary-dark: #38b894;
-  --ifm-color-primary-darker: #34ad8b;
-  --ifm-color-primary-darkest: #2b8f72;
-  --ifm-color-primary-light: #66cbae;
-  --ifm-color-primary-lighter: #71cfb5;
-  --ifm-color-primary-lightest: #93dbc7;
+  --ifm-color-primary: #10b981;
+  --ifm-color-primary-dark: #059669;
+  --ifm-color-primary-darker: #047857;
+  --ifm-color-primary-darkest: #064e3b;
+
+  --ifm-background-color: #0c0c0e;
+  --ifm-background-surface-color: #161618;
+  --ifm-navbar-background-color: #0c0c0e;
+  --ifm-footer-background-color: #0c0c0e;
+
+  --ifm-color-emphasis-200: #2a2a2e;
+  --ifm-menu-color: #a0a0a8;
 }
+
+/* --- Navbar --- */
+.navbar {
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.navbar__brand {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* --- Clean, Structured Sidebar -------------------------------------- */
+
+.menu {
+  padding: 2rem 1rem !important;
+}
+
+.menu__link {
+  font-size: 0.95rem;
+  font-weight: 400;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+}
+
+.menu__link--active:not(.menu__link--sublist) {
+  background: transparent !important;
+  color: var(--ifm-color-primary) !important;
+  font-weight: 700;
+  position: relative;
+}
+
+/* The Left-bar indicator for active items */
+.menu__link--active:not(.menu__link--sublist)::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 20%;
+  height: 60%;
+  width: 2px;
+  background-color: var(--ifm-color-primary);
+}
+
+.menu__list-item-collapsible > .menu__link,
+.menu__list .menu__list-item-collapsible .menu__link--sublist {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #333;
+  letter-spacing: 0.05em;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+[data-theme='dark'] .menu__list-item-collapsible > .menu__link {
+  color: #eee;
+}
+
+/* --- Content Typography (The "Research" Look) ----------------------- */
+
+.theme-doc-markdown {
+  max-width: 840px;
+  margin: 0 auto;
+  font-size: 1.05rem;
+  line-height: 1.6; /* raise (e.g. to 1.8) for more space between lines */
+  color: #333;
+}
+
+[data-theme='dark'] .theme-doc-markdown {
+  color: #e0e0e0;
+}
+
+.markdown h1 {
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 2rem;
+}
+
+.markdown h2 {
+  font-size: 1.35rem;
+  margin-top: 4rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+/* Tables: Simple, Research-grade */
+.markdown table {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  width: 100%;
+}
+
+.markdown table th {
+  background: var(--ifm-color-emphasis-100);
+  font-weight: 700;
+  text-align: left;
+}
+
+/* Admonitions: Professional subtle borders */
+.theme-admonition {
+  border: 1px solid var(--ifm-color-emphasis-200) !important;
+  border-left: 4px solid var(--ifm-color-primary) !important;
+  background: transparent !important;
+}
+
+/* Button override for pciSeq Green.
+   Scoped with :not(.button--outline) so it only styles the solid buttons.
+   Without this, the green background leaks onto outline buttons and hides
+   their (also green) text until hover. */
+.button--primary:not(.button--outline) {
+  --ifm-button-background-color: var(--ifm-color-primary);
+  --ifm-button-border-color: var(--ifm-color-primary);
+  box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.39);
+}
+
+/* --- Footer --------------------------------------------------------- */
+
+/* With only two link columns, Infima gives each half the footer width, so
+   "Project" lands in the middle. Keep that stable two-column layout and
+   simply right-align the second column so its content sits at the edge. */
+.footer__links .footer__col:last-child {
+  text-align: right;
+}
+
+/* --- pciSeq_3d only -------------------------------------------------- */
 
 /* Centre the hand-made diagrams and give them room. */
 .docs-figure {
