@@ -50,6 +50,19 @@ instance of a form that recurs throughout pciSeq: an estimate expressed as an ob
 quantity divided by an expected one. The same structure underlies the scaling factors in
 the next block.
 
+Formally, with a conjugate Gamma prior the background rate has a Gamma posterior whose
+mean is exactly this ratio (regularised by the prior):
+
+$$
+q(\rho_g) = \mathrm{Gamma}\Big(\rho_g;\; r_\rho + \bar{N}_{0,g},\;\; \tfrac{r_\rho}{\rho_0} + A_{\text{total}}\Big),
+$$
+
+where $\bar{N}_{0,g}$ is the expected number of background spots of gene $g$,
+$A_{\text{total}}$ is the tissue area, $\rho_0$ is the prior mean misread density, and
+$r_\rho$ sets how strongly that prior is held. The
+[full derivation](../the-model/misread-density.md), including the role of $r_\rho$, is in
+the model section.
+
 ## What feeds in and what comes out
 
 - **Feeds in:** the spots attributed to the background on the previous iteration.
