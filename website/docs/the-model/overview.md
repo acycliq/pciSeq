@@ -106,9 +106,8 @@ why this is sound.
 ## What these pages derive
 
 - **[Misread density $\rho_g$](misread-density.md)** - the per-gene background rate.
-- **[Cell scale factor $\theta_c$](cell-scale-theta.md)** - the per-cell point estimate.
-- **[Scale factors $\gamma_{g,c}$ and $\eta_g$](scale-factors.md)** - the per-gene-per-cell
-  and per-gene corrections.
+- **[The scale factors $\theta_c$, $\gamma_{g,c}$, $\eta_g$](scale-factors.md)** - the
+  per-cell, per-gene-per-cell, and per-gene corrections to the reference.
 - **[Cell-class assignment $q(\zeta)$](cell-class.md)** - the Negative Binomial likelihood,
   the class prior, and the MRF spatial term.
 - **[Spot-to-cell assignment $q(z)$](spot-assignment.md)** - which cell (or the background)

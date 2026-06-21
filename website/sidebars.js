@@ -27,8 +27,16 @@ const sidebars = {
       link: {type: 'doc', id: 'the-model/overview'},
       items: [
         'the-model/misread-density',
-        'the-model/cell-scale-theta',
-        'the-model/scale-factors',
+        {
+          type: 'category',
+          label: 'Scale factors',
+          link: {type: 'doc', id: 'the-model/scale-factors'},
+          items: [
+            'the-model/scale-theta',
+            'the-model/scale-gamma',
+            'the-model/scale-eta',
+          ],
+        },
         'the-model/cell-class',
         'the-model/spot-assignment',
         'the-model/gene-gene',

@@ -36,7 +36,7 @@ $$
 
 Because $\mathbf{b}_c$ is drawn from a covariance shared across all cells in a class, a
 positive shift on gene $A$ correlates with a positive shift on any gene $B$ that
-co-expresses with $A$. As with [$\theta_c$](cell-scale-theta.md), treating both
+co-expresses with $A$. As with [$\theta_c$](scale-theta.md), treating both
 $\mathbf{b}_c$ and $\gamma_{g,c}$ as full random variables would give an intractable
 Poisson-Gamma-Lognormal mixture, so $\mathbf{b}_c$ is restricted to a class-conditional
 point estimate $q(\mathbf{b}_c \mid k) = \delta(\mathbf{b}_c - \hat{\mathbf{b}}_{c\mid k})$

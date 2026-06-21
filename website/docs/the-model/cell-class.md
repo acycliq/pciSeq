@@ -12,7 +12,7 @@ enters: the Markov Random Field term that rewards neighbouring cells for sharing
 
 ## From a Poisson-Gamma mixture to a Negative Binomial
 
-Because $\theta_c$ is a [point estimate](cell-scale-theta.md), the joint $q(\zeta,\gamma)$
+Because $\theta_c$ is a [point estimate](scale-theta.md), the joint $q(\zeta,\gamma)$
 can be written as a Poisson-Gamma mixture in $\gamma$:
 
 $$

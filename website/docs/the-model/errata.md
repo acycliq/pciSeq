@@ -95,7 +95,7 @@ Rather than estimate the absolute efficiency, the implementation keeps the basel
 (the `Inefficiency` setting passed to `pciSeq.fit()`) as an explicit constant next to the
 reference mean, $\eta_0\,\mu_{g,k}$, and estimates a **relative** factor
 $\eta_g' = \eta_g/\eta_0$ with prior mean $1.0$. Collecting the $\eta_g'$ terms of the
-expected log-joint (full derivation on the [scale factors](scale-factors.md) page) gives
+expected log-joint (full derivation on the [efficiency](scale-eta.md) page) gives
 
 $$
 \eta_g' \sim \mathrm{Gamma}\big(N_g + r_\eta,\; r_\eta + S_g\big),
