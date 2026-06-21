@@ -74,112 +74,54 @@ The symbol $r$ denotes two independent quantities: the mean radius of the DAPI r
 
 ## 5. The efficiency reparameterisation
 
-### The original form
+### The typo
 
-As written in the paper, the gene efficiency has the prior
-
-$$
-\eta_g \sim \mathrm{Gamma}(r, \eta_0),
-\qquad \eta_0 = 0.2 .
-$$
-
-This is a typo. In the rate parameterisation it has mean $r/\eta_0 = 100$ (for $r = 20$),
-not $0.2$. To give the intended mean $\eta_0 = 0.2$ the prior should be
-
-$$
-\eta_g \sim \mathrm{Gamma}(r, r/\eta_0),
-\qquad \mathbb{E}[\eta_g] = \frac{r}{r/\eta_0} = \eta_0 = 0.2 .
-$$
-
-So as printed the prior does not have the intended mean.
+As printed, the paper's efficiency prior is $\eta_g \sim \mathrm{Gamma}(r_\eta, \eta_0)$ with
+$\eta_0 = 0.2$ ($r_\eta$ is the shape, the `rGene` setting, default $20$). In the shape-rate
+parameterisation this has mean $r_\eta/\eta_0 = 100$, not $0.2$. The intended prior, with
+mean $\eta_0$, is $\eta_g \sim \mathrm{Gamma}(r_\eta, r_\eta/\eta_0)$.
 
 ### The reparameterisation
 
-In the paper's (absolute) parameterisation the variational posterior for the efficiency is
-$q(\eta_g) = \mathrm{Gamma}(r_\eta + N_g,\ r_\eta/\eta_0 + S_g)$, so its posterior mean is
-
-$$
-\mathbb{E}[\eta_g]
-= \frac{r_\eta + N_g}{\dfrac{r_\eta}{\eta_0} + S_g},
-$$
-
-with $N_g$ the observed spots of gene $g$ and $S_g$ the rate sum defined in the table below.
-
-The reparameterisation rests on the **scale property of the Gamma distribution**: for
-$c > 0$,
+The whole construction rests on the **scale property of the Gamma distribution**:
 
 $$
 X \sim \mathrm{Gamma}(a, \beta)
 \quad\Longrightarrow\quad
-cX \sim \mathrm{Gamma}(a, \beta/c),
+cX \sim \mathrm{Gamma}(a, \beta/c).
 $$
 
-that is, scaling the variable leaves the shape untouched and divides the rate by $c$. With
-$c = \eta_0$ it lets us move between the absolute efficiency $\eta_g$ and the rescaled
-working variable $\eta_g'$ (defined below):
+Rather than estimate the absolute efficiency, the implementation keeps the baseline $\eta_0$
+(the `Inefficiency` setting passed to `pciSeq.fit()`) as an explicit constant next to the
+reference mean, $\eta_0\,\mu_{g,k}$, and estimates a **relative** factor
+$\eta_g' = \eta_g/\eta_0$ with prior mean $1.0$. Collecting the $\eta_g'$ terms of the
+expected log-joint (full derivation on the [scale factors](scale-factors.md) page) gives
 
 $$
-\eta_g' \sim \mathrm{Gamma}(r_\eta, r_\eta)
-\quad\Longrightarrow\quad
-\eta_g = \eta_0\,\eta_g' \sim \mathrm{Gamma}\!\big(r_\eta,\ r_\eta/\eta_0\big),
-$$
-
-which is exactly the absolute prior from the original form above.
-
-The implementation does not patch the prior in place. Instead it **pulls the baseline
-constant $\eta_0$ out of the prior**, floats it as a free factor in the intensity function,
-and **fuses it into the reference mean** $\mu_{g,k}$. Starting from the intensity with the
-baseline written out explicitly,
-
-$$
-\lambda_{g,c}(x) =
-\underbrace{\eta_0 \cdot \mu_{g,k(c)}}_{\text{adjusted expression } \mu'_{g,k}}
-\cdot\; e^{-D_c(x)} \cdot \gamma_{g,c} \cdot \eta_g' .
-$$
-
-The product $\eta_0\,\mu_{g,k}$ is the **adjusted (pre-scaled) expression**
-$\mu'_{g,k} = \eta_0\,\mu_{g,k}$: the scRNA-seq reference mean already discounted by the
-baseline detection rate. Here $\eta_0$ is the **`Inefficiency`** setting the user passes in
-the options dictionary to `pciSeq.fit()` (default $0.2$, i.e. a 20% baseline detection
-rate). With the baseline absorbed into $\mu'$, the estimated variable $\eta_g'$ is no longer
-an absolute efficiency but a **relative** scaling factor, centred at a prior mean of $1.0$:
-
-$$
-\eta_g' \sim \mathrm{Gamma}(r_\eta, r_\eta), \qquad \mathbb{E}[\eta_g'] = 1 .
-$$
-
-A value $\eta_g' > 1$ means gene $g$ is detected better than the 20% baseline, $\eta_g' < 1$
-worse. With $\eta_0$ baked into $\mu'$ this way, the paper's posterior equations hold as
-written (subject to item 1), reading $\mu_{g,k}$ as $\mu'_{g,k}$ and $\eta_g$ as the
-relative factor $\eta_g'$.
-
-### Side by side
-
-| | Without reparameterisation | With reparameterisation |
-| --- | --- | --- |
-| Estimated variable | $\eta_g$ - absolute efficiency, prior mean $\eta_0 \approx 0.2$ | $\eta_g'$ - relative factor, prior mean $1.0$ |
-| Reference mean | $\mu_{g,k}$ (raw scRNA-seq) | $\mu'_{g,k} = \eta_0\,\mu_{g,k}$ (pre-scaled) |
-| Prior on the variable | $\mathrm{Gamma}(r_\eta,\ r_\eta/\eta_0)$ | $\mathrm{Gamma}(r_\eta,\ r_\eta)$ |
-| Intensity $\lambda_{g,c}(x)$ | $\mu_{g,k}\, e^{-D_c(x)}\, \gamma_{g,c}\, \eta_g$ | $\mu'_{g,k}\, e^{-D_c(x)}\, \gamma_{g,c}\, \eta_g'$ |
-| Posterior $q(\eta)$ | $\mathrm{Gamma}\!\big(r_\eta + N_g,\ \tfrac{r_\eta}{\eta_0} + S_g\big)$ | $\mathrm{Gamma}\!\big(r_\eta + N_g,\ r_\eta + S_g'\big)$ |
-
-where $N_g$ is the total observed spots of gene $g$ and the rate sum runs over all cells and
-candidate classes,
-
-$$
-S_g = \sum_{c,k} \bar\zeta_{c,k}\, \mu_{g,k}\, A_c\, \bar\gamma_{g,c}\, \bar\theta_c,
+\eta_g' \sim \mathrm{Gamma}\big(N_g + r_\eta,\; r_\eta + S_g\big),
 \qquad
-S_g' = \sum_{c,k} \bar\zeta_{c,k}\, \mu'_{g,k}\, A_c\, \bar\gamma_{g,c}\, \bar\theta_c
-     = \eta_0\, S_g .
+S_g = \sum_{c,k} \bar\zeta_{c,k}\, \eta_0\mu_{g,k}\, A_c\, \bar\gamma_{g,c}\, \bar\theta_c .
 $$
 
-The two columns describe the **same model**: substituting $\eta_g = \eta_0\,\eta_g'$ and
-$\mu'_{g,k} = \eta_0\,\mu_{g,k}$ turns one into the other. Only the bookkeeping differs -
-the right-hand column keeps the working variable centred at $1.0$, which is what makes it
-better behaved numerically. The same scaling carries the posterior across too, since
-$S_g' = \eta_0\,S_g$ makes the right-hand rate $r_\eta + S_g'$ equal to $\eta_0$ times the
-left-hand rate $r_\eta/\eta_0 + S_g$.
+The relative factor reads off cleanly against the baseline: $\eta_g' = 1$ is a gene detected
+at exactly the assumed rate, $\eta_g' > 1$ better than the baseline, $\eta_g' < 1$ worse.
+Pulling $\eta_0$ out of the prior also avoids the typo above: the prior on $\eta_g'$ is
+simply $\mathrm{Gamma}(r_\eta, r_\eta)$, whose mean is $1$ by construction, so there is no
+baseline constant left in the prior to get wrong.
 
-This is numerically superior: it preconditions the optimisation near the right order of
-magnitude (the 20% baseline), gives the shape parameter $r_\eta$ an intuitive reading as
-pseudo-observations of that baseline, and vectorises cleanly across genes.
+The scale property links the two parameterisations: with $c = \eta_0$, the absolute variable
+$\eta_g = \eta_0\,\eta_g'$ recovers the prior $\mathrm{Gamma}(r_\eta, r_\eta/\eta_0)$ and
+divides the posterior rate by $\eta_0$. The two are the same model written two ways; the
+relative one is just better conditioned for the optimiser.
+
+### Summary
+
+| | Prior | Posterior |
+| --- | --- | --- |
+| Relative, $\eta_g'$ | $\mathrm{Gamma}(r_\eta, r_\eta)$ | $\mathrm{Gamma}\big(N_g + r_\eta,\ r_\eta + S_g\big)$ |
+| Absolute, $\eta_g = \eta_0\,\eta_g'$ | $\mathrm{Gamma}(r_\eta, r_\eta/\eta_0)$ | $\mathrm{Gamma}\big(N_g + r_\eta,\ (r_\eta + S_g)/\eta_0\big)$ |
+
+with $N_g$ the observed spots of gene $g$ and $S_g$ as above (the per-cell factor
+$\bar\theta_c$ is this model's extension; the original paper omits it). The code uses the
+relative form: it centres the working variable at $1.0$, preconditions the optimisation near
+the right order of magnitude, and vectorises cleanly across genes.

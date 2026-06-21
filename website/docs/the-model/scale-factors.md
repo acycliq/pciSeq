@@ -54,26 +54,60 @@ corrects each gene individually.
 ## The in situ efficiency $\eta_g$
 
 The efficiency $\eta_g$ is a per-gene parameter shared across all cells and classes: it
-answers how efficiently gene $g$ is detected across the whole experiment. Its conjugate
-Gamma posterior, with $N_g$ the total spots of gene $g$, is
+answers how efficiently gene $g$ is detected across the whole experiment. It is estimated as
+a **relative** factor $\eta_g'$ with prior mean $1.0$, while the baseline detection rate
+$\eta_0$ (the `Inefficiency` setting, default $0.2$) stays as an explicit constant next to
+the reference mean - the intensity carries the product $\eta_0\,\mu_{g,k}$, not a renamed
+symbol:
+
+$$
+\lambda_{g,c}(x) = \eta_0\,\mu_{g,k(c)}\, e^{-D_c(x)}\, \gamma_{g,c}\, \eta_g' .
+$$
+
+The prior is $\eta_g' \sim \mathrm{Gamma}(r_\eta, r_\eta)$, whose log-density is
+
+$$
+\log p(\eta_g') = (r_\eta - 1)\log\eta_g' - r_\eta\,\eta_g' .
+$$
+
+Keep the terms of the expected log-joint that involve $\eta_g'$. The spatial integral
+contributes the predicted-count sum (a linear term in $\eta_g'$), the $N_g$ observed spots of
+gene $g$ each contribute a $\log\eta_g'$, and the prior adds the two terms above:
+
+$$
+\log q(\eta_g')
+= N_g \log\eta_g'
+  - \Big(\sum_{c,k} \bar\zeta_{c,k}\, \eta_0\mu_{g,k}\, A_c\, \bar\gamma_{g,c}\, \bar\theta_c\Big)\eta_g'
+  + \underbrace{(r_\eta - 1)\log\eta_g' - r_\eta\,\eta_g'}_{\text{prior } \log p(\eta_g')}
+  + \text{const}.
+$$
+
+Now gather the $\log\eta_g'$ terms and the linear $\eta_g'$ terms separately:
+
+$$
+\log q(\eta_g')
+= (N_g + r_\eta - 1)\log\eta_g'
+  - \Big(r_\eta + \sum_{c,k} \bar\zeta_{c,k}\, \eta_0\mu_{g,k}\, A_c\, \bar\gamma_{g,c}\, \bar\theta_c\Big)\eta_g'
+  + \text{const}.
+$$
+
+This is the log of a Gamma density; reading off its shape and rate:
 
 $$
 \boxed{\;
-q(\eta_g)
+q(\eta_g')
 = \mathrm{Gamma}\Big(
-    r_\eta + N_g,\;\;
-    \frac{r_\eta}{\eta_0}
-    + \sum_{c,k} \bar\zeta_{c,k}\, \mu_{g,k}\, A_c\, \bar\gamma_{g,c}\, \bar\theta_c
+    N_g + r_\eta,\;\;
+    r_\eta + \sum_{c,k} \bar\zeta_{c,k}\, \eta_0\mu_{g,k}\, A_c\, \bar\gamma_{g,c}\, \bar\theta_c
   \Big)
 \;}
 $$
 
-Here the rate carries the baseline efficiency $\eta_0$ (typically $0.2$) through the prior
-term $r_\eta/\eta_0$, and the sum over cells and classes is weighted by the soft class
-assignments $\bar\zeta_{c,k}$, since $\eta_g$ is shared and must aggregate the evidence
-from every cell. This is the **reparameterised** efficiency described in
-[errata item 5](errata.md): the constant $\eta_0$ is pulled out of the prior and into the
-intensity, leaving $\eta_g$ as a relative scaling factor with prior mean $1.0$.
+The sum runs over all cells and candidate classes, weighted by the soft class assignments
+$\bar\zeta_{c,k}$, since $\eta_g'$ is shared and aggregates evidence from every cell. A value
+$\eta_g' > 1$ means gene $g$ is detected better than the baseline, $\eta_g' < 1$ worse. The
+equivalent absolute form $\eta_g = \eta_0\,\eta_g'$, and the prior/posterior summary, are in
+[errata item 5](errata.md).
 
 ## The three scale factors at a glance
 
