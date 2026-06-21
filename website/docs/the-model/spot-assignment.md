@@ -79,10 +79,14 @@ $$
 \log q(z_{s,0}=1) = \overline{\log\rho_{g_s}} + \text{const},
 $$
 
-the expected log misread density of the spot's gene (the digamma form derived on the
-[misread density](misread-density.md) page). Writing it as a plain intensity $\rho_{g_s}$,
-the background simply contributes its own rate to the competition, with no distance, scale,
-or efficiency term attached.
+the **expected log** misread density of the spot's gene, $\overline{\log\rho_{g_s}} =
+\psi(\hat r_{g_s}) - \log\hat\beta_{g_s}$ (the digamma form derived on the
+[misread density](misread-density.md) page). Exponentiated, the background contributes
+$\exp(\overline{\log\rho_{g_s}})$ to the competition, with no distance, scale, or efficiency
+term attached. Note this is **not** the posterior mean rate $\bar\rho_{g_s} = \mathbb{E}[\rho_{g_s}]$:
+because $\mathbb{E}[\log\rho] \neq \log\mathbb{E}[\rho]$, the term $\exp(\overline{\log\rho_{g_s}})$
+sits strictly below $\bar\rho_{g_s}$. This is the exact quantity the code uses for the
+background column (`genes.log_rho_bar`).
 
 ## Normalisation
 
@@ -90,9 +94,9 @@ The indicator $z_s$ picks exactly one option, so the scores are normalised acros
 cells and the background by a softmax:
 
 $$
-q\big(c(s)=c\big) = \frac{\exp(S_{s,c})}{\sum_{c'>0}\exp(S_{s,c'}) + \rho_{g_s}},
+q\big(c(s)=c\big) = \frac{\exp(S_{s,c})}{\sum_{c'>0}\exp(S_{s,c'}) + \exp(\overline{\log\rho_{g_s}})},
 \qquad
-q\big(c(s)=0\big) = \frac{\rho_{g_s}}{\sum_{c'>0}\exp(S_{s,c'}) + \rho_{g_s}} .
+q\big(c(s)=0\big) = \frac{\exp(\overline{\log\rho_{g_s}})}{\sum_{c'>0}\exp(S_{s,c'}) + \exp(\overline{\log\rho_{g_s}})} .
 $$
 
 Dropping the shared normaliser, the posterior is
@@ -112,7 +116,7 @@ q\big(c(s)=c\big)
       + \bar\zeta_{c,k} \log\mu_{g_s,k}
     \Big)
 \Big], & c > 0, \\[2pt]
-\rho_{g_s}, & c = 0 \ \text{(background)} .
+\exp(\overline{\log\rho_{g_s}}), & c = 0 \ \text{(background)} .
 \end{cases}
 \;}
 $$
@@ -221,9 +225,10 @@ the first place. They do not steer *which* cell the spot points to so much as ke
 alignment and gravity from being skewed - by a single odd gene, or by one that is simply easy
 or hard to read out - so the comparison stays like-for-like.
 
-For the background option $c = 0$ the score is the per-gene
-[misread density](misread-density.md) $\rho_{g_s}$. A spot is assigned to the background
-unless some nearby cell explains it better, which is how genuine misreads are filtered out.
+For the background option $c = 0$ the score is the spot's gene
+[misread density](misread-density.md), entered as $\exp(\overline{\log\rho_{g_s}})$. A spot
+is assigned to the background unless some nearby cell explains it better, which is how
+genuine misreads are filtered out.
 
 ## The efficiency term and the signal-to-noise ratio
 
