@@ -129,6 +129,10 @@ single **quantitative** term. The second is identity - whether a cell of this ty
 produce this gene - and is settled by the **qualitative** terms. The score for a candidate
 cell $c > 0$ is the sum of the two.
 
+![The building blocks of the spot-to-cell score](../../static/img/spot-assignment-blocks.svg)
+
+<div className="docs-figure"><figcaption>The score, block by block. One block asks <em>where</em> the spot is (the spatial term); four ask <em>what</em> it is. The score simply adds them up.</figcaption></div>
+
 ### The quantitative term: the spatial fit
 
 $-D_c(x_s)$ is the **Gaussian log-likelihood** of the spot's location under cell $c$.
@@ -141,10 +145,11 @@ carries. Nearer spots score higher.
 ### The qualitative terms: does the gene belong here?
 
 The remaining terms ask a different question: not *where* the spot lies, but *whether a cell
-like this would express that gene at all*. Together they are the log expected count of the
-spot's gene in cell $c$, and they carry two distinct pieces of intuition - a **direction**
-(does a cell of this type express this gene?) and a **magnitude** (how much is this cell
-capturing at all?) - with two finer terms calibrating the rest.
+like this would express that gene*. Together they are the log expected count of the spot's
+gene in cell $c$, and they break into **four facets**, each asking "does the gene belong
+here?" from a different angle: the **alignment** (the cell's type), the **gravity** (the
+cell's size), the **enrichment** (the cell's own history with the gene), and the **misread
+correction** (the gene's detectability).
 
 **The alignment term.** The class-compatibility part of the score is
 
@@ -217,13 +222,48 @@ ambiguous spots around it rather than cede them to a sparse or uncertain neighbo
 [prior $r_\theta$](scale-theta.md) is what keeps it honest, tempering $\bar\theta_{c\mid k}$
 back toward $1$ so a cell cannot inflate its own mass without the counts to back it up.
 
-**Calibrating the comparison.** The last two terms - $\overline{\log\gamma}_{g_s,c\mid k}$
-and $\overline{\log\eta}_{g_s}$ - are finer adjustments rather than forces of their own. The
-[gene-cell factor](scale-gamma.md) $\gamma$ corrects this one gene's deviation in this one
-cell, and the [efficiency](scale-eta.md) $\eta$ accounts for how detectable the gene is in
-the first place. They do not steer *which* cell the spot points to so much as keep the
-alignment and gravity from being skewed - by a single odd gene, or by one that is simply easy
-or hard to read out - so the comparison stays like-for-like.
+**The enrichment term.** Close to the alignment in form, but answering a different question,
+is the $\gamma$ part of the score,
+
+$$
+\sum_k \bar\zeta_{c,k}\,\log\bar\gamma_{g_s,c\mid k},
+$$
+
+once more a confidence-weighted average over the candidate classes - this time of
+$\bar\gamma_{g_s,c\mid k}$, **this cell's** observed-over-expected count for gene $g_s$
+assuming class $k$. A cell carrying *more* of the gene than its type predicts has
+$\bar\gamma_{g_s,c\mid k} > 1$ (**enriched**); one carrying less has it below $1$
+(**depleted**). As before, it is an expectation under the cell's class belief:
+
+$$
+\sum_k \bar\zeta_{c,k}\,\log\bar\gamma_{g_s,c\mid k} = \mathbb{E}_{k\sim\bar\zeta_c}\!\big[\log\bar\gamma_{g_s,c\mid k}\big].
+$$
+
+This is the one facet easily confused with the alignment, so the difference is worth stating
+plainly:
+
+- **alignment** ($\mu$) is **class $\leftrightarrow$ gene**: does a cell of this *type*
+  express the gene? It comes from the reference and is the **same for every cell of that
+  type**.
+- **enrichment** ($\gamma$) is **cell $\leftrightarrow$ gene**: does *this individual cell*
+  carry more of the gene than its type predicts? It comes from the cell's **own data**.
+
+The sharpest way to see they differ: take two cells of the **same type** with a gene-$g$ spot
+between them. Their alignment is identical - same type, same $\mu$ - so it cannot break the
+tie. Their enrichment can differ: the cell that has already gathered more of gene $g$ than
+its type accounts for has the higher $\bar\gamma$, and it claims the spot. **Alignment tells
+different types apart; enrichment tells same-type cells apart.** The two stack because the
+predicted count factorises as $\mu \times \gamma$ - the type's baseline times the cell's
+residual - so enrichment carries exactly the part of the signal the alignment leaves
+unexplained.
+
+**The misread correction.** The fourth facet, $\overline{\log\eta}_{g_s}$, is the gene's
+detection efficiency, and it is the odd one out: it does not depend on the cell's class (it
+is gene-only), and between two cells it is a common offset that cancels, so it never decides
+which cell wins. Its work is in the **cell-versus-background** contest - attenuating the
+signal of a poorly detected gene so its spots are more readily called misreads. Because that
+is a story about the background option, we unpack it in
+[its own section below](#the-efficiency-term-and-the-signal-to-noise-ratio).
 
 For the background option $c = 0$ the score is the spot's gene
 [misread density](misread-density.md), entered as $\exp(\overline{\log\rho_{g_s}})$. A spot
