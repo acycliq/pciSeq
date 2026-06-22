@@ -18,23 +18,54 @@ assign the spot to whichever explains it best.
 
 ## What determines the assignment
 
-A spot is scored against each candidate cell using several terms, which combine
-additively:
+When a cell weighs up a spot, it asks two questions: **where are you?** and **what are
+you?** The first is geometry; the second is about identity - whether a cell like this would
+produce this gene. The score adds the two together.
 
-- **Distance.** Nearer cells are favoured. A spot located over a cell's nucleus is far
-  more likely to belong to it than one several cell diameters away.
+![The building blocks of the spot-to-cell score](../../static/img/spot-assignment-blocks.svg)
 
-- **Compatibility with the gene.** If the cell's probable type expresses the spot's gene
-  strongly, the spot is consistent with that cell; if the type rarely produces the gene,
-  the spot is a poor match even when close. This is where the cell-type estimates from
-  [block 3](cell-to-celltype.md) re-enter.
+<div className="docs-figure"><figcaption>The score, block by block. One block asks <em>where</em> the spot is; four ask <em>what</em> it is. The score simply adds them up.</figcaption></div>
 
-- **Cell-specific scaling.** The per-cell and per-gene-per-cell factors from
-  [block 2](warping-the-reference.md) (theta and gamma) and the per-gene efficiency (eta)
-  enter here, calibrating the expected fit so that the comparison is fair.
+### Where: the spatial fit
 
-- **The inside-cell bonus.** A spot whose pixel lies within the cell's segmented boundary
-  receives an additional term favouring that cell.
+A spot near a cell's centre scores higher than one several cell-widths away. Each cell has a
+Gaussian shape, and this term is simply how well the spot's position sits inside that shape.
+It is a hard geometric measurement, and it says nothing about which gene the spot carries.
+
+### What: four facets
+
+The "what" splits into four, each a different way of asking *does this gene belong in this
+cell?* All four are weighted by how **confident** we are about the cell's type (from
+[block 3](cell-to-celltype.md)): the surer the cell is of what it is, the more decisively
+each one speaks.
+
+**Alignment - does the cell's *type* express this gene?** If the cell is probably a type
+that makes the gene strongly, the spot fits; if its type rarely produces the gene, the spot
+is a poor match even when it sits right on the cell. Picture a spot midway between two cells,
+all else equal: it is drawn to the one whose likely type expresses the gene. That overlap -
+between what the cell probably is and what the gene marks - is its *alignment*.
+
+**Gravity - is this a big, active cell?** Some cells gather more transcripts than their type
+predicts (the per-cell scaling from [block 2](warping-the-reference.md)). Read that as the
+cell's **mass**: a heavier cell pulls harder, so with everything else equal a spot drifts
+toward whichever cell is already capturing the most. A "rich-get-richer" pull that lets a
+clearly active cell claim the ambiguous spots around it.
+
+**Enrichment - does *this* cell already carry this gene?** Easy to confuse with alignment,
+but they differ. Alignment is about the cell's **type**, and is the same for every cell of
+that type. Enrichment is about **this individual cell's own data** - whether it carries more
+of the gene than its type predicts. The clean test: two cells of the *same* type have
+identical alignment, so alignment cannot choose between them; but the cell already loaded
+with the gene has the higher enrichment, and it wins the spot. **Alignment tells different
+types apart; enrichment tells same-type cells apart.**
+
+**Misread correction - is the gene reliably detected?** Some genes are read out far more
+efficiently than others. This term does not choose between cells - it is the same for all of
+them - but it matters in the contest against the **background** below, attenuating a poorly
+detected gene's signal so its spots are more readily called misreads.
+
+An optional **inside-cell bonus** can be switched on to additionally favour a spot whose
+pixel falls within a cell's segmented boundary; it is off by default.
 
 ## The background option
 

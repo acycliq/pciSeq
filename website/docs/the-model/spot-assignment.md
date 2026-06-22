@@ -123,152 +123,43 @@ $$
 
 ## Reading the terms
 
-When a cell weighs up a spot, it asks it two questions: **where are you?** and **what are
-you?** The first is geometry - how far the spot sits from the cell - and is settled by a
-single **quantitative** term. The second is identity - whether a cell of this type would
-produce this gene - and is settled by the **qualitative** terms. The score for a candidate
-cell $c > 0$ is the sum of the two.
+The score for a cell $c > 0$ adds one **quantitative** term (geometry) to four
+**qualitative** terms (expression); the background option $c = 0$ scores
+$\exp(\overline{\log\rho_{g_s}})$. Each term is named and read below - just enough to see
+what the symbol *means*. The conceptual narrative, the diagram, and the worked two-cell
+examples live on the [how-it-works page](../how-it-works/spots-to-cells.md).
 
-![The building blocks of the spot-to-cell score](../../static/img/spot-assignment-blocks.svg)
+**Spatial fit** ($-D_c(x_s)$). The Gaussian log-likelihood of the spot's position under the
+cell: $D_c(x)$ is the (Mahalanobis) distance to the cell's centre under its Gaussian shape,
+so $e^{-D_c(x)}$ is the Gaussian weight and $-D_c(x_s)$ its logarithm. This is the only
+quantitative term - a hard geometric measure of how well the spot sits inside the cell's
+footprint, blind to which gene it carries. Nearer spots score higher.
 
-<div className="docs-figure"><figcaption>The score, block by block. One block asks <em>where</em> the spot is (the spatial term); four ask <em>what</em> it is. The score simply adds them up.</figcaption></div>
+**Alignment** ($\sum_k \bar\zeta_{c,k}\log\mu_{g_s,k}$). An inner product between the cell's
+class posterior $\bar\zeta_c$ (how confident we are about its type) and the gene's expression
+profile $\log\mu_{g_s,\cdot}$ (which types express the gene). Since $\bar\zeta_c$ sums to $1$
+it equals $\mathbb{E}_{k\sim\bar\zeta_c}[\log\mu_{g_s,k}]$, the gene's expected log-expression
+under the cell's own belief about its class. It is large only when both line up: a confident
+type that also expresses the gene. *(class $\leftrightarrow$ gene)*
 
-### The quantitative term: the spatial fit
+**Gravity** ($\sum_k \bar\zeta_{c,k}\log\bar\theta_{c\mid k}$). The same confidence-weighted
+average, now of $\bar\theta_{c\mid k}$, the cell's total observed count over what class $k$
+predicts. A cell capturing more transcripts than its type expects has $\bar\theta_{c\mid k} >
+1$, a sparse one below $1$. Read it as the cell's mass: a heavier cell pulls harder, so all
+else equal a spot drifts toward whichever cell is already capturing the most. *(cell size)*
 
-$-D_c(x_s)$ is the **Gaussian log-likelihood** of the spot's location under cell $c$.
-$D_c(x)$ is the quadratic (Mahalanobis) distance from $x$ to the cell's centre under the
-cell's Gaussian shape, so $e^{-D_c(x)}$ is the corresponding Gaussian weight and
-$-D_c(x_s)$ its logarithm. This is a hard geometric measurement - how well the spot's
-position sits inside the cell's footprint - and it does not depend on which gene the spot
-carries. Nearer spots score higher.
+**Enrichment** ($\sum_k \bar\zeta_{c,k}\log\bar\gamma_{g_s,c\mid k}$). The same form again,
+now of $\bar\gamma_{g_s,c\mid k}$, *this cell's* observed-over-expected for the gene. Easily
+confused with the alignment but distinct: alignment is class $\leftrightarrow$ gene (the
+type's stereotype, shared by every cell of that type), enrichment is cell $\leftrightarrow$
+gene (this individual cell's departure from its type). Because the rate factorises as
+$\mu \times \gamma$, enrichment is exactly the residual the alignment leaves unexplained - it
+is what tells two same-type cells apart. *(cell $\leftrightarrow$ gene)*
 
-### The qualitative terms: does the gene belong here?
-
-The remaining terms ask a different question: not *where* the spot lies, but *whether a cell
-like this would express that gene*. Together they are the log expected count of the spot's
-gene in cell $c$, and they break into **four facets**, each asking "does the gene belong
-here?" from a different angle: the **alignment** (the cell's type), the **gravity** (the
-cell's size), the **enrichment** (the cell's own history with the gene), and the **misread
-correction** (the gene's detectability).
-
-**The alignment term.** The class-compatibility part of the score is
-
-$$
-\sum_k \bar\zeta_{c,k}\,\log\mu_{g_s,k},
-$$
-
-an inner product between two vectors that run over the candidate classes:
-
-- $\bar\zeta_{c,k}$ - the cell's **class posterior**: how confident we are that cell $c$ is
-  each type. It is a probability distribution and sums to $1$.
-- $\log\mu_{g_s,k}$ - the gene's **expression profile**: how strongly each class expresses
-  the spot's gene $g_s$, taken from the scRNA-seq reference.
-
-You can read this factor as the cell's **attention** over its candidate types, or as an
-**alignment** between what the cell probably is and what the gene marks. We will call it the
-alignment. Because $\bar\zeta_c$ sums to one, it is precisely the expected log-expression of
-the gene under the cell's own belief about its class:
-
-$$
-\sum_k \bar\zeta_{c,k}\,\log\mu_{g_s,k} = \mathbb{E}_{k\sim\bar\zeta_c}\!\big[\log\mu_{g_s,k}\big].
-$$
-
-The alignment is large only when **two things line up at once**: the cell is *confident*
-about its type (its posterior mass sits on a few classes) **and** those classes *express the
-gene* (a high $\mu$). A cell that is sure of its type but of a type that does not produce
-the gene scores low; a cell whose type does express the gene but which is itself uncertain
-has its vote spread thin across classes. Confidence and expression multiply - neither alone
-is enough.
-
-Picture a spot of gene $g$ sitting exactly between two cells, with every other term equal.
-The assignment is then decided by this one quantity, and the spot is drawn to the cell whose
-class belief is **aligned** with the gene: the cell that is both confidently typed and of a
-type that expresses $g$. That is the precise sense in which a cell "claims" a spot - it
-attends to the types it might be, and the spot goes where that attention overlaps the gene's
-expression.
-
-**The gravity term.** The $\theta$ part of the score,
-
-$$
-\sum_k \bar\zeta_{c,k}\,\log\bar\theta_{c\mid k},
-$$
-
-has the very same shape as the alignment - a confidence-weighted average over the candidate
-classes - but it weighs a different quantity. Each $\bar\theta_{c\mid k}$ is the cell's
-[overall scale](scale-theta.md) assuming class $k$: its total observed count divided by the
-total that class $k$ predicts. A cell pulling in *more* transcripts than its type expects has
-$\bar\theta_{c\mid k} > 1$; a sparse one has $\bar\theta_{c\mid k} < 1$. And because
-$\bar\zeta_c$ sums to one, this term too is an expectation under the cell's belief about its
-class:
-
-$$
-\sum_k \bar\zeta_{c,k}\,\log\bar\theta_{c\mid k} = \mathbb{E}_{k\sim\bar\zeta_c}\!\big[\log\bar\theta_{c\mid k}\big].
-$$
-
-Read $\bar\theta_{c\mid k}$ as the cell's **mass** - how much signal it is already gathering -
-and the term as its **gravity**, the pull it exerts on a nearby spot. Where the alignment
-asked *which* type the gene points to, gravity asks *how big* the candidate cell is. A heavy
-cell pulls harder: with everything else equal, a spot drifts toward whichever cell is already
-capturing the most transcripts. And, exactly as with alignment, **confidence sharpens the
-pull**: a cell that is sure of its type concentrates its weight on a single
-$\bar\theta_{c\mid k}$, so a confidently rich cell pulls hardest, while a rich-but-uncertain
-cell has its pull spread thin across the types it might be.
-
-Picture once more a spot of gene $g$ between two cells, with every other term equal - even
-their alignment. The spot now goes to the cell with the greater gravity: the one already
-gathering more transcripts, and confident about what it is. This is a "rich-get-richer" pull,
-and it is the sensible thing: a clearly active, transcript-rich cell should claim the
-ambiguous spots around it rather than cede them to a sparse or uncertain neighbour. The
-[prior $r_\theta$](scale-theta.md) is what keeps it honest, tempering $\bar\theta_{c\mid k}$
-back toward $1$ so a cell cannot inflate its own mass without the counts to back it up.
-
-**The enrichment term.** Close to the alignment in form, but answering a different question,
-is the $\gamma$ part of the score,
-
-$$
-\sum_k \bar\zeta_{c,k}\,\log\bar\gamma_{g_s,c\mid k},
-$$
-
-once more a confidence-weighted average over the candidate classes - this time of
-$\bar\gamma_{g_s,c\mid k}$, **this cell's** observed-over-expected count for gene $g_s$
-assuming class $k$. A cell carrying *more* of the gene than its type predicts has
-$\bar\gamma_{g_s,c\mid k} > 1$ (**enriched**); one carrying less has it below $1$
-(**depleted**). As before, it is an expectation under the cell's class belief:
-
-$$
-\sum_k \bar\zeta_{c,k}\,\log\bar\gamma_{g_s,c\mid k} = \mathbb{E}_{k\sim\bar\zeta_c}\!\big[\log\bar\gamma_{g_s,c\mid k}\big].
-$$
-
-This is the one facet easily confused with the alignment, so the difference is worth stating
-plainly:
-
-- **alignment** ($\mu$) is **class $\leftrightarrow$ gene**: does a cell of this *type*
-  express the gene? It comes from the reference and is the **same for every cell of that
-  type**.
-- **enrichment** ($\gamma$) is **cell $\leftrightarrow$ gene**: does *this individual cell*
-  carry more of the gene than its type predicts? It comes from the cell's **own data**.
-
-The sharpest way to see they differ: take two cells of the **same type** with a gene-$g$ spot
-between them. Their alignment is identical - same type, same $\mu$ - so it cannot break the
-tie. Their enrichment can differ: the cell that has already gathered more of gene $g$ than
-its type accounts for has the higher $\bar\gamma$, and it claims the spot. **Alignment tells
-different types apart; enrichment tells same-type cells apart.** The two stack because the
-predicted count factorises as $\mu \times \gamma$ - the type's baseline times the cell's
-residual - so enrichment carries exactly the part of the signal the alignment leaves
-unexplained.
-
-**The misread correction.** The fourth facet, $\overline{\log\eta}_{g_s}$, is the gene's
-detection efficiency, and it is the odd one out: it does not depend on the cell's class (it
-is gene-only), and between two cells it is a common offset that cancels, so it never decides
-which cell wins. Its work is in the **cell-versus-background** contest - attenuating the
-signal of a poorly detected gene so its spots are more readily called misreads. Because that
-is a story about the background option, we unpack it in
-[its own section below](#the-efficiency-term-and-the-signal-to-noise-ratio).
-
-For the background option $c = 0$ the score is the spot's gene
-[misread density](misread-density.md), entered as $\exp(\overline{\log\rho_{g_s}})$. A spot
-is assigned to the background unless some nearby cell explains it better, which is how
-genuine misreads are filtered out.
+**Misread correction** ($\overline{\log\eta}_{g_s}$). The gene's detection efficiency.
+Gene-only, so it is identical for every cell and cancels in any cell-versus-cell comparison;
+it bites only against the **background**, attenuating a poorly detected gene's signal so its
+spots are more readily called misreads (see the [note below](#the-efficiency-term-and-the-signal-to-noise-ratio)).
 
 ## The efficiency term and the signal-to-noise ratio
 
