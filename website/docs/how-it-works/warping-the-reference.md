@@ -80,9 +80,33 @@ covers. The broad, systemic factor sits at the base, affecting everything at onc
 Higher up, the corrections get narrower and more specific, up to gamma at the apex, which
 applies to just one gene, in one cell, under one candidate type.
 
-![A pyramid of the four scaling factors](/img/inefficiency-pyramid.svg)
-
-<div className="docs-figure"><figcaption>The same idea, four levels of granularity. Wide and systemic at the bottom, narrow and idiosyncratic at the top.</figcaption></div>
+<figure class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 460" role="img" aria-label="A pyramid of the four scaling factors">
+  <defs></defs>
+  <line x1="70" y1="396" x2="70" y2="66" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" />
+  <path d="M 70,54 L 76,68 L 70,64 L 64,68 Z" fill="currentColor" fill-opacity="0.5" />
+  <text class="ip-axis" transform="rotate(-90 90,230)" x="90" y="230" text-anchor="middle">GRANULARITY INCREASES</text>
+  <path class="ip-tier" fill="#5fc394" d="M 300,60.0 L 342.9,141.0 L 257.1,141.0 Z" />
+  <path class="ip-tier" fill="#3fa07a" d="M 252.9,149.0 L 347.1,149.0 L 387.9,226.0 L 212.1,226.0 Z" />
+  <path class="ip-tier" fill="#2f7d63" d="M 207.9,234.0 L 392.1,234.0 L 432.9,311.0 L 167.1,311.0 Z" />
+  <path class="ip-tier" fill="#1f5a4a" d="M 162.9,319.0 L 437.1,319.0 L 477.9,396.0 L 122.1,396.0 Z" />
+  <line class="ip-leader" x1="343" y1="100.5" x2="540" y2="100.5" />
+  <line class="ip-leader" x1="368" y1="187.5" x2="540" y2="187.5" />
+  <line class="ip-leader" x1="413" y1="272.5" x2="540" y2="272.5" />
+  <line class="ip-leader" x1="458" y1="357.5" x2="540" y2="357.5" />
+  <g>
+    <text x="550" y="96" class="ip-glyph">&#947; <tspan class="ip-name">(gamma)</tspan></text>
+    <text x="550" y="116" class="ip-desc">one gene, one cell, one class</text>
+    <text x="550" y="183" class="ip-glyph">&#952; <tspan class="ip-name">(theta)</tspan></text>
+    <text x="550" y="203" class="ip-desc">one cell, one class (all genes)</text>
+    <text x="550" y="268" class="ip-glyph">&#951; <tspan class="ip-name">(eta)</tspan></text>
+    <text x="550" y="288" class="ip-desc">one gene, all cells</text>
+    <text x="550" y="353" class="ip-glyph" font-size="20">Inefficiency</text>
+    <text x="550" y="373" class="ip-desc">the whole experiment at once</text>
+  </g>
+</svg>
+<figcaption>The same idea, four levels of granularity. Wide and systemic at the bottom, narrow and idiosyncratic at the top.</figcaption>
+</figure>
 
 Why have all four instead of one? Because mismatch occurs at all of these levels at once.
 There is a global scale difference between the two technologies (handled at the base),

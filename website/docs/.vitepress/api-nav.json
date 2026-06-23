@@ -20,7 +20,42 @@
     "link": "/api/reference#setup-logger"
   },
   {
+    "text": "stage_image",
+    "link": "/api/reference#stage-image"
+  },
+  {
     "text": "VarBayes",
-    "link": "/api/reference#varbayes"
+    "link": "/api/reference#varbayes",
+    "collapsed": true,
+    "items": [
+      {
+        "text": "metadata",
+        "link": "/api/reference#metadata"
+      },
+      {
+        "text": "check_spot",
+        "link": "/api/reference#check-spot"
+      },
+      {
+        "text": "check_cell",
+        "link": "/api/reference#check-cell"
+      },
+      {
+        "text": "read_tsv",
+        "link": "/api/reference#read-tsv"
+      },
+      {
+        "text": "heatmap_counts_per_class",
+        "link": "/api/reference#heatmap-counts-per-class"
+      },
+      {
+        "text": "cells.gene_reads_per_class",
+        "link": "/api/reference#cells-gene-reads-per-class"
+      },
+      {
+        "text": "cells.mean_gene_reads_per_class",
+        "link": "/api/reference#cells-mean-gene-reads-per-class"
+      }
+    ]
   }
 ]

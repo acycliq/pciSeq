@@ -24,11 +24,15 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent
 OUT = HERE / "docs" / "api"
 
-# Extra things to document that aren't imported into the top-level pciSeq
-# namespace but are still part of the API people touch. VarBayes is the model
-# object that cell_type/fit build and return, so it belongs here.
+# Extra things to document that discover_public_api() does not catch on its own.
 # Each entry is (module path, attribute name).
+#   - stage_image is reachable as pciSeq.stage_image, but only through a
+#     conditional import (it depends on libvips), so the top-level scan misses it.
+#   - VarBayes is the model object that cell_type/fit build and return.
+# stage_image is a plain function so it goes with the others; VarBayes (a class)
+# stays last.
 EXTRA_API = [
+    ("pciSeq.src.tiling.stage_image", "stage_image"),
     ("pciSeq.src.core.main", "VarBayes"),
 ]
 
@@ -41,6 +45,45 @@ PARAM_SECTIONS = {"Parameters", "Returns", "Raises", "Yields", "Attributes"}
 # instance's attributes, written as "attr.method" with where it actually lives.
 CLASS_MEMBERS = {
     "VarBayes": {
+        # a short note rendered right after the class summary, so readers know
+        # how to actually get hold of a fitted model before the attributes and
+        # methods below make sense.
+        "note": (
+            "::: tip Obtaining a fitted instance\n"
+            "`VarBayes` is not instantiated directly in normal use. "
+            "[`fit`](#fit) and [`cell_type`](#cell-type) construct and run it. "
+            "`cell_type` returns the fitted instance; `fit` does not, but when "
+            "`save_data=True` (the default) the fitted model is serialised to "
+            "`<output_path>/data/debug/pciSeq.pickle` (`output_path` defaults to a "
+            "temporary directory). The attributes and methods below operate on a "
+            "loaded instance; [Working with results](./working-with-results) walks "
+            "through the main ones with examples.\n\n"
+            "```python\n"
+            "import pandas as pd\n\n"
+            "obj = pd.read_pickle('<output_path>/data/debug/pciSeq.pickle')\n\n"
+            "obj.metadata\n"
+            "obj.check_cell(my_label=42, user_class='Astro')\n"
+            "```\n"
+            ":::"
+        ),
+        # plain instance attributes worth surfacing. Attributes have no
+        # docstrings, so the description is written here by hand.
+        "attributes": [
+            {
+                "name": "metadata",
+                "type": "dict",
+                "desc": "Provenance recorded when the model is built, saved "
+                        "alongside the results so a run can be traced back to the "
+                        "code that produced it. Contains:",
+                "fields": [
+                    ("version", "the pciSeq version"),
+                    ("branch", "the git branch"),
+                    ("commit", "the git commit hash"),
+                    ("build_date", "the package build date"),
+                    ("created_at", "a UTC timestamp for when the run was created"),
+                ],
+            },
+        ],
         "methods": [
             "check_spot",
             "check_cell",
@@ -300,9 +343,27 @@ def render_class(node, name, qualpath, source):
     summary, sections = parse_numpydoc(_raw_docstring(node, source))
     parts += _render_docbody(summary, sections)
 
+    spec = CLASS_MEMBERS.get(name)
+
+    # a short orientation note (e.g. how to get hold of a fitted instance)
+    if spec and spec.get("note"):
+        parts += [spec["note"], ""]
+
+    # hand-written attributes (plain instance attributes have no docstrings)
+    if spec and spec.get("attributes"):
+        parts += ["### Attributes", ""]
+        for attr in spec["attributes"]:
+            # bullets get no auto anchor, so add one for the sidebar link to hit
+            anchor = f'<a id="{_slug(attr["name"])}"></a>'
+            parts.append(f"- {anchor}**`{attr['name']}`** *({attr['type']})*")
+            parts.append(f"  {attr['desc']}")
+            # the dict keys (or similar) as a nested list, so they aren't crammed
+            for key, meaning in attr.get("fields", []):
+                parts.append(f"    - `{key}`: {meaning}")
+        parts.append("")
+
     # which methods to show: a hand-picked list for noisy classes, otherwise
     # every public method.
-    spec = CLASS_MEMBERS.get(name)
     method_blocks = []
     if spec:
         for mname in spec.get("methods", []):
@@ -336,20 +397,42 @@ def render_member(module_path, name):
 
 
 def _slug(name):
-    """Match VitePress's heading-id slugify so sidebar anchors line up:
-    lowercase, drop the backticks, turn underscores and spaces into hyphens."""
-    s = re.sub(r"[^\w\s-]", "", name).lower()
-    return re.sub(r"[\s_]+", "-", s)
+    """Match VitePress's heading-id slugify so sidebar anchors line up: lowercase,
+    and turn every run of punctuation/space (dots, underscores, etc.) into a
+    single hyphen. This is what gives `cells.mean_gene_reads_per_class` the id
+    `cells-mean-gene-reads-per-class`, same as VitePress."""
+    s = name.strip().lower()
+    s = re.sub(r"[\s~`!@#$%^&*()\-_+=\[\]{}|\\;:\"'<>,.?/]+", "-", s)
+    return re.sub(r"-{2,}", "-", s).strip("-")
+
+
+def _class_subitems(spec):
+    """Sidebar sub-items for a curated class: its attributes, then methods, then
+    attribute-reached methods, each pointing at its anchor on the reference page."""
+    items = []
+    for attr in spec.get("attributes", []):
+        items.append({"text": attr["name"], "link": f"/api/reference#{_slug(attr['name'])}"})
+    for mname in spec.get("methods", []):
+        items.append({"text": mname, "link": f"/api/reference#{_slug(mname)}"})
+    for extra in spec.get("attr_methods", []):
+        items.append({"text": extra["display"], "link": f"/api/reference#{_slug(extra['display'])}"})
+    return items
 
 
 def gen_nav():
-    """The list of API functions for the sidebar, so the 'Functions' group can
-    expand into one entry per function. config.mts imports this json."""
+    """The list of API members for the sidebar, so the 'Functions' group can
+    expand into one entry per member. Curated classes (e.g. VarBayes) become a
+    nested group of their attributes and methods. config.mts imports this json."""
     members = discover_public_api() + EXTRA_API
-    return [
-        {"text": name, "link": f"/api/reference#{_slug(name)}"}
-        for _module_path, name in members
-    ]
+    nav = []
+    for _module_path, name in members:
+        entry = {"text": name, "link": f"/api/reference#{_slug(name)}"}
+        spec = CLASS_MEMBERS.get(name)
+        if spec:
+            entry["collapsed"] = True
+            entry["items"] = _class_subitems(spec)
+        nav.append(entry)
+    return nav
 
 
 def gen_reference():
@@ -364,7 +447,9 @@ def gen_reference():
         "",
         "Everything here is reachable as `pciSeq.<name>` (plus `VarBayes`, the",
         "model object that [`fit`](#fit) and [`cell_type`](#cell-type) build and",
-        "return). The main entry point is [`fit`](#fit).",
+        "return). The main entry point is [`fit`](#fit). For what the output",
+        "DataFrames hold and worked examples of the model attributes, see",
+        "[Working with results](./working-with-results).",
         "",
     ]
     for module_path, name in members:

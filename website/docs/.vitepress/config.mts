@@ -12,11 +12,19 @@ export default defineConfig({
   // Project site at https://acycliq.github.io/pciSeq_3d/
   base: '/pciSeq_3d/',
 
-  // dark by default, like the old site
-  appearance: 'dark',
+  // light by default, with the toggle still available (respects the OS too)
+  appearance: true,
 
   // don't die on a bad link while the docs are still being written
   ignoreDeadLinks: true,
+
+  head: [
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/pciSeq_3d/favicon.svg' }],
+    ['meta', { name: 'theme-color', content: '#10b981' }],
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:title', content: 'pciSeq' }],
+    ['meta', { property: 'og:description', content: 'Probabilistic cell typing by in situ sequencing' }],
+  ],
 
   // turn on the built-in math (MathJax under the hood). needs the
   // markdown-it-mathjax3 dev dependency to be installed.
@@ -77,6 +85,7 @@ export default defineConfig({
             collapsed: true,
             items: apiFunctions,
           },
+          { text: 'Working with results', link: '/api/working-with-results' },
           { text: 'Configuration (opts)', link: '/api/configuration' },
         ],
       },

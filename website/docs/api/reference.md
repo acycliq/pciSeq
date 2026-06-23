@@ -7,7 +7,9 @@ Edit the docstrings in the source, not this file.
 
 Everything here is reachable as `pciSeq.<name>` (plus `VarBayes`, the
 model object that [`fit`](#fit) and [`cell_type`](#cell-type) build and
-return). The main entry point is [`fit`](#fit).
+return). The main entry point is [`fit`](#fit). For what the output
+DataFrames hold and worked examples of the model attributes, see
+[Working with results](./working-with-results).
 
 ## `fit`
 
@@ -153,6 +155,50 @@ Returns:
     The configured 'pciSeq' logger instance.
 
 
+## `stage_image`
+
+`pciSeq.src.tiling.stage_image.stage_image`
+
+```python
+stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, plane_prefix='plane_', use_buffer=True, tint=None)
+```
+
+Turn an image (or z-stack) into an MBTiles file the viewer can read.
+
+This builds the tiled, multi-resolution background that pciSeq Viewer uses
+as its slippy-map base layer. Give it a single 2D image or a whole 3D stack
+and it writes one `.mbtiles` file.
+
+**Parameters**
+
+- **`img`** *(np.ndarray or str)*
+  The image to tile: a 2D array (H, W), a 3D stack (Z, H, W), a 3D stack with channels (Z, H, W, C), or a path to a 2D image file (legacy).
+- **`out_dir`** *(str, optional)*
+  Directory for the `.mbtiles` file. Defaults to the system temp directory.
+- **`zoom_levels`** *(int, optional)*
+  Number of zoom levels to produce. Default is 8.
+- **`name`** *(str, optional)*
+  Short identifier for the dataset. Also used as the output filename, e.g. `name="S10_gcamp_10"` writes `S10_gcamp_10.mbtiles`. If empty, the file is named `output.mbtiles`.
+- **`description`** *(str, optional)*
+  Longer description of the dataset.
+- **`plane_prefix`** *(str, optional)*
+  Prefix for the per-plane names. Default is "plane_".
+- **`use_buffer`** *(bool, optional)*
+  If True (the default) the tiles are built in memory and inserted straight into the MBTiles database. If False they are written to disk first, which uses less memory but more disk I/O.
+- **`tint`** *(str, optional)*
+  Hex colour like "#00FF00" the viewer uses to tint this grayscale layer. If omitted, the layer is shown in plain grayscale.
+
+**Returns**
+
+- **`str`**
+  Path to the created `.mbtiles` file.
+
+**Notes**
+
+Requires libvips. If it is not installed, `pciSeq.stage_image()` falls back
+to a stub that only logs a warning.
+
+
 ## `VarBayes`
 
 `pciSeq.src.core.main.VarBayes`
@@ -171,6 +217,29 @@ Args:
     spots_df: DataFrame containing spot information
     scRNAseq: Single-cell RNA sequencing reference data
     config: Configuration dictionary containing algorithm parameters
+
+::: tip Obtaining a fitted instance
+`VarBayes` is not instantiated directly in normal use. [`fit`](#fit) and [`cell_type`](#cell-type) construct and run it. `cell_type` returns the fitted instance; `fit` does not, but when `save_data=True` (the default) the fitted model is serialised to `<output_path>/data/debug/pciSeq.pickle` (`output_path` defaults to a temporary directory). The attributes and methods below operate on a loaded instance; [Working with results](./working-with-results) walks through the main ones with examples.
+
+```python
+import pandas as pd
+
+obj = pd.read_pickle('<output_path>/data/debug/pciSeq.pickle')
+
+obj.metadata
+obj.check_cell(my_label=42, user_class='Astro')
+```
+:::
+
+### Attributes
+
+- <a id="metadata"></a>**`metadata`** *(dict)*
+  Provenance recorded when the model is built, saved alongside the results so a run can be traced back to the code that produced it. Contains:
+    - `version`: the pciSeq version
+    - `branch`: the git branch
+    - `commit`: the git commit hash
+    - `build_date`: the package build date
+    - `created_at`: a UTC timestamp for when the run was created
 
 ### Methods
 

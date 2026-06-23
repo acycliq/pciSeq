@@ -40,20 +40,79 @@
   --vp-home-hero-name-color: var(--vp-c-brand-1);
 }
 
-/* Headings a touch tighter, matching the old "research" look. */
+/* --- Heading rhythm ------------------------------------------------- */
+/* Quieter, more even spacing than the defaults. Weights stay at 600 so
+   nothing shouts, sizes step down gently. Kept in step with the viewer docs. */
 .vp-doc h1 {
+  font-size: 1.9rem;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+  margin-bottom: 1.5rem;
 }
 
 .vp-doc h2 {
-  margin-top: 3rem;
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-top: 3.5rem;
+  padding-top: 1.5rem;
 }
 
-/* Centre the hand-made SVG diagrams and give them room. */
-.vp-doc img[src*='/img/'] {
+.vp-doc h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-top: 2.25rem;
+}
+
+/* a hair more line spacing makes the long derivations calmer to read */
+.vp-doc p,
+.vp-doc li {
+  line-height: 1.7;
+}
+
+/* Centre the hand-made diagrams and give them room. The inlined SVGs use
+   currentColor for their ink, so they follow the page text colour and read in
+   both light and dark mode without any backdrop. */
+.vp-doc img[src*='/img/'],
+.vp-doc figure.diagram {
   display: block;
   margin: 2rem auto;
   max-width: 100%;
   height: auto;
 }
+
+.vp-doc figure.diagram svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* pin the ink to the theme text colour so every currentColor inside the SVG
+     (classes and inline attributes) resolves correctly in both light and dark */
+  color: var(--vp-c-text-1);
+}
+
+.vp-doc figure.diagram figcaption {
+  margin-top: 0.75rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--vp-c-text-2);
+}
+
+/* Styles for the inlined diagrams. They live here, not in an SVG <style> block,
+   because VitePress compiles inlined markdown HTML as a Vue template and drops
+   <style> tags. Using currentColor makes the ink follow the page text colour,
+   so the diagrams read in both light and dark mode. The classes are prefixed
+   (vl-, ip-) so they only touch our diagrams. */
+
+/* variational loop (how-it-works/overview) */
+.vl-arc-band { fill: var(--vp-c-text-1); fill-opacity: 0.05; stroke: var(--vp-c-text-1); stroke-opacity: 0.3; stroke-width: 1; stroke-linejoin: round; }
+.vl-arc-highlight { fill: rgba(72, 187, 120, 0.12); fill-opacity: 1; stroke: #48bb78; stroke-opacity: 1; stroke-width: 1.5; }
+.vl-text-label { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+.vl-center-title { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 12px; font-weight: 300; letter-spacing: 0.4em; opacity: 0.5; }
+
+/* inefficiency pyramid (how-it-works/warping-the-reference) */
+.ip-tier { stroke: var(--vp-c-text-1); stroke-opacity: 0.4; stroke-width: 1; stroke-linejoin: round; }
+.ip-glyph { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 26px; font-weight: 600; }
+.ip-name { fill: var(--vp-c-text-1); opacity: 0.75; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 14px; font-style: italic; }
+.ip-desc { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; opacity: 0.7; }
+.ip-axis { fill: var(--vp-c-text-1); opacity: 0.6; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; letter-spacing: 0.15em; }
+.ip-leader { stroke: var(--vp-c-text-1); stroke-opacity: 0.25; stroke-width: 1; stroke-dasharray: 2 4; }

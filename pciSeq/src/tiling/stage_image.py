@@ -240,32 +240,46 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
 def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, plane_prefix="plane_",
                 use_buffer=True, tint=None):
     """
-    Process an image into a viewable format (MBTiles).
+    Turn an image (or z-stack) into an MBTiles file the viewer can read.
 
-    Args:
-        img: One of:
-            - numpy array (H, W): single 2D grayscale image
-            - numpy array (Z, H, W): 3D stack of grayscale images
-            - numpy array (Z, H, W, C): 3D stack with channels
-            - str: path to a 2D image file (legacy support)
-        out_dir: (str) Output directory for the .mbtiles file. Default: system temp directory.
-        zoom_levels: (int) Number of zoom levels to produce. Default is 8.
-        name: (str) Short identifier for the dataset. Optional. Also used as the
-                    output filename (e.g. name="S10_gcamp_10" -> S10_gcamp_10.mbtiles).
-                    If empty, the file is named output.mbtiles.
-                    Example: "WT94_DAPI"
-        description: (str) Detailed description of the dataset. Optional.
-                    Example: "DAPI background for WT94 mouse cortex, 84 z-planes at 0.9um spacing"
-        plane_prefix: (str) Prefix for plane directories/names. Default is "plane_".
-        use_buffer: (bool) If True (default), tiles are created in memory via dzsave_buffer()
-                    and inserted directly into the MBTiles database. If False, tiles are written
-                    to disk first (uses more disk I/O but less memory).
-        tint: (str) Hex colour like "#00FF00" that the viewer uses to tint this
-                    grayscale baselayer. Optional. If not given, no tint is written
-                    and the viewer renders the layer in grayscale.
+    This builds the tiled, multi-resolution background that pciSeq Viewer uses
+    as its slippy-map base layer. Give it a single 2D image or a whole 3D stack
+    and it writes one `.mbtiles` file.
 
-    Returns:
-        str: path to the created .mbtiles file.
+    Parameters
+    ----------
+    img : np.ndarray or str
+        The image to tile: a 2D array (H, W), a 3D stack (Z, H, W), a 3D stack
+        with channels (Z, H, W, C), or a path to a 2D image file (legacy).
+    out_dir : str, optional
+        Directory for the `.mbtiles` file. Defaults to the system temp directory.
+    zoom_levels : int, optional
+        Number of zoom levels to produce. Default is 8.
+    name : str, optional
+        Short identifier for the dataset. Also used as the output filename, e.g.
+        `name="S10_gcamp_10"` writes `S10_gcamp_10.mbtiles`. If empty, the file
+        is named `output.mbtiles`.
+    description : str, optional
+        Longer description of the dataset.
+    plane_prefix : str, optional
+        Prefix for the per-plane names. Default is "plane_".
+    use_buffer : bool, optional
+        If True (the default) the tiles are built in memory and inserted straight
+        into the MBTiles database. If False they are written to disk first, which
+        uses less memory but more disk I/O.
+    tint : str, optional
+        Hex colour like "#00FF00" the viewer uses to tint this grayscale layer.
+        If omitted, the layer is shown in plain grayscale.
+
+    Returns
+    -------
+    str
+        Path to the created `.mbtiles` file.
+
+    Notes
+    -----
+    Requires libvips. If it is not installed, `pciSeq.stage_image()` falls back
+    to a stub that only logs a warning.
     """
     # Determine output directory
     if out_dir is None:

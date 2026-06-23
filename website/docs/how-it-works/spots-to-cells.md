@@ -16,9 +16,10 @@ When a cell weighs up a spot, it asks two questions: **where are you?** and **wh
 you?** The first is geometry; the second is about identity - whether a cell like this would
 produce this gene. The score adds the two together.
 
-![The building blocks of the spot-to-cell score](/img/spot-assignment-blocks.svg)
-
-<div className="docs-figure"><figcaption>The score, block by block. One block asks <em>where</em> the spot is; four ask <em>what</em> it is. The score simply adds them up.</figcaption></div>
+<figure class="diagram">
+<img src="/img/spot-assignment-blocks.svg" alt="The building blocks of the spot-to-cell score">
+<figcaption>The score, block by block. One block asks <em>where</em> the spot is; four ask <em>what</em> it is. The score simply adds them up.</figcaption>
+</figure>
 
 ### Where: the spatial fit
 

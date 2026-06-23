@@ -30,12 +30,30 @@ four blocks below are exactly these conditional updates.
 
 ## The four building blocks
 
-![The pciSeq variational loop](/img/variational-loop.svg)
-
-<div className="docs-figure">
+<figure class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="The pciSeq variational loop">
+  <defs>
+    <path id="vlTxtPath1" d="M 400,90 A 160,160 0 0,1 560,250" />
+    <path id="vlTxtPath2" d="M 560,250 A 160,160 0 0,1 400,410" />
+    <path id="vlTxtPath3" d="M 400,410 A 160,160 0 0,1 240,250" />
+    <path id="vlTxtPath4" d="M 240,250 A 160,160 0 0,1 400,90" />
+  </defs>
+  <text x="400" y="255" text-anchor="middle" class="vl-center-title">THE VARIATIONAL LOOP</text>
+  <circle cx="400" cy="250" r="100" fill="none" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2 6" opacity="0.2" />
+  <g>
+    <path class="vl-arc-band" d="M 416.6,60.7 A 190,190 0 0,1 585.1,207.3 L 598.8,204.1 L 565.0,250.0 L 522.8,221.7 L 536.4,218.5 A 140,140 0 0,0 412.2,110.5 Z" />
+    <text class="vl-text-label"><textPath href="#vlTxtPath1" startOffset="50%" text-anchor="middle">Misread Density</textPath></text>
+    <path class="vl-arc-band vl-arc-highlight" d="M 589.3,266.6 A 190,190 0 0,1 442.7,435.1 L 445.9,448.8 L 400.0,415.0 L 428.3,372.8 L 431.5,386.4 A 140,140 0 0,0 539.5,262.2 Z" />
+    <text class="vl-text-label"><textPath href="#vlTxtPath2" startOffset="50%" text-anchor="middle">Warping Reference</textPath></text>
+    <path class="vl-arc-band" d="M 383.4,439.3 A 190,190 0 0,1 214.9,292.7 L 201.2,295.9 L 235.0,250.0 L 277.2,278.3 L 263.6,281.5 A 140,140 0 0,0 387.8,389.5 Z" />
+    <text class="vl-text-label"><textPath href="#vlTxtPath3" startOffset="50%" text-anchor="middle">Cell Typing</textPath></text>
+    <path class="vl-arc-band" d="M 210.7,233.4 A 190,190 0 0,1 357.3,64.9 L 354.1,51.2 L 400.0,85.0 L 371.7,127.2 L 368.5,113.6 A 140,140 0 0,0 260.5,237.8 Z" />
+    <text class="vl-text-label"><textPath href="#vlTxtPath4" startOffset="50%" text-anchor="middle">Spot Assignment</textPath></text>
+  </g>
+</svg>
 <figcaption>The variational loop. Each block feeds the next, and the last block feeds
 back into the first. The loop runs until the spot assignments stop changing.</figcaption>
-</div>
+</figure>
 
 1. **[Estimate the misread density per gene.](misread-density.md)**
     Estimate how much background noise each gene produces, so genuine signal can be
