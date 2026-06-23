@@ -175,7 +175,8 @@ $$
 \lambda_{g,c} = \mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_c ,
 $$
 
-the reference expression $\mu_{g,k}$ scaled by the cell area $A_c$, the gene efficiency
+the reference expression $\mu_{g,k}$ scaled by the inside-cell-bonus factor $A_c$ (see the
+[notation table](overview.md#notation); $A_c = 1$ when the bonus is off), the gene efficiency
 $\bar\eta_g$ and the cell scale $\bar\theta_c$. The scale factor $\gamma_{g,c}$ multiplies
 this rate, and the observed count is Poisson around it:
 
@@ -192,11 +193,18 @@ structure that makes the model robust to the overdispersion real transcript coun
 
 #### Deriving the posterior $q(\gamma_{g,c})$
 
+By the mean-field (CAVI) update, the optimal factor for $\gamma_{g,c}$ is the expected
+log-joint over every other latent, with the $\gamma_{g,c}$-free terms folded into the
+constant:
+
+$$
+\log q^*(\gamma_{g,c}) = \mathbb{E}_{-\gamma_{g,c}}\big[\log p(x,g,z,\zeta,\gamma,\eta,\theta)\big] + \text{const}.
+$$
+
 Conditioning on the class assignments $\zeta$, the class prior, the spatial term, and
-$\bar N_{c,g}\,\overline{\log\theta_c}$ are all constant in $\gamma_{g,c}$. Keep the terms of
-the expected log-joint that involve it: the spatial integral contributes the linear term
-$-\lambda_{g,c}\,\gamma_{g,c}$, the $\bar N_{c,g}$ spots each contribute a
-$\log\gamma_{g,c}$, and the prior
+$\bar N_{c,g}\,\overline{\log\theta_c}$ are all constant in $\gamma_{g,c}$. Three pieces
+survive: the spatial integral contributes the linear term $-\lambda_{g,c}\,\gamma_{g,c}$, the
+$\bar N_{c,g}$ expected spots each contribute a $\log\gamma_{g,c}$, and the prior
 $\log p(\gamma_{g,c}) = (r_\gamma - 1)\log\gamma_{g,c} - r_\gamma\,\gamma_{g,c}$ adds two more:
 
 $$

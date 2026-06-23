@@ -6,8 +6,17 @@ enters: the Markov Random Field term that rewards neighbouring cells for sharing
 
 ## From a Poisson-Gamma mixture to a Negative Binomial
 
-Because $\theta_c$ is a [point estimate](scale-factors.md#theta), the joint $q(\zeta,\gamma)$
-can be written as a Poisson-Gamma mixture in $\gamma$:
+By the [CAVI update](overview.md#the-variational-approximation), the structured factor for the
+class and its cell-gene scale is the expected
+[log-joint](overview.md#the-generative-model) over the remaining latents:
+
+$$
+\log q(\zeta,\gamma) = \mathbb{E}_{z,\eta,\theta}\big[\log p(x, g, z, \zeta, \gamma, \eta, \theta)\big] + \text{const}.
+$$
+
+Because $\theta_c$ is a [point estimate](scale-factors.md#theta), its expectation is exact and
+$\theta_c$ passes through as a constant. Taking the expectation and keeping the terms in
+$\zeta$ and $\gamma$ leaves a Poisson-Gamma mixture in $\gamma$:
 
 $$
 \begin{aligned}

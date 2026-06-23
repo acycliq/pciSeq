@@ -20,7 +20,7 @@ equation. It follows *The extended pciSeq model* (v0.3), which is the version th
 | $\eta_0$ | global prior mean of detection efficiency (typically 0.2) |
 | $\theta_c$ | per-cell scale factor (extension) |
 | $\rho_g$ | per-gene background (misread) density (extension) |
-| $A_c=\int e^{-D_c(x)}\,dx$ | normalised area of cell $c$ |
+| $A_c=\int e^{-D_c(x)}\,dx$ | a per-cell normalising factor tied to the inside-cell bonus. It equals $1$ when the bonus is off |
 | $D_c(x)$ | distance from point $x$ to cell $c$ |
 | $\pi_k$ | prior probability of class $k$ |
 | $\mathcal{N}_c$ | the set of nearest neighbours of cell $c$ |
@@ -87,6 +87,19 @@ $$
 p(z, \zeta, \gamma, \eta, \theta \mid x, g)
 \approx q(\gamma \mid \zeta, \theta)\, q(\theta \mid \zeta)\, q(\zeta)\, q(z)\, q(\eta) .
 $$
+
+Coordinate ascent updates each factor to its optimal form, which is always the **expected
+log-joint over all the other factors**:
+
+$$
+\log q^*(x_j) = \mathbb{E}_{q(\text{rest})}\big[\log p(x, g, z, \zeta, \gamma, \eta, \theta)\big] + \text{const} .
+$$
+
+Every derivation that follows is one application of this single equation: take the
+[log-joint](#the-generative-model) above, fold everything that does not involve the factor
+$x_j$ into the constant, take the expectation over the other factors, and read off the
+posterior. (The one exception is $\theta_c$: as a point estimate it is **maximised** rather
+than integrated, but it maximises the same expected log-joint.)
 
 One factor needs special handling. The per-cell scale $\theta_c$ enters the intensity
 multiplicatively with $\gamma_{g,c}$; treating both as full random variables would make

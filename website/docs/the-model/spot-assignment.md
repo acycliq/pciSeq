@@ -7,13 +7,23 @@ $s$ belongs to cell $c$. We derive its variational posterior $q(z_{s,c})$ the sa
 the other factors: keep the terms of the log-joint that involve $z_{s,c}$, take expectations
 over everything else, and read off the result.
 
-## Which terms involve $z_{s,c}$
+## Which terms involve z<sub>s,c</sub>
 
 Spots are modelled as a spatial Poisson process with intensity
-$\lambda_{g,c}(x) = \theta_c\, \mu_{g,k(c)}\, e^{-D_c(x)}\, \gamma_{g,c}\, \eta_g$. A Poisson
-log-likelihood has two parts, $-\!\int\!\lambda(x)\,dx + \sum_s \log\lambda(x_s)$. The
-indicator $z_{s,c}$ appears **only in the second part**: it picks out the log-intensity of
-the cell each spot is assigned to. Keeping just those terms,
+
+$$
+\lambda_{g,c}(x) = \theta_c\, \mu_{g,k(c)}\, e^{-D_c(x)}\, \gamma_{g,c}\, \eta_g .
+$$
+
+A Poisson log-likelihood has two parts:
+
+$$
+-\!\int\!\lambda(x)\,dx \;+\; \sum_s \log\lambda(x_s) .
+$$
+
+The indicator $z_{s,c}$ appears **only in the second part**: it picks out the log-intensity
+of the cell each spot is assigned to. Keeping just those terms of the
+[full log-joint](overview.md#the-generative-model),
 
 $$
 \log p(\dots) \supset
@@ -33,15 +43,16 @@ competition.
 
 ## The update for a cell ($c > 0$)
 
-The coordinate-ascent update sets $\log q(z_{s,c}=1)$ to the expectation of those terms over
-the other factors:
+The [coordinate-ascent update](overview.md#the-variational-approximation) sets
+$\log q(z_{s,c}=1)$ to the expectation of those terms over the other factors:
 
 $$
+\begin{aligned}
 \log q(z_{s,c}=1)
-= \mathbb{E}_{\zeta,\theta,\gamma,\eta}\!\Big[
-  \sum_k \zeta_{c,k}\,
-  \big(\log\theta_c - D_c(x_s) + \log\mu_{g_s,k} + \log\gamma_{g_s,c} + \log\eta_{g_s}\big)
-\Big] + \text{const}.
+&= \mathbb{E}_{\zeta,\theta,\gamma,\eta}\Big[ \sum_k \zeta_{c,k}\big(
+   \log\theta_c - D_c(x_s) + \log\mu_{g_s,k} \\
+&\qquad\qquad\quad {}+ \log\gamma_{g_s,c} + \log\eta_{g_s} \big) \Big] + \text{const}.
+\end{aligned}
 $$
 
 Now carry the expectations inside, and mind the **class conditioning**. The cell scale
