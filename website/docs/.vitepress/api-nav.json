@@ -1,0 +1,26 @@
+[
+  {
+    "text": "fit",
+    "link": "/api/reference#fit"
+  },
+  {
+    "text": "cell_type",
+    "link": "/api/reference#cell-type"
+  },
+  {
+    "text": "stage_data",
+    "link": "/api/reference#stage-data"
+  },
+  {
+    "text": "attach_to_log",
+    "link": "/api/reference#attach-to-log"
+  },
+  {
+    "text": "setup_logger",
+    "link": "/api/reference#setup-logger"
+  },
+  {
+    "text": "VarBayes",
+    "link": "/api/reference#varbayes"
+  }
+]

@@ -1,9 +1,3 @@
----
-id: misread-density
-title: Derivation - gene-indexed misread density
-sidebar_label: Misread density
-sidebar_position: 2
----
 
 # Derivation: the gene-indexed misread density
 

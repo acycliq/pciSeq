@@ -1,9 +1,3 @@
----
-id: cell-to-celltype
-title: Assigning cells to cell types
-sidebar_label: 3. Cells to types
-sidebar_position: 4
----
 
 # Block 3: Assigning cells to cell types
 

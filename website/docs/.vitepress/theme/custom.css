@@ -1,0 +1,59 @@
+/**
+ * pciSeq docs theme.
+ * Same emerald accent, Inter font and research-paper feel as the old
+ * Docusaurus site, but written against VitePress's --vp-* variables.
+ * Kept in step with the pciSeq Viewer docs on purpose.
+ */
+
+/* Inter, same font the viewer app uses. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --vp-font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, sans-serif;
+  --vp-font-family-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Emerald palette (was --ifm-color-primary on Docusaurus). */
+  --vp-c-brand-1: #10b981; /* emerald 500 */
+  --vp-c-brand-2: #059669; /* emerald 600 */
+  --vp-c-brand-3: #047857; /* emerald 700 */
+  --vp-c-brand-soft: rgba(16, 185, 129, 0.14);
+
+  /* a slightly wider reading column for the long derivations */
+  --vp-layout-max-width: 1440px;
+}
+
+.dark {
+  --vp-c-brand-1: #34d399; /* emerald 400, easier to read on black */
+  --vp-c-brand-2: #10b981;
+  --vp-c-brand-3: #059669;
+  --vp-c-brand-soft: rgba(16, 185, 129, 0.16);
+
+  /* near-black background, like the old dark theme */
+  --vp-c-bg: #0c0c0e;
+  --vp-c-bg-alt: #161618;
+  --vp-c-bg-soft: #161618;
+}
+
+/* Brand the home hero name too, if we ever add a hero page. */
+:root {
+  --vp-home-hero-name-color: var(--vp-c-brand-1);
+}
+
+/* Headings a touch tighter, matching the old "research" look. */
+.vp-doc h1 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.vp-doc h2 {
+  margin-top: 3rem;
+}
+
+/* Centre the hand-made SVG diagrams and give them room. */
+.vp-doc img[src*='/img/'] {
+  display: block;
+  margin: 2rem auto;
+  max-width: 100%;
+  height: auto;
+}

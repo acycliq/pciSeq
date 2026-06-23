@@ -1,9 +1,3 @@
----
-id: scale-factors
-title: The scale factors
-sidebar_label: Overview
-sidebar_position: 1
----
 
 # The scale factors
 

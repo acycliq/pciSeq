@@ -841,19 +841,106 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def heatmap_counts_per_class(self):
-        """Display the interactive heatmap."""
+        """
+        Draw the mean-gene-reads-per-class heatmap.
+
+        Builds an interactive Plotly heatmap of the average reads for every gene
+        in every cell class (genes down the rows, classes across the columns) and
+        shows it. Handy for eyeballing which genes mark which classes. This one is
+        display only, it does not return anything.
+
+        Returns
+        -------
+        None
+        """
         return visualisation.heatmap_counts_per_class(self)
 
     def calculate_genes_log_likelihood_contr(self, label):
         return utils.calculate_genes_log_likelihood_contr(self, label)
 
     def check_cell(self, my_label, user_class, top_n=10, show_plot=True):
+        """
+        Compare two cell types for one cell, gene by gene.
+
+        Takes a cell and digs into why the model typed it the way it did, by
+        putting the class it was assigned head to head against a class you pick.
+        It pulls the per-gene log-likelihood contributions for both classes so you
+        can see which genes pushed the call one way or the other, and can draw the
+        comparison for you.
+
+        Parameters
+        ----------
+        my_label : int
+            The cell label (cell number) to look at. If the segmentation labels
+            were renumbered internally you still pass the original label here, it
+            gets mapped for you.
+        user_class : str
+            The other class you want to weigh the assigned class against.
+        top_n : int, optional
+            How many genes to show at each end, i.e. the genes that argue hardest
+            for the assigned class and the ones that argue hardest for your class.
+            Default is 10.
+        show_plot : bool, optional
+            If True (the default) draw the comparison figure. Set it to False if
+            you just want the tables back.
+
+        Returns
+        -------
+        gene_expression_data : pd.DataFrame
+            One row per selected gene. Columns hold the mean counts across all
+            cells of each class, the negative-binomial counts the model expects
+            for this cell under each class, and this cell's own observed counts.
+        contributions : pd.DataFrame
+            Per-gene log-likelihood for the two classes, so you can read off how
+            much each gene pulled.
+        fig : matplotlib.figure.Figure or None
+            The comparison figure, or None when show_plot is False.
+        """
         return utils.check_cell(self, my_label, user_class, top_n, show_plot)
 
     def check_spot(self, spot_id):
+        """
+        Break down the spot-to-cell score for a single spot.
+
+        For one spot, shows how its assignment score splits across the candidate
+        cells (plus the background/misread option). The score is the sum of the
+        location term, the attention, the expression fluctuation, the cell and gene
+        efficiency terms and the inside-cell bonus. It draws the score and
+        probability charts and hands back the same numbers as a table.
+
+        Parameters
+        ----------
+        spot_id : int
+            The spot id (its index in the spots table) to look at.
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per candidate cell plus a background row, with each score term,
+            the misread value, and their sum.
+        """
         return visualisation.check_spot(self, spot_id)
 
     def read_tsv(self, filepath):
+        """
+        Read a tsv file that pciSeq wrote back into a DataFrame.
+
+        Same as a tab-separated pandas.read_csv, but it also turns the columns
+        that pciSeq saved as text (lists, dicts or tuples written out as strings
+        like "[1, 2, 3]") back into real Python objects.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to the tsv file, e.g. a cellData.tsv or geneData.tsv that a run
+            produced.
+
+        Returns
+        -------
+        pd.DataFrame
+            The file contents, with the list/dict/tuple columns parsed back from
+            their string form.
+        """
         return utils.read_tsv(filepath)
 
     def cell_typing_breakdown(self, label, weights=None, show_plot=True):

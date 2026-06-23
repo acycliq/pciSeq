@@ -1,9 +1,3 @@
----
-id: scale-eta
-title: Derivation - the in situ efficiency eta
-sidebar_label: eta - gene efficiency
-sidebar_position: 4
----
 
 # Derivation: the in situ efficiency $\eta_g$
 

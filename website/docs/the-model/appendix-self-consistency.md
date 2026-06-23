@@ -1,9 +1,3 @@
----
-id: appendix-self-consistency
-title: Appendix - self-consistency of the construction
-sidebar_label: Appendix - self-consistency
-sidebar_position: 9
----
 
 # Appendix: self-consistency of the variational construction
 

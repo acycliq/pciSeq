@@ -1,9 +1,3 @@
----
-id: warping-the-reference
-title: Warping the cell type definitions
-sidebar_label: 2. Warping the definitions
-sidebar_position: 3
----
 
 # Block 2: Warping the cell type definitions
 
@@ -86,7 +80,7 @@ covers. The broad, systemic factor sits at the base, affecting everything at onc
 Higher up, the corrections get narrower and more specific, up to gamma at the apex, which
 applies to just one gene, in one cell, under one candidate type.
 
-![A pyramid of the four scaling factors](../../static/img/inefficiency-pyramid.svg)
+![A pyramid of the four scaling factors](/img/inefficiency-pyramid.svg)
 
 <div className="docs-figure"><figcaption>The same idea, four levels of granularity. Wide and systemic at the bottom, narrow and idiosyncratic at the top.</figcaption></div>
 

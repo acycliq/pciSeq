@@ -1,9 +1,3 @@
----
-id: misread-density
-title: Estimating the misread density
-sidebar_label: 1. Misread density
-sidebar_position: 2
----
 
 # Block 1: Estimating the misread density
 

@@ -1,9 +1,3 @@
----
-id: overview
-title: The model - formal definition
-sidebar_label: Overview
-sidebar_position: 1
----
 
 # The model: formal definition
 

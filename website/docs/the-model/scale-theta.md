@@ -1,9 +1,3 @@
----
-id: scale-theta
-title: Derivation - the cell scale factor theta
-sidebar_label: theta - cell scale
-sidebar_position: 2
----
 
 # Derivation: the cell scale factor $\theta_c$
 

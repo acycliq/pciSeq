@@ -1,9 +1,3 @@
----
-id: overview
-title: How it works - the big picture
-sidebar_label: Overview
-sidebar_position: 1
----
 
 # How it works: the big picture
 
@@ -36,7 +30,7 @@ four blocks below are exactly these conditional updates.
 
 ## The four building blocks
 
-![The pciSeq variational loop](../../static/img/variational-loop.svg)
+![The pciSeq variational loop](/img/variational-loop.svg)
 
 <div className="docs-figure">
 <figcaption>The variational loop. Each block feeds the next, and the last block feeds

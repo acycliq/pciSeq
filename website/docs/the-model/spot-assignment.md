@@ -1,9 +1,3 @@
----
-id: spot-assignment
-title: Derivation - the spot-to-cell assignment
-sidebar_label: Spot-to-cell assignment
-sidebar_position: 6
----
 
 # Derivation: the spot-to-cell assignment $q(z)$
 

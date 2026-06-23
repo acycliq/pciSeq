@@ -1,10 +1,3 @@
----
-id: intro
-title: What is pciSeq?
-sidebar_label: Introduction
-sidebar_position: 1
-slug: /
----
 
 # What is pciSeq?
 

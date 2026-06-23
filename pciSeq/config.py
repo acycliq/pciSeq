@@ -94,11 +94,11 @@ DEFAULT = {
     # Rules of thumb for setting rSpot:
     # - Default (2) is good for typical single-cell RNA data
     # - Lower values (0.5-1) mean high variability between cells
-    #   → Use when you expect cells of the same type to show very different expression levels
-    #   → Good for genes that tend to burst in expression
+    #   -> Use when you expect cells of the same type to show very different expression levels
+    #   -> Good for genes that tend to burst in expression
     # - Higher values (3-5) mean less variability between cells
-    #   → Use when you expect cells of the same type to have similar expression levels
-    #   → Good for housekeeping genes or very stable markers
+    #   -> Use when you expect cells of the same type to have similar expression levels
+    #   -> Good for housekeeping genes or very stable markers
     #
     # Examples:
     # rSpot = 0.5: Counts might vary a lot (e.g., [0,5,20,100] for same cell type)

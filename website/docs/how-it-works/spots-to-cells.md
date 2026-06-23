@@ -1,9 +1,3 @@
----
-id: spots-to-cells
-title: Assigning spots to cells
-sidebar_label: 4. Spots to cells
-sidebar_position: 5
----
 
 # Block 4: Assigning spots to cells
 
@@ -22,7 +16,7 @@ When a cell weighs up a spot, it asks two questions: **where are you?** and **wh
 you?** The first is geometry; the second is about identity - whether a cell like this would
 produce this gene. The score adds the two together.
 
-![The building blocks of the spot-to-cell score](../../static/img/spot-assignment-blocks.svg)
+![The building blocks of the spot-to-cell score](/img/spot-assignment-blocks.svg)
 
 <div className="docs-figure"><figcaption>The score, block by block. One block asks <em>where</em> the spot is; four ask <em>what</em> it is. The score simply adds them up.</figcaption></div>
 

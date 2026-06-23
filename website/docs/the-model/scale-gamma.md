@@ -1,9 +1,3 @@
----
-id: scale-gamma
-title: Derivation - the cell-gene scale factor gamma
-sidebar_label: gamma - cell-gene scale
-sidebar_position: 3
----
 
 # Derivation: the cell-gene scale factor $\gamma_{g,c}$
 

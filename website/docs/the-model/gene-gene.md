@@ -1,9 +1,3 @@
----
-id: gene-gene
-title: Derivation - gene-gene dependence
-sidebar_label: Gene-gene dependence
-sidebar_position: 7
----
 
 # Derivation: gene-gene dependence
 

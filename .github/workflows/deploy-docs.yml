@@ -1,4 +1,4 @@
-# Builds the Docusaurus docs in website/ and publishes them to GitHub Pages
+# Builds the VitePress docs in website/ and publishes them to GitHub Pages
 # at https://acycliq.github.io/pciSeq_3d/.
 #
 # One-time setup in the repo (only needed once):
@@ -38,19 +38,26 @@ jobs:
           cache: npm
           cache-dependency-path: website/package-lock.json
 
-      - name: Build Docusaurus
+      # The API pages are generated straight from the pciSeq source. The
+      # generator only uses the standard library (it parses the source, it
+      # doesn't import the package), so plain python on the runner is enough.
+      - name: Regenerate API docs
+        working-directory: website
+        run: python3 gen_api.py
+
+      - name: Build VitePress
         working-directory: website
         run: |
           npm ci
-          npm run build
+          npm run docs:build
 
       - name: Disable Jekyll processing
-        run: touch website/build/.nojekyll
+        run: touch website/docs/.vitepress/dist/.nojekyll
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: website/build
+          path: website/docs/.vitepress/dist
 
   deploy:
     needs: build

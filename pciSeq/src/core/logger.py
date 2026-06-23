@@ -63,8 +63,8 @@ def setup_logger(level=None):
 
     WARNING: This function clears all existing root logger handlers and replaces
     them with pciSeq's own handler. If pciSeq is embedded inside a larger
-    application that has its own logging setup, do NOT call this function —
-    the parent application's handlers will be wiped out. Only call setup_logger()
+    application that has its own logging setup, do NOT call this function.
+    The parent application's handlers will be wiped out. Only call setup_logger()
     when pciSeq is the top-level application.
 
     Args:

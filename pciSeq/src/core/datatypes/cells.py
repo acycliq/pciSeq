@@ -419,35 +419,50 @@ class Cells(object):
 
     # -------------------------- CONVENIENCE METHODS ----------------------- #
     def gene_reads_per_class(self):
-        """Calculate total (weighted by class prob) gene reads for each class.
+        r"""Total gene reads for each class, weighted by class membership.
 
-        Returns:
-            np.ndarray: Shape (G, K) total reads per class and gene
+        This is the soft version of "add up the reads of every cell in a class".
+        A cell only belongs to a class with some probability $w_{ck}$, so its reads
+        count in proportion to that probability rather than all-or-nothing:
+
+        $$
+        r_{gk} = \sum_{c=1}^{C} x_{cg}\, w_{ck}
+        $$
+
+        where $x_{cg}$ is the reads of gene $g$ in cell $c$ and $w_{ck}$ is the
+        probability that cell $c$ is class $k$. This is the weighted total that
+        mean_gene_reads_per_class then divides by the class size to get an average.
+
+        Returns
+        -------
+        np.ndarray
+            Shape (G, K): G genes by K cell classes.
         """
         # Calculate weighted sum of gene reads for each class and gene using classProb as weights
         weighted_sum = oe.contract('cg, ck -> gk', self.geneCount, self.classProb, optimize='optimal')
         return weighted_sum
 
     def mean_gene_reads_per_class(self):
-        """Calculate the average gene reads for each cell class/type in a soft clustering setup.
+        r"""Average gene reads for each cell class, in the soft-clustering sense.
 
-        In soft clustering, each cell belongs to multiple classes with probabilities \( w_{ck} \).
-        The average number of reads for gene \( g \) in class \( k \) is computed as:
+        Each cell belongs to several classes at once, with probabilities $w_{ck}$,
+        so the average reads of gene $g$ in class $k$ is a weighted mean over all
+        cells rather than a plain average:
 
-        \[
-        \overline{r}_{gk} = \frac{\sum_{c=1}^{C} x_{cg} \cdot w_{ck}}{\sum_{c=1}^{C} w_{ck}}
-        \]
+        $$
+        \overline{r}_{gk} = \frac{\sum_{c=1}^{C} x_{cg}\, w_{ck}}{\sum_{c=1}^{C} w_{ck}}
+        $$
 
-        Where:
-            - \( x_{cg} \): Number of reads for gene \( g \) in cell \( c \)
-            - \( w_{ck} \): Probability that cell \( c \) belongs to class \( k \)
-            - The numerator is the total weighted sum of reads for gene \( g \) in class \( k \)
-            - The denominator is the total probability mass of class \( k \)
+        Here $x_{cg}$ is the reads of gene $g$ in cell $c$ and $w_{ck}$ is the
+        probability that cell $c$ is class $k$. The top is the weighted read total
+        for the gene in that class and the bottom is the total probability mass
+        sitting in the class, so cells count in proportion to how strongly they
+        belong.
 
-        Returns:
-            np.ndarray: Shape (G, K), where:
-                G = number of genes
-                K = number of cell classes/types
+        Returns
+        -------
+        np.ndarray
+            Shape (G, K): G genes by K cell classes.
         """
         weighted_sum = self.gene_reads_per_class()
 

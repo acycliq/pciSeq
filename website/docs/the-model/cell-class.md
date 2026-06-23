@@ -1,9 +1,3 @@
----
-id: cell-class
-title: Derivation - the cell-class assignment
-sidebar_label: Cell-class assignment
-sidebar_position: 5
----
 
 # Derivation: the cell-class assignment $q(\zeta)$
 

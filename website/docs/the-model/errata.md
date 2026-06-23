@@ -1,9 +1,3 @@
----
-id: errata
-title: Errata - corrections to Qian et al. (2020)
-sidebar_label: Errata
-sidebar_position: 8
----
 
 # Errata: corrections to Qian et al. (2020)
 
