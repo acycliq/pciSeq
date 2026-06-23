@@ -106,8 +106,6 @@ why this is sound.
   the class prior, and the MRF spatial term.
 - **[Spot-to-cell assignment $q(z)$](spot-assignment.md)** - which cell (or the background)
   each spot is assigned to.
-- **[Gene-gene dependence](gene-gene.md)** - the latent shift $\mathbf{b}_c$ and its
-  class covariance $\Sigma_k$.
 
 The [errata](errata.md) lists the corrections to Qian et al. (2020), and the
 [self-consistency appendix](appendix-self-consistency.md) records why the Dirac

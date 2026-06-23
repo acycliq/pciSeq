@@ -59,18 +59,9 @@ export default defineConfig({
         items: [
           { text: 'Overview', link: '/the-model/overview' },
           { text: 'Misread density', link: '/the-model/misread-density' },
-          {
-            text: 'Scale factors',
-            link: '/the-model/scale-factors',
-            items: [
-              { text: 'Cell scale theta', link: '/the-model/scale-theta' },
-              { text: 'Cell-gene scale gamma', link: '/the-model/scale-gamma' },
-              { text: 'Efficiency eta', link: '/the-model/scale-eta' },
-            ],
-          },
+          { text: 'Scale factors', link: '/the-model/scale-factors' },
           { text: 'Cell-class assignment', link: '/the-model/cell-class' },
           { text: 'Spot assignment', link: '/the-model/spot-assignment' },
-          { text: 'Gene-gene dependence', link: '/the-model/gene-gene' },
           { text: 'Errata', link: '/the-model/errata' },
           { text: 'Appendix: self-consistency', link: '/the-model/appendix-self-consistency' },
         ],

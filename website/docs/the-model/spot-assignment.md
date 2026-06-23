@@ -46,23 +46,29 @@ $$
 
 Now carry the expectations inside, and mind the **class conditioning**. The cell scale
 $\theta_c$ and the gene-cell factor $\gamma_{g_s,c}$ are both estimated *conditional on the
-class* (see [scale-theta](scale-theta.md) and [scale-gamma](scale-gamma.md)), so inside the
+class* (see [scale-theta](scale-factors.md#theta) and [scale-gamma](scale-factors.md#gamma)), so inside the
 $k$-th term they take their class-$k$ values:
 $\mathbb{E}[\log\theta_c] = \log\bar\theta_{c\mid k}$ and
 $\mathbb{E}[\log\gamma_{g_s,c}] = \overline{\log\gamma}_{g_s,c\mid k}$. The efficiency
 $\mathbb{E}[\log\eta_{g_s}] = \overline{\log\eta}_{g_s}$ is gene-only, with no $k$; and
 $\mathbb{E}[\zeta_{c,k}] = \bar\zeta_{c,k}$ is the cell-class posterior. The distance
-$D_c(x_s)$ is constant and $\sum_k \bar\zeta_{c,k} = 1$, so it comes out of the sum:
+$D_c(x_s)$ is constant and $\sum_k \bar\zeta_{c,k} = 1$, so the spatial and efficiency terms
+sit outside the sum. Writing the assignment-dependent part as the score $S_{s,c}$, one named
+term per line:
 
 $$
-\log q(z_{s,c}=1)
-= - D_c(x_s)
-  + \sum_k \bar\zeta_{c,k}
-    \big(\log\bar\theta_{c\mid k} + \overline{\log\gamma}_{g_s,c\mid k} + \overline{\log\eta}_{g_s} + \log\mu_{g_s,k}\big)
-  + \text{const}.
+\begin{aligned}
+S_{s,c} = {}
+& -D_c(x_s) && \text{(spatial term)} \\
+& + \sum_k \bar\zeta_{c,k}\,\log\mu_{g_s,k} && \text{(alignment)} \\
+& + \sum_k \bar\zeta_{c,k}\,\log\bar\theta_{c\mid k} && \text{(gravity)} \\
+& + \sum_k \bar\zeta_{c,k}\,\overline{\log\gamma}_{g_s,c\mid k} && \text{(enrichment)} \\
+& + \overline{\log\eta}_{g_s} && \text{(misread correction)}
+\end{aligned}
 $$
 
-Exponentiating gives the unnormalised score $S_{s,c}$ for assigning the spot to cell $c$.
+so $\log q(z_{s,c}=1) = S_{s,c} + \text{const}$, and exponentiating, cell $c$ contributes
+$\exp(S_{s,c})$ to the competition.
 
 ## The background option ($c = 0$)
 
@@ -88,28 +94,20 @@ The indicator $z_s$ picks exactly one option, so the scores are normalised acros
 cells and the background by a softmax:
 
 $$
-q\big(c(s)=c\big) = \frac{\exp(S_{s,c})}{\sum_{c'>0}\exp(S_{s,c'}) + \exp(\overline{\log\rho_{g_s}})},
+q\big(c(s)=c\big) = \frac{\exp(S_{s,c})}{Z},
 \qquad
-q\big(c(s)=0\big) = \frac{\exp(\overline{\log\rho_{g_s}})}{\sum_{c'>0}\exp(S_{s,c'}) + \exp(\overline{\log\rho_{g_s}})} .
+q\big(c(s)=0\big) = \frac{\exp(\overline{\log\rho_{g_s}})}{Z},
 $$
 
-Dropping the shared normaliser, the posterior is
+with the shared normaliser $Z = \sum_{c'>0}\exp(S_{s,c'}) + \exp(\overline{\log\rho_{g_s}})$.
+Dropping it, the posterior is
 
 $$
 \boxed{\;
 q\big(c(s)=c\big)
 \propto
 \begin{cases}
-\exp\!\Big[
-  - D_c(x_s)
-  + \displaystyle\sum_k
-    \Big(
-      \bar\zeta_{c,k} \log\bar\theta_{c\mid k}
-      + \bar\zeta_{c,k} \overline{\log\gamma}_{g_s,c\mid k}
-      + \bar\zeta_{c,k} \overline{\log\eta}_{g_s}
-      + \bar\zeta_{c,k} \log\mu_{g_s,k}
-    \Big)
-\Big], & c > 0, \\[2pt]
+\exp(S_{s,c}), & c > 0, \\[2pt]
 \exp(\overline{\log\rho_{g_s}}), & c = 0 \ \text{(background)} .
 \end{cases}
 \;}
@@ -123,7 +121,7 @@ $\exp(\overline{\log\rho_{g_s}})$. Each term is named and read below - just enou
 what the symbol *means*. The conceptual narrative, the diagram, and the worked two-cell
 examples live on the [how-it-works page](../how-it-works/spots-to-cells.md).
 
-**Spatial fit** ($-D_c(x_s)$). The Gaussian log-likelihood of the spot's position under the
+**Spatial term** ($-D_c(x_s)$). The Gaussian log-likelihood of the spot's position under the
 cell: $D_c(x)$ is the (Mahalanobis) distance to the cell's centre under its Gaussian shape,
 so $e^{-D_c(x)}$ is the Gaussian weight and $-D_c(x_s)$ its logarithm. This is the only
 quantitative term - a hard geometric measure of how well the spot sits inside the cell's

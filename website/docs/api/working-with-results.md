@@ -192,8 +192,8 @@ The single-cell reference is held twice:
 ### Scale factors (`theta_bar`, `gamma_bar`)
 
 These are the fitted scale factors. They are advanced, and the maths behind them
-is in [the cell scale factor](/the-model/scale-theta) and
-[the cell-gene scale factor](/the-model/scale-gamma) pages.
+is in [the cell scale factor](/the-model/scale-factors#theta) and
+[the cell-gene scale factor](/the-model/scale-factors#gamma) pages.
 
 - `cells.theta_bar` is `(nC, nK)`, the posterior mean cell scale factor per cell
   and class.
