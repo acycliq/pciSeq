@@ -90,6 +90,12 @@
   color: var(--vp-c-text-1);
 }
 
+/* the diagrams carry no <style> of their own (VitePress strips it), so the
+   font has to come from here */
+.vp-doc figure.diagram svg text {
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
 .vp-doc figure.diagram figcaption {
   margin-top: 0.75rem;
   text-align: center;
@@ -108,6 +114,29 @@
 .vl-arc-highlight { fill: rgba(72, 187, 120, 0.12); fill-opacity: 1; stroke: #48bb78; stroke-opacity: 1; stroke-width: 1.5; }
 .vl-text-label { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
 .vl-center-title { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 12px; font-weight: 300; letter-spacing: 0.4em; opacity: 0.5; }
+
+/* spot-to-cell building blocks (how-it-works/spots-to-cells). The card fills and
+   most of the ink ride on currentColor (var --vp-c-text-1) at low opacity, so the
+   whole thing flips with the theme. The blue/emerald accents are kept fixed because
+   those mid-tones read on both a white and a near-black page. */
+.sb-root { fill: var(--vp-c-brand-2); stroke: var(--vp-c-brand-1); stroke-width: 1.5; }
+.sb-root-txt { fill: #fff; font-size: 16px; font-weight: 700; }
+.sb-link { fill: none; stroke: var(--vp-c-text-1); stroke-opacity: 0.35; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.sb-plus { fill: var(--vp-c-text-1); fill-opacity: 0.4; font-size: 22px; font-weight: 700; }
+.sb-panel-where { fill: rgba(91, 155, 213, 0.07); stroke: rgba(91, 155, 213, 0.45); stroke-width: 1.2; }
+.sb-panel-what { fill: rgba(16, 185, 129, 0.07); stroke: rgba(16, 185, 129, 0.45); stroke-width: 1.2; }
+.sb-head-where { fill: #4a82ba; font-size: 12px; font-weight: 700; letter-spacing: 0.07em; }
+.sb-head-what { fill: #1f9d77; font-size: 12px; font-weight: 700; letter-spacing: 0.07em; }
+.sb-sub { fill: var(--vp-c-text-1); fill-opacity: 0.55; font-size: 13px; }
+.sb-card { fill: var(--vp-c-text-1); fill-opacity: 0.035; stroke-width: 1.2; }
+.sb-card-where { stroke: rgba(91, 155, 213, 0.5); }
+.sb-card-what { stroke: rgba(16, 185, 129, 0.5); }
+.sb-badge-where { fill: #3a6ea5; }
+.sb-badge-what { fill: var(--vp-c-brand-2); }
+.sb-badge-txt { fill: #fff; font-weight: 700; }
+.sb-name { fill: var(--vp-c-text-1); font-size: 14px; font-weight: 700; }
+.sb-q { fill: var(--vp-c-text-1); fill-opacity: 0.7; font-size: 12.5px; }
+.sb-cap { fill: var(--vp-c-text-1); fill-opacity: 0.55; font-size: 13px; font-style: italic; }
 
 /* inefficiency pyramid (how-it-works/warping-the-reference) */
 .ip-tier { stroke: var(--vp-c-text-1); stroke-opacity: 0.4; stroke-width: 1; stroke-linejoin: round; }

@@ -17,7 +17,59 @@ you?** The first is geometry; the second is about identity - whether a cell like
 produce this gene. The score adds the two together.
 
 <figure class="diagram">
-<img src="/img/spot-assignment-blocks.svg" alt="The building blocks of the spot-to-cell score">
+<svg class="sb-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 372" role="img" aria-label="The building blocks of the spot-to-cell score">
+<rect class="sb-root" x="380" y="12" width="180" height="42" rx="11" />
+<text class="sb-root-txt" x="470" y="39" text-anchor="middle">spot &#8594; cell score</text>
+<path class="sb-link" d="M 470,54 L 470,92" />
+<path class="sb-link" d="M 122,92 L 586,92" />
+<path class="sb-link" d="M 122,92 L 122,110" />
+<path class="sb-link" d="M 586,92 L 586,110" />
+<rect class="sb-panel-where" x="24" y="110" width="196" height="250" rx="12" />
+<text class="sb-head-where" x="122" y="134" text-anchor="middle">WHERE ARE YOU?</text>
+<text class="sb-sub" x="122" y="150" text-anchor="middle">geometry &#183; 1 term</text>
+<rect class="sb-panel-what" x="256" y="110" width="660" height="250" rx="12" />
+<text class="sb-head-what" x="586" y="134" text-anchor="middle">WHAT ARE YOU?</text>
+<text class="sb-sub" x="586" y="150" text-anchor="middle">expression &#183; 4 facets</text>
+<text class="sb-plus" x="238" y="264" text-anchor="middle">+</text>
+<text class="sb-plus" x="426" y="264" text-anchor="middle">+</text>
+<text class="sb-plus" x="586" y="264" text-anchor="middle">+</text>
+<text class="sb-plus" x="746" y="264" text-anchor="middle">+</text>
+<rect class="sb-card sb-card-where" x="44" y="174" width="156" height="170" rx="10" />
+<circle class="sb-badge-where" cx="122" cy="208" r="21" />
+<text class="sb-badge-txt" x="122" y="214" text-anchor="middle" font-size="15">&#8722;D</text>
+<text class="sb-name" x="122" y="252" text-anchor="middle">Spatial fit</text>
+<text class="sb-q" x="122" y="275" text-anchor="middle">How close is</text>
+<text class="sb-q" x="122" y="292" text-anchor="middle">the spot?</text>
+<text class="sb-cap" x="122" y="326" text-anchor="middle">geometry</text>
+<rect class="sb-card sb-card-what" x="272" y="174" width="148" height="170" rx="10" />
+<circle class="sb-badge-what" cx="346" cy="208" r="21" />
+<text class="sb-badge-txt" x="346" y="216" text-anchor="middle" font-size="20">&#956;</text>
+<text class="sb-name" x="346" y="252" text-anchor="middle">Alignment</text>
+<text class="sb-q" x="346" y="275" text-anchor="middle">Does my type</text>
+<text class="sb-q" x="346" y="292" text-anchor="middle">make this gene?</text>
+<text class="sb-cap" x="346" y="326" text-anchor="middle">class &#8596; gene</text>
+<rect class="sb-card sb-card-what" x="432" y="174" width="148" height="170" rx="10" />
+<circle class="sb-badge-what" cx="506" cy="208" r="21" />
+<text class="sb-badge-txt" x="506" y="216" text-anchor="middle" font-size="20">&#952;</text>
+<text class="sb-name" x="506" y="252" text-anchor="middle">Gravity</text>
+<text class="sb-q" x="506" y="275" text-anchor="middle">Am I a big,</text>
+<text class="sb-q" x="506" y="292" text-anchor="middle">active cell?</text>
+<text class="sb-cap" x="506" y="326" text-anchor="middle">cell size</text>
+<rect class="sb-card sb-card-what" x="592" y="174" width="148" height="170" rx="10" />
+<circle class="sb-badge-what" cx="666" cy="208" r="21" />
+<text class="sb-badge-txt" x="666" y="216" text-anchor="middle" font-size="20">&#947;</text>
+<text class="sb-name" x="666" y="252" text-anchor="middle">Enrichment</text>
+<text class="sb-q" x="666" y="275" text-anchor="middle">Have I got this</text>
+<text class="sb-q" x="666" y="292" text-anchor="middle">gene already?</text>
+<text class="sb-cap" x="666" y="326" text-anchor="middle">cell &#8596; gene</text>
+<rect class="sb-card sb-card-what" x="752" y="174" width="148" height="170" rx="10" />
+<circle class="sb-badge-what" cx="826" cy="208" r="21" />
+<text class="sb-badge-txt" x="826" y="216" text-anchor="middle" font-size="20">&#951;</text>
+<text class="sb-name" x="826" y="252" text-anchor="middle">Misread corr.</text>
+<text class="sb-q" x="826" y="275" text-anchor="middle">Is this gene</text>
+<text class="sb-q" x="826" y="292" text-anchor="middle">readable?</text>
+<text class="sb-cap" x="826" y="326" text-anchor="middle">vs background</text>
+</svg>
 <figcaption>The score, block by block. One block asks <em>where</em> the spot is; four ask <em>what</em> it is. The score simply adds them up.</figcaption>
 </figure>
 
