@@ -35,13 +35,6 @@ const pickWhere = (v) => {
   if (v !== 'live' && when.value === 'running') return
   where.value = v
 }
-// the summary table jumps straight to one result
-const go = (k) => {
-  when.value = k === 'live' ? 'running' : 'after'
-  where.value = k === 'live' ? 'live' : k === 'panel' ? 'panel' : 'assistant'
-  if (k === 'viewer') open.value = true
-  if (k === 'mcp') open.value = false
-}
 const result = computed(() =>
   where.value === 'live' ? 'live' : where.value === 'panel' ? 'panel' : open.value ? 'viewer' : 'mcp')
 const toolName = { claude: 'Claude Code', gemini: 'Gemini CLI', codex: 'Codex' }
@@ -75,19 +68,11 @@ assignment was computed. An agent, a language model equipped with functions that
 those files, explains an assignment from them: why a cell was assigned to its class, why
 a spot was assigned to one cell rather than another, what value a setting took.
 
-There are four ways to put a question to it. The diagram shows what each one uses.
-Choosing a way keeps its parts and fades the rest; the person marks where the question
-is typed.
+There are four ways to put a question to it. The diagram shows what each one uses;
+[Requirements](#requirements) lists what each one needs to be installed and registered.
 
 <DemoFrame src="/agent_access.html" wide :min="420"
            title="The ways to ask about a run" />
-
-| Way | When | Reads | Requires |
-| :--- | :--- | :--- | :--- |
-| An AI assistant with `pciseq-mcp` | once the run has completed | the saved files, in the results folder | see <a href="#requirements" @click="go('mcp')">Requirements</a> |
-| An AI assistant connected to [pciSeq Viewer](./viewer/overview.md) | once the run has completed | the saved files, as loaded in pciSeq Viewer | see <a href="#requirements" @click="go('viewer')">Requirements</a> |
-| The chat panel in pciSeq Viewer | once the run has completed | the saved files, as loaded in pciSeq Viewer | see <a href="#requirements" @click="go('panel')">Requirements</a> |
-| The chat of the [live viewer](./api/live-viewer.md) | during the run | the fit in progress | see <a href="#requirements" @click="go('live')">Requirements</a> |
 
 ## Requirements
 
@@ -134,9 +119,18 @@ Claude Code, Gemini CLI or Codex.
 <div class="pick-out">
 
 <div class="pick-row">
+  <div class="pick-label">Reads</div>
+  <div class="pick-v">
+    <template v-if="result === 'live'">The fit in progress.</template>
+    <template v-else-if="result === 'mcp'">The saved files, in the results folder.</template>
+    <template v-else>The saved files, as loaded in pciSeq Viewer.</template>
+  </div>
+</div>
+
+<div class="pick-row">
   <div class="pick-label">Installation</div>
   <div class="pick-v">
-    <template v-if="result === 'live'"><div><a href="./installation">pciSeq</a>, without the <code>mcp</code> extra. The live viewer and its chat are part of it.</div><div class="pick-cmd"><code>{{ plain }}</code><button type="button" class="pick-copy" :class="{ done: copied === plain }" @click="copy(plain)" aria-label="Copy"><template v-if="copied === plain"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></template><template v-else><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></template></button></div></template>
+    <template v-if="result === 'live'"><div><a href="./installation">pciSeq</a>, without the <code>mcp</code> extra. The <a href="./api/live-viewer">live viewer</a> and its chat are part of it.</div><div class="pick-cmd"><code>{{ plain }}</code><button type="button" class="pick-copy" :class="{ done: copied === plain }" @click="copy(plain)" aria-label="Copy"><template v-if="copied === plain"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></template><template v-else><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></template></button></div></template>
     <template v-else-if="result === 'mcp'"><div><a href="./installation">pciSeq</a>, with the <code>mcp</code> extra, which <code>pciseq-mcp</code> needs.</div><div class="pick-cmd"><code>{{ extra }}</code><button type="button" class="pick-copy" :class="{ done: copied === extra }" @click="copy(extra)" aria-label="Copy"><template v-if="copied === extra"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></template><template v-else><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></template></button></div></template>
     <template v-else><a href="./viewer/overview">pciSeq Viewer</a>, from its <a href="https://github.com/acycliq/pciSeq_viewer/releases/latest">releases page</a>.</template>
   </div>
