@@ -370,19 +370,36 @@
 .vp-doc figure.diagram .aq-pick { fill: transparent; transition: fill 0.2s; }
 .vp-doc figure.diagram .aq-pick.on { fill: var(--vp-c-brand-soft); stroke: var(--vp-c-brand-1); stroke-width: 1; }
 
-/* accessing-the-ai-agent: the two ways to connect an AI assistant, as folder tabs.
-   The tabs stand on top of the frame; nothing is drawn to the right of the last one. */
-.vp-doc .way-box { margin: 20px 0 24px; }
-.vp-doc .way-tabs { display: flex; }
-.vp-doc .way-tabs button {
-  font: 500 14px/1 var(--vp-font-family-base); padding: 12px 18px; margin: 0 -1px -1px 0; cursor: pointer;
-  color: var(--vp-c-text-2); background: var(--vp-c-bg-soft);
-  border: 1px solid var(--vp-c-divider); border-top: 2px solid var(--vp-c-divider);
-  border-radius: 8px 8px 0 0;
+/* accessing-the-ai-agent: requirements. One row of buttons per choice, the
+   picked one filled, and the lower block with what that selection needs.
+   A row that does not apply to the selection fades. */
+.vp-doc .pick { margin: 20px 0 24px; }
+.vp-doc .pick-row { display: flex; align-items: stretch; gap: 8px; margin: 0 0 8px; transition: opacity 0.2s; }
+.vp-doc .pick-row.off { opacity: 0.35; }
+.vp-doc .pick-label { flex: 0 0 150px; padding: 10px 12px 10px 0; font-size: 14px; color: var(--vp-c-text-2); border-left: 2px solid var(--vp-c-divider); padding-left: 12px; }
+.vp-doc .pick-opts { flex: 1; display: flex; gap: 6px; }
+.vp-doc .pick-opts button {
+  flex: 1 1 0; min-width: 0; font: inherit; font-size: 14px; line-height: 1.3; padding: 9px 12px; border-radius: 4px;
+  border: 1px solid var(--vp-c-divider); background: var(--vp-c-bg-soft); color: var(--vp-c-text-1); cursor: pointer;
 }
-.vp-doc .way-tabs button:hover { color: var(--vp-c-text-1); }
-.vp-doc .way-tabs button.on {
-  color: var(--vp-c-brand-1); background: var(--vp-c-bg); position: relative; z-index: 1;
-  border-top-color: var(--vp-c-brand-1); border-bottom-color: var(--vp-c-bg);
+.vp-doc .pick-opts button code { font-size: 13px; background: transparent; padding: 0; color: inherit; }
+.vp-doc .pick-opts button:hover:not(:disabled) { border-color: var(--vp-c-brand-1); }
+.vp-doc .pick-opts button.on { background: var(--vp-c-brand-1); border-color: var(--vp-c-brand-1); color: #fff; font-weight: 600; }
+.vp-doc .pick-opts button:disabled { opacity: 0.45; cursor: default; }
+.vp-doc .pick-opts button.on:disabled { background: var(--vp-c-bg-soft); color: var(--vp-c-text-1); font-weight: 400; border-color: var(--vp-c-divider); }
+.vp-doc .pick-out { margin-top: 14px; }
+.vp-doc .pick-out .pick-label { border-left-color: var(--vp-c-text-1); color: var(--vp-c-text-1); }
+.vp-doc .pick-v { flex: 1; min-width: 0; padding: 9px 12px; font-size: 14px; line-height: 1.5; background: var(--vp-c-bg-soft); border-radius: 4px; }
+.vp-doc .pick-v .pick-more { margin-top: 8px; }
+.vp-doc .pick-cmd { position: relative; margin: 6px 0 0; padding: 8px 40px 8px 10px; background: var(--vp-code-block-bg); border-radius: 4px; }
+.vp-doc .pick-cmd code { display: block; overflow-x: auto; white-space: nowrap; font-size: 13px; padding: 0; background: transparent; color: var(--vp-code-block-color); }
+.vp-doc .pick-copy {
+  position: absolute; top: 4px; right: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--vp-c-divider); border-radius: 4px; background: var(--vp-c-bg); color: var(--vp-c-text-2); cursor: pointer;
 }
-.vp-doc .way-panel { padding: 4px 20px 6px; border: 1px solid var(--vp-c-divider); border-radius: 0 8px 8px 8px; }
+.vp-doc .pick-copy:hover { color: var(--vp-c-text-1); border-color: var(--vp-c-brand-1); }
+.vp-doc .pick-copy.done { color: var(--vp-c-brand-1); border-color: var(--vp-c-brand-1); }
+@media (max-width: 640px) {
+  .vp-doc .pick-row { flex-direction: column; gap: 4px; }
+  .vp-doc .pick-label { flex: none; padding: 4px 0 2px 12px; }
+}

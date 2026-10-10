@@ -5,7 +5,7 @@ pageClass: demo-wide
 ---
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 // the path of a question: which step is picked, 0 is all of them
 const step = ref(0)
@@ -19,8 +19,53 @@ const steps = [
 ]
 const lit = (...on) => step.value === 0 || on.includes(step.value)
 
-// connecting an AI assistant: which of the two ways is shown
-const way = ref('viewer')
+// requirements: one selection per row, and the lower block lists what that
+// selection needs. A row that does not apply to the selection fades.
+const when = ref('after')        // 'running' | 'after'
+const where = ref('assistant')   // 'live' | 'panel' | 'assistant'
+const tool = ref('claude')       // 'claude' | 'gemini' | 'codex'
+const open = ref(true)           // the run is open in pciSeq Viewer
+const pickWhen = (v) => {
+  when.value = v
+  if (v === 'running') where.value = 'live'
+  else if (where.value === 'live') where.value = 'assistant'
+}
+const pickWhere = (v) => {
+  if (v === 'live' && when.value !== 'running') return
+  if (v !== 'live' && when.value === 'running') return
+  where.value = v
+}
+// the summary table jumps straight to one result
+const go = (k) => {
+  when.value = k === 'live' ? 'running' : 'after'
+  where.value = k === 'live' ? 'live' : k === 'panel' ? 'panel' : 'assistant'
+  if (k === 'viewer') open.value = true
+  if (k === 'mcp') open.value = false
+}
+const result = computed(() =>
+  where.value === 'live' ? 'live' : where.value === 'panel' ? 'panel' : open.value ? 'viewer' : 'mcp')
+const toolName = { claude: 'Claude Code', gemini: 'Gemini CLI', codex: 'Codex' }
+const register = {
+  viewer: {
+    claude: 'claude mcp add --transport http pciseq-viewer http://127.0.0.1:8317/mcp',
+    gemini: 'gemini mcp add --transport http pciseq-viewer http://127.0.0.1:8317/mcp',
+    codex:  'codex mcp add pciseq-viewer --url http://127.0.0.1:8317/mcp',
+  },
+  mcp: {
+    claude: 'claude mcp add --scope user pciseq -- pciseq-mcp',
+    gemini: 'gemini mcp add --scope user pciseq pciseq-mcp',
+    codex:  'codex mcp add pciseq -- pciseq-mcp',
+  },
+}
+const copied = ref('')
+const copy = (text) => {
+  navigator.clipboard.writeText(text).then(() => {
+    copied.value = text
+    setTimeout(() => { if (copied.value === text) copied.value = '' }, 1500)
+  })
+}
+const plain = 'pip install git+https://github.com/acycliq/pciSeq_3d.git@dev_3d'
+const extra = 'pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3d"'
 </script>
 
 # Accessing the AI agent
@@ -39,75 +84,97 @@ is typed.
 
 | Way | When | Reads | Requires |
 | :--- | :--- | :--- | :--- |
-| An AI assistant with `pciseq-mcp` | once the run has completed | the saved files, from the output folder | two steps, see <a href="#connecting-an-ai-assistant" @click="way = 'mcp'">With pciseq-mcp</a> |
-| An AI assistant connected to [pciSeq Viewer](./viewer/overview.md) | once the run has completed | the saved files, as loaded in pciSeq Viewer | two steps, see <a href="#connecting-an-ai-assistant" @click="way = 'viewer'">With pciSeq Viewer</a> |
-| The chat panel in pciSeq Viewer | once the run has completed | the saved files, as loaded in pciSeq Viewer | an API key |
-| The chat of the [live viewer](./api/live-viewer.md) | during the run | the fit in progress | an API key |
+| An AI assistant with `pciseq-mcp` | once the run has completed | the saved files, in the results folder | see <a href="#requirements" @click="go('mcp')">Requirements</a> |
+| An AI assistant connected to [pciSeq Viewer](./viewer/overview.md) | once the run has completed | the saved files, as loaded in pciSeq Viewer | see <a href="#requirements" @click="go('viewer')">Requirements</a> |
+| The chat panel in pciSeq Viewer | once the run has completed | the saved files, as loaded in pciSeq Viewer | see <a href="#requirements" @click="go('panel')">Requirements</a> |
+| The chat of the [live viewer](./api/live-viewer.md) | during the run | the fit in progress | see <a href="#requirements" @click="go('live')">Requirements</a> |
 
-## Connecting an AI assistant
+## Requirements
 
-Here an AI assistant is a program on the user's machine that sends questions to a
-language model and supports the Model Context Protocol (MCP), such as Claude Code, Gemini
-CLI or Codex.
+The requirements depend on the stage of the run, the interface and, for an AI assistant,
+on the assistant and on whether the results are open in pciSeq Viewer. The lower block lists
+them for the selection. An AI assistant is a program on the user's machine that sends
+questions to a language model and supports the Model Context Protocol (MCP), such as
+Claude Code, Gemini CLI or Codex.
 
-The assistant is told once where the pciSeq functions are. This is called registering,
-and it is one command. What is registered depends on whether the output folder is open in
-pciSeq Viewer.
+<div class="pick" role="group" aria-label="Requirements">
 
-| | The output folder is open in pciSeq Viewer | Without pciSeq Viewer |
-| :--- | :--- | :--- |
-| `mcp` extra | not needed | required |
-| Registered with the assistant | the address of pciSeq Viewer | the `pciseq-mcp` program |
-| Then | start the assistant and ask | start the assistant and name the output folder in the question |
-| Steps | tab "With pciSeq Viewer" | tab "With pciseq-mcp" |
-
-"Without pciSeq Viewer" covers a machine where it is not installed or not used, for
-example a remote machine reached over ssh.
-
-The two are independent: each has its own command, and neither requires the other. The
-same applies to any other application that supports MCP; only the form of the
-registration command differs.
-
-<div class="way-box">
-<div class="way-tabs" role="group" aria-label="Way to connect an AI assistant">
-  <button type="button" :class="{ on: way === 'viewer' }" :aria-pressed="way === 'viewer'" @click="way = 'viewer'">With pciSeq Viewer</button>
-  <button type="button" :class="{ on: way === 'mcp' }" :aria-pressed="way === 'mcp'" @click="way = 'mcp'">With pciseq-mcp</button>
+<div class="pick-row">
+  <div class="pick-label">Stage</div>
+  <div class="pick-opts">
+    <button type="button" :class="{ on: when === 'running' }" :aria-pressed="when === 'running'" @click="pickWhen('running')">during the run</button>
+    <button type="button" :class="{ on: when === 'after' }" :aria-pressed="when === 'after'" @click="pickWhen('after')">after the run</button>
+  </div>
 </div>
 
-<div v-show="way === 'viewer'" class="way-panel">
-
-1. Register the address of pciSeq Viewer with the assistant, once.
-
-   ```bash
-   claude mcp add --transport http pciseq-viewer http://127.0.0.1:8317/mcp
-   ```
-
-2. Open pciSeq Viewer and select the `viewer_data` folder inside the output folder.
-
-Then start the assistant and ask. Neither `pciseq-mcp` nor the `mcp` extra is used.
-
+<div class="pick-row">
+  <div class="pick-label">Interface</div>
+  <div class="pick-opts">
+    <button type="button" :class="{ on: where === 'live' }" :disabled="when !== 'running'" :aria-pressed="where === 'live'" @click="pickWhere('live')">live viewer chat</button>
+    <button type="button" :class="{ on: where === 'panel' }" :disabled="when === 'running'" :aria-pressed="where === 'panel'" @click="pickWhere('panel')">pciSeq Viewer chat panel</button>
+    <button type="button" :class="{ on: where === 'assistant' }" :disabled="when === 'running'" :aria-pressed="where === 'assistant'" @click="pickWhere('assistant')">AI assistant</button>
+  </div>
 </div>
 
-<div v-show="way === 'mcp'" class="way-panel">
+<div class="pick-row" :class="{ off: where !== 'assistant' }">
+  <div class="pick-label">Assistant</div>
+  <div class="pick-opts">
+    <button v-for="(name, k) in toolName" :key="k" type="button" :class="{ on: tool === k }" :disabled="where !== 'assistant'" :aria-pressed="tool === k" @click="tool = k">{{ name }}</button>
+  </div>
+</div>
 
-1. Install pciSeq with the `mcp` extra. This adds the `pciseq-mcp` program.
+<div class="pick-row" :class="{ off: where !== 'assistant' }">
+  <div class="pick-label">Use pciSeq Viewer</div>
+  <div class="pick-opts">
+    <button type="button" :class="{ on: open }" :disabled="where !== 'assistant'" :aria-pressed="open" @click="open = true">yes</button>
+    <button type="button" :class="{ on: !open }" :disabled="where !== 'assistant'" :aria-pressed="!open" @click="open = false">no</button>
+  </div>
+</div>
 
-   ```bash
-   pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3d"
-   ```
+<div class="pick-out">
 
-2. Register the program with the assistant, once. The assistant runs `pciseq-mcp` when
-   needed.
+<div class="pick-row">
+  <div class="pick-label">Installation</div>
+  <div class="pick-v">
+    <template v-if="result === 'live'"><div><a href="./installation">pciSeq</a>, without the <code>mcp</code> extra. The live viewer and its chat are part of it.</div><div class="pick-cmd"><code>{{ plain }}</code><button type="button" class="pick-copy" :class="{ done: copied === plain }" @click="copy(plain)" aria-label="Copy"><template v-if="copied === plain"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></template><template v-else><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></template></button></div></template>
+    <template v-else-if="result === 'mcp'"><div><a href="./installation">pciSeq</a>, with the <code>mcp</code> extra, which <code>pciseq-mcp</code> needs.</div><div class="pick-cmd"><code>{{ extra }}</code><button type="button" class="pick-copy" :class="{ done: copied === extra }" @click="copy(extra)" aria-label="Copy"><template v-if="copied === extra"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></template><template v-else><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></template></button></div></template>
+    <template v-else><a href="./viewer/overview">pciSeq Viewer</a>, from its <a href="https://github.com/acycliq/pciSeq_viewer/releases/latest">releases page</a>.</template>
+  </div>
+</div>
 
-   ```bash
-   claude mcp add --scope user pciseq -- pciseq-mcp
-   ```
+<div class="pick-row" :class="{ off: result === 'live' || result === 'panel' }">
+  <div class="pick-label">Registration</div>
+  <div class="pick-v">
+    <template v-if="result === 'live' || result === 'panel'"></template>
+    <template v-else-if="result === 'viewer'">{{ toolName[tool] }} is registered with pciSeq Viewer, once, by adding the address of pciSeq Viewer to {{ toolName[tool] }}:<div class="pick-cmd"><code>{{ register.viewer[tool] }}</code><button type="button" class="pick-copy" :class="{ done: copied === register.viewer[tool] }" @click="copy(register.viewer[tool])" aria-label="Copy"><template v-if="copied === register.viewer[tool]"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></template><template v-else><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></template></button></div></template>
+    <template v-else>The <code>pciseq-mcp</code> program is registered with {{ toolName[tool] }}, once. {{ toolName[tool] }} starts it when needed.<div class="pick-cmd"><code>{{ register.mcp[tool] }}</code><button type="button" class="pick-copy" :class="{ done: copied === register.mcp[tool] }" @click="copy(register.mcp[tool])" aria-label="Copy"><template v-if="copied === register.mcp[tool]"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></template><template v-else><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></template></button></div></template>
+  </div>
+</div>
 
-Then start the assistant and name the output folder in the question. The
-commands for other assistants are on the [MCP server](./api/mcp-server.md) page.
+<div class="pick-row" :class="{ off: result !== 'mcp' }">
+  <div class="pick-label">Note</div>
+  <div class="pick-v">
+    <template v-if="result === 'mcp'">The first question of a {{ toolName[tool] }} session gives the results folder; later questions in the same session do not.<div class="pick-cmd"><code>Open &lt;pciSeq results folder&gt; and explain why cell 100 is assigned to its class.</code><button type="button" class="pick-copy" :class="{ done: copied === 'Open <pciSeq results folder> and explain why cell 100 is assigned to its class.' }" @click="copy('Open <pciSeq results folder> and explain why cell 100 is assigned to its class.')" aria-label="Copy"><template v-if="copied === 'Open <pciSeq results folder> and explain why cell 100 is assigned to its class.'"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></template><template v-else><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></template></button></div></template>
+  </div>
+</div>
+
+<div class="pick-row">
+  <div class="pick-label">API key</div>
+  <div class="pick-v">
+    <template v-if="result === 'live'">Required.</template>
+    <template v-else-if="result === 'panel'">Required.</template>
+    <template v-else>Not required.</template>
+  </div>
+</div>
 
 </div>
 </div>
+
+An AI assistant without pciSeq Viewer covers a machine where it is not installed or not
+used, for example a remote machine reached over ssh. The two ways to connect an
+assistant are independent: each has its own command and neither requires the other.
+Any other application that supports MCP connects the same way; only the form of the
+registration command differs, see the [MCP server](./api/mcp-server.md) page.
 
 ## The path of a question
 

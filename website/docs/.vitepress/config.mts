@@ -103,7 +103,7 @@ export default defineConfig({
         link: '/accessing-the-ai-agent',
         items: [
           { text: 'Accessing the AI agent', link: '/accessing-the-ai-agent' },
-          { text: 'Connecting an AI assistant', link: '/accessing-the-ai-agent#connecting-an-ai-assistant' },
+          { text: 'Requirements', link: '/accessing-the-ai-agent#requirements' },
           { text: 'The path of a question', link: '/accessing-the-ai-agent#the-path-of-a-question' },
         ],
       },
