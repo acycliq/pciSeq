@@ -94,6 +94,7 @@ $$
 \hat\theta_{c\mid k} = \frac{\bar N_c + r_\theta - 1}
                     {r_\theta + \sum_g A_c\, \mu_{g,k}\, \bar\gamma_{g,c}\, \bar\eta_g}
 \;}
+\tag{1}
 $$
 
 The class $k$ enters through the reference mean $\mu_{g,k}$ in the denominator: a different
@@ -109,7 +110,7 @@ $r_\theta$ pulls the estimate toward the prior mean $1$, shrinking the correctio
 evidence is weak. Like $\gamma_{g,c}$, the estimate is computed conditional on the class
 $k$, so it needs no weighting by $\bar\zeta_{c,k}$ in its own update.
 
-#### The prior strength $r_\theta$
+#### The prior strength $r_\theta$ {#r-theta}
 
 $r_\theta$ sets how far the data can move $\theta_c$ from $1$. The two limits:
 
@@ -128,9 +129,54 @@ The **Zero class**, which expects no expression, is the class for such cells (se
 weak and $\theta$ collapses, a real class shrunk to imitate Zero can win the cell instead,
 and the cell gets a spurious class.
 
+Why the shrunk class wins comes out of the estimate. The total count the model predicts for
+cell $c$ under class $k$ is $\theta$ times the sum over genes of the expected counts,
+
+$$
+\theta_c \sum_g A_c\, \mu_{g,k}\, \bar\gamma_{g,c}\, \bar\eta_g \;=\; \theta_c\, E_{c\mid k},
+$$
+
+writing $E_{c\mid k}$ for the sum, the same sum as in the denominator of equation (1).
+Replace $\theta_c$ by the estimate of equation (1):
+
+$$
+\hat\theta_{c\mid k}\, E_{c\mid k}
+\;=\; (\bar N_c + r_\theta - 1)\,\frac{E_{c\mid k}}{E_{c\mid k} + r_\theta}.
+$$
+
+When $r_\theta$ is small against $E_{c\mid k}$ the last fraction is close to $1$, and the
+predicted total is about $\bar N_c + r_\theta - 1$ whatever the class: every class predicts
+the cell's own count plus a little. The total no longer separates the classes; what remains
+is how each class splits it over the genes, so the few spots decide the class by which genes
+they are, not by how many there are.
+
+An example at $r_\theta = 2$. A cell holds $0.48$ spots, one Plp1 spot at probability
+$0.44$. Before scaling, Oligo expects $356$ spots in the cell and Zero expects $55$.
+
+| | $\hat\theta$ at $r_\theta = 2$ | prediction | $\hat\theta$ at $r_\theta = 25$ | prediction |
+|---|---|---|---|---|
+| Oligo | $0.0041$ | $1.47$ | $0.064$ | $22.9$ |
+| Zero | $0.026$ | $1.43$ | $0.306$ | $16.9$ |
+
+At $r_\theta = 2$ both classes predict about $1.5$ spots, Oligo expects that spot to be Plp1,
+and Oligo wins at $0.94$. At $r_\theta = 25$ Oligo predicts $23$ spots for half a spot, loses
+on the amount, and the cell goes to Zero.
+
+The same $\theta$ enters the [spot assignment](spot-assignment.md#reading-the-terms):
+$\sum_k \bar\zeta_{c,k}\log\hat\theta_{c\mid k}$ is added to the score of every spot the cell
+competes for. The background has no such term. For the cell above, as Oligo at
+$r_\theta = 2$, the term is $\log 0.0041 \approx -5.5$, and the one spot it holds sits at
+probability $0.44$, close to level with the background. At $r_\theta = 25$ the cell is Zero
+and the term is $\log 0.306 \approx -1.2$.
+
+The weak prior has a use too. A real cell with poor capture, a thin slice or a cell at the
+edge of the section, holds far fewer spots than its class usually gives, and a free $\theta$
+still finds its class from the composition of those spots.
+
 A weaker prior lets the data set $\theta$ at the risk of near-empty cells being explained
 by a collapsed class; a stronger prior holds $\theta$ near $1$ so those cells go to Zero.
-The default `rTheta` is $25$.
+$r_\theta$ acts as a pseudo-count against the cell's own spots: at $2$ a cell with ten spots
+sets its own scale, at $25$ it needs of the order of $25$. The default `rTheta` is $25$.
 
 ### Derivation: the cell-gene scale factor $\gamma_{g,c}$ {#gamma}
 

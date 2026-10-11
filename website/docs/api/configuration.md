@@ -88,6 +88,11 @@ When rTheta is small relative to the cell's total count, theta is determined
 by the data; when it is large, theta stays close to 1. Must be greater than
 1, otherwise a cell with no spots gets a theta of zero or less.
 
+A low value lets a cell with very few spots be claimed by a real class on
+one or two spots; see
+[the prior strength](../the-model/scale-factors.md#r-theta)
+for what that costs.
+
 ### `rSpot`
 
 **Default:** `2`
