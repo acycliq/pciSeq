@@ -99,6 +99,10 @@ class CellClass(object):
         # E[log Dir_k] for real classes, shifted by log(1 - zero_weight)
         alpha = self.alpha
         real_logpi = np.log(1 - self.zero_weight) + scipy.special.psi(alpha) - scipy.special.psi(alpha.sum())
+        # Zero is not part of the Dirichlet. Its weight comes from cell_type_weights
+        # (1/nK if that is None) and it never changes, so its term is just the log
+        # of that weight. The real classes share what is left, 1 - zero_weight, which
+        # is where the log(1 - zero_weight) above comes from.
         return np.append(real_logpi, np.log(self.zero_weight))
 
     @property

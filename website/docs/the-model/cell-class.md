@@ -54,6 +54,10 @@ The two factors are:
 - the **baseline prior** $\pi_k$ scaled by the **spatial term**
   $\beta \sum_{c'\in\mathcal{N}_c} \bar\zeta_{c',k}$.
 
+Under `cell_type_prior` set to `weighted`, $\pi$ is itself a random variable and the
+$\log \pi_k$ in the score is its expectation $\mathbb{E}[\log \pi_k]$ under the
+[Dirichlet posterior](class-prior.md).
+
 ## The spatial prior (MRF)
 
 The spatial term comes from a Markov Random Field prior on the class assignments. In the

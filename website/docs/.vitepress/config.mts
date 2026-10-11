@@ -131,6 +131,7 @@ export default defineConfig({
           { text: 'Cell-class assignment', link: '/the-model/cell-class' },
           { text: 'Spot assignment', link: '/the-model/spot-assignment' },
           // hidden for now, see srcExclude above
+          { text: 'Class prior', link: '/the-model/class-prior' },
           // { text: 'Errata', link: '/the-model/errata' },
           // { text: 'Appendix: self-consistency', link: '/the-model/appendix-self-consistency' },
         ],

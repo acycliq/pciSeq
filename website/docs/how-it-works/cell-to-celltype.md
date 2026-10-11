@@ -23,9 +23,11 @@ concentrates the mass on one class, an ambiguous one spreads it.
 
 Two further terms are added to the score.
 
-- **The class prior.** With `cell_type_prior` set to `uniform`, the default, every real
-  class has the same prior weight. With `weighted` the weights are estimated from the
-  data with a Dirichlet update, so common classes are favoured over rare ones.
+- **The class prior.** With `cell_type_prior` set to `uniform`, the default, the weights
+  are those of `cell_type_weights` and stay fixed; by default every real class has the same
+  weight. With `weighted` the weights are estimated from the
+  data with a [Dirichlet update](../the-model/class-prior.md), so common classes are
+  favoured over rare ones.
 
 - **The spatial term (the MRF).** Cells of the same class cluster in space. Each class
   receives a bonus proportional to the weighted number of the cell's neighbours that

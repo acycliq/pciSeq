@@ -6,6 +6,23 @@ The two assignments are estimated jointly: the type of a cell depends on the spo
 it, and the cell of a spot depends on the types of the cells around it. Both are returned
 as probabilities.
 
+This version extends the method of
+[Qian et al. (2020)](https://doi.org/10.1038/s41592-019-0631-4) in several ways:
+
+- **3D data.** Spots and segmentation may be volumes, with the voxel size taken into
+  account.
+- **A scale factor per cell.** It absorbs differences in total count between cells, from
+  cell size or capture efficiency, so two cells of the same class are recognised as such
+  even when one holds far fewer spots than the other. See
+  [scale factors](the-model/scale-factors.md).
+- **A background density per gene, estimated from the data.** In the original it is one
+  fixed value. See [misread density](the-model/misread-density.md).
+- **A spatial term.** The classes of the neighbouring cells can be taken into account
+  when deciding the class of a cell. See
+  [cell-class assignment](the-model/cell-class.md).
+- **A class prior estimated from the data**, optional. Classes that are common in the
+  tissue get a larger prior. See [class prior](the-model/class-prior.md).
+
 ## Inputs
 
 - **Spots.** A table of detected RNA spots with gene identity and position (`x`, `y`, and
