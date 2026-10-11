@@ -74,17 +74,26 @@ def cells_summary(cells, spots, genes, is3D):
                        'Prob': prob_list,
                        'gaussian_contour': contour
                        })
+    # the segmentation centroid as well, X0, Y0, Z0. X, Y, Z is the fitted centre
+    # and the two drift apart when cell_centroid_prior is small, so keep where
+    # the cell started
+    m0 = cells.ini_centroids()
     if is3D:
         df['sphere_scale'], df['sphere_rotation'] = sphere_props(cells)
         df['Z'] = ((cells.centroid['z'] * 1000).astype(np.int32) / 1000).tolist()
+        df['Z0'] = ((m0['z'] * 1000).astype(np.int32) / 1000).tolist()
     else:
         # 2D has no z to report, but the viewer's arrow export asks for the
         # column whatever the data is, so give it zeros. Same idea as z_plane
         # on the spots side. Without this cellData_to_arrow refuses to write
         # and a 2D run comes out with no cells for the viewer.
         df['Z'] = np.float32(0.0)
-    # move column Z after X, Y
+        df['Z0'] = np.float32(0.0)
+    # move column Z after X, Y, then X0, Y0, Z0 after that
     df.insert(3, 'Z', df.pop('Z'))
+    df.insert(4, 'X0', ((m0['x'] * 1000).astype(np.int32) / 1000).tolist())
+    df.insert(5, 'Y0', ((m0['y'] * 1000).astype(np.int32) / 1000).tolist())
+    df.insert(6, 'Z0', df.pop('Z0'))
 
     df.set_index(['Cell_Num'])
 

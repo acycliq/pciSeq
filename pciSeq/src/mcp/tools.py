@@ -991,8 +991,11 @@ class Run:
 
         row = self._tsv_row('cellData.tsv', r'^%d\t' % label)
         if row is not None:
-            out = {k: row[k] for k in ('Cell_Num', 'X', 'Y', 'Z', 'Genenames',
-                                       'CellGeneCount', 'spot_id', 'ClassName', 'Prob')}
+            # X0, Y0, Z0 is the segmentation centroid, runs before October 2026
+            # do not have it, hence the `if k in row`
+            out = {k: row[k] for k in ('Cell_Num', 'X', 'Y', 'Z', 'X0', 'Y0', 'Z0',
+                                       'Genenames', 'CellGeneCount', 'spot_id',
+                                       'ClassName', 'Prob') if k in row}
             out['source'] = 'cellData.tsv'
         else:
             import pyarrow.compute as pc

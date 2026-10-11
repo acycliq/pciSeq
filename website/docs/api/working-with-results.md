@@ -26,7 +26,8 @@ cell.
 | Column | Type | Meaning |
 | --- | --- | --- |
 | `Cell_Num` | int | Cell label. The cell's identity, matching the label image. |
-| `X`, `Y`, `Z` | float | Fitted cell centroid. `Z` is 0 for 2D data. |
+| `X`, `Y`, `Z` | float | Fitted cell centre, the centre of the cell's Gaussian after the [cell geometry](../the-model/gaussian.md) update. `Z` is 0 for 2D data. |
+| `X0`, `Y0`, `Z0` | float | Segmentation centroid, where the cell started. Equal to `X`, `Y`, `Z` up to rounding at the default `cell_centroid_prior`; with a small value the two differ. `Z0` is 0 for 2D data. |
 | `ClassName` | list of str | Candidate cell classes, sorted by descending probability. |
 | `Prob` | list of float | Probability of each class, lined up with `ClassName`. |
 | `Genenames` | list of str | Genes assigned to the cell, sorted by descending count. |

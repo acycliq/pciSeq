@@ -183,3 +183,24 @@ def test_two_dimensional_run(rng, base_opts):
     # and the spot scores still work on the 2D geometry
     vb.spots_to_cell_numba()
     assert np.isfinite(vb.spots.mvn_loglik_arr[:, :-1]).all()
+
+
+def test_cellData_keeps_the_segmentation_centroid(minimal_varbayes):
+    """X, Y, Z is the fitted centre, X0, Y0, Z0 where the segmentation put the
+    cell. After one geometry update the two differ for some cell."""
+    from pciSeq.src.core.summary import collect_data
+    vb = minimal_varbayes
+    _one_pass(vb)
+    vb.gaussian_upd()
+
+    cellData, _ = collect_data(vb.cells, vb.spots, vb.genes, vb.config['is3D'])
+    assert list(cellData.columns)[:7] == ['Cell_Num', 'X', 'Y', 'Z', 'X0', 'Y0', 'Z0']
+
+    m0 = vb.cells.ini_centroids().loc[cellData['Cell_Num'].values]
+    m_hat = vb.cells.centroid.loc[cellData['Cell_Num'].values]
+    for col, src in (('X0', 'x'), ('Y0', 'y'), ('Z0', 'z')):
+        np.testing.assert_allclose(cellData[col].values, m0[src].values, atol=1e-3)
+    for col, src in (('X', 'x'), ('Y', 'y'), ('Z', 'z')):
+        np.testing.assert_allclose(cellData[col].values, m_hat[src].values, atol=1e-3)
+    assert not np.allclose(cellData[['X', 'Y']].values, cellData[['X0', 'Y0']].values), \
+        'the fitted centre never left the segmentation centroid'

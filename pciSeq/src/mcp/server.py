@@ -325,8 +325,9 @@ def metadata(key: Optional[str] = None) -> dict:
 @_tool
 def cell_row(label: int) -> dict:
     """The cellData.tsv row of one cell, value for value: Cell_Num, X, Y, Z,
-    Genenames, CellGeneCount, spot_id, ClassName, Prob. Use this when the question
-    is about what the saved file says for a cell. The counts are soft."""
+    X0, Y0, Z0, Genenames, CellGeneCount, spot_id, ClassName, Prob. X, Y, Z is the
+    fitted centre and X0, Y0, Z0 the segmentation centroid. Use this when the
+    question is about what the saved file says for a cell. The counts are soft."""
     return _need_run().cell_row(label)
 
 
