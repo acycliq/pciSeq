@@ -331,32 +331,6 @@ to note about it:
   the default $\kappa_0 = 1000$ with $d = 3$. At $\kappa_0 = 10$ it is $0.15$ for a cell with
   no spots and $0.014$ for a cell with $100$.
 
-## Contribution to the ELBO
-
-The new factor adds $\mathbb{E}_q[\log p(m_c, \Sigma_c)] - \mathbb{E}_q[\log q(m_c, \Sigma_c)]
-= -\mathrm{KL}\big(q(m_c, \Sigma_c)\,\|\,p(m_c, \Sigma_c)\big)$ per cell. The KL between two
-NIW distributions splits into the conditional Gaussian part, averaged over $\Sigma_c$, and
-the inverse Wishart part:
-
-$$
-\begin{aligned}
-\mathrm{KL}_{\mathcal{N}}
-&= \frac d2 \log\frac{\hat\kappa_c}{\kappa_0} - \frac d2 + \frac{d\,\kappa_0}{2\hat\kappa_c} \\
-&\quad + \frac{\kappa_0\, \hat\nu_c}{2}\,
-   (\hat m_c - m_{0,c})^T \hat V_c^{-1} (\hat m_c - m_{0,c}), \\[8pt]
-\mathrm{KL}_{\mathcal{IW}}
-&= \frac{\hat\nu_c}{2} \log|\hat V_c| - \frac{\nu_0}{2} \log|V_0|
-   - \frac{(\hat\nu_c - \nu_0)\, d}{2} \log 2 \\
-&\quad - \log\Gamma_d\!\Big(\frac{\hat\nu_c}{2}\Big)
-   + \log\Gamma_d\!\Big(\frac{\nu_0}{2}\Big)
-   + \frac{\hat\nu_c - \nu_0}{2}\, \mathbb{E}\big[\log|\Lambda_c|\big] \\
-&\quad + \frac{\hat\nu_c}{2} \Big( \operatorname{tr}\big(V_0 \hat V_c^{-1}\big) - d \Big) .
-\end{aligned}
-$$
-
-The position term inside the ELBO's data part is $-\overline{D}_c(x_s)$, the same expected log
-density the assignment uses, so the ELBO and the updates agree.
-
 ## Simplifications
 
 - **The update runs after the spot assignment.** The first spot assignment of a run is
