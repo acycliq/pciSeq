@@ -68,8 +68,11 @@ def euler_angles_OLD(r: np.ndarray) -> List[float]:
 def gaussian_ellipsoid_props(cov: np.ndarray,
                              sdwidth: float = 3) -> Tuple[List[float], List[float]]:
     # Perform Eigen decomposition (PCA)
+    # zero the numerical noise. abs, not cov < tol: that was zeroing every negative
+    # off-diagonal too, so a fitted covariance with a negative correlation came out
+    # as a different matrix
     tol = 1.0e-10
-    cov = np.where(cov < tol, 0, cov)
+    cov = np.where(np.abs(cov) < tol, 0, cov)
     eigvals, eigvecs = np.linalg.eig(cov)
 
     # Sort eigenvalues and eigenvectors in descending order
@@ -127,7 +130,8 @@ def euler_angles(r: NDArray[np.float32]) -> List[float]:
     # Extract Euler angles
     # Note: np.arctan2 returns angles in [-π, π]
     phi = np.arctan2(r[2, 1], r[2, 2])  # X rotation (roll)
-    theta = np.arcsin(-r[2, 0])  # Y rotation (pitch)
+    # clip: rounding can push r[2, 0] a hair past 1 and arcsin gives nan
+    theta = np.arcsin(-np.clip(r[2, 0], -1.0, 1.0))  # Y rotation (pitch)
     psi = np.arctan2(r[1, 0], r[0, 0])  # Z rotation (yaw)
 
     # Check for gimbal lock.
@@ -139,6 +143,48 @@ def euler_angles(r: NDArray[np.float32]) -> List[float]:
     # np.float32(...) and that text ends up in cellData.tsv, which read_tsv cant eval.
     # rounded to 7 digits, that is all the precision a float32 has anyway.
     return [round(float(phi), 7), round(float(theta), 7), round(float(psi), 7)]
+
+
+def ellipsoid_to_cov(scale: List[float],
+                     rotation: List[float],
+                     sdwidth: float = 3) -> np.ndarray:
+    """The covariance matrix back from sphere_scale and sphere_rotation.
+
+    The inverse of gaussian_ellipsoid_props, so the two cellData columns are
+    enough to get the fitted covariance of a cell without the pickle.
+
+    Parameters
+    ----------
+    scale : list of float, length 3
+        The semi-axes of the sdwidth-sigma ellipsoid, cellData's sphere_scale.
+    rotation : list of float, length 3
+        Euler angles [phi, theta, psi] in radians, cellData's sphere_rotation,
+        with R = Rz(psi) @ Ry(theta) @ Rx(phi) as in euler_angles.
+    sdwidth : float
+        How many standard deviations the scale covers. 3 in cellData.
+
+    Returns
+    -------
+    ndarray, shape (3, 3)
+        The covariance. Its diagonal is the variance along x, y, z.
+
+    Example
+    -------
+        row = cellData.iloc[0]
+        cov = ellipsoid_to_cov(row['sphere_scale'], row['sphere_rotation'])
+    """
+    phi, theta, psi = rotation
+    c, s = np.cos(phi), np.sin(phi)
+    rx = np.array([[1, 0, 0], [0, c, -s], [0, s, c]])
+    c, s = np.cos(theta), np.sin(theta)
+    ry = np.array([[c, 0, s], [0, 1, 0], [-s, 0, c]])
+    c, s = np.cos(psi), np.sin(psi)
+    rz = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
+    r = rz @ ry @ rx
+    # gaussian_ellipsoid_props took r = eigvecs.T, so the eigenvectors are the columns of r.T
+    v = r.T
+    var = (np.asarray(scale, dtype=np.float64) / sdwidth) ** 2
+    return v @ np.diag(var) @ v.T
 
 
 def adjust_for_anisotropy(

@@ -34,7 +34,7 @@ cell.
 | `CellGeneCount` | list of float | Expected count of each gene, lined up with `Genenames`: the sum of the assignment probabilities of the gene's spots, see [probabilistic output](../index.md#probabilistic-output). |
 | `spot_id` | list of list of int | The ids of the spots that make up each gene's count, lined up with `Genenames`: the gene's spots whose probability of belonging to this cell is above 0.0001. Their probabilities add up to the count. |
 | `gaussian_contour` | list | The 3-sigma ellipse outline of the cell, for drawing. Not written to `cellData.tsv`. |
-| `sphere_scale`, `sphere_rotation` | list | 3D ellipsoid drawing parameters. 3D data only. |
+| `sphere_scale`, `sphere_rotation` | list | The fitted covariance as an ellipsoid: the three semi-axes of the 3-sigma ellipsoid, longest first, and its Euler angles in radians. `ellipsoid_to_cov` rebuilds the covariance from them. 3D data only. |
 
 ::: tip Coordinate units and the z-plane
 `X`, `Y` and `Z` are isotropic coordinates in units of the x-voxel

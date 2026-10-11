@@ -396,10 +396,11 @@ One block per module, in source order. Methods are listed as `Class.method`; nam
 | `gaussian_contour` | 13 | Draw an ellipsoid for a given covariance matrix and mean vector. |
 | `euler_angles_OLD` | 53 | Calculate Euler angles from rotation matrix. |
 | `gaussian_ellipsoid_props` | 68 |  |
-| `euler_angles` | 95 | Extract Euler angles from a 3D rotation matrix using ZYX convention. |
-| `adjust_for_anisotropy` | 144 | Adjust spot coordinates for non-cubic voxel dimensions. |
-| `anisotropy_calc` | 221 | Calculate anisotropic scaling for spot coordinates. |
-| `get_img_shape` | 279 | Get image dimensions from list of sparse matrices. |
+| `euler_angles` | 98 | Extract Euler angles from a 3D rotation matrix using ZYX convention. |
+| `ellipsoid_to_cov` | 148 | The covariance matrix back from sphere_scale and sphere_rotation. |
+| `adjust_for_anisotropy` | 190 | Adjust spot coordinates for non-cubic voxel dimensions. |
+| `anisotropy_calc` | 267 | Calculate anisotropic scaling for spot coordinates. |
+| `get_img_shape` | 325 | Get image dimensions from list of sparse matrices. |
 
 </details>
 
