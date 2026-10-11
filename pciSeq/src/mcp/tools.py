@@ -980,7 +980,7 @@ class Run:
     def cell_row(self, label):
         """The cellData row of one cell, value for value.
 
-        Everything the tsv has except the three drawing columns. Read straight out of
+        Everything the tsv has except the two drawing columns. Read straight out of
         cellData.tsv when it is there, which is both exact and fast, a targeted grep
         on a 250 MB file takes about 30 ms. Without the tsv the row is rebuilt from
         the viewer files, which matches on every column except the boundary cases of

@@ -25,7 +25,10 @@ def write_tsv(cellData: pd.DataFrame, geneData: pd.DataFrame, cellBoundaries: pd
 
     # Save cell data
     cellData_path = os.path.join(out_dir, "cellData.tsv")
-    cellData.to_csv(cellData_path, sep='\t', index=False)
+    # the contour is 40 points per cell just for drawing and nothing reads it
+    # from the tsv, so leave it out. The dataframe that fit returns still has it
+    cellData.drop(columns=['gaussian_contour'], errors='ignore').to_csv(
+        cellData_path, sep='\t', index=False)
     cellData_mb = os.path.getsize(cellData_path) / (1024 * 1024)
     logger.info('Saved at: %s (%.1f MB)', cellData_path, cellData_mb)
 
