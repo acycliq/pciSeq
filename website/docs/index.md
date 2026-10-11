@@ -22,6 +22,12 @@ This version extends the method of
   [cell-class assignment](the-model/cell-class.md).
 - **A class prior estimated from the data**, optional. Classes that are common in the
   tissue get a larger prior. See [class prior](the-model/class-prior.md).
+- **Cell geometry.** The probability that a spot comes from a cell falls with its distance
+  from the cell, measured by a Gaussian. In the original the Gaussian is the same for every
+  cell: centred on the segmentation centroid, with the mean cell radius. Here its centre
+  and its spread are fitted per cell from the spots: it can become an ellipsoid, elongated
+  along the spots, and its centre can shift where the segmentation did not capture the cell
+  well. See [cell geometry](the-model/gaussian.md).
 
 ## Inputs
 
