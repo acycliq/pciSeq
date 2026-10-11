@@ -35,6 +35,16 @@ Two things, both written by a run with `save_data` on:
 
 Point the viewer at the `viewer_data` folder and it picks up the rest.
 
+The folder can also be given on the command line with `--data`. The viewer then opens the
+run directly, without the welcome screen:
+
+```bash
+pciSeq_viewer --data=/path/to/viewer_data
+```
+
+`pciSeq_viewer` stands for the installed executable, whose location depends on the
+platform. From a source checkout the command is `npm start -- --data=/path/to/viewer_data`.
+
 ## The 2D map
 
 The main window is a map of one plane: the background image underneath, the cell outlines
