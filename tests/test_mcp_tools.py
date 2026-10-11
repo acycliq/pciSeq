@@ -755,6 +755,20 @@ def test_class_counts_cover_every_cell(fitted):
     assert run.class_counts(min_counts=1e9)['n_cells'] == 0
 
 
+def test_class_prior_is_the_saved_log_prior(fitted):
+    run, _, _ = fitted
+    cp = run.class_prior()
+    saved = dict(zip(run.class_names, run.metadata('log_prior')['value']))
+    assert len(cp['classes']) == run.nK
+    assert cp['classes'][0]['class'] == 'Zero'
+    for r in cp['classes']:
+        assert r['log_weight'] == pytest.approx(saved[r['class']])
+        assert r['weight'] == pytest.approx(np.exp(saved[r['class']]))
+    weights = [r['weight'] for r in cp['classes'][1:]]
+    assert weights == sorted(weights, reverse=True)
+    assert cp['cell_type_prior'] == run.config['cell_type_prior']
+
+
 def test_find_cells_filters(fitted):
     run, _, _ = fitted
     e = run.explain_cell(101)

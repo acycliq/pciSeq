@@ -283,6 +283,19 @@ def class_counts(min_counts: Optional[float] = None) -> dict:
 
 
 @_tool
+def class_prior() -> dict:
+    """The weight of every class at the end of the run: the prior probability that a
+    cell is of the class, before any of its genes is looked at. Zero is listed
+    first, the rest by weight. These are the weights the run saved and the class
+    score uses, so quote them as they are and never rebuild them from class_counts.
+
+    Use it for 'what weight did CA3 settle on', 'the class weights at convergence',
+    'the class prior of this run'.
+    """
+    return _need_run().class_prior()
+
+
+@_tool
 def find_cells(class_name: Optional[str] = None, plane: Optional[int] = None,
                min_counts: Optional[float] = None, top_two_within: Optional[float] = None,
                n: int = 50) -> dict:

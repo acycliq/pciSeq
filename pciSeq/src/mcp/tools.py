@@ -866,6 +866,35 @@ class Run:
             'min_counts_is': 'cells with fewer soft counts in total are left out',
         }
 
+    def class_prior(self):
+        """The weight of each class at the end of the run.
+
+        How likely a cell is to be of the class before any of its genes is looked
+        at. Read from the log_prior the run saved, which is the prior term the class
+        score adds, and not rebuilt from the cell counts: the counts give the mean
+        of the weight, while the score uses the mean of its log, which is lower for
+        a class with only a few cells.
+        """
+        log_prior = self._meta('log_prior', parse=True, default=None)
+        if log_prior is None:
+            raise KeyError('this run did not save log_prior, so its class weights are not known')
+        rows = [{'class': str(name), 'weight': float(np.exp(log_prior[k])),
+                 'log_weight': float(log_prior[k])}
+                for k, name in enumerate(self.class_names)]
+        zero = [r for r in rows if r['class'] == 'Zero']
+        rest = sorted([r for r in rows if r['class'] != 'Zero'], key=lambda r: -r['weight'])
+        return {
+            'cell_type_prior': (self.config or {}).get('cell_type_prior'),
+            'classes': zero + rest,
+            'weight_is': 'the prior probability of the class at the end of the run, the one '
+                         'the class score of a cell uses: exp of log_weight',
+            'cell_type_prior_is': 'weighted: the weights were learned from the cells and '
+                                  'refitted at every iteration, Zero apart, whose weight is '
+                                  'fixed. uniform: all of them were fixed by cell_type_weights',
+            'note': 'a cell that was pinned partway through the run kept the weights of that '
+                    'iteration, so its own prior term can differ from these',
+        }
+
     def find_cells(self, class_name=None, plane=None, min_counts=None,
                    top_two_within=None, n=50):
         """The cells matching a few filters: assigned class, plane of the centroid,
