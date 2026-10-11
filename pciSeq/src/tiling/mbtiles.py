@@ -239,7 +239,9 @@ def _write_metadata(cur, con, count, plane_ids, zoom_levels, image_format, silen
     con.commit()
 
     if not silent:
-        logger.info("Metadata: %s", metadata)
+        # str() because a dict on its own as the log argument gets unpacked by
+        # logging, and some pytest plugins (napari's) then break on it
+        logger.info("Metadata: %s", str(metadata))
 
 
 def _finalize_db(cur, con, silent, **kwargs):
