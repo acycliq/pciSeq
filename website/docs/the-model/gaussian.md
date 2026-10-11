@@ -106,21 +106,21 @@ $$
 Define the soft count, the soft mean and the soft scatter of the cell's spots:
 
 $$
-\bar n_c = \sum_s \bar z_{s,c},
+\bar N_c = \sum_s \bar z_{s,c},
 \qquad
-\bar x_c = \frac{1}{\bar n_c} \sum_s \bar z_{s,c}\, x_s,
+\bar x_c = \frac{1}{\bar N_c} \sum_s \bar z_{s,c}\, x_s,
 \qquad
 S_c = \sum_s \bar z_{s,c}\, (x_s - \bar x_c)(x_s - \bar x_c)^T .
 $$
 
-$\bar n_c$ is the cell's total expected count, summed over genes. Expanding the Gaussian and
+$\bar N_c$ is the cell's total expected count, summed over genes. Expanding the Gaussian and
 splitting the quadratic about $\bar x_c$,
 
 $$
 \begin{aligned}
 &\sum_s \bar z_{s,c}\, (x_s - m_c)^T \Lambda_c (x_s - m_c) \\[4pt]
 &\qquad = \operatorname{tr}(\Lambda_c S_c)
-  + \bar n_c\, (\bar x_c - m_c)^T \Lambda_c (\bar x_c - m_c),
+  + \bar N_c\, (\bar x_c - m_c)^T \Lambda_c (\bar x_c - m_c),
 \end{aligned}
 $$
 
@@ -129,9 +129,9 @@ the data term becomes
 $$
 \begin{aligned}
 &\sum_s \bar z_{s,c}\, \log \mathcal{N}(x_s \mid m_c, \Sigma_c) \\[4pt]
-&\qquad = -\frac{\bar n_c}{2} \log|\Sigma_c|
+&\qquad = -\frac{\bar N_c}{2} \log|\Sigma_c|
   - \frac12 \operatorname{tr}(\Lambda_c S_c)
-  - \frac{\bar n_c}{2} (\bar x_c - m_c)^T \Lambda_c (\bar x_c - m_c) + \text{const} .
+  - \frac{\bar N_c}{2} (\bar x_c - m_c)^T \Lambda_c (\bar x_c - m_c) + \text{const} .
 \end{aligned}
 $$
 
@@ -148,8 +148,8 @@ $$
 $$
 
 the two quadratics in $m_c$ combine into one. Completing the square with weights $\kappa_0$
-on $m_{0,c}$ and $\bar n_c$ on $\bar x_c$ gives a Gaussian in $m_c$ with pseudo-count
-$\kappa_0 + \bar n_c$, and leaves behind a cross term in $(\bar x_c - m_{0,c})$ that joins the
+on $m_{0,c}$ and $\bar N_c$ on $\bar x_c$ gives a Gaussian in $m_c$ with pseudo-count
+$\kappa_0 + \bar N_c$, and leaves behind a cross term in $(\bar x_c - m_{0,c})$ that joins the
 scale matrix. Collecting the powers of $|\Sigma_c|$ and the traces, the result is again a
 Normal-Inverse-Wishart:
 
@@ -164,29 +164,29 @@ $$
 with
 
 $$
-\hat\kappa_c = \kappa_0 + \bar n_c
+\hat\kappa_c = \kappa_0 + \bar N_c
 \tag{1}
 $$
 
 $$
-\hat m_c = \frac{\kappa_0\, m_{0,c} + \bar n_c\, \bar x_c}{\kappa_0 + \bar n_c}
+\hat m_c = \frac{\kappa_0\, m_{0,c} + \bar N_c\, \bar x_c}{\kappa_0 + \bar N_c}
 \tag{2}
 $$
 
 $$
-\hat\nu_c = \nu_0 + \bar n_c
+\hat\nu_c = \nu_0 + \bar N_c
 \tag{3}
 $$
 
 $$
 \hat V_c = V_0 + S_c
-  + \frac{\kappa_0\, \bar n_c}{\kappa_0 + \bar n_c}\,
+  + \frac{\kappa_0\, \bar N_c}{\kappa_0 + \bar N_c}\,
     (\bar x_c - m_{0,c})(\bar x_c - m_{0,c})^T
 \tag{4}
 $$
 
 These are the conjugate updates of Bishop (2006, section 2.3.6) with the hard count $n$
-replaced by the soft count $\bar n_c$ and the sample mean and scatter by their
+replaced by the soft count $\bar N_c$ and the sample mean and scatter by their
 $\bar z$-weighted versions, which is the form Bishop's section 10.2.1 uses for a mixture.
 Note that
 $S_c$ is the scatter about the soft mean $\bar x_c$, not about $\hat m_c$ or $m_{0,c}$; the
@@ -195,52 +195,52 @@ last term of $\hat V_c$ is what accounts for the centre having moved.
 ## Reading the result
 
 **The centroid.** Equation (2) is a weighted average of the segmentation centroid and the
-soft mean of the cell's spots, with weights $\kappa_0$ and $\bar n_c$: $\kappa_0$ is the
-number of spots the segmentation centroid counts for. For $\kappa_0 \gg \bar n_c$,
+soft mean of the cell's spots, with weights $\kappa_0$ and $\bar N_c$: $\kappa_0$ is the
+number of spots the segmentation centroid counts for. For $\kappa_0 \gg \bar N_c$,
 $\hat m_c \to m_{0,c}$.
 
 **The covariance.** Write the last two terms of equation (4) as one,
 
 $$
 \tilde S_c = S_c
-  + \frac{\kappa_0\, \bar n_c}{\kappa_0 + \bar n_c}\,
+  + \frac{\kappa_0\, \bar N_c}{\kappa_0 + \bar N_c}\,
     (\bar x_c - m_{0,c})(\bar x_c - m_{0,c})^T ,
 $$
 
 so that $\hat V_c = V_0 + \tilde S_c$. The mean of an inverse Wishart is
 $V / (\nu - d - 1)$. With $V_0 = (\nu_0 - d - 1)\, r^2 I$ from the prior and
-$\hat\nu_c = \nu_0 + \bar n_c$ from equation (3),
+$\hat\nu_c = \nu_0 + \bar N_c$ from equation (3),
 
 $$
 \begin{aligned}
 \mathbb{E}[\Sigma_c] &= \frac{\hat V_c}{\hat\nu_c - d - 1} \\[6pt]
-&= \frac{(\nu_0 - d - 1)\, r^2 I + \tilde S_c}{\bar n_c + \nu_0 - d - 1} \\[6pt]
-&= \frac{\bar n_c}{\bar n_c + \nu_0 - d - 1}\; \frac{\tilde S_c}{\bar n_c}
-  + \frac{\nu_0 - d - 1}{\bar n_c + \nu_0 - d - 1}\; r^2 I .
+&= \frac{(\nu_0 - d - 1)\, r^2 I + \tilde S_c}{\bar N_c + \nu_0 - d - 1} \\[6pt]
+&= \frac{\bar N_c}{\bar N_c + \nu_0 - d - 1}\; \frac{\tilde S_c}{\bar N_c}
+  + \frac{\nu_0 - d - 1}{\bar N_c + \nu_0 - d - 1}\; r^2 I .
 \end{aligned}
 \tag{5}
 $$
 
-The last line multiplies and divides $\tilde S_c$ by $\bar n_c$. This is equation (4) of
-Zhang (2021): a weighted average of the spot scatter per spot, $\tilde S_c / \bar n_c$,
-and the prior $r^2 I$, with weights $\bar n_c$ and $\nu_0 - d - 1$. The pseudo-count of
+The last line multiplies and divides $\tilde S_c$ by $\bar N_c$. This is equation (4) of
+Zhang (2021): a weighted average of the spot scatter per spot, $\tilde S_c / \bar N_c$,
+and the prior $r^2 I$, with weights $\bar N_c$ and $\nu_0 - d - 1$. The pseudo-count of
 the prior shape is $\nu_0 - d - 1$, not $\nu_0$: `cell_cov_prior = 10` in 3D counts as $6$
 spots, and the setting must be above $d + 1$.
 
-For $\nu_0 \gg \bar n_c$, $\mathbb{E}[\Sigma_c] \to r^2 I$.
+For $\nu_0 \gg \bar N_c$, $\mathbb{E}[\Sigma_c] \to r^2 I$.
 
 **The centre-shift term.** $S_c$ is the scatter of the spots about their own mean
 $\bar x_c$, but the centre of the cell is $\hat m_c$. About $\hat m_c$ the scatter of the
-spots is larger by $\bar n_c (\bar x_c - \hat m_c)(\bar x_c - \hat m_c)^T$, and the prior
+spots is larger by $\bar N_c (\bar x_c - \hat m_c)(\bar x_c - \hat m_c)^T$, and the prior
 centre $m_{0,c}$, with pseudo-count $\kappa_0$, adds
 $\kappa_0 (m_{0,c} - \hat m_c)(m_{0,c} - \hat m_c)^T$. Substituting $\hat m_c$ from
 equation (2), the two sum to the last term of equation (4):
 
 $$
 \begin{aligned}
-&\bar n_c (\bar x_c - \hat m_c)(\bar x_c - \hat m_c)^T
+&\bar N_c (\bar x_c - \hat m_c)(\bar x_c - \hat m_c)^T
 + \kappa_0 (m_{0,c} - \hat m_c)(m_{0,c} - \hat m_c)^T \\[4pt]
-&\qquad = \frac{\kappa_0\, \bar n_c}{\kappa_0 + \bar n_c}\,
+&\qquad = \frac{\kappa_0\, \bar N_c}{\kappa_0 + \bar N_c}\,
   (\bar x_c - m_{0,c})(\bar x_c - m_{0,c})^T .
 \end{aligned}
 $$
@@ -249,7 +249,7 @@ The term stretches the covariance along the line from the segmentation centroid 
 of the spots. It is zero when $\bar x_c = m_{0,c}$, and when $\kappa_0 = 0$, where
 $\hat V_c = V_0 + S_c$.
 
-**Empty cells.** A cell with $\bar n_c = 0$ has $\hat\kappa_c = \kappa_0$, $\hat m_c = m_{0,c}$,
+**Empty cells.** A cell with $\bar N_c = 0$ has $\hat\kappa_c = \kappa_0$, $\hat m_c = m_{0,c}$,
 $\hat\nu_c = \nu_0$ and $\hat V_c = V_0$: its posterior is its prior. No special case is
 needed.
 
