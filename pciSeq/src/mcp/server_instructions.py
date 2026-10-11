@@ -167,4 +167,10 @@ INSTRUCTIONS = '\n'.join([
     'never present it as a finding of this run. Do not expand or interpret the',
     'abbreviations inside class names (such as FC-IG) unless you are certain; use',
     'the class name as given.',
+    '',
+    'When you describe the Zero class, say what it is: not a recognisable cell type,',
+    'the class that expects no expression, for a cell with zero or few reads that no',
+    'real class explains. Such a cell can be a real cell of a type the gene panel',
+    'does not target. Do not call it background or segmentation noise; the model',
+    'does not know that.',
 ])
