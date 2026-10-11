@@ -2,13 +2,35 @@ import logging
 
 import numpy as np
 
+from . import gaussian_model
+
 logger = logging.getLogger(__name__)
 
 
 def calc_elbo(obj):
     E_log_p = expected_log_joint(obj)
     entropy = total_entropy(obj)
-    return E_log_p + entropy
+    # the cell geometry factor q(m, Sigma) goes in as one piece,
+    # E[log p(m, Sigma)] - E[log q(m, Sigma)] = -KL to its prior,
+    # as on the cell geometry docs page
+    return E_log_p + entropy - geometry_kl(obj)
+
+
+def geometry_kl(obj):
+    """
+    Sum over cells of KL(q(m_c, Sigma_c) || p(m_c, Sigma_c)), both NIW.
+
+    Row 0 is the background, it has no geometry, so it is left out. Zero when
+    no gaussian_upd has run yet, every cell then still sits on its prior.
+    """
+    cells = obj.cells
+    d = cells.dim
+    kappa0 = obj.config['cell_centroid_prior']['default']
+    nu0 = obj.config['cell_cov_prior']['default']
+    m0 = cells.ini_centroids().values[:, :d]
+    kl = gaussian_model.niw_kl(cells.centroid.values[:, :d], cells.kappa, cells.scale, cells.nu,
+                               m0, kappa0, cells.ini_scale(), nu0)
+    return float(kl[1:].sum())
 
 
 def total_entropy(obj):
@@ -93,8 +115,8 @@ def poisson_process_loglikelihood(obj):
     log_theta = np.log(theta_ck)           # (nC, nK) - point estimate, so E[log] = log
     E_log_gamma = spots.log_gamma_bar      # (nC, nG, nK) - E_q[log gamma] = psi(a) - log(b)
     E_log_eta = obj.genes.logeta_bar       # (nG,) - E_q[log eta] = psi(a) - log(b)
-    mvn_loglik = spots.mvn_loglik_arr      # (nS, nN) - spatial: multivariate normal log-pdf
     bonus = spots.bonus_mask * cfg['InsideCellBonus']
+    xyz = spots.xyz_coords
 
     # Background: q(z_s = bg) * E[log rho_g]
     log_rho = obj.genes.log_rho_bar[g_s]
@@ -112,8 +134,14 @@ def poisson_process_loglikelihood(obj):
             axis=1
         )  # (nS,)
 
-        # weight by q(z_s = c_n) and add spatial + gene efficiency terms
-        term2_sig += np.sum(q_z[:, n] * (mvn_loglik[:, n] + bonus[:, n] + class_term + E_log_eta[g_s]))
+        # the position term, E_q[log N(x_s | m_c, Sigma_c)], computed from the
+        # geometry as it is now. Not spots.mvn_loglik_arr: that is the copy the
+        # last spots_to_cell made, and right after gaussian_upd it is one geometry
+        # behind, which made that step look like it lowered the elbo
+        mvn_loglik = spots.mvn_loglik(xyz, c_n, obj.cells, cfg['is3D'])
+
+        # weight by q(z_s = c_n) and add position + gene efficiency terms
+        term2_sig += np.sum(q_z[:, n] * (mvn_loglik + bonus[:, n] + class_term + E_log_eta[g_s]))
 
     return term1 + term2_bg + term2_sig
 

@@ -21,8 +21,12 @@ equation. It follows *The extended pciSeq model* (v0.3), which is the version th
 | $\theta_c$ | per-cell scale factor (extension) |
 | $\rho_g$ | per-gene background (misread) density (extension) |
 | $A_c=\int e^{-D_c(x)}\,dx$ | a per-cell normalising factor tied to the inside-cell bonus. It equals $1$ when the bonus is off |
-| $D_c(x)$ | distance from point $x$ to cell $c$ |
-| $\pi_k$ | prior probability of class $k$ |
+| $D_c(x)$ | negative log density of point $x$ under the Gaussian of cell $c$ |
+| $m_c,\ \Sigma_c$ | centre and covariance of that Gaussian (extension) |
+| $d$ | number of spatial dimensions, $2$ or $3$ |
+| $\kappa_0,\ \nu_0$ | pseudo-count behind $m_c$ and degrees of freedom behind $\Sigma_c$ (extension) |
+| $\pi_k$ | prior probability of class $k$; fixed, or a random variable under `weighted` (extension) |
+| $\delta_k$ | Dirichlet pseudo-count behind $\pi_k$ (extension) |
 | $\mathcal{N}_c$ | the set of nearest neighbours of cell $c$ |
 | $\beta$ | strength of the spatial (MRF) coupling |
 
@@ -53,9 +57,11 @@ $$
 \end{aligned}
 $$
 
-The extended model adds two ingredients: a **per-cell scale factor** $\theta_c$ inside the
-intensity, and a **Markov Random Field** prior that rewards neighbouring cells for sharing
-a class. The log-joint becomes
+The extended model adds four ingredients: a **per-cell scale factor** $\theta_c$ inside the
+intensity, a **Markov Random Field** prior that rewards neighbouring cells for sharing
+a class, a prior on each **cell's geometry**, covered
+[below](#cell-geometry), and a prior on the **class probabilities** $\pi$, covered
+[below](#class-prior). With the first two the log-joint becomes
 
 $$
 \begin{aligned}
@@ -123,24 +129,59 @@ $$
 \tag{2}
 $$
 
-The log-joint of the full model is the sum of equations (1) and (2):
+The posterior of $\rho_g$ is derived [on its own page](misread-density.md).
+
+### Cell geometry
+
+The position factor $e^{-D_c(x)}$ is a Gaussian density, $\mathcal{N}(x \mid m_c, \Sigma_c)$,
+so $A_c = 1$ when the bonus is off. In the original model its centre $m_c$ is the
+segmentation centroid and its covariance $\Sigma_c$ is $r^2 I$, with $r$ the mean cell
+radius, both fixed. The extended model makes them random variables with a conjugate
+Normal-Inverse-Wishart prior,
+
+$$
+p(m_c, \Sigma_c)
+= \mathcal{N}\!\big(m_c \mid m_{0,c},\, \Sigma_c / \kappa_0\big)\;
+  \mathcal{IW}\!\big(\Sigma_c \mid (\nu_0 - d - 1)\, r^2 I,\, \nu_0\big),
+$$
+
+centred on the segmentation centroid $m_{0,c}$ and on $r^2 I$. The centroid is worth
+$\kappa_0$ spots and the shape $\nu_0 - d - 1$. This adds $\sum_c \log p(m_c, \Sigma_c)$ to
+the log-joint. The posterior is derived [on its own page](gaussian.md).
+
+### Class prior
+
+In the original model the class probabilities $\pi_k$ are fixed. With `cell_type_prior`
+set to `weighted`, $\pi$ is a random variable with a Dirichlet prior,
+
+$$
+p(\pi) = \mathrm{Dir}(\pi \mid \delta_1, \dots, \delta_K), \qquad
+\log p(\pi) = \sum_k (\delta_k - 1) \log \pi_k + \text{const},
+$$
+
+over the real classes, with the Zero class held at a fixed weight. This adds
+$\log p(\pi)$ to the log-joint. The posterior is derived [on its own page](class-prior.md).
+
+### The full log-joint
+
+The log-joint of the full model is the sum of equations (1) and (2) plus the priors on
+the cells' geometry and on the class probabilities:
 
 $$
 \begin{aligned}
-\log p(x, g, z, \zeta, \gamma, \eta, \theta, \rho) =
+\log p(x, g, z, \zeta, \gamma, \eta, \theta, \rho, m, \Sigma, \pi) =
 & - \sum_{g,c,k} \zeta_{c,k}\, \theta_c\, \mu_{g,k}\, A_c\, \gamma_{g,c}\, \eta_g \\
 & + \sum_{s,c,k} z_{s,c}\, \zeta_{c,k}\,
    \log\!\big[\, \theta_c\, \mu_{g_s,k}\, e^{-D_c(x_s)}\, \gamma_{g_s,c}\, \eta_{g_s} \big] \\
 & + \sum_{g,c} \log p(\gamma_{g,c}) + \sum_g \log p(\eta_g) + \sum_c \log p(\theta_c) \\
+& + \sum_c \log p(m_c, \Sigma_c) \\
 & + \sum_g \Big[ - \rho_g\, A_{\text{total}} + \sum_{s:\, g_s = g} z_{s,0}\, \log \rho_g
    + \log p(\rho_g) \Big] \\
-& + \sum_{c,k} \zeta_{c,k}\, \log \pi_k
+& + \sum_{c,k} \zeta_{c,k}\, \log \pi_k + \sum_k (\delta_k - 1) \log \pi_k
    + \beta \sum_{c,k} \sum_{c' \in \mathcal{N}_c} \mathbf{1}(\zeta_{c,k} = \zeta_{c',k} = 1) .
 \end{aligned}
 \tag{3}
 $$
-
-The posterior of $\rho_g$ is derived [on its own page](misread-density.md).
 
 ## The variational approximation
 
@@ -150,15 +191,16 @@ divergence, fitted by **coordinate ascent** (CAVI), one factor at a time. $\gamm
 on $\theta$ and on the cell's class, so the three form one structured factor:
 
 $$
-p(z, \zeta, \gamma, \eta, \theta, \rho \mid x, g)
-\approx q(\gamma \mid \zeta, \theta)\, q(\theta \mid \zeta)\, q(\zeta)\, q(z)\, q(\eta)\, q(\rho) .
+p(z, \zeta, \gamma, \eta, \theta, \rho, m, \Sigma, \pi \mid x, g)
+\approx q(\gamma \mid \zeta, \theta)\, q(\theta \mid \zeta)\, q(\zeta)\, q(z)\, q(\eta)\, q(\rho)\,
+q(m, \Sigma)\, q(\pi) .
 $$
 
 Coordinate ascent updates each factor to its optimal form, which is always the **expected
 log-joint over all the other factors**:
 
 $$
-\log q^*(x_j) = \mathbb{E}_{q(\text{rest})}\big[\log p(x, g, z, \zeta, \gamma, \eta, \theta, \rho)\big] + \text{const} .
+\log q^*(x_j) = \mathbb{E}_{q(\text{rest})}\big[\log p(x, g, z, \zeta, \gamma, \eta, \theta, \rho, m, \Sigma, \pi)\big] + \text{const} .
 $$
 
 Each derivation that follows applies this equation: the terms of the
@@ -173,22 +215,17 @@ Binomial likelihood of the cell typing is lost. $q(\theta_c)$ is therefore restr
 **point estimate** (a Dirac delta), which keeps $\theta_c$ constant during the update for
 $\gamma_{g,c}$.
 
-## What these pages derive
+## Derivations
 
 - **[Misread density $\rho_g$](misread-density.md)** - the per-gene background rate.
 - **[The scale factors $\theta_c$, $\gamma_{g,c}$, $\eta_g$](scale-factors.md)** - the
   per-cell, per-gene-per-cell, and per-gene corrections to the reference.
 - **[Cell-class assignment $q(\zeta)$](cell-class.md)** - the Negative Binomial likelihood,
   the class prior, and the MRF spatial term.
+- **[Cell geometry $q(m_c, \Sigma_c)$](gaussian.md)** - the centre and
+  covariance of each cell's Gaussian, and the expected log density the spot assignment
+  uses.
 - **[Spot-to-cell assignment $q(z)$](spot-assignment.md)** - which cell (or the background)
   each spot is assigned to.
-
-## Not yet documented
-
-Two parts of the model are developed but not yet written up here, matching the stubs in
-the source document:
-
-- a **Dirichlet prior** on the class probabilities $\pi$;
-- **cell positions and shapes as a Gaussian mixture**. The current implementation assumes
-  fixed, spherical shapes; the Gaussian-mixture extension exists but is disabled in the
-  Python code.
+- **[Class prior $q(\pi)$](class-prior.md)** - the Dirichlet posterior of the class
+  probabilities under `weighted`.

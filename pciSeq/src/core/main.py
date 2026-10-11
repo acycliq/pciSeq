@@ -190,6 +190,9 @@ class VarBayes:
         self.cells.nbrs = self.cells.nearest_neighbours()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
         self.genes.init_eta(self.config['rGene'], self.config['rGene'])
+        # each spot's nN nearest cells, picked once from the segmentation
+        # centroids. gaussian_upd moves the centroids later but this list is
+        # not rebuilt, the spot keeps competing among the same cells
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.cells._ini_gene_counts = np.bincount(self.spots.data.label.values, minlength=self.nC)
@@ -275,14 +278,15 @@ class VarBayes:
         record its wall-time into self._step_times. When neither, this is just fn()
         with no overhead.
 
-        Scoring here rather than on the methods themselves is deliberate. The seven
+        Scoring here rather than on the methods themselves is deliberate. The eight
         steps carve the iteration into slices that do not overlap, so their deltas
         add up to the change over the whole iteration. Some steps call others (
         spots_to_cell runs geneCount_upd at the end), so scoring the methods would
         count those inner calls twice and the sum would not add up any more.
 
-        The first iteration cannot be scored: the elbo needs spots.mvn_loglik_arr
-        and that is None until the first spots_to_cell has run.
+        The first iteration is not scored: spots.mvn_loglik_arr is None until the
+        first spots_to_cell has run, and that is used here as the sign that the
+        state is a fitted one and not the initialisation.
         """
         watch = self.config.get('elbo_per_step') or ()
         if (watch == 'all' or name in watch) and self.spots.mvn_loglik_arr is not None:
@@ -305,7 +309,7 @@ class VarBayes:
 
         One pass updates, in this order: the gene counts per cell, the per gene
         misread density, the gene inefficiency, the cell inefficiency, gamma, the
-        cell types, then the spot to cell assignments. One more step, the dirichlet
+        cell types, the spot to cell assignments, then the cell geometry. One more step, the dirichlet
         prior update, runs right after the cell types, but only when cell_type_prior
         is 'weighted'. It gives classes with more cells a higher prior; the Zero weight
         stays fixed at its cell_type_weights value. With the default, 'uniform', the
@@ -344,11 +348,6 @@ class VarBayes:
             # 5. calc expected gamma
             self._step('gamma_upd', self.gamma_upd)
 
-            logger.info("gaussian_upd step has been removed in this version of the software")
-            # 3 update correlation matrix and variance of the gaussian distribution
-            # if self.single_cell.isMissing or (self.config['InsideCellBonus'] is False) or (self.config['is3D']):
-            #     self.gaussian_upd()
-
             # 6. assign cells to cell types
             self._step('cell_to_cellType', self.cell_to_cellType)
 
@@ -356,11 +355,20 @@ class VarBayes:
             if self.config['cell_type_prior'] == 'weighted':
                 self._step('dalpha_upd', self.dalpha_upd)
 
-            # 9. assign spots to cells
+            # 8. assign spots to cells
             # spots_to_cell_numba is the fast path. spots_to_cell (the plain numpy
             # loop) is kept as the readable reference and can be swapped in on this
             # line when needed. tests/test_spots_to_cell_ab.py checks they agree.
             self._step('spots_to_cell', self.spots_to_cell_numba)
+
+            # 9. the cell geometry: the centre and covariance of each cell's gaussian.
+            # It has to come after the spot assignment, not before it. On the first
+            # pass the spot weights are still the uniform 1/nN from initialise_state,
+            # and the soft mean of every spot that merely has cell c among its nN
+            # nearest is nowhere near cell c. Run on those, the centres jump by tens
+            # of pixels and the loop never recovers. So the first spot assignment
+            # uses the prior geometry, and every geometry update sees real weights.
+            self._step('gaussian_upd', self.gaussian_upd)
 
             if verbose:
                 _total = sum(self._step_times.values())
@@ -722,96 +730,69 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def gaussian_upd(self) -> None:
+        """Update the cell geometry, the NIW posterior over each cell's centre
+        and covariance. The maths is on the-model/gaussian.md.
+
+        centroid_upd does kappa_hat and m_hat, cov_upd does nu_hat and V_hat.
+        Both need the soft count, mean and scatter of the cell's spots so those
+        are worked out once here and passed down.
+
+        Two things are left as they were, on purpose. The nN nearest cells of
+        each spot were picked from the segmentation centroids in
+        initialise_state and are not picked again when the centres move. And
+        the inside cell bonus keeps its area factor from read_image_objects,
+        the one for a round cell of the mean radius; that the gaussian may now
+        be stretched or tilted is ignored there.
         """
-        Updates Gaussian distribution (centroids and covariance matrices) for cells
-        """
-        self.centroid_upd()
-        self.cov_upd()
+        n_bar, x_bar, S = gaussian_model.soft_stats(self.spots, self.cells, self.cells.dim)
+        self.centroid_upd(n_bar, x_bar)
+        self.cov_upd(n_bar, x_bar, S)
 
     # -------------------------------------------------------------------- #
-    def centroid_upd(self) -> None:
+    def centroid_upd(self, n_bar, x_bar) -> None:
+        """kappa_hat = kappa0 + n_bar and m_hat, the weighted average of the
+        segmentation centroid (worth kappa0 spots) and the soft mean of the spots
+        (worth n_bar). Cell 0 is the background, it has n_bar = 0 and stays put.
+        In 2D only x and y move, z stays whatever the segmentation said.
         """
-        Updates the centroid (mean) for each cell based on the posterior distribution.
+        kappa0 = self.config['cell_centroid_prior']['default']
+        d = self.cells.dim
+        m0 = self.cells.ini_centroids().values[:, :d].astype(np.float64)
 
-        The posterior centroid is calculated as a weighted average of:
-        - The prior centroid (mu_0), weighted by the prior pseudo-sample size (k_0)
-        - The empirical (sample) mean (x_bar), weighted by the observed sample size (n)
-        """
+        kappa_hat = kappa0 + n_bar
+        m_hat = (kappa0 * m0 + n_bar[:, None] * x_bar) / kappa_hat[:, None]
 
-        # Get the prior weight (pseudo-sample size for the centroid)
-        k_0 = self.config['cell_centroid_prior']['default']
-
-        # Prior centroid (mu_0)
-        prior_centroid = self.cells.ini_centroids()
-
-        # 1. Calculate the empirical (sample) mean
-        sample_mean = gaussian_model.empirical_mean(spots=self.spots, cells=self.cells)
-
-        # 2. Get the observed sample size (gene counts per cell)
-        sample_size = self.cells.total_counts
-
-        # 3. Calculate the posterior centroid as a weighted average
-        numerator = k_0 * prior_centroid + sample_size[:, None] * sample_mean
-        denominator = k_0 + sample_size[:, None]
-        posterior_centroid = numerator / denominator
-
-        # 4. Handle the background (index 0)
-        # Reset the background centroid to a default large value (e.g., max int)
-        posterior_centroid.iloc[0, :] = -sys.maxsize
-
-        # Update the centroids
-        self.cells.centroid = posterior_centroid
+        centroid = self.cells.ini_centroids()
+        centroid.iloc[:, :d] = m_hat.astype(np.float32)
+        self.cells.centroid = centroid
+        self.cells.kappa = kappa_hat.astype(np.float32)
 
     # -------------------------------------------------------------------- #
-    def cov_upd(self) -> None:
+    def cov_upd(self, n_bar, x_bar, S) -> None:
+        """nu_hat = nu0 + n_bar and the scale
+
+            V_hat = V0 + S + kappa0 n_bar / (kappa0 + n_bar) (x_bar - m0)(x_bar - m0)^T
+
+        S is the scatter about the soft mean x_bar, the last term is what the
+        centre having moved away from m0 adds (the parallel axis theorem, see
+        the docs page). cov gets E[Sigma] = V_hat / (nu_hat - d - 1) for the
+        ellipses, and the eigen pairs of V_hat are what the position term uses.
         """
-        Updates the covariance matrix for each cell based on the posterior distribution.
+        kappa0 = self.config['cell_centroid_prior']['default']
+        nu0 = self.config['cell_cov_prior']['default']
+        d = self.cells.dim
+        m0 = self.cells.ini_centroids().values[:, :d].astype(np.float64)
 
-        The posterior covariance is computed using:
-        - The scatter matrix (data-driven scale matrix)
-        - The prior covariance (weighted by prior hyperparameters)
-        - An adjustment term based on the difference between sample means and prior means
-        """
+        dm = x_bar - m0
+        shift = (kappa0 * n_bar / (kappa0 + n_bar))[:, None, None] * oe.contract('ci,cj->cij', dm, dm)
+        V_hat = self.cells.ini_scale() + S + shift
+        nu_hat = nu0 + n_bar
 
-        # Hyperparameters
-        k_0 = self.config['cell_centroid_prior']['default']  # Prior for centroids
-        nu_0 = self.config['cell_cov_prior']['default']  # Prior degrees of freedom for covariance
+        self.cells.scale = V_hat.astype(np.float32)
+        self.cells.nu = nu_hat.astype(np.float32)
+        self.cells.cov = (V_hat / (nu_hat - d - 1)[:, None, None]).astype(np.float32)
+        self.cells.eig_vals, self.cells.eig_vecs = np.linalg.eigh(self.cells.scale)
 
-        # 1. Calculate the scatter matrix (data-driven scale matrix)
-        scatter_matrix = self.cells.scatter_matrix(self.spots)
-
-        # 2. Calculate the prior scale matrix
-        prior_cov = self.cells.ini_cov()
-        prior_scale_matrix = nu_0 * prior_cov
-
-        # 3. Calculate the adjustment term
-        # Difference between current centroids and prior centroids (x_bar - mu_0)
-        mean_diff = self.cells.centroid - self.cells.ini_centroids()
-        mean_outer_product = oe.contract('rk, rn -> rkn', mean_diff, mean_diff,
-                                         optimize='optimal')  # (x_bar - mu_0)(x_bar - mu_0)^T
-
-        # Multiplier for the adjustment term
-        multiplier = (k_0 * self.cells.total_counts) / (k_0 + self.cells.total_counts)
-
-        # Avoid warnings by setting background (index 0) adjustment to zero
-        mean_outer_product[0] = np.zeros_like(mean_outer_product[0])
-        adjustment_term = multiplier[:, None, None] * mean_outer_product
-
-        # 4. Calculate the updated scale matrix
-        scale_matrix_upd = scatter_matrix + prior_scale_matrix + adjustment_term
-
-        # 5. Calculate the updated degrees of freedom
-        nu_upd = nu_0 + self.cells.total_counts + 1
-
-        # 6. Compute the expected covariance
-        covariance_upd = gaussian_model.expected_covariance(scale_matrix_upd, nu_upd)
-
-        # Handle background (index 0) by mapping it to the prior covariance
-        covariance_upd[0] = prior_cov[0]
-
-        # 7. Update the cell covariance attribute. Get the eigenvals/eigenvectors too
-        self.cells.cov = covariance_upd
-        self.cells.eig_vals, self.cells.eig_vecs = np.linalg.eigh(covariance_upd)
     # -------------------------------------------------------------------- #
     def dalpha_upd(self) -> None:
         """

@@ -9,6 +9,9 @@ import scipy
 import opt_einsum as oe
 from collections import defaultdict
 
+# Local imports
+from ..utils.gaussian_model import expected_logdet_precision
+
 logger = logging.getLogger(__name__)
 
 
@@ -288,60 +291,44 @@ class Spots(object):
     #     return D
 
     def mvn_loglik(self, data, cell_label, cells, is3D):
-        """
-        Calculates the multivariate normal log likelihood for spots.
+        """The position term of the spot score: the expected log density of each
+        spot's position under q(m_c, Sigma_c), the NIW posterior of its cell.
+
+        This is -D_bar on the cell geometry page (the-model/gaussian.md):
+
+            -d/2 log 2pi + 1/2 E[log|Lambda|]
+            - 1/2 (d / kappa_hat + nu_hat (x - m_hat)^T V_hat^-1 (x - m_hat))
+
+        Not the gaussian log pdf at the posterior mean: the precision in the
+        quadratic is E[Lambda] = nu_hat V_hat^-1, not E[Sigma]^-1, and the flat
+        d / kappa_hat pays for not knowing the centre. The name is kept because
+        the diagnostics db and the viewer read mvn_loglik.
 
         Parameters:
-            data (np.array): Spot data.
-            cell_label (np.array): Cell labels for spots.
-            cells (Cells): Cells object containing cell data.
-            is3D (bool): Whether the data is 3D.
+            data (np.array): spot coordinates, (nS, 3) as x, y, z. z is dropped in 2D.
+            cell_label (np.array): the cell of each spot, (nS,).
+            cells (Cells): holds centroid, kappa, nu and the eigen pairs of the scale.
+            is3D (bool): whether the data is 3D.
 
         Returns:
-            np.array: Log likelihood values.
+            np.array: (nS,) position term per spot.
         """
-        centroids = cells.centroid.values[cell_label]
-        covs = cells.cov[cell_label]
-        eig_vals = cells.eig_vals[cell_label]
-        eig_vecs = cells.eig_vecs[cell_label]
-        if not is3D:
-            # centroids and spot coords are always x, y, z, but ini_cov builds a
-            # 2x2 in 2D, so drop z to match. z is all zeros here anyway, and
-            # keeping it would make the covariance singular on that axis.
-            data = data[:, :-1]
-            centroids = centroids[:, :-1]
-        out = self.multiple_logpdfs(data, centroids, covs, eig_vals, eig_vecs)
-        return out
+        d = 3 if is3D else 2
+        x = data[:, :d].astype(np.float64)
+        m_hat = cells.centroid.values[cell_label, :d].astype(np.float64)
+        vals = cells.eig_vals[cell_label].astype(np.float64)
+        vecs = cells.eig_vecs[cell_label].astype(np.float64)
+        nu_hat = cells.nu[cell_label].astype(np.float64)
+        kappa_hat = cells.kappa[cell_label].astype(np.float64)
 
-    def multiple_logpdfs(self, x: np.ndarray, means: np.ndarray, cov: np.ndarray, vals: np.ndarray, vecs: np.ndarray) -> np.ndarray:
-        """
-        vectorised mvn log likelihood evaluated at multiple pairs of (centroid_1, cov_1), ..., (centroid_N, cov_N)
-        Taken from http://gregorygundersen.com/blog/2020/12/12/group-multivariate-normal-pdf/
-        """
-        # Thankfully, NumPy broadcasts `eigh`.
-        # vals, vecs = np.linalg.eigh(covs)
+        # (x - m)^T V^-1 (x - m) through the eigen pairs of V
+        dev_u = oe.contract('ni,nij->nj', x - m_hat, vecs, optimize='optimal')
+        maha = nu_hat * np.sum(dev_u * dev_u / vals, axis=1)
 
-        # Compute the log determinants across the second axis.
-        logdets = np.sum(np.log(vals), axis=1)
-
-        # Invert the eigenvalues.
-        valsinvs = 1. / vals
-
-        # Add a dimension to `valsinvs` so that NumPy broadcasts appropriately.
-        Us = vecs * np.sqrt(valsinvs)[:, None]
-        devs = x - means
-
-        # Use `einsum` for matrix-vector multiplications across the first dimension.
-        devUs = oe.contract('ni,nij->nj', devs, Us, optimize='optimal')
-
-        # Compute the Mahalanobis distance by squaring each term and summing.
-        mahas = np.sum(np.square(devUs), axis=1)
-
-        # Compute and broadcast scalar normalizers.
-        dim = len(vals[0])
-        log2pi = np.log(2 * np.pi)
-
-        return -0.5 * (dim * log2pi + mahas + logdets)
+        # per cell first, then pick, digamma over nS rows would be a waste
+        E_logdet = expected_logdet_precision(cells.nu.astype(np.float64),
+                                             cells.eig_vals.astype(np.float64))[cell_label]
+        return -0.5 * (d * np.log(2 * np.pi) - E_logdet + d / kappa_hat + maha)
 
     def zero_class_counts(self, geneNo, pCellZero):
         """

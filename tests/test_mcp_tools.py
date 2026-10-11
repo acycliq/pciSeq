@@ -73,7 +73,9 @@ def test_explain_cell_agrees_with_cellData(fitted):
     for lab in LABELS:
         e = run.explain_cell(lab)
         assert e['assigned'] == cellData.loc[lab, 'ClassName'][0]
-        assert e['prob_assigned'] == pytest.approx(cellData.loc[lab, 'Prob'][0], abs=1e-3)
+        # cellData cuts Prob to 3 decimals (floor, not round), so the two can be a
+        # full 0.001 apart, plus float noise on top. 0.9999 vs 0.999 is fine
+        assert e['prob_assigned'] == pytest.approx(cellData.loc[lab, 'Prob'][0], abs=1.01e-3)
         assert e['assigned'] != e['compared_with']
 
 
@@ -596,9 +598,9 @@ def test_explain_spot_gives_the_plane_on_an_anisotropic_3d_run(rng, tmp_path):
     lab = _label_image()
     # one matrix per plane: process_labels remaps each plane in place, so the same
     # object three times would be renumbered on the first pass and fail on the second
-    _, geneData = pciSeq.fit(spots=spots, coo=[coo_matrix(lab) for _ in range(3)], scRNAseq=scref,
-                             opts={'max_iter': 3, 'save_data': True, 'output_path': str(tmp_path),
-                                   'voxel_size': [1, 1, 4], 'CellCallTolerance': 0.5})
+    cellData, geneData = pciSeq.fit(spots=spots, coo=[coo_matrix(lab) for _ in range(3)], scRNAseq=scref,
+                                    opts={'max_iter': 3, 'save_data': True, 'output_path': str(tmp_path),
+                                          'voxel_size': [1, 1, 4], 'CellCallTolerance': 0.5})
     run = open_run(tmp_path)
     assert run.run_info()['voxel_size'] == [1, 1, 4] and run.run_info()['is3D'] is True
     gd = geneData.set_index('spot_id')
@@ -607,10 +609,14 @@ def test_explain_spot_gives_the_plane_on_an_anisotropic_3d_run(rng, tmp_path):
         assert pos['plane'] == gd.loc[sid, 'plane_id'], sid
         assert pos['z'] == int(gd.loc[sid, 'z'])
 
-    # the same cells on all three planes, so every centroid sits at plane 1 (z = 4
-    # scaled). find_cells(plane) has to compare planes, not the scaled z
-    assert run.find_cells(plane=1)['n_matching'] == 16
-    assert run.find_cells(plane=0)['n_matching'] == 0
+    # the same cells on all three planes, so the segmentation puts every centroid at
+    # plane 1 (z = 4 scaled). The fit then moves the centres a little in z, so the
+    # expected counts come from the saved Z. find_cells(plane) has to compare planes,
+    # not the scaled z, which is what floor(Z / 4) checks
+    planes = np.floor(cellData['Z'].to_numpy() / 4).astype(int)
+    assert (planes == 1).sum() > 0
+    assert run.find_cells(plane=1)['n_matching'] == (planes == 1).sum()
+    assert run.find_cells(plane=0)['n_matching'] == (planes == 0).sum()
     assert run.find_cells(plane=4)['n_matching'] == 0
 
 

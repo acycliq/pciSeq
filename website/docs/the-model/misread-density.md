@@ -2,7 +2,7 @@
 # Derivation: the gene-indexed misread density
 
 A spot is either claimed by a nearby cell or treated as an artefact (a misread) and
-assigned to the background. A cell claims a spot through its spatial term combined with
+assigned to the background. A cell claims a spot through its position term combined with
 how well the spot fits the cell's likely class; the background claims it through the
 expectation (in log-space) of the misread density. Here the misread density varies
 **per gene**: each gene $g$ has its own background rate $\rho_g$. The
@@ -61,7 +61,7 @@ the units the rest of the score uses. They do not match by default, because conf
 are not cubes: a typical `voxel_size` of `[0.28, 0.28, 0.7]` is two and a half times longer
 in $z$ than in $x$ or $y$.
 
-The spatial term for a spot belonging to a cell is a gaussian evaluated on
+The position term for a spot belonging to a cell is a gaussian evaluated on
 **anisotropy-scaled** coordinates, with $z$ stretched by $s_z = \texttt{voxel\_size}[2] /
 \texttt{voxel\_size}[0]$ so that a micron is a micron in every direction. That gaussian is
 therefore a density per unit *scaled* volume. The background term it is compared against

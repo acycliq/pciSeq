@@ -180,15 +180,19 @@ MisreadDensity.
 
 ### `cell_centroid_prior`
 
-**Default:** `10`
+**Default:** `1000`
 
-Not used.
+Pseudo-count behind each cell's centroid in the cell geometry update. The
+segmentation centroid counts for this many spots when the centre of the
+cell's gaussian is averaged with the spots assigned to the cell.
 
 ### `cell_cov_prior`
 
-**Default:** `10`
+**Default:** `1000`
 
-Not used.
+Degrees of freedom of the inverse Wishart prior on each cell's covariance.
+The prior shape, a ball of the mean cell radius, counts for
+cell_cov_prior - d - 1 spots, d being 2 or 3. Must be larger than d + 1.
 
 ### `SpotReg`
 

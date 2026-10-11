@@ -49,7 +49,7 @@ $\log q(z_{s,c}=1)$ to the expectation of those terms over the other factors:
 $$
 \begin{aligned}
 \log q(z_{s,c}=1)
-&= \mathbb{E}_{\zeta,\theta,\gamma,\eta}\Big[ \sum_k \zeta_{c,k}\big(
+&= \mathbb{E}_{\zeta,\theta,\gamma,\eta,m,\Sigma}\Big[ \sum_k \zeta_{c,k}\big(
    \log\theta_c - D_c(x_s) + \log\mu_{g_s,k} \\
 &\qquad\qquad\quad {}+ \log\gamma_{g_s,c} + \log\eta_{g_s} \big) \Big] + \text{const}.
 \end{aligned}
@@ -62,15 +62,17 @@ $k$-th term they take their class-$k$ values:
 $\mathbb{E}[\log\theta_c] = \log\bar\theta_{c\mid k}$ and
 $\mathbb{E}[\log\gamma_{g_s,c}] = \overline{\log\gamma}_{g_s,c\mid k}$. The efficiency
 $\mathbb{E}[\log\eta_{g_s}] = \overline{\log\eta}_{g_s}$ is gene-only, with no $k$; and
-$\mathbb{E}[\zeta_{c,k}] = \bar\zeta_{c,k}$ is the cell-class posterior. The distance
-$D_c(x_s)$ is constant and $\sum_k \bar\zeta_{c,k} = 1$, so the spatial and efficiency terms
-sit outside the sum. Writing the assignment-dependent part as the score $S_{s,c}$, one named
+$\mathbb{E}[\zeta_{c,k}] = \bar\zeta_{c,k}$ is the cell-class posterior. The position term
+is averaged over the cell's geometry, $\mathbb{E}_{m,\Sigma}[-D_c(x_s)] =
+-\overline{D}_c(x_s)$, derived on the [cell geometry](gaussian.md) page. It
+carries no $k$, and $\sum_k \bar\zeta_{c,k} = 1$, so the position and efficiency terms sit
+outside the sum. Writing the assignment-dependent part as the score $S_{s,c}$, one named
 term per line:
 
 $$
 \begin{aligned}
 S_{s,c} = {}
-& -D_c(x_s) && \text{(spatial term)} \\
+& -\overline{D}_c(x_s) && \text{(position term)} \\
 & + \sum_k \bar\zeta_{c,k}\,\log\mu_{g_s,k} && \text{(class expression)} \\
 & + \sum_k \bar\zeta_{c,k}\,\log\bar\theta_{c\mid k} && \text{(cell scale)} \\
 & + \sum_k \bar\zeta_{c,k}\,\overline{\log\gamma}_{g_s,c\mid k} && \text{(cell-gene scale)} \\
@@ -131,10 +133,14 @@ background option $c = 0$ scores $\overline{\log\rho_{g_s}}$. The
 [how it works page](../how-it-works/spots-to-cells.md) gives the same terms without the
 symbols.
 
-**Spatial term** ($-D_c(x_s)$). The log density of the spot's position under the cell's
-Gaussian, normalisation included: $D_c(x)$ is half the squared Mahalanobis distance to
-the centroid plus the log normaliser. The normaliser is what makes this term
-commensurate with the background density $\rho_g$. It does not depend on the gene.
+**Position term** ($-\overline{D}_c(x_s)$). The expected log density of the spot's position
+under the cell's Gaussian, normalisation included: minus half the squared Mahalanobis
+distance to the posterior centre $\hat m_c$ with precision $\mathbb{E}[\Lambda_c]$, minus
+the expected log normaliser, minus a flat cost $d / (2\hat\kappa_c)$ for the uncertainty
+in the centre. The normaliser is what makes this term commensurate with the background
+density $\rho_g$.
+It does not depend on the gene. The closed form is on the
+[cell geometry](gaussian.md#the-expected-log-density) page.
 
 **Class expression** ($\sum_k \bar\zeta_{c,k}\log\mu_{g_s,k}$). The gene's log
 expected expression averaged over the cell's class posterior $\bar\zeta_c$. It is large

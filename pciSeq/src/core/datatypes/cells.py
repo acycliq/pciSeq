@@ -48,8 +48,23 @@ class Cells(object):
         self.nC = len(self.ini_cell_props['cell_label'])
         self.classProb = None
         self.class_names = None
+        # the cell geometry: a Normal-Inverse-Wishart over the centre and
+        # covariance of each cell's gaussian, see the-model/gaussian.md. Starts
+        # on the prior: kappa0, nu0, V0 = (nu0 - d - 1) r^2 I, centre at the
+        # segmentation centroid. cov keeps E[Sigma] for the ellipses the viewer
+        # draws, eig_vals/eig_vecs are of the scale V, which is what the
+        # position term in spots.mvn_loglik needs.
+        self._d = 3 if config['is3D'] else 2
+        kappa0 = config['cell_centroid_prior']['default']
+        nu0 = config['cell_cov_prior']['default']
+        if nu0 <= self._d + 1:
+            raise ValueError('cell_cov_prior must be larger than %d (d + 1) in %dD, got %s'
+                             % (self._d + 1, self._d, nu0))
+        self._kappa = np.full(self.nC, kappa0, dtype=np.float32)
+        self._nu = np.full(self.nC, nu0, dtype=np.float32)
+        self._scale = self.ini_scale()
         self._cov = self.ini_cov()
-        self._eig_vals, self._eig_vecs = np.linalg.eigh(self._cov)
+        self._eig_vals, self._eig_vecs = np.linalg.eigh(self._scale)
         self._centroid = self.ini_centroids()
         self._gene_counts = None
         self._ini_gene_counts = None  # initial gene counts
@@ -124,33 +139,62 @@ class Cells(object):
         self._centroid = df.copy()
 
     @property
+    def dim(self) -> int:
+        """2 or 3, the dimensions the cell gaussian lives in."""
+        return self._d
+
+    @property
     def cov(self) -> np.ndarray:
-        """Returns the covariance matrices for cells."""
+        """E[Sigma_c] under the NIW posterior, (nC, d, d). What the ellipses are drawn from."""
         return self._cov
 
     @cov.setter
     def cov(self, val: np.ndarray):
-        """Sets the covariance matrices for cells."""
         self._cov = val
 
     @property
+    def kappa(self) -> np.ndarray:
+        """kappa_hat, the pseudo-count behind each cell's centre, (nC,)."""
+        return self._kappa
+
+    @kappa.setter
+    def kappa(self, val: np.ndarray):
+        self._kappa = val
+
+    @property
+    def nu(self) -> np.ndarray:
+        """nu_hat, the degrees of freedom behind each cell's covariance, (nC,)."""
+        return self._nu
+
+    @nu.setter
+    def nu(self, val: np.ndarray):
+        self._nu = val
+
+    @property
+    def scale(self) -> np.ndarray:
+        """V_hat, the inverse Wishart scale matrix of each cell, (nC, d, d)."""
+        return self._scale
+
+    @scale.setter
+    def scale(self, val: np.ndarray):
+        self._scale = val
+
+    @property
     def eig_vals(self) -> np.ndarray:
-        """Returns the eigenvalues of the covariance matrix."""
+        """Eigenvalues of the scale matrix V_hat, (nC, d)."""
         return self._eig_vals
 
     @eig_vals.setter
     def eig_vals(self, val: np.ndarray):
-        """Sets the eigenvalues of the covariance matrix."""
         self._eig_vals = val
 
     @property
     def eig_vecs(self) -> np.ndarray:
-        """Returns the eigenvectors of the covariance matrix."""
+        """Eigenvectors of the scale matrix V_hat, (nC, d, d)."""
         return self._eig_vecs
 
     @eig_vecs.setter
     def eig_vecs(self, val: np.ndarray):
-        """Sets the eigenvectors of the covariance matrix."""
         self._eig_vecs = val
 
     @property
@@ -254,15 +298,18 @@ class Cells(object):
         return df.copy()
 
     def ini_cov(self) -> np.ndarray:
-        """
-        Initializes the covariance matrices for cells.
-
-        Returns:
-            np.array: Array of covariance matrices.
-        """
-        dim = 3 if self.config['is3D'] else 2
-        cov = self.mcr * self.mcr * np.eye(dim, dim)
+        """The prior mean covariance, r^2 I with r the mean cell radius, (nC, d, d)."""
+        cov = self.mcr * self.mcr * np.eye(self._d, self._d)
         return np.tile(cov.astype(np.float32), (self.nC, 1, 1))
+
+    def ini_scale(self) -> np.ndarray:
+        """V0 = (nu0 - d - 1) r^2 I, the prior scale matrix, (nC, d, d).
+
+        The nu0 - d - 1 is so the prior mean of Sigma is exactly r^2 I, see
+        Zhang (2021) on the cell geometry page.
+        """
+        nu0 = self.config['cell_cov_prior']['default']
+        return ((nu0 - self._d - 1) * self.ini_cov()).astype(np.float32)
 
     def nn(self) -> NearestNeighbors:
         """
@@ -275,68 +322,6 @@ class Cells(object):
         # for each spot find the closest cell (in fact the top nN-closest cells...)
         nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(self.zyx_coords)
         return nbrs
-
-    def scatter_matrix(self, spots: 'Spots') -> np.ndarray:
-        """
-        Calculates the scatter matrix for cells based on spot data.
-
-        Parameters:
-            spots (Spots): Spots object containing spot data.
-
-        Returns:
-            np.array: Scatter matrix for cells.
-        """
-        mu_bar = self.centroid.values
-        prob = spots.parent_cell_prob[:, :-1]
-        _id = spots.parent_cell_id[:, :-1]
-        xyz_spots = spots.xyz_coords
-        out = np.zeros(self.ini_cov().shape)
-
-        mu_x = mu_bar[_id, 0]  # array of size [nS, N] with the x-coord of the centroid of the N closest cells
-        mu_y = mu_bar[_id, 1]  # array of size [nS, N] with the y-coord of the centroid of the N closest cells
-        mu_z = mu_bar[_id, 2]  # array of size [nS, N] with the z-coord of the centroid of the N closest cells
-
-        N = mu_x.shape[1]
-        _x = np.tile(xyz_spots[:, 0], (N, 1)).T  # array of size [nS, N] populated with the x-coord of the spot
-        _y = np.tile(xyz_spots[:, 1], (N, 1)).T  # array of size [nS, N] populated with the y-coord of the spot
-        _z = np.tile(xyz_spots[:, 2], (N, 1)).T  # array of size [nS, N] populated with the z-coord of the spot
-
-        x_centered = _x - mu_x  # subtract the cell centroid x-coord from the spot x-coord
-        y_centered = _y - mu_y  # subtract the cell centroid y-coord from the spot y-coord
-        z_centered = _z - mu_z  # subtract the cell centroid z-coord from the spot z-coord
-
-        el_00 = prob * x_centered * x_centered  # contribution to the scatter matrix's [0, 0] element
-        el_11 = prob * y_centered * y_centered  # contribution to the scatter matrix's [1, 1] element
-        el_22 = prob * z_centered * z_centered  # contribution to the scatter matrix's [2, 2] element
-
-        el_01 = prob * x_centered * y_centered  # contribution to the scatter matrix's [0, 1] element
-        el_02 = prob * x_centered * z_centered  # contribution to the scatter matrix's [0, 2] element
-        el_12 = prob * y_centered * z_centered  # contribution to the scatter matrix's [1, 2] element
-
-        # Aggregate all contributions to get the scatter matrix
-        agg_00 = npg.aggregate(_id.ravel(), el_00.ravel(), size=self.nC)
-        agg_11 = npg.aggregate(_id.ravel(), el_11.ravel(), size=self.nC)
-        agg_22 = npg.aggregate(_id.ravel(), el_22.ravel(), size=self.nC)
-
-        agg_01 = npg.aggregate(_id.ravel(), el_01.ravel(), size=self.nC)
-        agg_02 = npg.aggregate(_id.ravel(), el_02.ravel(), size=self.nC)
-        agg_12 = npg.aggregate(_id.ravel(), el_12.ravel(), size=self.nC)
-
-        # Return now the scatter matrix. Some cell might not have any spots nearby. For those empty cells,
-        # the scatter matrix will be a squared zero array. That is fine.
-        out[:, 0, 0] = agg_00
-        out[:, 1, 1] = agg_11
-        out[:, 2, 2] = agg_22
-
-        out[:, 0, 1] = agg_01
-        out[:, 0, 2] = agg_02
-        out[:, 1, 2] = agg_12
-
-        out[:, 1, 0] = agg_01
-        out[:, 2, 0] = agg_02
-        out[:, 2, 1] = agg_12
-
-        return out.astype(np.float32)
 
     def nearest_neighbours(self):
         # get the nearest neighbours of each cell

@@ -129,9 +129,10 @@ export default defineConfig({
           { text: 'Misread density', link: '/the-model/misread-density' },
           { text: 'Scale factors', link: '/the-model/scale-factors' },
           { text: 'Cell-class assignment', link: '/the-model/cell-class' },
+          { text: 'Cell geometry', link: '/the-model/gaussian' },
           { text: 'Spot assignment', link: '/the-model/spot-assignment' },
-          // hidden for now, see srcExclude above
           { text: 'Class prior', link: '/the-model/class-prior' },
+          // hidden for now, see srcExclude above
           // { text: 'Errata', link: '/the-model/errata' },
           // { text: 'Appendix: self-consistency', link: '/the-model/appendix-self-consistency' },
         ],
