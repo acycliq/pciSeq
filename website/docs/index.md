@@ -65,3 +65,10 @@ with probability 1 and one with probability 0.3 give a count of 4.3.
 algorithm is described in [How it works](how-it-works/overview.md).
 [Explaining the calls](explaining-the-calls/overview.md) shows how to find out why the
 model assigned a cell to its type and a spot to its cell.
+
+## References
+
+Qian, X., Harris, K. D., Hauling, T., Nicoloutsopoulos, D., Muñoz-Manchado, A. B., Skene, N.,
+Hjerling-Leffler, J., & Nilsson, M. (2020). Probabilistic cell typing enables fine mapping of
+closely related cell types in situ. *Nature Methods*, 17(1), 101-106.
+https://doi.org/10.1038/s41592-019-0631-4
