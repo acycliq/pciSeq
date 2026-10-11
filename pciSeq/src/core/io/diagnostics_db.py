@@ -57,7 +57,8 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
             gene_loglik BLOB,
             runner_up_idx INTEGER,
             contr_assigned BLOB,
-            contr_runner_up BLOB
+            contr_runner_up BLOB,
+            cov BLOB
         )
     ''')
 
@@ -232,6 +233,12 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     mrf_f32 = (cells.mrf.astype(np.float32) if cells.mrf is not None
                else np.zeros((nC, nK), dtype=np.float32))
 
+    # the covariance of each cell's Gaussian, d x d row by row, d = 2 or 3. With the
+    # cell geometry update it is fitted per cell, and before this column the only
+    # trace of it was cellData's sphere_scale and sphere_rotation, 3D only and in
+    # Euler angles. mcr^2 I for every cell when the update is not run.
+    cov_f32 = np.ascontiguousarray(cells.cov, dtype=np.float32)
+
     # the cells the mrf term listens to, nNeighbors per cell, nearest first, the cell
     # itself left out. Internal labels like the key column, so a reader has to go through
     # label_map to get segmentation labels. Only in the pickle before, which is far
@@ -297,8 +304,9 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
                 int(runner_up_idx[c]),
                 contr_assigned[c].tobytes(),
                 contr_runner_up[c].tobytes(),
+                cov_f32[c].tobytes(),
             ))
-        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                            batch_data)
         # if (batch_end % 10000 == 0) or (batch_end == nC):
         #     logger.info('Inserted %d/%d cells', batch_end, nC)

@@ -116,6 +116,7 @@ CLASS_MEMBERS = {
         "methods": [
             "summary",
             "cell",
+            "cell_shape",
             "explain_cell",
             "explain_spot",
             "cell_counts",

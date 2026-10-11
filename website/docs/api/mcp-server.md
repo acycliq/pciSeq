@@ -137,6 +137,7 @@ not appear; see [Cell identifiers](./working-with-results.md#cell-identifiers).
 ### Cells
 
 - `cell(label)`: the class probabilities, top genes, total counts and scale factor of one cell, and the neighbours that enter its spatial term.
+- `cell_shape(label)`: the fitted shape of the cell's Gaussian: round or elongated, the radii along its own axes, the direction of the longest, each radius against the mean cell radius, and the covariance. Runs saved before October 2026 do not keep the covariance.
 - `explain_cell(label, vs_class=None, top_n=10)`: the score of the assigned class against a second class, split into the gene log-likelihood, the class prior and the spatial term, with the genes contributing most to each side. Each gene is reported with the cell's count and the mean count over the cells assigned to either class. The shared genes are the cell's largest counts that the two classes fit about equally, the genes the two classes have in common. `vs_class` defaults to the runner-up.
 - `cell_counts(label, gene=None)`: the counts of a cell, in total or for one gene.
 - `spots_in_cell(label, gene=None)`: the spots whose pixel lies inside the cell's segmentation mask.

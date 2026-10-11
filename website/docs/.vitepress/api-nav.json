@@ -124,6 +124,10 @@
         "link": "/api/reference#cell"
       },
       {
+        "text": "cell_shape",
+        "link": "/api/reference#cell-shape"
+      },
+      {
         "text": "explain_cell",
         "link": "/api/reference#explain-cell"
       },

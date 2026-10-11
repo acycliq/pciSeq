@@ -130,6 +130,16 @@ def cell(label: int) -> dict:
 
 
 @_tool
+def cell_shape(label: int) -> dict:
+    """The fitted shape of one cell's Gaussian: round or elongated, by how much, and
+    which way the long axis points, with the radii in pixels, each one against the
+    mean cell radius, and the covariance behind them. Use it for 'is cell 18223
+    round', 'which way is it elongated', 'how big is its Gaussian'. Runs saved
+    before October 2026 do not keep the covariance and the answer says so."""
+    return _need_run().cell_shape(label)
+
+
+@_tool
 def explain_cell(
         label: Annotated[int, Field(description='The cell label, as in the segmentation.')],
         vs_class: Annotated[Optional[str], Field(

@@ -27,7 +27,7 @@ EXPECTED_CELL_COLUMNS = {
     'internal_label', 'scaled_means', 'theta_bar', 'gene_count', 'class_prob',
     'theta', 'assigned_class_idx', 'gamma_assigned', 'mrf',
     'gene_loglik', 'runner_up_idx', 'contr_assigned', 'contr_runner_up',
-    'x', 'y', 'z',
+    'x', 'y', 'z', 'cov',
 }
 
 EXPECTED_SPOT_COLUMNS = {

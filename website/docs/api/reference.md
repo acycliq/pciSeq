@@ -694,6 +694,21 @@ cell(label)
 
 The headline facts about one cell.
 
+#### `cell_shape`
+
+```python
+cell_shape(label)
+```
+
+The fitted shape of one cell: round or elongated, by how much, and which way.
+
+The covariance of the cell's Gaussian, read from diagnostics.db, as the
+ellipsoid it describes: the standard deviation along each of its own axes,
+longest first, the ratio of the longest to the shortest, and the direction of
+the longest. Compared with the mean cell radius, the radius of the prior
+sphere. Runs saved before October 2026 do not keep the covariance and the
+answer says so.
+
 #### `explain_cell`
 
 ```python

@@ -326,6 +326,45 @@ def test_cell_row_is_the_cellData_row(fitted, tsv):
         assert [sorted(s) for s in got['spot_id']] == [sorted(s) for s in want['spot_id']], lab
 
 
+def test_cell_shape_is_the_covariance_the_run_fitted(fitted):
+    """The shape tool reads the covariance diagnostics.db keeps; it must be the
+    model's own cells.cov, and the radii its eigenvalues."""
+    run, _, _ = fitted
+    obj = pd.read_pickle(run.path.parent.parent.parent / 'debug' / 'pciSeq.pickle')
+    for lab in LABELS:
+        got = run.cell_shape(lab)
+        want = obj.cells.cov[run.to_internal(lab)]
+        assert np.allclose(got['cov'], want, atol=1e-3), lab
+        radii = np.sqrt(np.sort(np.linalg.eigvalsh(want))[::-1])
+        assert got['radii'] == pytest.approx(radii, abs=1e-3), lab
+        assert got['radii'] == sorted(got['radii'], reverse=True)
+        assert got['elongation'] == pytest.approx(radii[0] / radii[-1], abs=1e-3)
+    with pytest.raises(ValueError):
+        run.cell_shape(0)
+
+
+def test_shape_words():
+    from pciSeq.src.mcp.tools import shape_of
+    # a sphere of the mean cell radius
+    got = shape_of(100 * np.eye(3), mcr=10.0)
+    assert got['shape'].startswith('round, the prior sphere')
+    assert got['long_axis'] is None
+    assert got['radii_vs_mean_cell_radius'] == [1.0, 1.0, 1.0]
+    # twice as long along z as across
+    got = shape_of(np.diag([25.0, 25.0, 100.0]), mcr=10.0)
+    assert got['shape'] == 'elongated'
+    assert got['radii'] == [10.0, 5.0, 5.0]
+    assert got['elongation'] == 2.0
+    assert got['long_axis'] == {'x': 0.0, 'y': 0.0, 'z': 1.0}
+    assert 'mostly along z' in got['long_axis_is']
+    # tilted 45 degrees in the xy plane, 2D
+    got = shape_of(np.array([[50.0, 40.0], [40.0, 50.0]]))
+    assert got['shape'] == 'elongated'
+    assert 'between x and y' in got['long_axis_is']
+    assert got['long_axis']['x'] == pytest.approx(0.707, abs=1e-3)
+    assert 'radii_vs_mean_cell_radius' not in got
+
+
 def test_spot_row_is_the_geneData_row(fitted, tsv):
     run, _, _ = fitted
     _, spots = tsv

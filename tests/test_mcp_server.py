@@ -19,7 +19,7 @@ mcp = pytest.importorskip('mcp')
 from pciSeq.src.mcp import server as srv
 from tests.test_label_identifiers import _run
 
-TOOLS = {'open_run', 'cell', 'explain_cell', 'explain_spot', 'cell_counts', 'spots_in_cell',
+TOOLS = {'open_run', 'cell', 'cell_shape', 'explain_cell', 'explain_spot', 'cell_counts', 'spots_in_cell',
          'spots_of_cell', 'cell_row', 'spot_row', 'docs', 'run_info', 'cell_image',
          'plane_image', 'gene', 'theta', 'gamma', 'spot', 'neighbours', 'class_counts',
          'class_prior', 'find_cells', 'metadata', 'calculate', 'list_source', 'read_source'}

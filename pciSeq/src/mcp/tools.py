@@ -107,6 +107,8 @@ class Run:
             cols = [r[1] for r in self._con.execute('PRAGMA table_info(cells)')]
         self._cell_key = 'internal_label' if 'internal_label' in cols else 'cell_id'
         self._has_nbrs = 'neighbours' in cols
+        # the covariance of each cell's Gaussian, saved since October 2026
+        self._has_cov = 'cov' in cols
 
         # the resolved settings and the convergence record. Runs written before
         # September 2026 have neither; the tools say so rather than guess.
@@ -335,6 +337,34 @@ class Run:
             'neighbours': self._neighbours(label),
             'neighbours_are': 'the cells the spatial (mrf) term listens to, nearest first',
         }
+
+    def cell_shape(self, label):
+        """The fitted shape of one cell: round or elongated, by how much, and which way.
+
+        The covariance of the cell's Gaussian, read from diagnostics.db, as the
+        ellipsoid it describes: the standard deviation along each of its own axes,
+        longest first, the ratio of the longest to the shortest, and the direction of
+        the longest. Compared with the mean cell radius, the radius of the prior
+        sphere. Runs saved before October 2026 do not keep the covariance and the
+        answer says so.
+        """
+        label = int(label)
+        row = self.to_internal(label)
+        if row == 0:
+            raise ValueError('cell 0 is the background pseudocell, not a cell')
+        if not self._has_cov:
+            return {'cell': label, 'available': False,
+                    'why': 'this run was saved before diagnostics.db kept the covariance '
+                           'of each cell (October 2026), so its fitted shape is not '
+                           'available'}
+        got = self._query("SELECT cov FROM cells WHERE %s = ?" % self._cell_key, (row,))
+        if got is None:
+            raise KeyError('cell %s is not in diagnostics.db' % label)
+        flat = np.frombuffer(got[0], dtype=np.float32)
+        d = int(round(np.sqrt(flat.size)))
+        out = {'cell': label}
+        out.update(shape_of(flat.reshape(d, d), self.mean_cell_radius()))
+        return out
 
     def explain_cell(self, label, vs_class=None, top_n=10):
         """Why this cell got its class, gene by gene.
@@ -1485,6 +1515,78 @@ class Run:
 # cell not holding any. The story must say so, or a reader (or an agent) sees a
 # gene with zero counts listed as evidence and takes it for a mistake.
 _ABSENT = 0.1
+
+
+def shape_of(cov, mcr=None):
+    """A covariance matrix as the shape of a cell, in numbers and in words.
+
+    cov is d x d, d = 2 or 3, in pixels of the xy plane. mcr is the mean cell
+    radius, the radius of the prior sphere, or None when the run does not say.
+    """
+    cov = np.asarray(cov, dtype=np.float64)
+    d = cov.shape[0]
+    axes = ['x', 'y', 'z'][:d]
+    vals, vecs = np.linalg.eigh(cov)
+    order = np.argsort(vals)[::-1]
+    radii = np.sqrt(np.maximum(vals[order], 0))
+    vecs = vecs[:, order]
+    # a zero radius cannot come out of the update, V0 is positive, but guard it
+    # anyway: an infinity would not survive the trip through JSON
+    elongation = float(radii[0] / radii[-1]) if radii[-1] > 0 else None
+
+    if elongation is None:
+        shape = 'degenerate, no spread along one axis'
+    elif elongation < 1.1:
+        shape = 'round'
+    elif elongation < 1.5:
+        shape = 'slightly elongated'
+    else:
+        shape = 'elongated'
+
+    # the direction of the longest axis, up to sign, so make its biggest
+    # component positive. Meaningless for a round cell
+    long_axis = None
+    long_axis_is = 'not given, the cell is round so no axis stands out'
+    if elongation is not None and elongation >= 1.1:
+        v = vecs[:, 0]
+        i = int(np.argmax(np.abs(v)))
+        v = v * np.sign(v[i])
+        long_axis = {a: float(round(v[j], 3)) for j, a in enumerate(axes)}
+        if abs(v[i]) >= 0.8:
+            words = 'mostly along %s' % axes[i]
+        else:
+            # the runner up component; not argsort[-2], which on a tie gives i again
+            j = [int(k) for k in np.argsort(-np.abs(v), kind='stable') if k != i][0]
+            words = 'tilted, between %s and %s' % (axes[i], axes[j])
+        long_axis_is = ('a unit vector, the direction of the longest axis, %s. z counts '
+                        'in pixels of the xy plane, like Z in cellData' % words)
+
+    out = {
+        'shape': shape,
+        'radii': [float(round(r, 3)) for r in radii],
+        'radii_are': 'the standard deviation of the cell\'s Gaussian along each of its own '
+                     'axes, longest first, in pixels of the xy plane. The 3 sigma '
+                     'ellipsoid, cellData\'s sphere_scale, is three times these',
+        'elongation': None if elongation is None else float(round(elongation, 3)),
+        'elongation_is': 'longest radius over shortest; 1 is a sphere',
+        'long_axis': long_axis,
+        'long_axis_is': long_axis_is,
+        'cov': [[float(round(x, 4)) for x in r] for r in cov],
+        'cov_is': 'the covariance of the Gaussian, %s order, in pixels of the xy plane '
+                  'squared' % ' '.join(axes),
+    }
+    if mcr is not None:
+        out['radii_vs_mean_cell_radius'] = [float(round(r / mcr, 3)) for r in radii]
+        out['radii_vs_mean_cell_radius_is'] = (
+            'each radius over the mean cell radius, %.3f. The prior shape is a sphere '
+            'of that radius, so 1, 1, 1 is a cell the data did not move away from it'
+            % mcr)
+        if np.allclose(radii, mcr, rtol=1e-3):
+            out['shape'] = 'round, the prior sphere of the mean cell radius'
+            out['note'] = ('the covariance is the prior one. Either the run was made '
+                           'without the cell geometry update, or cell_cov_prior was '
+                           'large enough for the prior to dominate')
+    return out
 
 
 def _present_absent(rows, n=3):
