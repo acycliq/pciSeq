@@ -94,9 +94,12 @@ for the background:
 <code>check_spot</code> for spot 1642419, in the fit with the spatial term.</p>
 
 - **Gaussian fit**. The log density of the spot's position under the cell's Gaussian
-  distribution. Only the distance to the cell's centroid counts. In this example, the
-  Gaussian is assumed spherical, not elliptical, so the three axes are independent. The
-  distribution is the same for every cell and never updated.
+  distribution. For simplicity, the fits of this example were run without the
+  [cell geometry](../the-model/gaussian.md) update, so the Gaussians are fixed: spherical,
+  with the same covariance for every cell and centred on the segmentation centroid. Only
+  the distance to the cell's centroid counts then, and the three axes are independent. With
+  the update, the centre and the covariance follow the spots and the term changes with
+  them.
 - **class expression, the alignment**. How well the cell's likely class matches the gene. When several cells
   compete for the same spot and everything else is equal, it goes to the cell whose likely
   class expresses that gene most. Two cells with the same class probabilities get the same
@@ -139,7 +142,8 @@ is ahead, 1.11 against 0.47. Distance carries the call.
 ## The same spot without the spatial term
 
 In the fit with `mrf_beta = 0`, cell 18223 is `030 L6 CT CTX Glut` rather than
-`037 DG Glut`. The spot has not moved, so its position terms are unchanged:
+`037 DG Glut`. The spot has not moved and the Gaussians are fixed, so its position terms
+are unchanged:
 
 ```python
 obj_nomrf = pd.read_pickle('pciSeq_nomrf.pickle')
@@ -180,7 +184,8 @@ genes with the largest counts, then Synpr, then the cell total.</p>
 </div>
 </div>
 
-- **`Gaussian fit`**, -10.405 in both fits, it depends only on where the spot is.
+- **`Gaussian fit`**, -10.405 in both fits. With the Gaussians fixed, it depends only on
+  where the spot is.
 - **`class expression`**, +0.943 with the mrf, -2.203 without it. The term is high when the
   cell's likely class expresses the gene strongly, and the cell is confidently of that
   class. Cell 18223 is now classified as `030 L6 CT CTX Glut`, which does not express
