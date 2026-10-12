@@ -237,7 +237,7 @@ One block per module, in source order. Methods are listed as `Class.method`; nam
 | Name | Line | Description |
 |---|---|---|
 | `run_metadata` | 14 | The stamp that goes on every run, so a result can be traced back to the code |
-| `serialise` | 57 | Pickle variable Bayes object to debug directory. |
+| `serialise` | 57 | Write diagnostics.db, then pickle variable Bayes object to debug directory. |
 
 </details>
 
