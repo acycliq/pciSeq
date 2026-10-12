@@ -73,11 +73,11 @@ assigned to its class or why a spot was assigned to a cell.
 | Section | Description |
 | --- | --- |
 | [Running pciSeq](https://acycliq.github.io/pciSeq_3d/running-pciseq) | from Python, from the command line, the settings and how to tune them |
-| [How it works](https://acycliq.github.io/pciSeq_3d/how-it-works/overview) | the four steps of the loop, in words and figures |
+| [How it works](https://acycliq.github.io/pciSeq_3d/how-it-works/overview) | the building blocks of the algorithm |
 | [Explaining the calls](https://acycliq.github.io/pciSeq_3d/explaining-the-calls/overview) | `check_cell` and `check_spot`, followed through on one cell and one spot |
-| [Accessing the AI agent](https://acycliq.github.io/pciSeq_3d/accessing-the-ai-agent) | the four ways of asking, and what each one requires |
-| [Viewer](https://acycliq.github.io/pciSeq_3d/viewer/overview) | pciSeq Viewer, the desktop application that opens the saved files |
-| [The model](https://acycliq.github.io/pciSeq_3d/the-model/overview) | the mathematics |
+| [Accessing the AI agent](https://acycliq.github.io/pciSeq_3d/accessing-the-ai-agent) | asking the AI agent to explain the results |
+| [Viewer](https://acycliq.github.io/pciSeq_3d/viewer/overview) | pciSeq Viewer, the desktop application to visualise the results |
+| [The model](https://acycliq.github.io/pciSeq_3d/the-model/overview) | the Bayesian model, stated formally, and the derivation of its update equations |
 | [API](https://acycliq.github.io/pciSeq_3d/api/reference) | the reference, and a [code map](https://acycliq.github.io/pciSeq_3d/api/code-map) from each model quantity to the line that computes it |
 
 ## Licence
