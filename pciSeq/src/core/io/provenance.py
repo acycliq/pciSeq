@@ -55,12 +55,18 @@ def run_metadata() -> Dict:
 
 
 def serialise(varBayes: Any, debug_dir: str) -> None:
-    """Pickle variable Bayes object to debug directory.
+    """Write diagnostics.db, then pickle variable Bayes object to debug directory.
 
     Args:
         varBayes: Object to serialize
         debug_dir: Directory to save pickle file
     """
+    # the db goes first. The pickle is the big slow one, so if the save dies half
+    # way the viewer still has its db.
+    # the viewer reads everything under viewer_data, the db included
+    viewer_dir = os.path.join(os.path.dirname(debug_dir), 'viewer_data')
+    export_diagnostics(varBayes, viewer_dir)
+
     if not os.path.exists(debug_dir):
         os.makedirs(debug_dir)
     pickle_dst = os.path.join(debug_dir, 'pciSeq.pickle')
@@ -69,9 +75,3 @@ def serialise(varBayes: Any, debug_dir: str) -> None:
 
     pickle_mb = os.path.getsize(pickle_dst) / (1024 * 1024)
     logger.info('Saved at %s (%.1f MB)', pickle_dst, pickle_mb)
-
-    # Export diagnostics database to diagnostics folder (sibling of arrow folder)
-    # This allows the viewer to auto-discover it alongside arrow data
-    # the viewer reads everything under viewer_data, the db included
-    viewer_dir = os.path.join(os.path.dirname(debug_dir), 'viewer_data')
-    export_diagnostics(varBayes, viewer_dir)
