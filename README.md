@@ -16,10 +16,8 @@
 </div>
 
 pciSeq assigns each RNA spot of an imaging-based spatial transcriptomics experiment to a
-cell, and each cell to a cell type. The two assignments are estimated jointly: the class
-of a cell depends on the spots inside it, and the cell of a spot depends on the classes
-of the cells around it. Both come back as probabilities. pciSeq_3d works on a stack of
-segmented planes.
+cell, and each cell to a cell type. The two assignments are estimated jointly, in 3D,
+and both come back as probabilities.
 
 <p align="center">
 <img src="https://github.com/user-attachments/assets/dfcd8438-e637-4e34-ae73-4e8c445a982b" width="100%" alt="The live viewer during a fit">
