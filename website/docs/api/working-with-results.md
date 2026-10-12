@@ -18,6 +18,10 @@ cellData, geneData = pciSeq.fit(spots=spots, coo=coo, scRNAseq=ref)
 hold **parallel lists**: two columns of the same length whose entries line up by
 position, so element `i` of one matches element `i` of the other.
 
+The notebook
+[`1_pciSeq.ipynb`](https://github.com/acycliq/pciSeq_3d/blob/dev_3d/notebooks/1_pciSeq.ipynb)
+runs `fit` on a 2D section of mouse hippocampus and goes through both DataFrames.
+
 ## cellData
 
 One row per cell. The background pseudo-cell is dropped, so every row is a real
@@ -132,6 +136,38 @@ data/
 `tsv/` holds the two DataFrames and the cell outlines. `viewer_data/` is what
 [pciSeq Viewer](../viewer/overview.md) reads. `spatialdata.zarr` is described on the
 [SpatialData store](./spatialdata-store.md) page, and `debug/pciSeq.pickle` is the fitted model, see below.
+
+## The diagnostics.db file
+
+`viewer_data/diagnostics/diagnostics.db` is an SQLite database. It holds, for every cell
+and every spot, the terms from which its assignment was computed, together with the
+settings of the run. pciSeq Viewer and the agent read it.
+
+| Table | Rows | Contents |
+| --- | --- | --- |
+| `metadata` | one per key | The settings (`config`), the convergence record (`run`), the version of pciSeq (`pciSeq_provenance`), the class names, the gene panel and the per-gene quantities. Values are text; lists and dictionaries are stored as JSON. |
+| `cells` | one per cell, plus the background | The class probabilities, the scale factor, the spatial term, the neighbouring cells, the centre and covariance, and the gene log-likelihoods. |
+| `spots` | one per spot | The candidate cells of the spot and the terms of its score for each. |
+| `docs` | one per page | The documentation of the version of pciSeq that made the run. |
+
+The `metadata` table can be read directly:
+
+```python
+import json
+import sqlite3
+
+con = sqlite3.connect('<output_path>/pciSeq/data/viewer_data/diagnostics/diagnostics.db')
+value, = con.execute("select value from metadata where key = 'config'").fetchone()
+config = json.loads(value)
+config['mrf_beta']
+# 1.0
+```
+
+Most columns of `cells` and `spots` are arrays stored as bytes, and their rows are
+indexed by the [internal label](#cell-identifiers). The layout of these two tables may
+change between versions of pciSeq. The same terms are available from the fitted model
+through [`check_cell` and `check_spot`](../explaining-the-calls/overview.md), and from
+the [agent](../accessing-the-ai-agent.md).
 
 ## Inspecting the fitted model
 
