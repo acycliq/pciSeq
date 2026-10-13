@@ -23,7 +23,7 @@ zoom, so an image far too large to load at once can be panned and zoomed.
 One file holds one image. To give the viewer more than one, for example DAPI and GCaMP,
 call `stage_image` once for each with a different `name`; the viewer offers them as
 channels to switch between, see
-[Background channels](https://acycliq.github.io/pciSeq_viewer/docs/using-the-viewer/layers-and-export.html#background-channels).
+[Background channels](https://acycliq.github.io/pciSeq_viewer/docs/loading-data.html#channels).
 
 The format is based on [MBTiles](https://github.com/mapbox/mbtiles-spec) by Mapbox, the
 format web maps use, and keeps its two tables, `tiles` and `metadata`. It departs from it in
