@@ -16,7 +16,7 @@ from .remote import download_url_to_file, load_from_url
 from .provenance import run_metadata, serialise
 from .tsv_export import write_tsv, read_tsv
 from .arrow_export import write_arrow, geneData_to_arrow, cellData_to_arrow, boundaries_to_arrow
-from .diagnostics_db import export_diagnostics
+from .diagnostics_db import export_diagnostics, shrink_diagnostics_db
 
 __all__ = [
     'write_data',
@@ -26,4 +26,5 @@ __all__ = [
     'write_tsv', 'read_tsv',
     'write_arrow', 'geneData_to_arrow', 'cellData_to_arrow', 'boundaries_to_arrow',
     'export_diagnostics',
+    'shrink_diagnostics_db',
 ]

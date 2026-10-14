@@ -39,10 +39,25 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     # --- Create Tables ---
     cursor.execute('CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT)')
 
+    # --- Gather Data ---
+    cells = varBayes.cells
+    genes = varBayes.genes
+    spots = varBayes.spots
+
+    # format version 2 (October 2026). Version 1 kept scaled_means, a (nG, nK) float32
+    # matrix per cell, 32 KB each and 800 MB on espio. It is area_factor[c] times
+    # mean_expression_adj, the one matrix every cell shares, so now the matrix is
+    # saved once in the metadata and the cell keeps its factor. In the same spirit
+    # the spots table lost gene_inefficiency (logeta_bar per gene, ten copies of it
+    # per spot; now one metadata row), the background slot of its blobs (always
+    # zero) and the bonus column on a run with no InsideCellBonus, and the candidate
+    # ids are an int32 blob rather than JSON text. 1.9 GB became about 0.6 GB.
+    has_bonus = bool(varBayes.config.get('InsideCellBonus'))
+
     cursor.execute('''
         CREATE TABLE cells (
             internal_label INTEGER PRIMARY KEY,
-            scaled_means BLOB,
+            area_factor REAL,
             theta_bar BLOB,
             gene_count BLOB,
             class_prob BLOB,
@@ -62,6 +77,9 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         )
     ''')
 
+    # the blobs hold nN - 1 float32, one per candidate cell; the background is the
+    # last candidate and scores log_rho_bar instead, so its slot is not stored.
+    # neighbor_cell_ids is the matching nN - 1 int32 internal labels.
     cursor.execute('''
         CREATE TABLE spots (
             spot_id INTEGER PRIMARY KEY,
@@ -69,20 +87,13 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
             x INTEGER,
             y INTEGER,
             z INTEGER,
-            neighbor_cell_ids TEXT,
+            neighbor_cell_ids BLOB,
             mvn_loglik BLOB,
             attention BLOB,
             expr_fluct BLOB,
-            cell_inefficiency BLOB,
-            gene_inefficiency BLOB,
-            bonus BLOB
+            cell_inefficiency BLOB%s
         )
-    ''')
-
-    # --- Gather Data ---
-    cells = varBayes.cells
-    genes = varBayes.genes
-    spots = varBayes.spots
+    ''' % (',\n            bonus BLOB' if has_bonus else ''))
 
     # Label Map
     label_map = {}
@@ -133,10 +144,12 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         logger.warning('Could not compute hard misread counts: %s', e)
 
     # --- Populate Metadata ---
-    # Compute scaled_means for metadata nC (and for cells table)
-    # logger.info('Computing scaled_exp for diagnostics export...')
-    scaled_means = varBayes.scaled_exp
-    nC, nG, nK = scaled_means.shape
+    # the expected count matrix every cell shares, and each cell's factor on it:
+    # scaled_exp[c] = area_factor[c] * mean_expression_adj (likelihood.scaled_exp)
+    mean_expression_adj = np.asarray(varBayes.single_cell.mean_expression_adj.values, dtype=np.float32)
+    area_factor = np.asarray(cells.ini_cell_props['area_factor'], dtype=np.float32)
+    nC = int(cells.nC)
+    nG, nK = mean_expression_adj.shape
 
     nS = spots.nS
     # Check if we can get nN (needs neighbor_ids)
@@ -152,7 +165,10 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         # version 1 then reads every later file. Bump the number only when that
         # promise has to be broken, and expect readers to refuse what they do not
         # know. Runs from before this key are pre-1 and unsupported: regenerate.
-        ('format_version', '1'),
+        # Version 2 broke it (see the top of this function): scaled_means and
+        # gene_inefficiency are gone, neighbor_cell_ids changed type. A reader of
+        # version 2 reads version 1 too; a reader of version 1 refuses version 2.
+        ('format_version', '2'),
         # Cell-related
         ('nC', str(nC)),
         ('nG', str(nG)),
@@ -167,6 +183,12 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         ('eta_bar', json.dumps(genes.eta_bar.astype(np.float32).tolist())),
         ('mean_gene_reads_per_class', json.dumps(cells.mean_gene_reads_per_class().astype(np.float32).tolist())),
         ('sc_mean_expression', json.dumps(varBayes.single_cell.mean_expression.values.astype(np.float32).tolist())),
+        # sc_mean_expression times Inefficiency, with the Zero column: what the
+        # likelihood scores against. area_factor (cells table) times this row gives
+        # a cell's scaled_exp back
+        ('mean_expression_adj', json.dumps(mean_expression_adj.tolist())),
+        # E[log eta] per gene, the gene term of every spot score. Not log(eta_bar).
+        ('logeta_bar', json.dumps(np.asarray(genes.logeta_bar, dtype=np.float32).tolist())),
         ('log_prior', json.dumps(varBayes.cellTypes.log_prior.astype(np.float32).tolist())),
 
         # Spot-related
@@ -214,7 +236,6 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     # logger.info('Inserted %d metadata entries', len(meta_items))
 
     # --- Populate Cells Table ---
-    scaled_means_f32 = scaled_means.astype(np.float32)
     theta_bar_f32 = cells.theta_bar.astype(np.float32)
     gene_count_f32 = cells.geneCount.astype(np.float32)
     class_prob_f32 = cells.classProb.astype(np.float32)
@@ -290,7 +311,7 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         for c in range(batch_start, batch_end):
             batch_data.append((
                 c,
-                scaled_means_f32[c].tobytes(),
+                float(area_factor[c]),
                 theta_bar_f32[c].tobytes(),
                 gene_count_f32[c].tobytes(),
                 class_prob_f32[c].tobytes(),
@@ -321,10 +342,15 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         attn_f32 = spots.attention.astype(np.float32)
         expr_f32 = spots.expr_fluctuations.astype(np.float32)
         cineff_f32 = spots.cell_inefficiency.astype(np.float32)
-        gineff_f32 = spots.gene_inefficiency.astype(np.float32)
-        # the inside cell bonus the model adds before the softmax in spots_to_cell
-        bonus_f32 = (spots.bonus_mask * varBayes.config['InsideCellBonus']).astype(np.float32)
+        # the inside cell bonus the model adds before the softmax in spots_to_cell,
+        # only on a run that has one
+        bonus_f32 = ((spots.bonus_mask * varBayes.config['InsideCellBonus']).astype(np.float32)
+                     if has_bonus else None)
+        ids_i32 = np.asarray(neighbor_ids, dtype=np.int32)
         gene_idx = spots.gene_id.astype(np.int32)
+        sql = ('INSERT INTO spots (spot_id, gene_idx, x, y, z, neighbor_cell_ids, mvn_loglik, '
+               'attention, expr_fluct, cell_inefficiency%s) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?%s)'
+               % ((', bonus', ', ?') if has_bonus else ('', '')))
         xs = spots.data['x'].astype(np.int32).to_numpy()
         ys = spots.data['y'].astype(np.int32).to_numpy()
         zs = spots.data['z'].astype(np.int32).to_numpy()
@@ -334,22 +360,20 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
             end = min(start + batch_size, nS)
             batch = []
             for i in range(start, end):
-                neigh_json = json.dumps(list(map(int, neighbor_ids[i].tolist())))
-                batch.append((
+                row = [
                     int(spots.data.index[i]),
                     int(gene_idx[i]),
                     int(xs[i]), int(ys[i]), int(zs[i]),
-                    neigh_json,
-                    mvn_f32[i].tobytes(),
-                    attn_f32[i].tobytes(),
-                    expr_f32[i].tobytes(),
-                    cineff_f32[i].tobytes(),
-                    gineff_f32[i].tobytes(),
-                    bonus_f32[i].tobytes(),
-                ))
-            cursor.executemany('''
-                INSERT INTO spots (spot_id, gene_idx, x, y, z, neighbor_cell_ids, mvn_loglik, attention, expr_fluct, cell_inefficiency, gene_inefficiency, bonus)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', batch)
+                    ids_i32[i, :-1].tobytes(),
+                    mvn_f32[i, :-1].tobytes(),
+                    attn_f32[i, :-1].tobytes(),
+                    expr_f32[i, :-1].tobytes(),
+                    cineff_f32[i, :-1].tobytes(),
+                ]
+                if has_bonus:
+                    row.append(bonus_f32[i, :-1].tobytes())
+                batch.append(tuple(row))
+            cursor.executemany(sql, batch)
             # if (end % 50000 == 0) or (end == nS):
             #     logger.info('Inserted %d/%d spots', end, nS)
 
@@ -361,6 +385,148 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     db_size_mb = os.path.getsize(db_path) / (1024 * 1024)
     logger.info('Saved at: %s (%.1f MB)', db_path, db_size_mb)
 
+
+
+def shrink_diagnostics_db(src: str, dst: str) -> None:
+    """Rewrite a format 1 diagnostics.db as format 2.
+
+    TO REMOVE: this is a bridge for the format 1 files written before October
+    2026. Once no run in that format is left that anyone wants to open, delete
+    this function, its export in io/__init__.py, its test in
+    tests/test_diagnostics_export.py (_as_format_1 and the round trip), and the
+    format 1 branches of the readers: Run._cell and Run._spot_row in
+    pciSeq/src/mcp/tools.py, and queryCell and querySpot in the viewer's
+    electron/diagnostics.js (dbFormat === 1).
+
+    For the runs already on disk, so they do not need a refit to get the smaller
+    file: the sample run of the docs went from 1.9 GB to about 0.6 GB. Nothing is
+    lost. Version 2 keeps the same numbers in another arrangement, see
+    export_diagnostics: the per cell scaled_means matrix becomes area_factor times
+    one shared matrix, gene_inefficiency becomes one row per gene, the background
+    slot of the spot blobs goes, as does the bonus column on a run with no
+    InsideCellBonus, and the candidate ids are stored as int32 rather than text.
+
+    Parameters
+    ----------
+    src : str
+        A format 1 diagnostics.db.
+    dst : str
+        Where to write the format 2 file. Must not exist.
+
+    Raises
+    ------
+    ValueError
+        When src is not format 1, or when its scaled_means are not area_factor
+        times the shared matrix to float32 precision, which would mean the run was
+        made by a pciSeq this function does not know.
+    """
+    if os.path.exists(dst):
+        raise ValueError('%s exists already' % dst)
+    old = sqlite3.connect(src)
+    meta = dict(old.execute('SELECT key, value FROM metadata'))
+    if meta.get('format_version') != '1':
+        raise ValueError('expected a format 1 diagnostics.db, this one says %r'
+                         % meta.get('format_version'))
+    nG, nK, nN = int(meta['nG']), int(meta['nK']), int(meta['nN'])
+    cfg = json.loads(meta['config'])
+    has_bonus = bool(cfg.get('InsideCellBonus'))
+    # sc_mean_expression is saved as mean_expression_adj / Inefficiency
+    # (SingleCell.mean_expression), so this is the matrix the likelihood used
+    m_adj = (np.asarray(json.loads(meta['sc_mean_expression']), dtype=np.float32)
+             * np.float32(cfg['Inefficiency'])).astype(np.float32)
+    nz = m_adj > 0
+
+    new = sqlite3.connect(dst)
+    cur = new.cursor()
+    cur.execute('CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT)')
+
+    # --- cells: the same columns with area_factor in place of scaled_means
+    cols = [(r[1], r[2]) for r in old.execute('PRAGMA table_info(cells)')]
+    names = [n for n, _ in cols]
+    i_sm = names.index('scaled_means')
+    new_cols = [('area_factor', 'REAL') if n == 'scaled_means' else (n, t) for n, t in cols]
+    key = names[0]
+    cur.execute('CREATE TABLE cells (%s)' % ', '.join(
+        '%s %s%s' % (n, t, ' PRIMARY KEY' if n == key else '') for n, t in new_cols))
+    batch = []
+    for row in old.execute('SELECT * FROM cells'):
+        sm = np.frombuffer(row[i_sm], dtype=np.float32).reshape(nG, nK)
+        a = float(np.median(sm[nz] / m_adj[nz])) if nz.any() else 0.0
+        back = (np.float32(a) * m_adj).astype(np.float32)
+        if not np.allclose(back, sm, rtol=1e-5, atol=1e-6):
+            raise ValueError('cell %s: scaled_means is not area_factor times the shared '
+                             'matrix, this file was not made by a pciSeq this converter knows'
+                             % row[0])
+        batch.append(tuple(a if j == i_sm else v for j, v in enumerate(row)))
+        if len(batch) == 5000:
+            cur.executemany('INSERT INTO cells VALUES (%s)' % ', '.join('?' * len(cols)), batch)
+            batch = []
+    if batch:
+        cur.executemany('INSERT INTO cells VALUES (%s)' % ', '.join('?' * len(cols)), batch)
+
+    # --- spots: nN - 1 slots, int32 ids, no gene_inefficiency, bonus only when used
+    cur.execute('''
+        CREATE TABLE spots (
+            spot_id INTEGER PRIMARY KEY,
+            gene_idx INTEGER,
+            x INTEGER,
+            y INTEGER,
+            z INTEGER,
+            neighbor_cell_ids BLOB,
+            mvn_loglik BLOB,
+            attention BLOB,
+            expr_fluct BLOB,
+            cell_inefficiency BLOB%s
+        )
+    ''' % (',\n            bonus BLOB' if has_bonus else ''))
+    sql = ('INSERT INTO spots VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?%s)'
+           % (', ?' if has_bonus else ''))
+    # gene_inefficiency is logeta_bar[gene] on every spot of the gene: one row
+    logeta = np.full(nG, np.nan, dtype=np.float32)
+    f32 = lambda b: np.frombuffer(b, dtype=np.float32)
+    batch = []
+    for (sid, g, x, y, z, ids, mvn, attn, expr, cineff, gineff, bonus) in old.execute(
+            'SELECT spot_id, gene_idx, x, y, z, neighbor_cell_ids, mvn_loglik, attention, '
+            'expr_fluct, cell_inefficiency, gene_inefficiency, bonus FROM spots'):
+        if np.isnan(logeta[g]):
+            logeta[g] = f32(gineff)[0]
+        row = [sid, g, x, y, z,
+               np.asarray(json.loads(ids)[:-1], dtype=np.int32).tobytes(),
+               f32(mvn)[:-1].tobytes(), f32(attn)[:-1].tobytes(),
+               f32(expr)[:-1].tobytes(), f32(cineff)[:-1].tobytes()]
+        if has_bonus:
+            row.append(f32(bonus)[:-1].tobytes())
+        batch.append(tuple(row))
+        if len(batch) == 20000:
+            cur.executemany(sql, batch)
+            batch = []
+    if batch:
+        cur.executemany(sql, batch)
+    if np.isnan(logeta).any():
+        # a gene with no spot at all never got its value; log(eta_bar) is the
+        # closest thing the file holds
+        eta = np.asarray(json.loads(meta['eta_bar']), dtype=np.float32)
+        miss = np.isnan(logeta)
+        logger.warning('%d genes have no spots, their logeta_bar is set to log(eta_bar)', miss.sum())
+        logeta[miss] = np.log(eta[miss])
+
+    # --- metadata, with the two new rows and the version
+    meta['format_version'] = '2'
+    meta['mean_expression_adj'] = json.dumps(m_adj.tolist())
+    meta['logeta_bar'] = json.dumps(logeta.tolist())
+    cur.executemany('INSERT INTO metadata VALUES (?, ?)', list(meta.items()))
+
+    # --- docs, as they are
+    has_docs = old.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='docs'").fetchone()
+    cur.execute('CREATE TABLE docs (page TEXT PRIMARY KEY, text TEXT)')
+    if has_docs:
+        cur.executemany('INSERT INTO docs VALUES (?, ?)', old.execute('SELECT page, text FROM docs').fetchall())
+
+    new.commit()
+    new.close()
+    old.close()
+    logger.info('Rewrote %s (%.1f MB) as format 2 at %s (%.1f MB)', src,
+                os.path.getsize(src) / 2**20, dst, os.path.getsize(dst) / 2**20)
 
 
 def export_docs(cursor: Any) -> None:

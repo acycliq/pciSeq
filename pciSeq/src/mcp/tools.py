@@ -44,9 +44,10 @@ _MISSING = object()
 # uses, so the two agree about which genes a cell holds.
 _COUNT_TOL = 0.001
 
-# what a cell's blob columns unpack to, and the shape to give them
+# what a cell's blob columns unpack to, and the shape to give them. scaled_means,
+# area_factor * mean_expression_adj before eta and theta, is a blob in format 1
+# and rebuilt from the cell's area_factor and the shared matrix in format 2.
 _CELL_BLOBS = {
-    'scaled_means': ('nG', 'nK'),   # area_factor * mu, before eta and theta
     'theta_bar': ('nK',),
     'gene_count': ('nG',),
     'class_prob': ('nK',),
@@ -85,6 +86,7 @@ class Run:
         self._lock = threading.Lock()
         self._meta_cache = {}
         self._docs_pages = _MISSING
+        self._mea = None            # mean_expression_adj, read once (format 2)
 
         self.nC = int(self._meta('nC'))
         self.nG = int(self._meta('nG'))
@@ -117,11 +119,19 @@ class Run:
         # bigger than 1 means a future pciSeq broke the only-add promise, and
         # guessing at such a file risks quietly wrong answers, so refuse.
         self.format_version = int(self._meta('format_version', default='0'))
-        if self.format_version > 1:
+        if self.format_version > 2:
             raise NotImplementedError(
                 'this run has diagnostics.db format version %d, and this pciSeq only '
-                'knows version 1. Read it with the pciSeq that made it, or newer.'
+                'knows versions 1 and 2. Read it with the pciSeq that made it, or newer.'
                 % self.format_version)
+        # format 2 (October 2026): area_factor per cell in place of the scaled_means
+        # blob, the spot blobs without their background slot, the candidate ids as
+        # int32, no gene_inefficiency column (logeta_bar in the metadata instead) and
+        # no bonus column on a run without InsideCellBonus. _cell and _spot_row hand
+        # back the same arrays for either version.
+        self._has_area_factor = 'area_factor' in cols
+        with self._lock:
+            self._spot_cols = {r[1] for r in self._con.execute('PRAGMA table_info(spots)')}
 
         self.config = self._meta('config', parse=True, default=None)
         self.run_record = self._meta('run', parse=True, default=None)
@@ -189,7 +199,8 @@ class Run:
         row = self.to_internal(label)
         if row == 0:
             raise ValueError('cell 0 is the background pseudocell, not a cell')
-        cols = list(_CELL_BLOBS) + ['theta', 'assigned_class_idx']
+        scaled = 'area_factor' if self._has_area_factor else 'scaled_means'
+        cols = list(_CELL_BLOBS) + ['theta', 'assigned_class_idx', scaled]
         got = self._query(
             "SELECT %s FROM cells WHERE %s = ?" % (', '.join(cols), self._cell_key), (row,))
         if got is None:
@@ -200,6 +211,12 @@ class Run:
         for name, shape in _CELL_BLOBS.items():
             arr = np.frombuffer(got[cols.index(name)], dtype=np.float32)
             out[name] = arr.reshape([sizes[s] for s in shape])
+        if self._has_area_factor:
+            out['scaled_means'] = (np.float32(got[cols.index(scaled)])
+                                   * self._mean_expression_adj()).astype(np.float32)
+        else:
+            out['scaled_means'] = np.frombuffer(got[cols.index(scaled)],
+                                                dtype=np.float32).reshape(self.nG, self.nK)
         out['theta'] = float(got[cols.index('theta')])
         out['assigned_class_idx'] = int(got[cols.index('assigned_class_idx')])
         out['row'] = row
@@ -500,10 +517,7 @@ class Run:
             spot_id = int(spot_id)
         except (TypeError, ValueError):
             raise ValueError('%r is not a spot id' % (spot_id,))
-        got = self._query(
-            "SELECT gene_idx, x, y, z, neighbor_cell_ids, mvn_loglik, attention, "
-            "expr_fluct, cell_inefficiency, gene_inefficiency, bonus "
-            "FROM spots WHERE spot_id = ?", (spot_id,))
+        got = self._spot_row(spot_id)
         if got is None:
             raise KeyError('no spot %s in this run' % spot_id)
 
@@ -811,10 +825,7 @@ class Run:
             spot_id = int(spot_id)
         except (TypeError, ValueError):
             raise ValueError('%r is not a spot id' % (spot_id,))
-        got = self._query(
-            "SELECT gene_idx, x, y, z, neighbor_cell_ids, mvn_loglik, attention, "
-            "expr_fluct, cell_inefficiency, gene_inefficiency, bonus "
-            "FROM spots WHERE spot_id = ?", (spot_id,))
+        got = self._spot_row(spot_id)
         if got is None:
             raise KeyError('no spot %s in this run' % spot_id)
         neighbours, _, _, _, prob = self._spot_scores(got)
@@ -1105,12 +1116,51 @@ class Run:
 
     # ------------------------------------------------------------ internals
 
+    def _mean_expression_adj(self):
+        """The (nG, nK) matrix the likelihood scores against, from the metadata of a
+        format 2 file."""
+        if self._mea is None:
+            self._mea = np.asarray(self._meta('mean_expression_adj', parse=True), dtype=np.float32)
+        return self._mea
+
+    def _spot_row(self, spot_id):
+        """One row of the spots table as format 1 laid it out, whatever the file's
+        version: (gene_idx, x, y, z, the nN candidate ids with the background 0 last,
+        and the six terms as float32 arrays of nN with the background slot zero).
+        None when the spot is not in the run."""
+        has = self._spot_cols
+        cols = ['gene_idx', 'x', 'y', 'z', 'neighbor_cell_ids', 'mvn_loglik', 'attention',
+                'expr_fluct', 'cell_inefficiency']
+        cols += ['gene_inefficiency'] if 'gene_inefficiency' in has else []
+        cols += ['bonus'] if 'bonus' in has else []
+        got = self._query("SELECT %s FROM spots WHERE spot_id = ?" % ', '.join(cols), (spot_id,))
+        if got is None:
+            return None
+        got = dict(zip(cols, got))
+        ids = got['neighbor_cell_ids']
+        if isinstance(ids, (bytes, memoryview)):
+            # format 2: the cells only, int32
+            ids = np.frombuffer(ids, dtype=np.int32).tolist() + [0]
+        else:
+            ids = json.loads(ids)
+        n = len(ids)
+        f32 = lambda b: np.frombuffer(b, dtype=np.float32)
+        pad = lambda a: a if len(a) == n else np.append(a, np.zeros(n - len(a), dtype=np.float32))
+        terms = [pad(f32(got[k])) for k in ('mvn_loglik', 'attention', 'expr_fluct', 'cell_inefficiency')]
+        if 'gene_inefficiency' in got:
+            terms.append(pad(f32(got['gene_inefficiency'])))
+        else:
+            le = np.float32(self._meta('logeta_bar', parse=True)[got['gene_idx']])
+            terms.append(np.append(np.full(n - 1, le, dtype=np.float32), np.float32(0)))
+        terms.append(pad(f32(got['bonus'])) if 'bonus' in got else np.zeros(n, dtype=np.float32))
+        return (got['gene_idx'], got['x'], got['y'], got['z'], ids, *terms)
+
     def _spot_scores(self, got):
         """The candidate ids, the six terms, the misread density, the scores and the
-        softmax for one spots-table row (columns from gene_idx onward)."""
+        softmax for one spots-table row as _spot_row lays it out."""
         gene = str(self.gene_panel[got[0]])
-        neighbours = json.loads(got[4])
-        terms = {name: np.frombuffer(got[i], dtype=np.float32)
+        neighbours = got[4]
+        terms = {name: got[i]
                  for i, name in enumerate(
                      ['mvn_loglik', 'attention', 'expr_fluct',
                       'cell_inefficiency', 'gene_inefficiency', 'bonus'], start=5)}
@@ -1148,10 +1198,7 @@ class Run:
 
         per_gene = {}
         for sid in candidates:
-            got = self._query(
-                "SELECT gene_idx, x, y, z, neighbor_cell_ids, mvn_loglik, attention, "
-                "expr_fluct, cell_inefficiency, gene_inefficiency, bonus "
-                "FROM spots WHERE spot_id = ?", (sid,))
+            got = self._spot_row(sid)
             neighbours, _, _, _, prob = self._spot_scores(got)
             p = float(prob[neighbours.index(internal)])
             if p > tol:
