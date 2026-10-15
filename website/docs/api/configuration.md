@@ -88,6 +88,10 @@ When rTheta is small relative to the cell's total count, theta is determined
 by the data; when it is large, theta stays close to 1. Must be greater than
 1, otherwise a cell with no spots gets a theta of zero or less.
 
+A starting value is the average total count per cell, one number across all
+classes. It is an indication only; the value that suits a dataset depends on
+the data and can be much lower.
+
 A low value lets a cell with very few spots be claimed by a real class on
 one or two spots; see
 [the prior strength](../the-model/scale-factors.md#r-theta)
