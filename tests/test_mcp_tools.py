@@ -563,8 +563,7 @@ def test_spot_narrative_when_expression_carries_it():
                   (1, 'CA1', -10.6, -1.2, 0.0, 0.0, 0.32)], 0.01)
     s = narrate_spot(e)
     assert 'Cell 2 is not the nearest: cell 1 is closer' in s
-    assert 'Cell 2 is a CA2 cell, and that class expresses Synpr' in s
-    assert 'Cell 1 is a CA1 cell, which does not' in s
+    assert 'Cell 2 is a CA2 cell, whose class expresses Synpr more than the class of cell 1, CA1' in s
     assert 'expression carries the call' in s
 
 
@@ -894,4 +893,20 @@ def test_the_odds_wording_survives_a_huge_difference():
     assert _strength(5000.0) == 'overwhelmingly, beyond any doubt'
     assert _strength(1e9) == 'overwhelmingly, beyond any doubt'
     assert _strength(3.0) == 'about 20 to one'
+
+
+def test_spot_narrative_compares_the_two_classes():
+    """Spot 18377 on espio: both classes express Cnr1, both class expression terms
+    are below zero, and the narrative said one class 'barely expresses' it and the
+    other 'does not', the wrong way round. The term is a log, its sign means nothing
+    on its own, so the narrative compares the two cells."""
+    from pciSeq.src.mcp.tools import narrate_spot
+    e = _spot(12693, [(12693, '005 L5 IT CTX Glut', -12.65, -0.62, 0.39, 0.31, 0.48),
+                      (9077, '022 L5 ET CTX Glut', -13.84, -0.34, 0.71, 0.86, 0.47)], 0.04)
+    s = narrate_spot(e)
+    assert 'whose class expresses Synpr less than the class of cell 9077, 022 L5 ET CTX Glut' in s
+    assert 'does not' not in s and 'barely' not in s
+    e = _spot(12693, [(12693, 'A', -12.65, -0.62, 0.39, 0.31, 0.48),
+                      (9077, 'B', -13.84, -0.55, 0.71, 0.86, 0.47)], 0.04)
+    assert 'the two classes express Synpr about equally' in narrate_spot(e)
 

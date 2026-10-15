@@ -1932,16 +1932,26 @@ def narrate_spot(e):
     if len(classes) == 1:
         out.append('Every candidate is a %s cell, so on class alone %s fits them all equally; '
                    'what separates them is how much each already holds.' % (winner['class'], gene))
+    elif runner and runner['class'] != winner['class']:
+        # compared between the two, never read on its own: the term is
+        # log(class mean x Inefficiency + SpotReg), below zero whenever the class mean
+        # is under about 9 counts, so its sign does not say whether a class expresses
+        # the gene (spot 18377 on espio: both classes express Cnr1, both terms < 0)
+        d_ce = winner['class expression'] - runner['class expression']
+        if abs(d_ce) <= 0.2:
+            out.append('Cell %d is a %s cell and cell %d a %s cell, and the two classes '
+                       'express %s about equally.'
+                       % (winner['cell'], winner['class'], runner['cell'], runner['class'], gene))
+        else:
+            out.append('Cell %d is a %s cell, whose class expresses %s %s than the class of '
+                       'cell %d, %s.'
+                       % (winner['cell'], winner['class'], gene, 'more' if d_ce > 0 else 'less',
+                          runner['cell'], runner['class']))
+    elif runner:
+        out.append('Cell %d is a %s cell, and so is cell %d.'
+                   % (winner['cell'], winner['class'], runner['cell']))
     else:
-        out.append('Cell %d is a %s cell, and that class %s %s.'
-                   % (winner['cell'], winner['class'],
-                      'expresses' if winner['class expression'] > 0 else 'barely expresses', gene))
-        if runner and runner['class'] != winner['class']:
-            out.append('Cell %d is a %s cell, which %s.'
-                       % (runner['cell'], runner['class'],
-                          'does too' if runner['class expression'] > 0 else 'does not'))
-        elif runner:
-            out.append('Cell %d is a %s cell too.' % (runner['cell'], runner['class']))
+        out.append('Cell %d is a %s cell.' % (winner['cell'], winner['class']))
     if runner:
         pieces = []
         d_sc = winner['cell scale'] - runner['cell scale']
