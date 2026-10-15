@@ -1198,6 +1198,20 @@ class Run:
                              'spot_id lists every spot with probability above 0.0001 on '
                              'this cell, lined up with Genenames, and their probabilities '
                              'add up to CellGeneCount')
+        # the plane the centroid is on, given so the agent never works it out: Z is
+        # the anisotropy scaled z, and a model read Z = 9.256 of espio cell 8 as
+        # plane 9 when it is plane 3. From the full z in diagnostics.db, Z above is
+        # cut to 3 decimals and could tip a centroid on a plane boundary
+        got = self._query('SELECT z FROM cells WHERE %s = ?' % self._cell_key,
+                          (self.to_internal(label),))
+        plane = self._plane_of(got[0]) if got and got[0] is not None else None
+        if plane is not None:
+            out['plane'] = plane
+            out['Z_is'] = ('the anisotropy scaled z the model works in, not a plane; plane '
+                           'is the plane the centroid sits on')
+        else:
+            out['Z_is'] = ('the anisotropy scaled z the model works in, not a plane. This '
+                           'run carries no voxel_size, so the plane cannot be given')
         return out
 
     def spot_row(self, spot_id):

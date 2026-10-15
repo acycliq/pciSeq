@@ -712,6 +712,11 @@ def test_explain_spot_gives_the_plane_on_an_anisotropic_3d_run(rng, tmp_path):
     # not the scaled z, which is what floor(Z / 4) checks
     planes = np.floor(cellData['Z'].to_numpy() / 4).astype(int)
     assert (planes == 1).sum() > 0
+    # cell_row gives the plane next to Z, so the agent never reads Z as a plane
+    # (espio cell 8: Z 9.256 was answered as plane 9, it is plane 3)
+    for lab, want in zip(cellData['Cell_Num'], planes):
+        row = run.cell_row(int(lab))
+        assert row['plane'] == want and 'not a plane' in row['Z_is'], lab
     assert run.find_cells(plane=1)['n_matching'] == (planes == 1).sum()
     assert run.find_cells(plane=0)['n_matching'] == (planes == 0).sum()
     assert run.find_cells(plane=4)['n_matching'] == 0
