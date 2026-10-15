@@ -884,3 +884,14 @@ def test_spots_of_cell_by_gene(fitted):
     assert mine['gene'] == gene
     with pytest.raises(ValueError):
         run.spots_of_cell(103, gene='NoSuchGene')
+
+
+def test_the_odds_wording_survives_a_huge_difference():
+    """Cell 2413 on espio against 327 Oligo NN: the gene difference is far past
+    e**709 and math.exp raised OverflowError, so explain_cell crashed on a plain
+    'why is it not an oligodendrocyte'."""
+    from pciSeq.src.mcp.tools import _strength
+    assert _strength(5000.0) == 'overwhelmingly, beyond any doubt'
+    assert _strength(1e9) == 'overwhelmingly, beyond any doubt'
+    assert _strength(3.0) == 'about 20 to one'
+

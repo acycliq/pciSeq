@@ -1992,6 +1992,12 @@ def _strength(d):
     import math
     if d < 0.4:
         return 'only just'
+    # a d above 10 is past 20,000 to one (e**10 is about 22,000), where the words
+    # no longer change, so it is answered before taking exp: a cell against a far
+    # off class (2413 vs Oligo on espio) has a d so big that math.exp raises
+    # OverflowError
+    if d > 10:
+        return 'overwhelmingly, beyond any doubt'
     odds = math.exp(d)
     if odds < 3:
         return 'slightly'
