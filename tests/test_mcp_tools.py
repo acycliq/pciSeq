@@ -68,6 +68,30 @@ def test_explain_cell_reproduces_the_stored_class_probabilities(fitted):
         assert np.allclose(mine, c['class_prob'], atol=1e-4), lab
 
 
+def test_the_rebuild_is_the_models_own_score_gene_by_gene(fitted):
+    """The explanation tools rebuild the class score of any class from the saved
+    inputs (_nb_contributions here, nbContributions in the viewer). It must be the
+    model's own: gene by gene for the classes whose per gene numbers the run saved,
+    and in total for every class. If cell_to_cellType or the likelihood it calls
+    changes and the rebuild is not changed with it, this fails."""
+    run, _, _ = fitted
+    assert run._has_scored_counts, 'the run did not save the counts its class update scored'
+    for lab in LABELS:
+        c = run._cell(lab)
+        contr = run._nb_contributions(c).astype(np.float64)
+        saved = run._saved_score(c['row'])
+        a = c['assigned_class_idx']
+        np.testing.assert_allclose(contr[:, a], saved['contr_assigned'], rtol=1e-4, atol=1e-3)
+        if saved['runner_up_idx'] >= 0:
+            np.testing.assert_allclose(contr[:, saved['runner_up_idx']], saved['contr_runner_up'],
+                                       rtol=1e-4, atol=1e-3)
+        np.testing.assert_allclose(contr.sum(axis=0), saved['gene_loglik'], rtol=1e-4, atol=0.05)
+        # and so explain_cell gives the genes against every class, none refused
+        for k in run.class_names:
+            if k != run.class_names[a]:
+                assert 'detail_note' not in run.explain_cell(lab, k), (lab, k)
+
+
 def test_explain_cell_agrees_with_cellData(fitted):
     run, cellData, _ = fitted
     for lab in LABELS:

@@ -67,6 +67,7 @@ class Cells(object):
         self._eig_vals, self._eig_vecs = np.linalg.eigh(self._scale)
         self._centroid = self.ini_centroids()
         self._gene_counts = None
+        self._gene_counts_prev = None  # the counts before the latest update, see the setter
         self._ini_gene_counts = None  # initial gene counts
         self._background_counts = None
         self._nb_contr = None  # placeholder for the genes' contribution to the negative binomial loglik
@@ -94,6 +95,16 @@ class Cells(object):
     @geneCount.setter
     def geneCount(self, val: np.ndarray):
         """Sets the gene counts for cells."""
+        # keep the counts we are about to replace. The model never reads this, the
+        # diagnostics export does (diagnostics_db.py, scored_gene_count). In the last
+        # iteration the class update scores the counts, then spots_to_cell sets them
+        # one more time, so at the end of the run these are the counts the class
+        # probabilities were worked out from, and geneCount is one update newer.
+        # The explanation tools rebuild a cell's score against any class from them
+        # (_nb_contributions in mcp/tools.py, nbContributions in the viewer); without
+        # them that rebuild is a little off and they refuse to show it. So don't
+        # remove it. A reference is enough, geneCount_upd builds a new array each time
+        self._gene_counts_prev = self._gene_counts
         self._gene_counts = val
 
     @property

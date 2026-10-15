@@ -73,7 +73,8 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
             runner_up_idx INTEGER,
             contr_assigned BLOB,
             contr_runner_up BLOB,
-            cov BLOB
+            cov BLOB,
+            scored_gene_count BLOB
         )
     ''')
 
@@ -197,6 +198,10 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         ('mean_expression_adj', json.dumps(mean_expression_adj.tolist())),
         # E[log eta] per gene, the gene term of every spot score. Not log(eta_bar).
         ('logeta_bar', json.dumps(np.asarray(genes.logeta_bar, dtype=np.float32).tolist())),
+        # the prior at the end of the run. With cell_type_prior 'weighted', dalpha_upd
+        # updates it right after the last class update, so it is one update newer than
+        # the prior behind the class probabilities. On espio that is at most 0.0002 in
+        # a class score and 0.00003 in a probability, too small to save the older one
         ('log_prior', json.dumps(varBayes.cellTypes.log_prior.astype(np.float32).tolist())),
 
         # Spot-related
@@ -246,6 +251,12 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     # --- Populate Cells Table ---
     theta_bar_f32 = cells.theta_bar.astype(np.float32)
     gene_count_f32 = cells.geneCount.astype(np.float32)
+    # the counts the last class update scored. gene_count above is one update newer:
+    # spots_to_cell sets the counts again after the class update, and the Cells setter
+    # keeps the ones it replaced (see Cells.geneCount). The explanation tools rebuild
+    # a class score from these. None only when the counts were never updated twice
+    scored = getattr(cells, '_gene_counts_prev', None)
+    scored_f32 = (scored if scored is not None else cells.geneCount).astype(np.float32)
     class_prob_f32 = cells.classProb.astype(np.float32)
 
     # Dashboard columns: theta, assigned_class_idx, gamma_assigned
@@ -334,8 +345,9 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
                 contr_assigned[c].tobytes(),
                 contr_runner_up[c].tobytes(),
                 cov_f32[c].tobytes(),
+                scored_f32[c].tobytes(),
             ))
-        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                            batch_data)
         # if (batch_end % 10000 == 0) or (batch_end == nC):
         #     logger.info('Inserted %d/%d cells', batch_end, nC)

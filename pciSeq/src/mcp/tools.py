@@ -186,6 +186,11 @@ class Run:
         # no bonus column on a run without InsideCellBonus. _cell and _spot_row hand
         # back the same arrays for either version.
         self._has_area_factor = 'area_factor' in cols
+        # the run's own class score (gene_loglik per class, the per gene numbers of
+        # the assigned class and the runner up), saved since 28 Sep 2026, and the
+        # counts that score was computed from, since 15 Oct 2026
+        self._has_saved_score = 'gene_loglik' in cols
+        self._has_scored_counts = 'scored_gene_count' in cols
         with self._lock:
             self._spot_cols = {r[1] for r in self._con.execute('PRAGMA table_info(spots)')}
 
@@ -276,7 +281,44 @@ class Run:
         out['theta'] = float(got[cols.index('theta')])
         out['assigned_class_idx'] = int(got[cols.index('assigned_class_idx')])
         out['row'] = row
+        if self._has_scored_counts:
+            b = self._query('SELECT scored_gene_count FROM cells WHERE %s = ?' % self._cell_key, (row,))[0]
+            out['scored_gene_count'] = np.frombuffer(b, dtype=np.float32)
         return out
+
+    def _saved_score(self, row):
+        """The class score the run saved for one cell, or None on a run from before
+        it did: gene_loglik per class, runner_up_idx, and the per gene numbers of the
+        assigned class and the runner up."""
+        if not self._has_saved_score:
+            return None
+        gl, ru, ca, cr = self._query('SELECT gene_loglik, runner_up_idx, contr_assigned, '
+                                     'contr_runner_up FROM cells WHERE %s = ?' % self._cell_key, (row,))
+        f = lambda b: np.frombuffer(b, dtype=np.float32).astype(np.float64)
+        return {'gene_loglik': f(gl), 'runner_up_idx': int(ru),
+                'contr_assigned': f(ca), 'contr_runner_up': f(cr)}
+
+    def _checked_contributions(self, c, saved, assigned, other):
+        """The per gene numbers of the assigned class and another class, rebuilt,
+        or None when the rebuild is not the run's own.
+
+        The run saves per gene numbers for the runner up only, so for any other class
+        they are rebuilt (_nb_contributions). They are used only when the rebuild of
+        the assigned class matches the saved per gene numbers gene by gene, and the
+        rebuilt totals of both classes match the saved gene_loglik: then the formula
+        and the inputs are the run's. A change to the model the rebuild does not
+        follow, or a run from before the scored counts were saved where the counts
+        moved, fails here, and the caller says the detail is not available rather than
+        show numbers the run would not have given. The viewer's nbContributions
+        applies the same rule with the same tolerances."""
+        contr = self._nb_contributions(c).astype(np.float64)
+        ok = lambda r, s, rel, abs_: bool(np.all(np.abs(r - s) <= rel * np.abs(s) + abs_))
+        if not ok(contr[:, assigned], saved['contr_assigned'], 1e-4, 1e-3):
+            return None
+        for k in (assigned, other):
+            if not ok(contr[:, k].sum(), saved['gene_loglik'][k], 1e-4, 0.05):
+                return None
+        return contr[:, assigned], contr[:, other]
 
     # --------------------------------------------------------------- tools
 
@@ -478,8 +520,6 @@ class Run:
             How many genes to report on each side.
         """
         c = self._cell(label)
-        contr = self._nb_contributions(c)          # (nG, nK)
-
         assigned = c['assigned_class_idx']
         if vs_class is None:
             order = np.argsort(-c['class_prob'])
@@ -502,7 +542,31 @@ class Run:
                 raise ValueError('cell %s is already %s, pick another class to compare'
                                  % (label, vs_class))
 
-        diff = contr[:, assigned] - contr[:, other]
+        # the per gene numbers: the run's own against the runner up, a checked rebuild
+        # against any other class, and on a run from before the score was saved the
+        # rebuild alone, as it always was
+        saved = self._saved_score(c['row'])
+        detail_note = None
+        if saved is None:
+            contr = self._nb_contributions(c)
+            ca, co = contr[:, assigned], contr[:, other]
+            gl_a, gl_o = float(ca.sum()), float(co.sum())
+        else:
+            gl_a, gl_o = float(saved['gene_loglik'][assigned]), float(saved['gene_loglik'][other])
+            if other == saved['runner_up_idx']:
+                ca, co = saved['contr_assigned'], saved['contr_runner_up']
+            else:
+                got = self._checked_contributions(c, saved, assigned, other)
+                if got is None:
+                    ca = co = None
+                    detail_note = ('the per gene contributions against %s could not be '
+                                   'rebuilt to match the run\'s own gene score, so only the '
+                                   'three score totals are available. The gene log-likelihood '
+                                   'difference above is still the run\'s own number.'
+                                   % self.class_names[other])
+                else:
+                    ca, co = got
+        diff = (ca - co) if ca is not None else np.zeros(self.nG)
         favours_assigned = np.argsort(-diff)[:top_n]
         favours_other = np.argsort(diff)[:top_n]
         log_prior = np.asarray(self._meta('log_prior', parse=True), dtype=np.float32)
@@ -521,8 +585,10 @@ class Run:
                      'diff': float(diff[g])}
                     for g in idx if keep(diff[g])]
 
-        for_a = side(favours_assigned, lambda d: d > 0)
-        for_o = side(favours_other, lambda d: d < 0)
+        for_a = side(favours_assigned, lambda d: d > 0) if ca is not None else []
+        for_o = side(favours_other, lambda d: d < 0) if ca is not None else []
+        total_a = gl_a + float(log_prior[assigned]) + float(c['mrf'][assigned])
+        total_o = gl_o + float(log_prior[other]) + float(c['mrf'][other])
         out = {
             'cell': int(label),
             'assigned': str(self.class_names[assigned]),
@@ -530,12 +596,18 @@ class Run:
             'prob_assigned': float(c['class_prob'][assigned]),
             'prob_compared': float(c['class_prob'][other]),
             'score': {
-                'gene_loglik': {'assigned': float(contr[:, assigned].sum()),
-                                'compared': float(contr[:, other].sum())},
+                'gene_loglik': {'assigned': gl_a, 'compared': gl_o},
                 'log_prior': {'assigned': float(log_prior[assigned]),
                               'compared': float(log_prior[other])},
                 'spatial': {'assigned': float(c['mrf'][assigned]),
                             'compared': float(c['mrf'][other])},
+                # the class score is the sum of the three parts; added here so the
+                # agent never has to, the same as the viewer's explain_cell
+                'total': {'assigned': total_a, 'compared': total_o},
+                'difference': total_a - total_o,
+                'difference_is': 'total assigned minus total compared, the three parts '
+                                 'already added up; it equals log(prob_assigned / '
+                                 'prob_compared). Quote it, never add the parts yourself',
             },
             'genes_favouring_assigned': for_a,
             'genes_favouring_compared': for_o,
@@ -544,7 +616,7 @@ class Run:
             # diffs itself, which it does badly.
             'sum_favouring_assigned': float(sum(g['diff'] for g in for_a)),
             'sum_favouring_compared': float(sum(g['diff'] for g in for_o)),
-            'shared_genes': self._shared_genes(c, diff, means, assigned, other),
+            'shared_genes': self._shared_genes(c, diff, means, assigned, other) if ca is not None else [],
             'shared_genes_are': 'the genes the cell holds most of that barely separate the two '
                                 'classes, each fitting both within a factor of e. Both classes '
                                 'express them, which is why these two were the finalists; the '
@@ -555,6 +627,11 @@ class Run:
                          'of the run, not the cell type definitions the likelihood scores '
                          'against',
         }
+        if detail_note:
+            # no per gene detail, so no story to tell from it: the totals and the
+            # note, the same as the viewer's explain_cell
+            out['detail_note'] = detail_note
+            return out
         out['narrative'] = narrate_cell(out)
         return out
 
@@ -1630,7 +1707,10 @@ class Run:
 
         expected = np.einsum('gk,g,k->gk', c['scaled_means'], eta, c['theta_bar']) + spot_reg
         p = expected / (r_spot + expected)
-        return c['gene_count'][:, None] * np.log(p) + r_spot * np.log(1 - p)
+        # the counts the class update scored, when the run saved them; gene_count is
+        # after the spot update that follows it (see cell_to_cellType)
+        counts = c.get('scored_gene_count', c['gene_count'])
+        return counts[:, None] * np.log(p) + r_spot * np.log(1 - p)
 
 
 # below this many soft counts a gene is taken as absent from the cell. Such a gene
