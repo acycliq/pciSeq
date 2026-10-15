@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from pciSeq.src.core.utils.geometry import (gaussian_ellipsoid_props, ellipsoid_to_cov,
-                                             plane_of, plane_to_z)
+                                             plane_of, plane_to_z, anisotropy_calc)
 
 
 @pytest.mark.parametrize('seed', range(20))
@@ -65,4 +65,23 @@ def test_plane_to_z_and_back(voxel_size):
     planes = np.arange(100)
     assert (plane_of(plane_to_z(planes, voxel_size), voxel_size) == planes).all()
     assert all(plane_of(plane_to_z(p, voxel_size), voxel_size) == p for p in range(100))
+
+
+# fractional planes, as a spot caller gives them; the viewer test uses the same
+ROUND_TRIP_PLANES = [0.0, 0.3, 1.15, 20.999, 21.0, 21.56, 88.85]
+
+
+@pytest.mark.parametrize('voxel_size', [[0.28, 0.28, 0.7], [0.147, 0.147, 0.9], [1, 1, 4]])
+def test_z_plane_to_z_and_back_before_the_floor(voxel_size):
+    """The round trip without the floor, which cannot be undone, and then the floor
+    on its own. plane_to_z has to give the z that anisotropy_calc, which really
+    builds the spot z, gives; dividing back has to give the plane; and plane_of has
+    to be the floor of it."""
+    zp = np.array(ROUND_TRIP_PLANES)
+    z = plane_to_z(zp, voxel_size)
+    xyz = np.stack([np.zeros_like(zp), np.zeros_like(zp), zp], axis=1)
+    np.testing.assert_allclose(z, anisotropy_calc(xyz, voxel_size)[:, 2], rtol=1e-6)
+    vx, _, vz = voxel_size
+    np.testing.assert_allclose(z * vx / vz, zp, rtol=1e-12, atol=1e-12)
+    assert (plane_of(z, voxel_size) == np.floor(zp)).all()
 

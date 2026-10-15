@@ -620,7 +620,11 @@ def test_run_info_on_a_run_without_settings(fitted):
 
 def test_explain_spot_gives_the_plane_on_an_anisotropic_3d_run(rng, tmp_path):
     """Three planes with voxel_size [1, 1, 4]: the model works in a z four times the
-    plane index, and the tool has to hand back the plane, not the scaled z."""
+    plane index, and the tool has to hand back the plane, not the scaled z.
+
+    The spots sit between planes, z_plane 1.6 and so on, as real spot callers give
+    them. With whole planes only this test passed for weeks while diagnostics.db cut
+    the z to a whole number and put one espio spot in ten on the plane below."""
     import pciSeq
     from scipy.sparse import coo_matrix
     from pciSeq.src.mcp.tools import open_run
@@ -630,7 +634,7 @@ def test_explain_spot_gives_the_plane_on_an_anisotropic_3d_run(rng, tmp_path):
         'gene_name': rng.choice(GENES, 900),
         'x': rng.uniform(0, 79, 900).astype(np.float32),
         'y': rng.uniform(0, 79, 900).astype(np.float32),
-        'z_plane': rng.integers(0, 3, 900).astype(np.float32),
+        'z_plane': rng.uniform(0, 2, 900).astype(np.float32),
     })
     scref = pd.DataFrame(rng.random((len(GENES), len(CLASSES))) * 50, index=GENES, columns=CLASSES)
     scref.index.name = 'gene_name'
@@ -643,10 +647,41 @@ def test_explain_spot_gives_the_plane_on_an_anisotropic_3d_run(rng, tmp_path):
     run = open_run(tmp_path)
     assert run.run_info()['voxel_size'] == [1, 1, 4] and run.run_info()['is3D'] is True
     gd = geneData.set_index('spot_id')
+    # the storage round trip: what the db gives back is the z the model had, and
+    # the plane from it is the spot's plane_id
+    assert (gd['z'] % 1 != 0).mean() > 0.9
     for sid in gd.index[:150]:
         pos = run.explain_spot(sid)['position']
+        # geneData rounds z to 3 decimals, the db keeps it whole
+        assert pos['z'] == pytest.approx(float(gd.loc[sid, 'z']), abs=5e-4), sid
         assert pos['plane'] == gd.loc[sid, 'plane_id'], sid
-        assert pos['z'] == int(gd.loc[sid, 'z'])
+        assert run.spot(sid)['position']['plane'] == gd.loc[sid, 'plane_id'], sid
+
+    # a file from before the fix: z cut to a whole number and no spot_z_exact. The
+    # tools give no plane for it, and fix_spot_z puts the z back from arrow_spots
+    import shutil
+    import sqlite3
+    from pciSeq.src.core.io import fix_spot_z
+    db = run.path
+    old_dir = tmp_path / 'old' / 'viewer_data' / 'diagnostics'
+    old_dir.mkdir(parents=True)
+    old_db = old_dir / 'diagnostics.db'
+    shutil.copy(db, old_db)
+    with sqlite3.connect(old_db) as con:
+        con.execute('UPDATE spots SET z = CAST(z AS INTEGER)')
+        con.execute("DELETE FROM metadata WHERE key = 'spot_z_exact'")
+    spots_dir = db.parent.parent / 'arrow_spots'
+    old_run = open_run(old_db)
+    pos = old_run.explain_spot(int(gd.index[0]))['position']
+    assert 'plane' not in pos and 'fix_spot_z' in pos['z_is']
+    fix_spot_z(str(old_db), str(spots_dir))
+    fixed = open_run(old_db)
+    for sid in gd.index[:150]:
+        pos = fixed.explain_spot(sid)['position']
+        # arrow_spots keeps z to 3 decimals, as geneData does
+        assert pos['z'] == pytest.approx(float(gd.loc[sid, 'z']), abs=1e-6), sid
+        assert pos['plane'] == gd.loc[sid, 'plane_id'], sid
+    fix_spot_z(str(old_db), str(spots_dir))     # a second time does nothing
 
     # the same cells on all three planes, so the segmentation puts every centroid at
     # plane 1 (z = 4 scaled). The fit then moves the centres a little in z, so the

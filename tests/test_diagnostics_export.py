@@ -22,6 +22,7 @@ EXPECTED_METADATA = {
     'nS', 'nN', 'misread_density', 'rho_bar', 'log_rho_bar',
     'hard_misread_counts', 'hard_misread_by_plane',
     'gene_panel', 'label_map', 'gene_total_spots', 'pciSeq_provenance',
+    'spot_z_exact',
 }
 
 EXPECTED_CELL_COLUMNS = {
@@ -260,3 +261,16 @@ def test_the_centroids_land_in_the_cells_table(exported_db, minimal_varbayes):
     for i, x, y, z in got[1:]:          # row 0 is the background dummy
         assert x == pytest.approx(want['x'].iloc[i]) and y == pytest.approx(want['y'].iloc[i])
         assert z == pytest.approx(want['z'].iloc[i])
+
+
+def test_the_spot_z_comes_back_with_its_decimals(exported_db, minimal_varbayes):
+    """The storage round trip. The spots table kept z as INTEGER until October 2026
+    and the decimals went, which put one espio spot in ten on the plane below."""
+    import pandas as pd
+    got = pd.read_sql('select spot_id, z from spots', exported_db).set_index('spot_id')['z']
+    want = minimal_varbayes.spots.data['z'].astype(np.float32)
+    assert (want % 1 != 0).all()
+    np.testing.assert_array_equal(got.loc[want.index].to_numpy(np.float32), want.to_numpy())
+    (flag,) = exported_db.execute("select value from metadata where key='spot_z_exact'").fetchone()
+    assert flag == '1'
+

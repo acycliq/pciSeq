@@ -80,13 +80,17 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     # the blobs hold nN - 1 float32, one per candidate cell; the background is the
     # last candidate and scores log_rho_bar instead, so its slot is not stored.
     # neighbor_cell_ids is the matching nN - 1 int32 internal labels.
+    # z is REAL, the scaled z as the model has it. It was INTEGER until October
+    # 2026 and the decimals went: z 2.875 (plane 1.15) was saved as 2, plane 0.8,
+    # so the tools put one spot in ten on the plane below (see spot_z_exact).
+    # x and y stay whole pixels, a fraction of a pixel changes no answer.
     cursor.execute('''
         CREATE TABLE spots (
             spot_id INTEGER PRIMARY KEY,
             gene_idx INTEGER,
             x INTEGER,
             y INTEGER,
-            z INTEGER,
+            z REAL,
             neighbor_cell_ids BLOB,
             mvn_loglik BLOB,
             attention BLOB,
@@ -169,6 +173,10 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         # gene_inefficiency are gone, neighbor_cell_ids changed type. A reader of
         # version 2 reads version 1 too; a reader of version 1 refuses version 2.
         ('format_version', '2'),
+        # the spots z is the full scaled z, so plane_of gives the spot's plane.
+        # Files without this key have z cut to a whole number and their spot
+        # planes cannot be trusted; fix_spot_z repairs them from arrow_spots
+        ('spot_z_exact', '1'),
         # Cell-related
         ('nC', str(nC)),
         ('nG', str(nG)),
@@ -353,7 +361,7 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
                % ((', bonus', ', ?') if has_bonus else ('', '')))
         xs = spots.data['x'].astype(np.int32).to_numpy()
         ys = spots.data['y'].astype(np.int32).to_numpy()
-        zs = spots.data['z'].astype(np.int32).to_numpy()
+        zs = spots.data['z'].astype(np.float32).to_numpy()
 
         batch_size = 10000
         for start in range(0, nS, batch_size):
@@ -363,7 +371,7 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
                 row = [
                     int(spots.data.index[i]),
                     int(gene_idx[i]),
-                    int(xs[i]), int(ys[i]), int(zs[i]),
+                    int(xs[i]), int(ys[i]), float(zs[i]),
                     ids_i32[i, :-1].tobytes(),
                     mvn_f32[i, :-1].tobytes(),
                     attn_f32[i, :-1].tobytes(),
@@ -527,6 +535,86 @@ def shrink_diagnostics_db(src: str, dst: str) -> None:
     old.close()
     logger.info('Rewrote %s (%.1f MB) as format 2 at %s (%.1f MB)', src,
                 os.path.getsize(src) / 2**20, dst, os.path.getsize(dst) / 2**20)
+
+
+def fix_spot_z(db_path: str, spots_dir: str = None) -> None:
+    """Put the full spot z back into a diagnostics.db written before October 2026.
+
+    TO REMOVE: a bridge like shrink_diagnostics_db. Those files saved the spot z
+    as a whole number, so a spot's plane worked out from it was one plane too low
+    for about one spot in ten. The viewer's arrow_spots shards of the same run
+    still have the z with its decimals; this copies it over, in place, and adds
+    the spot_z_exact key so the readers trust the planes again. Run it once per
+    file. A format 1 file goes through shrink_diagnostics_db first.
+
+    Parameters
+    ----------
+    db_path : str
+        A format 2 diagnostics.db, changed in place.
+    spots_dir : str, optional
+        The run's arrow_spots folder. By default the one next to the diagnostics
+        folder, viewer_data/arrow_spots.
+
+    Raises
+    ------
+    ValueError
+        When the file is not format 2, when the shards hold other spots, or when
+        a shard z is not the one the file cut to a whole number, which would mean
+        the shards come from another run. Nothing is written then.
+    """
+    import glob
+    import pyarrow.feather as feather
+    from ..utils.geometry import plane_of
+
+    con = sqlite3.connect(db_path)
+    try:
+        meta = dict(con.execute('SELECT key, value FROM metadata'))
+        if meta.get('spot_z_exact') == '1':
+            logger.info('%s has the full spot z already, nothing to do', db_path)
+            return
+        if meta.get('format_version') != '2':
+            raise ValueError('expected a format 2 diagnostics.db, this one says %r; a format '
+                             '1 file goes through shrink_diagnostics_db first'
+                             % meta.get('format_version'))
+        if spots_dir is None:
+            spots_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(db_path))),
+                                     'arrow_spots')
+        shards = sorted(glob.glob(os.path.join(spots_dir, 'spots_plane_*.feather')))
+        if not shards:
+            raise ValueError('no arrow_spots shards in %s' % spots_dir)
+        tables = [feather.read_table(p, columns=['spot_id', 'z', 'plane_id']) for p in shards]
+        sid = np.concatenate([t.column('spot_id').to_numpy() for t in tables]).astype(np.int64)
+        z = np.concatenate([t.column('z').to_numpy() for t in tables]).astype(np.float64)
+        pid = np.concatenate([t.column('plane_id').to_numpy() for t in tables]).astype(np.int64)
+        order = np.argsort(sid)
+        sid, z, pid = sid[order], z[order], pid[order]
+
+        old = np.array(con.execute('SELECT spot_id, z FROM spots ORDER BY spot_id').fetchall(),
+                       dtype=np.float64).reshape(-1, 2)
+        if len(old) != len(sid) or not np.array_equal(old[:, 0].astype(np.int64), sid):
+            raise ValueError('the shards in %s hold other spots than %s' % (spots_dir, db_path))
+        # the file has int(z); the shard z is rounded to 3 decimals, so a z just
+        # under a whole number can read as that number
+        if not (np.abs(np.floor(z + 5e-4) - old[:, 1]) <= 1).all() or (z < old[:, 1] - 1e-3).any():
+            raise ValueError('the shard z does not match the whole numbers in %s, the shards '
+                             'look like another run' % db_path)
+        voxel_size = json.loads(meta['config']).get('voxel_size')
+        if voxel_size:
+            wrong = int((plane_of(z, voxel_size) != pid).sum())
+            if wrong:
+                raise ValueError('%d spots would still get a plane other than their plane_id, '
+                                 'nothing written' % wrong)
+
+        with con:
+            con.executemany('UPDATE spots SET z = ? WHERE spot_id = ?',
+                            zip(z.tolist(), sid.tolist()))
+            con.execute("INSERT INTO metadata VALUES ('spot_z_exact', '1')")
+        # the update leaves the old pages behind, about 45 MB on espio; this
+        # gives them back
+        con.execute('VACUUM')
+    finally:
+        con.close()
+    logger.info('Put the full spot z back into %s, %d spots', db_path, len(sid))
 
 
 def export_docs(cursor: Any) -> None:

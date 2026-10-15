@@ -176,6 +176,10 @@ class Run:
                 'this run has diagnostics.db format version %d, and this pciSeq only '
                 'knows versions 1 and 2. Read it with the pciSeq that made it, or newer.'
                 % self.format_version)
+        # whether the spots z has its decimals. Files from before October 2026 cut
+        # it to a whole number, and a plane worked out from that is one too low for
+        # about one spot in ten, so those files give no plane for a spot
+        self.spot_z_exact = self._meta('spot_z_exact', default=None) == '1'
         # format 2 (October 2026): area_factor per cell in place of the scaled_means
         # blob, the spot blobs without their background slot, the candidate ids as
         # int32, no gene_inefficiency column (logeta_bar in the metadata instead) and
@@ -377,6 +381,28 @@ class Run:
         if not self.config or not self.config.get('voxel_size'):
             return None
         return plane_of(z, self.config['voxel_size'])
+
+    def _spot_position(self, got):
+        """x, y, z and the plane of a spot row, the plane only when it can be trusted."""
+        plane, z_is = self._spot_plane(got[3])
+        out = {'x': got[1], 'y': got[2], 'z': got[3]}
+        if plane is not None:
+            out['plane'] = plane
+        out['z_is'] = z_is
+        return out
+
+    def _spot_plane(self, z):
+        """The plane of a spot from its stored z, or None and the reason why not."""
+        if not self.spot_z_exact:
+            return None, ('the anisotropy scaled z the model works in, cut to a whole '
+                          'number by the pciSeq that saved this run, so the plane cannot '
+                          'be given. pciSeq.src.core.io.fix_spot_z repairs the file')
+        plane = self._plane_of(z)
+        if plane is None:
+            return None, ('the anisotropy scaled z the model works in, not the plane '
+                          'index. This run carries no voxel_size, so the plane cannot '
+                          'be given')
+        return plane, 'the anisotropy scaled z the model works in; plane is the plane index it sits on'
 
     def cell(self, label):
         """The headline facts about one cell."""
@@ -593,14 +619,7 @@ class Run:
         out = {
             'spot': int(spot_id),
             'gene': gene,
-            'position': ({'x': got[1], 'y': got[2], 'z': got[3], 'plane': self._plane_of(got[3]),
-                          'z_is': 'the anisotropy scaled z the model works in; plane is '
-                                  'the plane index it sits on'}
-                         if self._plane_of(got[3]) is not None else
-                         {'x': got[1], 'y': got[2], 'z': got[3],
-                          'z_is': 'the anisotropy scaled z the model works in, not the '
-                                  'plane index. This run carries no voxel_size, so the '
-                                  'plane cannot be given'}),
+            'position': self._spot_position(got),
             'candidates': rows,
             'assigned_to': rows[int(np.argmax(prob))]['cell'],
         }
@@ -880,13 +899,10 @@ class Run:
                           'prob': float(prob[i])})
         cands.append({'cell': 'background', 'prob': float(prob[-1])})
         best = int(np.argmax(prob))
-        plane = self._plane_of(got[3])
         return {
             'spot': spot_id,
             'gene': str(self.gene_panel[got[0]]),
-            'position': {'x': got[1], 'y': got[2], 'z': got[3], 'plane': plane,
-                         'z_is': 'the anisotropy scaled z the model works in; plane is the '
-                                 'plane index, None when the run carries no voxel_size'},
+            'position': self._spot_position(got),
             'assigned_to': cands[best]['cell'],
             'prob': float(prob[best]),
             'candidates': cands,
