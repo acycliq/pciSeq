@@ -56,6 +56,56 @@ _CELL_BLOBS = {
 }
 
 
+class _CellIndex:
+    """The spot files' candidate lists turned inside out: for each cell, its
+    entries. Built by Run._cell_index from the arrow spot shards."""
+
+    def __init__(self, shards):
+        import pyarrow.compute as pc
+        spot_id, gene_id, cells, probs, first, parent = [], [], [], [], [], []
+        base = 0
+        gene_of = {}
+        for tb, gmap in shards:
+            gene_of = gmap
+            n = tb.num_rows
+            spot_id.append(tb['spot_id'].to_numpy())
+            gene_id.append(tb['gene_id'].to_numpy())
+            na = tb['neighbour_array'].combine_chunks()
+            npb = tb['neighbour_prob'].combine_chunks()
+            if n == 0 or len(na.values) == 0:
+                base += n
+                continue
+            par = pc.list_parent_indices(na).to_numpy(zero_copy_only=False)
+            offs = na.offsets.to_numpy()
+            at = np.arange(len(par), dtype=np.int64) + offs[0]
+            cells.append(pc.list_flatten(na).to_numpy(zero_copy_only=False).astype(np.int64))
+            probs.append(pc.list_flatten(npb).to_numpy(zero_copy_only=False).astype(np.float32))
+            first.append(at == offs[par])
+            parent.append((par + base).astype(np.int32))
+            base += n
+        self.gene_of = gene_of
+        self.spot_id = np.concatenate(spot_id) if spot_id else np.zeros(0, np.int64)
+        self.gene_id = np.concatenate(gene_id) if gene_id else np.zeros(0, np.int64)
+        cells = np.concatenate(cells) if cells else np.zeros(0, np.int64)
+        # stable, so within a cell the entries keep the order of the files
+        order = np.argsort(cells, kind='stable')
+        cells = cells[order]
+        self.labels, self.start = np.unique(cells, return_index=True)
+        self.stop = np.append(self.start[1:], len(cells))
+        self.spot_row = (np.concatenate(parent) if parent else np.zeros(0, np.int32))[order]
+        self.prob = (np.concatenate(probs) if probs else np.zeros(0, np.float32))[order]
+        self.first = (np.concatenate(first) if first else np.zeros(0, bool))[order]
+
+    def entries_of(self, label):
+        """(spot rows, probabilities, is-first flags) of the entries naming this
+        cell, empty when no spot does."""
+        i = np.searchsorted(self.labels, label)
+        if i == len(self.labels) or self.labels[i] != label:
+            return (np.zeros(0, np.int32), np.zeros(0, np.float32), np.zeros(0, bool))
+        a, b = self.start[i], self.stop[i]
+        return self.spot_row[a:b], self.prob[a:b], self.first[a:b]
+
+
 class Run:
     """A finished pciSeq run, opened for questions.
 
@@ -635,24 +685,19 @@ class Run:
         if gene is not None:
             self._gene_index(gene)               # raises if it is not a gene
 
+        # the entries that name this cell as a candidate, from the index, in the same
+        # order the spot files list them, so the output is what a full scan gave
+        idx = self._cell_index()
+        spot_row, prob, first = idx.entries_of(label)
+        gene_of = idx.gene_of
         rows = []
-        for tb, gene_of in self._arrow_spots(['spot_id', 'gene_id', 'neighbour_array',
-                                              'neighbour_prob']):
-            for sid, gid, cands, probs in zip(tb['spot_id'].to_pylist(),
-                                              tb['gene_id'].to_pylist(),
-                                              tb['neighbour_array'].to_pylist(),
-                                              tb['neighbour_prob'].to_pylist()):
-                if label not in cands:
-                    continue
-                if gene is not None and gene_of[int(gid)] != gene:
-                    continue
-                p = probs[cands.index(label)]
-                if min_prob is None:
-                    keep = cands[0] == label
-                else:
-                    keep = p > min_prob
-                if keep:
-                    rows.append({'spot': int(sid), 'gene': gene_of[int(gid)], 'prob': float(p)})
+        for r, p, f in zip(spot_row.tolist(), prob.tolist(), first.tolist()):
+            g = gene_of[int(idx.gene_id[r])]
+            if gene is not None and g != gene:
+                continue
+            keep = f if min_prob is None else p > min_prob
+            if keep:
+                rows.append({'spot': int(idx.spot_id[r]), 'gene': g, 'prob': float(p)})
         rows.sort(key=lambda r: -r['prob'])
 
         if min_prob is None:
@@ -1190,11 +1235,9 @@ class Run:
         when it is there.
         """
         internal = self.to_internal(label)
-        candidates = []
-        for tb, _ in self._arrow_spots(['spot_id', 'neighbour_array']):
-            for sid, cands in zip(tb['spot_id'].to_pylist(), tb['neighbour_array'].to_pylist()):
-                if label in cands:
-                    candidates.append(int(sid))
+        idx = self._cell_index()
+        spot_row, _, _ = idx.entries_of(int(label))
+        candidates = [int(idx.spot_id[r]) for r in spot_row.tolist()]
 
         per_gene = {}
         for sid in candidates:
@@ -1248,6 +1291,26 @@ class Run:
             self._cells_tb = pa.concat_tables(
                 [feather.read_table(f) for f in sorted(d.glob('*.feather'))])
         return self._cells_tb
+
+    def _cell_index(self):
+        """Every spot's candidate cells, grouped by cell, built once per run.
+
+        spots_of_cell and the cellData fallback ask "which spots name this cell as a
+        candidate". Scanning the 3 million spots of a big run for that took close to
+        a minute per question; this reads the spot files once, a few seconds, and
+        then each question touches only that cell's own entries.
+
+        Held: per spot, its id and gene id; per candidate entry, grouped by cell in
+        the order the files list them, the spot it belongs to, its probability and
+        whether it is the spot's first, most likely, candidate. About 9 bytes per
+        entry, around 300 MB on espio, only for a run that is asked these questions.
+        """
+        if getattr(self, '_cidx', None) is None:
+            with self._lock:
+                if getattr(self, '_cidx', None) is None:
+                    self._cidx = _CellIndex(self._arrow_spots(
+                        ['spot_id', 'gene_id', 'neighbour_array', 'neighbour_prob']))
+        return self._cidx
 
     def _arrow_spots(self, columns):
         """Yield each arrow spots shard as a table, plus the gene id to name map.
