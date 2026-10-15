@@ -493,7 +493,10 @@ def test_narrative_when_the_neighbourhood_overrules_the_genes():
     }
     story = narrate_cell(e)
     assert 'looks more like L4/5 IT, about 55 to one, mostly because of Car4' in story
-    assert 'neighbouring cells are overwhelmingly L5 ET, which is what carries the call' in story
+    assert 'The neighbourhood strongly favours L5 ET over L4/5 IT, which is what carries the call' in story
+    # the spatial term compares two classes, it says nothing of how many neighbours
+    # are of either (espio cell 2413: 'mostly Ndnf' with 2 of 9 Ndnf)
+    assert 'neighbouring cells are' not in story and 'mostly L5 ET' not in story
     assert 'neighbourhood overruling the genes' in story
     assert 'would have been called L4/5 IT' in story
     assert 'comes out for L5 ET, about 3,000 to one' in story

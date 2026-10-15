@@ -1928,12 +1928,14 @@ def narrate_cell(e):
     if abs(d['neighbours']) < 0.4:
         out.append('The neighbouring cells make no real difference either way.')
     elif d['neighbours'] > 0:
-        out.append('The neighbouring cells are %s %s, which %s the call.'
-                   % (_mostly(d['neighbours']), a,
+        # the spatial term says which of the two classes the neighbourhood favours,
+        # not how many neighbours are of it: espio cell 2413 got 'the neighbouring
+        # cells are mostly Ndnf' with 2 of its 9 neighbours Ndnf
+        out.append('The neighbourhood %s favours %s over %s, which %s the call.'
+                   % (_mostly(d['neighbours']), a, o,
                       'strengthens' if d['genes'] > 0 else 'is what carries'))
     else:
-        out.append('The neighbouring cells lean towards %s, which counts against the call.'
-                   % o)
+        out.append('The neighbourhood favours %s, which counts against the call.' % o)
 
     # what settled it
     if decider == 'genes':
@@ -2115,8 +2117,10 @@ def _strength(d):
 
 
 def _mostly(d):
-    """How much of the neighbourhood agrees, from the size of the spatial term."""
-    return 'overwhelmingly' if d > 8 else 'mostly' if d > 2 else 'somewhat more'
+    """How strongly the neighbourhood favours one class over the other, from the size of
+    the spatial term difference. Not how many neighbours are of it, the term does not
+    say that."""
+    return 'strongly' if d > 8 else 'clearly' if d > 2 else 'slightly'
 
 
 def _tsv(v):
