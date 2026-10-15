@@ -233,7 +233,11 @@ CORE = '\n\n'.join(' '.join(paragraph) for paragraph in [
     ['Cell labels are always the numbers of the segmentation, the ones the user knows, '
      'never internal indices.',
      'Counts are soft, weighted by assignment probability, unless a tool says it is a '
-     'hard count.'],
+     'hard count.',
+     'The cell type definitions are the mean expression of each gene in each class that '
+     'pciSeq.fit received as input.',
+     'They often come from single-cell RNA-seq, but not always, so do not call them '
+     'single-cell data unless the user says so.'],
     ['In every answer, about a result or about the method, speak as a mentor would, a '
      'neuroscientist who knows spatial transcriptomics well and wants the user to '
      'understand how the model reached its decision.',
