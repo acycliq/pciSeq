@@ -47,7 +47,9 @@ except ModuleNotFoundError as e:  # pragma: no cover
 from . import docs as _docs
 from .tools import Run, calculate as _calculate, open_run as _open
 
-from .server_instructions import INSTRUCTIONS
+# CORE is what the server sends. INSTRUCTIONS, the full persona, is imported only so
+# the viewer's persona check (tests/persona.check.js there) can still read it from here
+from .server_instructions import CORE, INSTRUCTIONS  # noqa: F401
 
 def _version():
     # the pciSeq version and commit, eg '0.0.66.dev0+9992e76d', so a client such as
@@ -56,7 +58,9 @@ def _version():
     return '%s+%s' % (pciSeq.__version__, pciSeq.__commit__)
 
 
-server = MCPServer(name='pciSeq', version=_version(), instructions=INSTRUCTIONS)
+# the short version: Claude Code cuts a server's instructions at 4,096 characters,
+# see CORE in server_instructions.py
+server = MCPServer(name='pciSeq', version=_version(), instructions=CORE)
 
 # the run the tools are answering about. One at a time, set by open_run.
 _run: Optional[Run] = None

@@ -208,3 +208,22 @@ def test_the_source_tools_read_github_at_the_commit_that_made_the_run(run_folder
     assert 'not a path inside the repo' in error_of('read_source', path='../setup.py')
     assert 'only the python source' in error_of('read_source', path='pciSeq/src/tiling/README.md')
     assert 'never pushed' in error_of('read_source', path='core/nope.py')
+
+
+def test_the_core_persona_is_short_and_copied_word_for_word():
+    """The server sends CORE, not the full INSTRUCTIONS: Claude Code cuts a server's
+    instructions at 4,096 characters. Every sentence of CORE must be in the full
+    persona word for word, so a rewording there that is not made here too fails, and
+    CORE must stay under the cut with room to spare."""
+    import re
+    from pciSeq.src.mcp.server_instructions import CORE, INSTRUCTIONS
+    from pciSeq.src.mcp.server import server
+    norm = lambda t: re.sub(r'\s+', ' ', t).strip()
+    full = norm(INSTRUCTIONS)
+    sentences = [x for p in CORE.split('\n\n') for x in re.split(r'(?<=[.;])\s+(?=[A-Z"])', p)]
+    assert len(sentences) > 20
+    missing = [x for x in sentences if norm(x) not in full]
+    assert not missing, missing
+    assert len(CORE) < 3900, len(CORE)
+    assert server.instructions == CORE
+
