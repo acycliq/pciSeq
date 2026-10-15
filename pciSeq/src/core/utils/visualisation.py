@@ -464,12 +464,11 @@ def cell_class_stacked_bar(obj, class_col='top_class'):
     - Tooltips show individual counts (not cumulative)
     """
 
-    from .geometry import anisotropy_calc
+    from .geometry import plane_of
 
+    # the centroid z is the scaled one, plane_of puts it on its plane
     centroids = obj.cells.centroid.values
-    voxel_size = obj.config['voxel_size']
-    data = anisotropy_calc(centroids, voxel_size, inverse=True)
-    plane_id = data[:, -1].astype(int)
+    plane_id = plane_of(centroids[:, -1], obj.config['voxel_size'])
 
     idx = np.argmax(obj.cells.classProb, axis=1)
     cell_class = obj.cells.class_names[idx]

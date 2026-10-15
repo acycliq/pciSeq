@@ -36,6 +36,8 @@ from pathlib import Path
 
 import numpy as np
 
+from ..core.utils.geometry import plane_of
+
 logger = logging.getLogger(__name__)
 
 _MISSING = object()
@@ -370,16 +372,11 @@ class Run:
     def _plane_of(self, z):
         """The plane index a scaled z belongs to, or None without voxel_size.
 
-        Floor, not round: plane p is the stretch from p up to p + 1, the same as
-        pciSeq gives a spot its plane_id (spot_processing.py) and the viewer its
-        'Centroid Plane'. So a cell centroid at plane 21.56 is on plane 21. The tiny
-        tolerance keeps a spot sitting exactly on a plane from landing one below
-        when z / ratio comes out as 56.99999 in floating point.
+        Floor, not round, see plane_of in core/utils/geometry.py for why.
         """
         if not self.config or not self.config.get('voxel_size'):
             return None
-        vx, _, vz = self.config['voxel_size']
-        return int(np.floor(z * vx / vz + 1e-4))
+        return plane_of(z, self.config['voxel_size'])
 
     def cell(self, label):
         """The headline facts about one cell."""

@@ -319,6 +319,38 @@ def anisotropy_calc(data: np.ndarray,
         raise ValueError('inverse must be True or False')
 
 
+# The scaled z and the plane. pciSeq works in coordinates where z is stretched to
+# the units of x, z = z_plane * voxel_size[2] / voxel_size[0] (anisotropy_calc
+# above). That z is what the spot files, geneData and cellData carry, so it is
+# NOT a plane number. These two go between the two.
+#
+# Plane p is the stretch from p up to p + 1, so a z goes to its plane by floor,
+# never round. A spot with z_plane 21.56 has plane_id 21 (spot_processing.py),
+# and a cell centroid at plane 21.56 is on plane 21 too. With round the cell tools
+# said 22 while the viewer's Centroid Plane said 21, fixed in e427077.
+#
+# The 1e-4 keeps a z sitting exactly on a plane from landing one below when
+# z / ratio comes out as 56.99999 in floating point.
+#
+# The viewer has twins of these: planeOf in electron/run.js and src/utils/planes.js
+# in pciSeq_viewer. Keep all three the same; tests/test_geometry.py and the
+# viewer's tests/planes.test.js check the same numbers.
+def plane_of(z, voxel_size):
+    """The plane a scaled z is on: floor(z * voxel_size[0] / voxel_size[2]).
+
+    Takes a number or an array, gives an int or an int array.
+    """
+    vx, _, vz = voxel_size
+    p = np.floor(np.asarray(z, dtype=np.float64) * vx / vz + 1e-4).astype(np.int64)
+    return int(p) if p.ndim == 0 else p
+
+
+def plane_to_z(plane, voxel_size):
+    """The scaled z where a plane starts, plane * voxel_size[2] / voxel_size[0]."""
+    vx, _, vz = voxel_size
+    return np.asarray(plane, dtype=np.float64) * vz / vx
+
+
 
 
 
