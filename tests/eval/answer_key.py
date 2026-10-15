@@ -7,7 +7,9 @@ tie for instance, is flagged when the run no longer has it, so it can be pointed
 at another cell. No language model is called, it costs nothing.
 
     PYTHONPATH=. python tests/eval/answer_key.py      (from the repo, not the installed copy)
+    PYTHONPATH=. python tests/eval/answer_key.py --json out.json   (the filled in set, for a runner)
 """
+import json
 import os
 import sys
 
@@ -104,7 +106,7 @@ def fill(text, values):
 def main():
     spec = yaml.safe_load(open(os.path.join(HERE, 'espio_demo.yaml')))
     r = open_run(os.path.expanduser(spec['run']))
-    stale = []
+    stale, filled = [], []
     for case in spec['cases']:
         values, holds, why = KEYS[case['id']](r, case.get('subject', {})) if case['id'] in KEYS else ({}, True, '')
         print('\n[%s]%s %s' % (case['id'], ' (viewer only)' if case.get('viewer_only') else '',
@@ -116,6 +118,13 @@ def main():
         if not holds:
             stale.append(case['id'])
             print('   !! ' + why)
+        filled.append({'id': case['id'], 'viewer_only': bool(case.get('viewer_only')),
+                       'question': fill(case['question'], values), 'tools': case.get('tools', []),
+                       'must': [fill(str(m), values) for m in case.get('must', [])],
+                       'must_not': [fill(str(m), values) for m in case.get('must_not', [])]})
+    if '--json' in sys.argv:
+        with open(sys.argv[sys.argv.index('--json') + 1], 'w') as f:
+            json.dump(filled, f, indent=1)
     if stale:
         sys.exit('\n%d cases need another subject: %s' % (len(stale), ', '.join(stale)))
 
