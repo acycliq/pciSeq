@@ -118,7 +118,8 @@ def run_info() -> dict:
     nNeighbors, voxel_size and the rest), the number of iterations, and whether the
     loop converged, with a sentence saying so. Use it for 'when was this run made',
     'what is the mean cell radius', 'what settings did it use' and 'did it converge'.
-    Older runs carry only the provenance and the answer says so."""
+    Older runs carry only the provenance and the answer says so. When the user asks about rTheta, also call theta on a cell of this run and
+    explain theta first: rTheta only makes sense through what it does to theta."""
     return _need_run().run_info()
 
 
@@ -244,7 +245,15 @@ def theta(label: int) -> dict:
     """The cell scale factor theta of one cell: the overall value, and theta_bar
     under each of the top classes with the class probability. Theta scales a
     class's expected counts to the cell's total, with a Gamma(rTheta, rTheta) prior
-    of mean 1; rTheta is returned too. label is the segmentation label.
+    of mean 1; rTheta is returned too. Theta is the cell's reads over what a class
+    expects, with rTheta extra reads added to both. If those extra reads are many
+    compared with the cell's own total, they dominate and theta stays near 1, no
+    correction; if they are few compared with it, the cell's reads decide and theta
+    is close to the plain ratio. label is the segmentation label. Call it as
+    well when the user asks about rTheta: show theta on a real cell first, then
+    rTheta as what decides how much the cell's own counts set theta, and end by
+    asking whether the role of theta is clear, offering to go through it on another
+    cell.
     """
     return _need_run().theta(label)
 
