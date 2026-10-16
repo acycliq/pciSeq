@@ -1,9 +1,9 @@
 /**
- * pciSeq docs theme.
- * Same emerald accent as the old Docusaurus site, written against VitePress's
- * --vp-* variables. Typography is IBM Plex: sans for the body, serif for the
- * headings, mono for code. The viewer docs still run Inter, so the two are no
- * longer in step; move the viewer over if they should match again.
+ * pciSeq docs theme, in step with the pciSeq Viewer docs: the emerald accent,
+ * IBM Plex (sans for the body, serif for the headings, mono for code). The top
+ * bar stays light here; the dark one with the spots is the viewer's. Quiet on purpose: the accent is
+ * for links and the one Install button, headings are parted by space rather
+ * than rules, and code in a sentence is set in the ink.
  */
 
 /* IBM Plex, three faces doing three jobs: Sans for body text, Serif for the
@@ -19,11 +19,16 @@
   /* headings only, set below */
   --font-family-display: 'IBM Plex Serif', Georgia, 'Times New Roman', serif;
 
-  /* Emerald palette (was --ifm-color-primary on Docusaurus). */
-  --vp-c-brand-1: #10b981; /* emerald 500 */
-  --vp-c-brand-2: #059669; /* emerald 600 */
-  --vp-c-brand-3: #047857; /* emerald 700 */
-  --vp-c-brand-soft: rgba(16, 185, 129, 0.14);
+  /* Emerald, the same as the viewer docs: one step darker than emerald 500 for
+     anything that is text, 500 on white is only about 2.5 to 1, 700 is above 5 */
+  --vp-c-brand-1: #047857; /* emerald 700 */
+  --vp-c-brand-2: #065f46; /* emerald 800 */
+  --vp-c-brand-3: #047857;
+  --vp-c-brand-soft: rgba(16, 185, 129, 0.12);
+
+  /* inline code in the ink colour, not in the accent: green chips everywhere
+     made every class name and setting look like a link */
+  --vp-code-color: var(--vp-c-text-1);
 
   /* a slightly wider reading column for the long derivations */
   --vp-layout-max-width: 1440px;
@@ -34,6 +39,7 @@
   --vp-c-brand-2: #10b981;
   --vp-c-brand-3: #059669;
   --vp-c-brand-soft: rgba(16, 185, 129, 0.16);
+  --vp-code-color: var(--vp-c-text-1);
 
   /* near-black background, like the old dark theme */
   --vp-c-bg: #0c0c0e;
@@ -69,9 +75,10 @@
   font-size: 1.5rem;
   font-weight: 600;
   letter-spacing: -0.011em;
-  margin-top: 2.75rem;
+  margin-top: 3.25rem;
   margin-bottom: 0.6rem;
-  padding-top: 1.25rem;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .vp-doc h3 {
@@ -402,4 +409,79 @@
 @media (max-width: 640px) {
   .vp-doc .pick-row { flex-direction: column; gap: 4px; }
   .vp-doc .pick-label { flex: none; padding: 4px 0 2px 12px; }
+}
+
+/* --- Browser surfaces ----------------------------------------------- */
+/* the parts the browser draws by default, set from the palette */
+::selection {
+  background: rgba(16, 185, 129, 0.25);
+}
+
+:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.vp-doc a {
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+/* figures in tables line up */
+.vp-doc td {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Top bar --------------------------------------------------------- */
+/* Install is the one action, so it is the one filled thing in the bar */
+.VPNavBarMenuLink[href*="/installation"] {
+  align-self: center;
+  height: 32px !important;
+  margin-left: 8px;
+  padding: 0 14px !important;
+  line-height: 32px !important;
+  border-radius: 999px;
+  background: var(--vp-c-brand-1);
+  color: #fff !important;
+  font-weight: 600;
+  transition: background-color 0.15s;
+}
+
+.VPNavBarMenuLink[href*="/installation"]:hover {
+  background: var(--vp-c-brand-2);
+}
+
+.VPNavBarMenuLink[href*="/installation"]::after {
+  display: none !important;
+}
+
+.dark .VPNavBarMenuLink[href*="/installation"] {
+  color: #0c0c0e !important;
+}
+
+/* --- Quieter prose ----------------------------------------------------- */
+/* code inside a sentence is told apart by its face alone, no box, so the
+   line reads without jumps. Code blocks and tables keep their own setting */
+.vp-doc :not(pre) > code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.9em;
+  color: var(--vp-c-text-1);
+}
+
+.vp-doc a > code {
+  color: inherit;
+}
+
+/* links at the weight of the text round them, with a faint underline that
+   firms up on hover */
+.vp-doc a {
+  font-weight: inherit;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  transition: text-decoration-color 0.15s;
+}
+
+.vp-doc a:hover {
+  text-decoration-color: currentColor;
 }

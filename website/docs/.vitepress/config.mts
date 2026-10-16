@@ -31,7 +31,7 @@ export default defineConfig({
     // light the default. The toggle still works and still remembers what the reader picks.
     ['script', {}, `try{localStorage.getItem('vitepress-theme-appearance')||localStorage.setItem('vitepress-theme-appearance','light')}catch(e){}`],
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/pciSeq_3d/favicon.svg' }],
-    ['meta', { name: 'theme-color', content: '#10b981' }],
+    ['meta', { name: 'theme-color', content: '#047857' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:title', content: 'pciSeq' }],
     ['meta', { property: 'og:description', content: 'Probabilistic cell typing by in situ sequencing' }],
@@ -44,15 +44,14 @@ export default defineConfig({
   },
 
   themeConfig: {
+    // a few plain links and one action, the same shape as the viewer docs. The
+    // chapters themselves are in the sidebar
     nav: [
-      { text: 'Docs', link: '/' },
-      { text: 'Running pciSeq', link: '/running-pciseq' },
-      { text: 'How it works', link: '/how-it-works/overview' },
-      { text: 'Explaining the calls', link: '/explaining-the-calls/overview' },
-      { text: 'Viewer', link: '/viewer/overview' },
-      { text: 'MCP server', link: '/api/mcp-server' },
-      { text: 'The model', link: '/the-model/overview' },
-      { text: 'API', link: '/api/reference' },
+      { text: 'Docs', link: '/', activeMatch: '^/(?!the-model/|api/(reference|configuration|code-map))' },
+      { text: 'The model', link: '/the-model/overview', activeMatch: '^/the-model/' },
+      { text: 'API', link: '/api/reference', activeMatch: '^/api/(reference|configuration|code-map)' },
+      { text: 'pciSeq Viewer', link: 'https://acycliq.github.io/pciSeq_viewer/' },
+      { text: 'Install', link: '/installation' },
     ],
 
     sidebar: [
@@ -163,8 +162,8 @@ export default defineConfig({
     },
 
     footer: {
-      message: 'Built with VitePress.',
-      copyright: 'Copyright © 2026 acycliq',
+      message: 'MIT licence. <a href="https://github.com/acycliq/pciSeq_3d">Source</a> · <a href="https://acycliq.github.io/pciSeq_viewer/">pciSeq Viewer</a>',
+      copyright: '© 2026 acycliq',
     },
 
     search: {
