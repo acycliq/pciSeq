@@ -226,8 +226,10 @@
 
 /* variational loop (how-it-works/overview) */
 .vl-arc-band { fill: var(--vp-c-text-1); fill-opacity: 0.05; stroke: var(--vp-c-text-1); stroke-opacity: 0.3; stroke-width: 1; stroke-linejoin: round; }
-.vl-arc-highlight { fill: rgba(72, 187, 120, 0.12); fill-opacity: 1; stroke: #48bb78; stroke-opacity: 1; stroke-width: 1.5; }
-.vl-text-label { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+/* a step that runs only with an option set: dashed and fainter */
+.vl-arc-optional { fill-opacity: 0.02; stroke-dasharray: 5 4; stroke-opacity: 0.45; }
+.vl-text-optional { opacity: 0.6; }
+.vl-text-label { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
 .vl-center-title { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 12px; font-weight: 300; letter-spacing: 0.4em; opacity: 0.5; }
 
 /* spot-to-cell building blocks (how-it-works/spots-to-cells). The card fills and
