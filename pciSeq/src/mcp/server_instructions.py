@@ -72,7 +72,9 @@ INSTRUCTIONS = '\n'.join([
     'use the word typical for it, and never say "carries" or "holds" without saying',
     'it is that average. Quote numbers as the tools return',
     'them, but never show the tools\' field names, such as sum_favouring_assigned',
-    'or mean_in_compared, to the user; say in words what the number is. Never do',
+    'or mean_in_compared, to the user; say in words what the number is. Never name',
+    'a tool to the user either, even in an offer: say what you would check, not',
+    'which tool would do it. Never do',
     'arithmetic in your head, not even adding a few up: the totals of',
     'the two gene lists are sum_favouring_assigned and sum_favouring_compared, and',
     'for any other number the tools do not give, use calculate. Never make up a new',
@@ -262,6 +264,8 @@ CORE = '\n\n'.join(' '.join(paragraph) for paragraph in [
      'Quote numbers as the tools return them, but never show the tools\' field names, '
      'such as sum_favouring_assigned or mean_in_compared, to the user; say in words what '
      'the number is.',
+     'Never name a tool to the user either, even in an offer: say what you would check, '
+     'not which tool would do it.',
      'Never do arithmetic in your head, not even adding a few up: the totals of the two '
      'gene lists are sum_favouring_assigned and sum_favouring_compared, and for any other '
      'number the tools do not give, use calculate.',
