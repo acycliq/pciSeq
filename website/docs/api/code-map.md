@@ -544,38 +544,47 @@ One block per module, in source order. Methods are listed as `Class.method`; nam
 | `_version` | 54 |  |
 | `_need_run` | 69 |  |
 | `_tool` | 83 |  |
-| `open_run` | 96 | Open a finished pciSeq run so the other tools can answer questions about it. |
-| `run_info` | 114 | What produced the open run and how it ended: pciSeq version, commit and its |
-| `cell` | 127 | The headline facts about one cell: its class probabilities, its top genes, its |
-| `cell_shape` | 138 | The fitted shape of one cell's Gaussian: round or elongated, by how much, and |
-| `explain_cell` | 148 | Why a cell was given its class, gene by gene. |
-| `explain_spot` | 173 | Why a spot was assigned to the cell it was, term by term. |
-| `cell_counts` | 190 | How many reads a cell holds, in total or for one gene. |
-| `spots_in_cell` | 201 | How many spots physically sit inside a cell's segmentation mask. |
-| `spots_of_cell` | 213 | Which spots belong to a cell, with their probabilities, sorted highest first. |
-| `gene` | 231 | One gene across the run: its efficiency eta and inefficiency, its misread |
-| `theta` | 244 | The cell scale factor theta of one cell: the overall value, and theta_bar |
-| `gamma` | 262 | The cell-gene scale factors gamma_bar of one cell under its assigned class, |
-| `spot` | 274 | One spot: its gene, position and plane, the cell it was assigned to with the |
-| `neighbours` | 286 | The cells whose classes enter the spatial (mrf) term of one cell, nearest |
-| `class_counts` | 296 | How many cells each class has: hard (the number of cells whose most probable |
-| `class_prior` | 309 | The weight of every class at the end of the run: the prior probability that a |
-| `find_cells` | 322 | The cells matching the filters given: assigned class, plane of the centroid, |
-| `metadata` | 339 | The metadata table of diagnostics.db. Without a key: every key with the kind |
-| `cell_row` | 349 | The cellData.tsv row of one cell, value for value: Cell_Num, X, Y, Z, |
-| `spot_row` | 358 | The geneData.tsv row of one spot, value for value: gene, position, plane, |
-| `cell_image` | 366 | A picture of a cell on the background image (DAPI or another stain), for 'show |
-| `plane_image` | 408 | The background image (DAPI or another stain) of one plane with nothing drawn |
-| `_picture` | 438 | What an image tool hands back: the png itself, so the agent can look at it, |
-| `list_source` | 451 | List a folder of the pciSeq source code, at the commit that made the open run. |
-| `read_source` | 465 | Read a file of the pciSeq source code, with line numbers, at the commit that |
-| `_run_has_no_docs` | 488 | True when a run is open and it carries no documentation pages. |
-| `docs` | 494 | The pciSeq documentation, three ways. |
-| `calculate` | 542 | Do arithmetic instead of doing it in your head. |
-| `docs_index` | 562 |  |
-| `_page_reader` | 577 |  |
-| `_register_pages` | 587 |  |
-| `main` | 598 | Run the server over stdio, which is what every MCP client does. |
+| `open_run` | 100 | Open a finished pciSeq run so the other tools can answer questions about it. |
+| `run_info` | 118 | What produced the open run and how it ended: pciSeq version, commit and its |
+| `cell` | 131 | The headline facts about one cell: its class probabilities, its top genes, its |
+| `cell_shape` | 142 | The fitted shape of one cell's Gaussian: round or elongated, by how much, and |
+| `explain_cell` | 152 | Why a cell was given its class, gene by gene. |
+| `explain_spot` | 177 | Why a spot was assigned to the cell it was, term by term. |
+| `cell_counts` | 194 | How many reads a cell holds, in total or for one gene. |
+| `spots_in_cell` | 205 | How many spots physically sit inside a cell's segmentation mask. |
+| `spots_of_cell` | 217 | Which spots belong to a cell, with their probabilities, sorted highest first. |
+| `gene` | 235 | One gene across the run: its efficiency eta and inefficiency, its misread |
+| `theta` | 248 | The cell scale factor theta of one cell: the overall value, and theta_bar |
+| `gamma` | 266 | The cell-gene scale factors gamma_bar of one cell under its assigned class, |
+| `spot` | 278 | One spot: its gene, position and plane, the cell it was assigned to with the |
+| `neighbours` | 290 | The cells whose classes enter the spatial (mrf) term of one cell, nearest |
+| `class_counts` | 300 | How many cells each class has: hard (the number of cells whose most probable |
+| `class_prior` | 313 | The weight of every class at the end of the run: the prior probability that a |
+| `find_cells` | 326 | The cells matching the filters given: assigned class, plane of the centroid, |
+| `metadata` | 343 | The metadata table of diagnostics.db. Without a key: every key with the kind |
+| `cell_row` | 353 | The cellData.tsv row of one cell, value for value: Cell_Num, X, Y, Z, |
+| `spot_row` | 362 | The geneData.tsv row of one spot, value for value: gene, position, plane, |
+| `cell_image` | 370 | A picture of a cell on the background image (DAPI or another stain), for 'show |
+| `plane_image` | 412 | The background image (DAPI or another stain) of one plane with nothing drawn |
+| `_picture` | 442 | What an image tool hands back: the png itself, so the agent can look at it, |
+| `list_source` | 455 | List a folder of the pciSeq source code, at the commit that made the open run. |
+| `read_source` | 469 | Read a file of the pciSeq source code, with line numbers, at the commit that |
+| `_run_has_no_docs` | 492 | True when a run is open and it carries no documentation pages. |
+| `docs` | 498 | The pciSeq documentation, three ways. |
+| `calculate` | 546 | Do arithmetic instead of doing it in your head. |
+| `docs_index` | 566 |  |
+| `_page_reader` | 581 |  |
+| `_register_pages` | 591 |  |
+| `main` | 602 | Run the server over stdio, which is what every MCP client does. |
+
+</details>
+
+<details>
+<summary><code>mcp/server_instructions.py</code> How the agent should talk about a pciSeq result.</summary>
+
+| Name | Line | Description |
+|---|---|---|
+| `tool_rules` | 322 | The persona's rules for one tool, as one paragraph, or '' when it has none. |
 
 </details>
 

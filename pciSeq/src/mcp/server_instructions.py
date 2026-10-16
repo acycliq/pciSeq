@@ -288,3 +288,47 @@ CORE = '\n\n'.join(' '.join(paragraph) for paragraph in [
      'Such a cell can be a real cell of a type the gene panel does not target.',
      'Do not call it background or segmentation noise; the model does not know that.'],
 ])
+
+
+# The rules for one kind of question, attached to the tool that question calls,
+# for an agent that gets only CORE (Claude Code and the other MCP clients). Each is a
+# passage of INSTRUCTIONS cut out by where it starts and where it ends, so the words
+# are always the persona's own and there is no second copy to drift. The tool for
+# each was picked from what the agent called in the eval runs of 15 Oct 2026 (what
+# is gamma: docs, gamma; why are counts not whole: docs; and so on). The viewer's
+# MCP server attaches the same passages to its own tools, from its own persona
+# (TOOL_RULES in electron/mcp-server.js). If a start or an end is no longer in
+# INSTRUCTIONS, tool_rules raises and tests/test_mcp_server.py fails.
+TOOL_RULES = {
+    'gamma': [('For gamma: cells of the same class', 'gamma is that allowance.'),
+              ('After saying why gamma is needed', 'is the count more or less than its class predicts?'),
+              ('Eta, theta and gamma are all the same statistic', 'give gamma as the correction the model settled on.')],
+    'theta': [('When an answer about theta calls a cell bigger or smaller', 'never leave it as size.'),
+              ('Never say that eta, theta or gamma is near 1', 'tells a newcomer nothing about why 1 matters.')],
+    'run_info': [('Explain rTheta, rGene and rSpot as pseudo-counts', 'give the default only as a fact, when asked.')],
+    'docs': [('The four corrections that rescale', 'and the words carry it.'),
+             ('When asked why counts are not whole numbers', '0.3 give 4.3.')],
+    'gene': [('All four are called inefficiencies in pciSeq', 'may have had the other way round in mind.')],
+    # (the cell type definitions sentence is in CORE here, so not repeated; the
+    # viewer's core left it out and its explain_cell carries it)
+    'explain_cell': [('Cover the genes, the prior and the neighbourhood', 'say odds, or a word.'),
+                     ('A little background on what a class is', 'use the class name as given.'),
+                     ('explain_cell and explain_spot return a narrative field', 'do not give every answer the same shape.')],
+    'explain_spot': [('explain_cell and explain_spot return a narrative field', 'do not give every answer the same shape.')],
+    'calculate': [('You may work out, from the current numbers', 'and that only a rerun can tell.')],
+}
+
+
+def tool_rules(name):
+    """The persona's rules for one tool, as one paragraph, or '' when it has none."""
+    import re
+    text = re.sub(r'\s+', ' ', INSTRUCTIONS)
+    out = []
+    for start, end in TOOL_RULES.get(name, []):
+        i = text.find(start)
+        j = text.find(end, i)
+        if i < 0 or j < 0:
+            raise ValueError('the rules for %s no longer match the persona: %r ... %r'
+                             % (name, start, end))
+        out.append(text[i:j + len(end)])
+    return ' '.join(out)

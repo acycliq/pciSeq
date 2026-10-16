@@ -238,3 +238,18 @@ def test_no_tool_description_is_long_enough_to_be_cut():
         assert len(t.description) < 4000, (t.name, len(t.description))
         assert t.description.isascii(), t.name
 
+
+def test_the_tool_rules_are_the_personas_own_words():
+    """Each tool in TOOL_RULES carries passages cut out of INSTRUCTIONS, for an agent
+    that gets only CORE. If the persona is reworded and a start or an end no longer
+    matches, tool_rules raises; and every passage must really sit on its tool."""
+    import re
+    from pciSeq.src.mcp.server_instructions import TOOL_RULES, tool_rules, INSTRUCTIONS
+    full = re.sub(r'\s+', ' ', INSTRUCTIONS)
+    listed = {t.name: re.sub(r'\s+', ' ', t.description) for t in asyncio.run(srv.server.list_tools())}
+    for name, passages in TOOL_RULES.items():
+        for start, end in passages:
+            i = full.find(start)
+            assert i >= 0 and full.find(end, i) >= 0, (name, start, end)
+        assert tool_rules(name) in listed[name], name
+

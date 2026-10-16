@@ -49,7 +49,7 @@ from .tools import Run, calculate as _calculate, open_run as _open
 
 # CORE is what the server sends. INSTRUCTIONS, the full persona, is imported only so
 # the viewer's persona check (tests/persona.check.js there) can still read it from here
-from .server_instructions import CORE, INSTRUCTIONS  # noqa: F401
+from .server_instructions import CORE, INSTRUCTIONS, tool_rules  # noqa: F401
 
 def _version():
     # the pciSeq version and commit, eg '0.0.66.dev0+9992e76d', so a client such as
@@ -89,6 +89,10 @@ def _tool(fn):
             # KeyError repr()s its message, which puts quotes round it
             msg = e.args[0] if e.args else str(e)
             raise ToolError(str(msg)) from e
+    # the persona's rules for this kind of question, for an agent that gets only CORE
+    rules = tool_rules(fn.__name__)
+    if rules:
+        wrapped.__doc__ = (fn.__doc__ or '').rstrip() + '\n\n' + rules
     return server.tool()(wrapped)
 
 
