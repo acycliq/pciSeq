@@ -225,5 +225,16 @@ def test_the_core_persona_is_short_and_copied_word_for_word():
     missing = [x for x in sentences if norm(x) not in full]
     assert not missing, missing
     assert len(CORE) < 3900, len(CORE)
+    # plain ASCII, so there is no doubt how the 4,096 is counted
+    assert CORE.isascii()
     assert server.instructions == CORE
+
+
+def test_no_tool_description_is_long_enough_to_be_cut():
+    """Claude Code cuts a tool description at 4,096 characters when it loads it up
+    front, 16,384 through tool search. Anything past the cut never reaches the model,
+    so every description stays well under the smaller one."""
+    for t in asyncio.run(srv.server.list_tools()):
+        assert len(t.description) < 4000, (t.name, len(t.description))
+        assert t.description.isascii(), t.name
 
