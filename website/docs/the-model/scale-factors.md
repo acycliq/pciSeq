@@ -24,8 +24,9 @@ estimate for that reason: a second mixing distribution in the rate would not col
 
 ### Derivation: the cell scale factor $\theta_c$ {#theta}
 
-The cell scale factor $\theta_c$ is an extension to the original model. Some cells yield
-more transcripts than the reference predicts and others fewer; $\theta_c$ is a single
+The cell scale factor $\theta_c$, also called the cell inefficiency, is an extension to
+the original model. Some cells yield more transcripts than the reference predicts and
+others fewer; $\theta_c$ is a single
 whole-cell correction across all of a cell's genes. Its prior is the conjugate
 $\theta_c \sim \mathrm{Gamma}(r_\theta, r_\theta)$, mean $1$.
 
