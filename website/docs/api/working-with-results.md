@@ -30,7 +30,7 @@ cell.
 | Column | Type | Meaning |
 | --- | --- | --- |
 | `Cell_Num` | int | Cell label. The cell's identity, matching the label image. |
-| `X`, `Y`, `Z` | float | Fitted cell centre, the centre of the cell's Gaussian after the [cell geometry](../the-model/gaussian.md) update. `Z` is 0 for 2D data. |
+| `X`, `Y`, `Z` | float | Fitted cell centroid, the centre of the cell's Gaussian after the [cell geometry](../the-model/gaussian.md) update. `Z` is 0 for 2D data. |
 | `X0`, `Y0`, `Z0` | float | Segmentation centroid, where the cell started. Equal to `X`, `Y`, `Z` up to rounding at the default `cell_centroid_prior`; with a small value the two differ. `Z0` is 0 for 2D data. |
 | `ClassName` | list of str | Candidate cell classes, sorted by descending probability. |
 | `Prob` | list of float | Probability of each class, lined up with `ClassName`. |
@@ -47,7 +47,7 @@ Euclidean distances are comparable in all directions. With the default isotropic
 `voxel_size` of `[1, 1, 1]` the values are plain pixels and `Z` equals the
 z-plane index. With anisotropic voxels, `Z` is the plane index scaled by
 `voxel_size[2] / voxel_size[0]`, so to recover the (fractional) plane of a
-centroid:
+fitted cell centroid:
 
 ```python
 plane = Z * voxel_size[0] / voxel_size[2]
@@ -299,8 +299,8 @@ and [the cell-gene scale factor](/the-model/scale-factors#gamma) sections.
 
 - `cells.theta_bar` is `(nC, nK)`, the estimate of the cell scale factor per cell
   and class.
-- `spots.gamma_bar` is `(nC, nG, nK)`, the posterior mean expression rate per
-  cell, gene and class. This is a cells x genes x classes array, so it can be
+- `spots.gamma_bar` is `(nC, nG, nK)`, the posterior mean of gamma, the cell-gene
+  scale factor, per cell, gene and class. This is a cells x genes x classes array, so it can be
   very large; index into it rather than materialising the whole thing. It is
   dropped from the pickle to keep the file small, so it is only available on
   the instance returned by `cell_type`.

@@ -145,7 +145,7 @@ not appear; see [Cell identifiers](./working-with-results.md#cell-identifiers).
 - `cell_row(label)`: the `cellData.tsv` row of one cell.
 - `theta(label)`: the cell scale factor, overall and under each of the top classes.
 - `gamma(label, gene=None)`: the cell-gene scale factors under the assigned class, for every gene or for one.
-- `neighbours(label)`: the cells entering the spatial term of the cell, with their classes and centroid distances.
+- `neighbours(label)`: the cells entering the spatial term of the cell, with their classes and the distances between their fitted centroids.
 - `class_counts(min_counts=None)`: the number of cells per class, hard and soft.
 - `find_cells(class_name=None, plane=None, min_counts=None, top_two_within=None, n=50)`: the cells matching the filters, by assigned class, plane, total counts, or the gap between the top two classes.
 
@@ -157,7 +157,7 @@ not appear; see [Cell identifiers](./working-with-results.md#cell-identifiers).
 
 ### Genes
 
-- `gene(name)`: the efficiency eta and inefficiency of one gene, its misread density, its spot totals, its soft counts per class, and the cells holding most of it.
+- `gene(name)`: for one gene, eta (its detection efficiency relative to the Inefficiency setting) and eta times the Inefficiency setting; its misread density, its spot totals, its soft counts per class, and the cells holding most of it.
 
 ### Images
 
@@ -207,7 +207,7 @@ Two tools count the spots of a cell and give different numbers by design. `cell_
 returns the sum of the assignment probabilities of the spots, the quantity stored as
 `CellGeneCount` in `cellData`; it is not an integer. `spots_in_cell` returns the number
 of spots whose pixel lies inside the cell's mask; no probability enters it. The model
-scores a spot's position against the cell centroid, not the mask, so a spot outside
+scores a spot's position under the cell's Gaussian, centred on the fitted cell centroid, not against the mask, so a spot outside
 every mask can still be assigned to a cell. Each result states which quantity it is.
 
 Probabilities in `cellData.tsv` and `geneData.tsv` are stored to three decimals and
@@ -266,20 +266,21 @@ and its `narrative`:
 > Spot 1642419 is a Synpr spot. It was assigned to cell 18223, fairly confidently, with
 > probability 0.74. The next candidates are cell 21574 (0.13), cell 17371 (0.10), and
 > the chance it is a misread is 0.01. pciSeq weighs each nearby cell on two things: how
-> close the spot is to the cell's centre (the Gaussian fit), and how well a Synpr spot
+> close the spot is to the cell's centroid (the Gaussian fit), and how well a Synpr spot
 > fits that cell, which combines whether the cell's class expresses Synpr (class
 > expression), whether the cell holds more reads overall than its class predicts (cell
 > scale), and whether it already holds more Synpr than its class predicts (cell-gene
 > scale). The background is scored on how often Synpr spots turn out to be misreads. The
 > best total wins. Cell 18223 is the nearest candidate: about 5 to one over cell 17371
 > and about 11 to one over cell 21574 on position alone. Every candidate is a 037 DG
-> Glut cell, so on class alone Synpr fits them all equally; what separates them is how
-> much each already holds. Between the top two, cell 21574 holds more reads overall than
-> its class predicts. So cell 21574 is the better fit for the gene, slightly, but cell
+> Glut cell, and on class alone Synpr fits them about equally; what separates them is
+> how much each already holds. Between the top two, cell 21574 holds more reads overall
+> than its class predicts. So cell 21574 is the better fit for the gene, slightly, but cell
 > 18223 is closer, about 11 to one, and distance carries the call.
 
 The probabilities match [Table 3.1](../explaining-the-calls/why-a-spot-got-its-cell.md#table-3-1).
-All candidates are `037 DG Glut`, so the class term does not separate them; cell 18223
+All candidates are `037 DG Glut` and their class expression terms are equal (0.94), so
+that term does not separate them; cell 18223
 is the nearest and the Gaussian term decides. The narrative states this as *distance
 carries the call*; when a farther cell wins because its class expresses the gene, it
 states *expression carries the call*.

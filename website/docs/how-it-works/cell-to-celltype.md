@@ -42,11 +42,12 @@ Two further terms are added to the score.
 
 ## The Zero class
 
-One class, Zero, expects no expression. It takes the cells that are effectively empty:
-debris, segmentation fragments, and cells whose markers are not in the gene panel.
+One class, Zero, expects no expression. It takes cells with zero or few reads that no
+real class explains; such a cell can be a real cell of a type the gene panel does not
+target.
 Without it such cells would be forced onto a real class. A near-empty cell has no counts
-to weigh against its neighbours, so the spatial term alone can pull it onto the class
-around it.
+to weigh against its neighbours, so the spatial term alone can determine its
+class.
 
 The output, a distribution over classes for every cell, is the input to
 [spot assignment](spots-to-cells.md).

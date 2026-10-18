@@ -239,8 +239,8 @@ pciSeq would have drawn.
 Shapes in SpatialData are strictly 2D, so a 3D run gets one shapes element
 per plane, cell_boundaries_plane_000 and so on, each a set of polygons
 indexed by the cell label. A cell spanning 12 planes appears as 12
-polygons, one per element, all under its own label, which is exactly how
-pciSeq thinks of boundaries anyway. A 2D run gets a single element.
+polygons, one per element, all under its own label, which matches the
+per-plane boundary files pciSeq writes. A 2D run gets a single element.
 
 Args:
     store_path: path to an existing spatialdata.zarr written by pciSeq.
@@ -780,7 +780,7 @@ argmax. With `min_prob` set: every spot with a probability on this cell above
 it, which is what cellData.spot_id holds at 0.0001. The two are different
 lists, and the answer says which one it is. Either way every spot comes with
 its probability, sorted highest first. `gene` keeps only that gene's spots,
-so the count of them is the tool's number and not the agent's.
+so the number of spots is computed by the tool, not by the agent.
 
 #### `cell_row`
 
@@ -809,7 +809,7 @@ files; `source` says which. Both give the same numbers, the viewer files are
 written from the same frame.
 
 neighbour_prob is rounded to 3 decimals here because that is how geneData
-stores it (summary.py:102), so a candidate holding 0.0004 shows up as 0.0 and
+stores it (summary.py:111), so a candidate holding 0.0004 shows up as 0.0 and
 you cannot tell it apart from one holding nothing at all. That is fine for
 reporting what the file says, and it is why cell_row's spot_id list can
 contain spots whose probability reads 0.0: the cut-off there is 0.0001,
@@ -836,7 +836,7 @@ kinds of picture:
 * context (context=True): the whole plane trimmed to 3:2 with a ring round the
   cell, to show where in the tissue it sits.
 
-The plane is the one given, else the plane of the cell centroid when the run
+The plane is the one given, else the plane of the fitted cell centroid when the run
 carries voxel_size, else the plane where the cell outline is biggest. Returns
 the image (PIL) and a dict of what was drawn. The MCP tool also takes
 save_as; here just call .save on the image.

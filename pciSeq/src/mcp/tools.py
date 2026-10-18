@@ -22,7 +22,7 @@ under 0.0005 reads as 0.0 in them. cell_row and spot_row hand back exactly what 
 file says, which is right for "what does the file report", but it means neither can
 show you a probability finer than that. explain_spot recomputes from diagnostics.db
 and gives the full float32, so use that when the small numbers matter. Note also that
-cellData truncates and geneData rounds, summary.py:31 against summary.py:102, so the
+cellData truncates and geneData rounds, summary.py:31 against summary.py:111, so the
 last digit of the two files is not arrived at the same way.
 """
 import ast
@@ -369,8 +369,9 @@ class Run:
             'cells': self.nC - 1, 'spots': self.nS, 'genes': self.nG, 'classes': self.nK,
             'mean_cell_radius': self.mean_cell_radius(),
             'mean_cell_radius_is': 'in pixels of the xy plane, the mean over the segmented '
-                                   'cells of sqrt(area / pi), halved; the Gaussian of every '
-                                   'cell has this radius',
+                                   'cells of sqrt(area / pi), halved; unless cell_radius is set, '
+                                   'the radius of the prior on every cell\'s Gaussian, whose '
+                                   'covariance is then fitted per cell',
         }
         if self.config is None:
             out['settings'] = None
@@ -771,7 +772,7 @@ class Run:
         it, which is what cellData.spot_id holds at 0.0001. The two are different
         lists, and the answer says which one it is. Either way every spot comes with
         its probability, sorted highest first. `gene` keeps only that gene's spots,
-        so the count of them is the tool's number and not the agent's.
+        so the number of spots is computed by the tool, not by the agent.
         """
         label = int(label)
         self.to_internal(label)                  # raises if it is not a cell
@@ -835,7 +836,7 @@ class Run:
         return self._cells_scan
 
     def _positions(self):
-        """Centroid (X, Y, Z) per segmentation label from the viewer's cells table,
+        """Fitted cell centroid (X, Y, Z) per segmentation label from the viewer's cells table,
         or None when the viewer files are not in this run."""
         if not hasattr(self, '_pos'):
             try:
@@ -1017,7 +1018,7 @@ class Run:
             'n': len(rows),
             'neighbours': rows,
             'neighbours_are': 'the cells the spatial (mrf) term listens to, nearest first. '
-                              'distance_xy is between centroids in pixels of the xy plane, '
+                              'distance_xy is between fitted cell centroids in pixels of the xy plane, '
                               'plane_offset in planes',
             'mrf_beta': (self.config or {}).get('mrf_beta'),
         }
@@ -1074,7 +1075,7 @@ class Run:
 
     def find_cells(self, class_name=None, plane=None, min_counts=None,
                    top_two_within=None, n=50):
-        """The cells matching a few filters: assigned class, plane of the centroid,
+        """The cells matching a few filters: assigned class, plane of the fitted cell centroid,
         total counts, and how close the top two classes are."""
         scan = self._all_cells()
         mask = np.ones(len(scan['internal']), bool)
@@ -1095,7 +1096,7 @@ class Run:
                                           'cells have no positions to filter by plane')
             if self._plane_of(0.0) is None:
                 raise NotImplementedError('this run does not record its voxel size, so a '
-                                          'centroid cannot be put on a plane; rerun with the '
+                                          'fitted cell centroid cannot be put on a plane; rerun with the '
                                           'current pciSeq to record it')
             # Z in the viewer files is the anisotropy scaled z, not a plane index
             planes = np.array([self._plane_of(pos[lab][2]) if lab in pos else -1
@@ -1119,7 +1120,7 @@ class Run:
             'cells': rows,
             'cells_are': 'matched on the most probable class; margin is the probability of '
                          'the assigned class minus the runner up; plane is the plane the '
-                         'centroid falls on, rounded down as for the spots; sorted by prob, '
+                         'fitted cell centroid falls on, rounded down as for the spots; sorted by prob, '
                          'the first n shown',
         }
 
@@ -1209,7 +1210,7 @@ class Run:
         if plane is not None:
             out['plane'] = plane
             out['Z_is'] = ('the anisotropy scaled z the model works in, not a plane; plane '
-                           'is the plane the centroid sits on')
+                           'is the plane the fitted cell centroid sits on')
         else:
             out['Z_is'] = ('the anisotropy scaled z the model works in, not a plane. This '
                            'run carries no voxel_size, so the plane cannot be given')
@@ -1223,7 +1224,7 @@ class Run:
         written from the same frame.
 
         neighbour_prob is rounded to 3 decimals here because that is how geneData
-        stores it (summary.py:102), so a candidate holding 0.0004 shows up as 0.0 and
+        stores it (summary.py:111), so a candidate holding 0.0004 shows up as 0.0 and
         you cannot tell it apart from one holding nothing at all. That is fine for
         reporting what the file says, and it is why cell_row's spot_id list can
         contain spots whose probability reads 0.0: the cut-off there is 0.0001,
@@ -1526,7 +1527,7 @@ class Run:
         * context (context=True): the whole plane trimmed to 3:2 with a ring round the
           cell, to show where in the tissue it sits.
 
-        The plane is the one given, else the plane of the cell centroid when the run
+        The plane is the one given, else the plane of the fitted cell centroid when the run
         carries voxel_size, else the plane where the cell outline is biggest. Returns
         the image (PIL) and a dict of what was drawn. The MCP tool also takes
         save_as; here just call .save on the image.
@@ -1558,7 +1559,7 @@ class Run:
             plane, why = int(plane), 'asked for'
         else:
             plane = self._plane_of(cz) if cz is not None else None
-            why = 'the plane of the cell centroid'
+            why = 'the plane of the fitted cell centroid'
             if plane not in area:
                 # old runs have no voxel_size, so take the biggest slice through the cell
                 plane = max(area, key=area.get)
@@ -1995,7 +1996,7 @@ def narrate_spot(e):
 
     # how a spot is scored
     out.append('pciSeq weighs each nearby cell on two things: how close the spot is to the '
-               'cell\'s centre (the Gaussian fit), and how well a %s spot fits that cell, '
+               'cell\'s centroid (the Gaussian fit), and how well a %s spot fits that cell, '
                'which combines whether the cell\'s class expresses %s (class expression), '
                'whether the cell holds more reads overall than its class predicts (cell '
                'scale), and whether it already holds more %s than its class predicts '
@@ -2027,8 +2028,18 @@ def narrate_spot(e):
     runner = by_prob[1] if len(by_prob) > 1 else None
     classes = {c['class'] for c in cells}
     if len(classes) == 1:
-        out.append('Every candidate is a %s cell, so on class alone %s fits them all equally; '
-                   'what separates them is how much each already holds.' % (winner['class'], gene))
+        # a shared most likely class is not enough: the term averages over the class
+        # probabilities, so cells of the same class can still differ on it. Name the
+        # measured best rather than guess the cause
+        ce = [c['class expression'] for c in cells]
+        if max(ce) - min(ce) <= 0.2:
+            out.append('Every candidate is a %s cell, and on class alone %s fits them about '
+                       'equally; what separates them is how much each already holds.'
+                       % (winner['class'], gene))
+        else:
+            best = max(cells, key=lambda c: c['class expression'])
+            out.append('Every candidate is a %s cell, but their class probabilities differ, so '
+                       'on class alone %s fits cell %d best.' % (winner['class'], gene, best['cell']))
     elif runner and runner['class'] != winner['class']:
         # compared between the two, never read on its own: the term is
         # log(class mean x Inefficiency + SpotReg), below zero whenever the class mean

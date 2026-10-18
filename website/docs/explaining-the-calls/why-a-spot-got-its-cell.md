@@ -61,8 +61,9 @@ the softmax of the totals in Figure 3.4.</figcaption>
 The second chart is the softmax of those totals, which is the assignment the model uses:
 0.74 on cell 18223, 0.13 on cell 21574, 0.10 on cell 17371 and 0.01 on the background.
 
-Each expression term is a log, so its sign says whether the quantity inside the log is
-above or below 1.
+Each expression term is a log, and all but the gene efficiency are averaged over the
+cell's class probabilities. For a cell confidently of one class, the sign of a term
+therefore says whether the quantity inside the log is above or below 1.
 
 Take the class expression, the orange segment of every bar in the score chart above. It sits
 above zero, so the quantity inside its log is above 1. The term is
@@ -105,29 +106,29 @@ for the background:
   class expresses that gene most. Two cells with the same class probabilities get the same
   value, since the gene is the same for every candidate of a spot, which is why every
   candidate here shows 0.943.
-- **cell scale, the gravity**. The factor behind it is theta: how far a cell's total
+- **cell scale, the gravity**. It is derived from theta: how far a cell's total
   counts sit above or below what its likely class predicts. When several cells compete for
   the same spot and everything else is equal, it goes to the cell already holding more
   reads in total. Only the totals count here, so the term is the same whatever the gene of
   the spot.
-- **cell-gene scale, the enrichment**. The factor behind it is gamma: how much of a gene
-  is observed in a cell relative to the amount expected for its likely class. When several
-  cells compete for the same spot and all other factors are equal, the spot is assigned to
-  the cell with the higher observed-to-expected ratio for that gene.
-- **gene efficiency**. The factor behind it is eta: how well the gene is detected across
+- **cell-gene scale, the enrichment**. It is derived from gamma: how much of a gene is
+  observed in a cell relative to the amount predicted by its likely class and its theta.
+  When several cells compete for the same spot and all other factors are equal, the spot
+  is assigned to the cell with the higher observed-to-expected ratio for that gene.
+- **gene efficiency**. It is derived from eta: how well the gene is detected across
   the whole experiment. It is the same for every candidate cell, so it cannot choose
   between them. It does weigh the cells against the background, which carries no such
   term: a poorly detected gene lowers every cell's score and makes the background more
   likely.
-- **misread**. The background's whole score: how likely a spot of this gene is to be a
-  misread. It is the same at every position, so a cell has to beat it or the spot goes to
-  the background.
+- **misread**. The background's whole score: the expected log misread density of the
+  spot's gene. It is the same at every position. A cell scoring below it receives less
+  probability than the background, and a cell scoring above it more.
 - **sum, prob**. The total and its softmax over the rows.
 
 <p class="table-note">Gene efficiency and misread density are not the same thing. The
 first scales what a cell is expected to hold of the gene, so it sits in every cell's
-score. The second is the background's own rate for that gene, learned from the spots no
-cell explains. A gene can be well detected and still produce many misreads.</p>
+score. The second is the background's own rate for that gene, estimated from the spots
+assigned to the background. A gene can be well detected and still produce many misreads.</p>
 
 <p class="table-note">The inside-cell bonus is not shown: <code>InsideCellBonus</code> is 0
 in these runs, so the column was empty. When it is set, a spot whose pixel falls inside the
@@ -137,7 +138,7 @@ Cell 18223 is the nearest candidate: its Gaussian fit is 1.7 above cell 17371 an
 above cell 21574. It does not win on the expression terms. It has the largest cell-gene
 scale, 0.18 against 0.07 for cell 21574 and negative values for the rest, but a lower
 cell scale, -0.66 against 0.10, and over the three expression terms together cell 21574
-is ahead, 1.11 against 0.47. Distance carries the call.
+is ahead, 1.11 against 0.47. The Gaussian fit decides the assignment.
 
 ## The same spot without the spatial term
 
@@ -167,8 +168,9 @@ fit without the spatial term. The Gaussian fit column is identical to
 <tr><td>prob</td><td>0.06</td><td>0.74</td></tr>
 </tbody>
 </table>
-<p class="table-note" id="table-3-3"><strong>Table 3.3.</strong> The terms of cell 18223
-that change between the two fits.</p>
+<p class="table-note" id="table-3-3"><strong>Table 3.3.</strong> Terms of cell 18223 in the
+two fits. The cell scale, cell-gene scale and gene efficiency also change, see the spot
+tables; the class expression accounts for most of the change in the sum.</p>
 </div>
 <div>
 <table>
@@ -195,9 +197,9 @@ The spot is now assigned to cell 18223 with probability 6%, against 73.7% with t
 and its most likely parent is cell 21574, a `037 DG Glut` cell, with 49.2%. Cell 21574 is
 only the third closest to the spot. Cell 17371 is the second closest and is `037 DG Glut`
 too, yet the spot does not go to it, because it holds fewer reads in total, 60.0 against
-98.8, and expresses fewer Synpr, 0.5 against 3.0, see [Table 3.4](#table-3-4). That is
-intuitively sensible: a spot is more likely to come from a cell that is bigger in
-terms of total reads and expresses more of the gene than from one that does not.
+98.8, and holds less Synpr, 0.5 against 3.0, see [Table 3.4](#table-3-4). Between cells
+of the same class, a spot is more likely to come from the cell that holds more reads in
+total and more of the gene.
 
 
 Cell 18223 here is the same cell as in

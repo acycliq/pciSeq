@@ -24,9 +24,9 @@ equation. It follows *The extended pciSeq model* (v0.3), which is the version th
 | $D_c(x)$ | negative log density of point $x$ under the Gaussian of cell $c$ |
 | $m_c,\ \Sigma_c$ | centre and covariance of that Gaussian (extension) |
 | $d$ | number of spatial dimensions, $2$ or $3$ |
-| $\kappa_0,\ \nu_0$ | pseudo-count behind $m_c$ and degrees of freedom behind $\Sigma_c$ (extension) |
+| $\kappa_0,\ \nu_0$ | pseudo-count of the prior on $m_c$ and degrees of freedom of the prior on $\Sigma_c$ (extension) |
 | $\pi_k$ | prior probability of class $k$; fixed, or a random variable under `weighted` (extension) |
-| $\delta_k$ | Dirichlet pseudo-count behind $\pi_k$ (extension) |
+| $\delta_k$ | Dirichlet pseudo-count of the prior on $\pi_k$ (extension) |
 | $\mathcal{N}_c$ | the set of nearest neighbours of cell $c$ |
 | $\beta$ | strength of the spatial (MRF) coupling |
 

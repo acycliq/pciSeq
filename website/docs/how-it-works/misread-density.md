@@ -6,20 +6,22 @@ spots arise from imaging and decoding artefacts, and some survive the quality fi
 of the spot calling.
 
 The misread density is the rate, per gene and per unit of imaged area or volume, at
-which misreads occur. It is the baseline a spot has to beat to be assigned to a cell.
+which misreads occur. Its expected log is the background's score, against which each
+candidate cell's score is compared.
 
 ## The background process
 
 The background is a spatially uniform process: noise spots of a gene occur at a
 constant rate everywhere in the section. In [spot assignment](spots-to-cells.md) this
-rate is the score of the background option, the same at every location. A spot goes to a
-cell only if the cell explains it better than the background does.
+rate gives the score of the background option, the same at every location. The higher a
+cell's score relative to the background's, the larger the share of the spot's probability
+it receives.
 
 ## Per gene, not one global rate
 
 The original pciSeq used one background rate for all genes. This version estimates a
-rate per gene, since genes differ in how noisy they are: spots of a noisy gene have to
-exceed a higher background level than spots of a clean one.
+rate per gene, since genes differ in how noisy they are: for a noisy gene the background
+option receives a larger share of each spot's probability than for a clean one.
 
 The rate is updated on every iteration from the spots currently attributed to the
 background:
@@ -42,6 +44,6 @@ misread density, and $r_\rho$ sets how strongly that prior is held.
 
 In 2D the extent is an area. In 3D it is a volume, measured in the same units as the
 cell shapes it is compared against, so the voxel anisotropy has to be corrected for. An
-extent that is too small makes the background too strong and pushes spots that belong to
-cells into the background. The [derivation](../the-model/misread-density.md) covers the
+extent that is too small makes the background too strong and causes spots that belong
+to cells to be assigned to the background. The [derivation](../the-model/misread-density.md) covers the
 correction and the role of $r_\rho$.

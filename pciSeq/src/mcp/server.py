@@ -177,14 +177,14 @@ def explain_cell(
 def explain_spot(spot_id: Annotated[int, Field(description='The spot id.')]) -> dict:
     """Why a spot was assigned to the cell it was, term by term.
 
-    One row per candidate cell plus the background: the Gaussian fit to the cell
-    centroid, the class expression term, the cell scale, the cell-gene scale, the
+    One row per candidate cell plus the background: the Gaussian fit around the
+    fitted cell centroid, the class expression term, the cell scale, the cell-gene scale, the
     gene efficiency, the inside-cell bonus, their sum, and the resulting probability,
     and a narrative that tells the story in plain words with the evidence as odds.
     The background row carries the gene's misread density instead.
 
     A spot can sit outside every cell and still go to one, because the position is
-    scored against the centroid, not the mask. spot_id is the id shown in the
+    scored against the fitted cell centroid, not the mask. spot_id is the id shown in the
     viewer, the same as the spot_id in geneData.
     """
     return _need_run().explain_spot(spot_id)
@@ -268,7 +268,7 @@ def gamma(label: int, gene: Optional[str] = None) -> dict:
     """The cell-gene scale factors gamma_bar of one cell under its assigned class,
     for every gene or for one, each with the cell's count of the gene and the count
     the class predicts for it (expected). Gamma is the per cell, per gene factor
-    absorbing overdispersion; it is pulled toward 1, so compare counts with expected
+    accounting for overdispersion; 1 means no correction, so compare counts with expected
     to say how far off a gene is. Only the assigned class is kept in diagnostics.db,
     and the answer says so. label is the segmentation label.
     """
@@ -291,7 +291,7 @@ def spot(spot_id: int) -> dict:
 def neighbours(label: int) -> dict:
     """The cells whose classes enter the spatial (mrf) term of one cell, nearest
     first, each with its class and probability and, when the viewer files are
-    present, the centroid distance in xy pixels and the plane offset. mrf_beta is
+    present, the distance between fitted cell centroids in xy pixels and the plane offset. mrf_beta is
     returned too. label is the segmentation label.
     """
     return _need_run().neighbours(label)
@@ -327,7 +327,7 @@ def class_prior() -> dict:
 def find_cells(class_name: Optional[str] = None, plane: Optional[int] = None,
                min_counts: Optional[float] = None, top_two_within: Optional[float] = None,
                n: int = 50) -> dict:
-    """The cells matching the filters given: assigned class, plane of the centroid,
+    """The cells matching the filters given: assigned class, plane of the fitted cell centroid,
     minimum total counts, and top_two_within, the largest gap allowed between the
     probabilities of the top two classes (small values pick the uncertain cells).
     Returns the number matching and the first n by probability, each with its class,
@@ -354,7 +354,7 @@ def metadata(key: Optional[str] = None) -> dict:
 def cell_row(label: int) -> dict:
     """The cellData.tsv row of one cell, value for value: Cell_Num, X, Y, Z,
     X0, Y0, Z0, Genenames, CellGeneCount, spot_id, ClassName, Prob. X, Y, Z is the
-    fitted centre and X0, Y0, Z0 the segmentation centroid. Use this when the
+    fitted cell centroid and X0, Y0, Z0 the segmentation centroid. Use this when the
     question is about what the saved file says for a cell. The counts are soft."""
     return _need_run().cell_row(label)
 
@@ -390,8 +390,8 @@ def cell_image(label: int, context: bool = False, plane: Optional[int] = None,
     The image is stitched from the viewer's tile pyramid (the .mbtiles in
     viewer_data), so it is a close visual copy, not the raw pixels. One plane at a
     time: the cell's 3D neighbours on other planes are not drawn, which is why a
-    cell can have fewer blue cells around it than neighbours. The plane is the
-    centroid's when the run knows its voxel size, else the one where the cell is
+    cell can have fewer blue cells around it than neighbours. The plane is that of the
+    fitted cell centroid when the run knows its voxel size, else the one where the cell is
     biggest; pass plane to choose. save_as writes the png to that path as well,
     which is how a user in a terminal gets to see it.
 
@@ -512,8 +512,7 @@ def docs(query: Annotated[str, Field(
     docs use (an idea you can describe but cannot name, or a term from another
     method), ask for the list and pick the page by its subject, then read that page.
     Use this before answering any question about how pciSeq works, a term, or a
-    setting such as rTheta, mrf_beta or Inefficiency, and name the page you took the
-    answer from.
+    setting such as rTheta, mrf_beta or Inefficiency.
     """
     if _run_has_no_docs():
         return {'error': _NO_DOCS}

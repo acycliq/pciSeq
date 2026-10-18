@@ -188,9 +188,9 @@ MisreadDensity.
 
 **Default:** `1000`
 
-Pseudo-count behind each cell's centroid in the cell geometry update. The
-segmentation centroid counts for this many spots when the centre of the
-cell's gaussian is averaged with the spots assigned to the cell.
+Pseudo-count of the segmentation centroid in the cell geometry update. The
+segmentation centroid counts for this many spots when it is averaged with the
+spots assigned to the cell to give the fitted cell centroid.
 
 ### `cell_cov_prior`
 
@@ -259,10 +259,11 @@ Directory for the results. Output is written to `<output_path>/pciSeq/`.
 
 **Default:** `None`
 
-Radius of the Gaussian that describes the spatial distribution of a cell's
-spots, in the units of the spot coordinates. The covariance is
-cell_radius^2 times the identity. None uses half the mean equivalent radius,
-sqrt(area / pi), of the segmented cells.
+Radius of the prior on each cell's Gaussian, in the units of the spot
+coordinates. The prior mean covariance is cell_radius^2 times the identity;
+the fitted covariance is updated from the assigned spots (see cell_cov_prior).
+None uses half the mean equivalent radius, sqrt(area / pi), of the segmented
+cells.
 
 ### `cell_type_prior`
 
@@ -287,8 +288,8 @@ values summing to more than 1 are normalised with a warning. There is no
 'default' key.
 
 The Zero class has zero expected expression for every gene. It takes cells
-with few or no spots, such as segmentation artefacts and cells whose marker
-genes are not in the panel.
+with zero or few reads that no real class explains; such a cell can be a real
+cell of a type the gene panel does not target.
 
 ### `voxel_size`
 

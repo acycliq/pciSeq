@@ -107,7 +107,7 @@ Up to the prior terms, the numerator is the observed number of spots in cell $c$
 denominator is the total count predicted for it under class $k$. So $\hat\theta_{c\mid k}$
 is again an **observed-over-expected** ratio: greater than $1$ when the cell captures more
 transcripts than the model predicts, less than $1$ when it captures fewer. A large
-$r_\theta$ pulls the estimate toward the prior mean $1$, shrinking the correction when the
+$r_\theta$ moves the estimate toward the prior mean $1$, reducing the correction when the
 evidence is weak. Like $\gamma_{g,c}$, the estimate is computed conditional on the class
 $k$, so it needs no weighting by $\bar\zeta_{c,k}$ in its own update.
 
@@ -127,8 +127,8 @@ real class shrunk far enough predicts almost nothing, the same as an empty cell.
 
 The **Zero class**, which expects no expression, is the class for such cells (see
 [assigning cells to classes](../how-it-works/cell-to-celltype.md)). When the prior is
-weak and $\theta$ collapses, a real class shrunk to imitate Zero can win the cell instead,
-and the cell gets a spurious class.
+weak and $\theta$ collapses, the cell can instead be assigned to a real class scaled down
+to predict almost nothing, and the cell gets a spurious class.
 
 Why the shrunk class wins comes out of the estimate. The total count the model predicts for
 cell $c$ under class $k$ is $\theta$ times the sum over genes of the expected counts,
@@ -329,7 +329,8 @@ Detection efficiency differs between genes: probe chemistry, sequence and length
 transcripts easier to read out than others, so $\eta_g$ is estimated **per gene**. It is
 shared across **all** cells because the detection rate of a gene is a property of the
 assay, not of a cell. $\gamma_{g,c}$ varies cell by cell: $\eta_g$ is how well the gene is
-detected anywhere, $\gamma_{g,c}$ how far this gene in this cell deviates from its class.
+detected anywhere, $\gamma_{g,c}$ how far this gene in this cell deviates from what its class and
+$\theta_c$ predict.
 
 #### Deriving the posterior $q(\eta_g')$
 

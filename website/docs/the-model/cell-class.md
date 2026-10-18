@@ -165,7 +165,7 @@ and a neighbour of either class backs both. The bonus becomes $8 + 1 = 9$ for ea
 
 The bonus is the same for both so it cancels out, and the reads decide: `038` with
 probability 0.95. The neighbours still count against every class outside the group, so a
-patch of DG cells still pulls the cell away from, say, an interneuron class.
+patch of DG cells still lowers the probability of, for example, an interneuron class.
 
 A group can hold more than two classes. Pooling does more than stop the neighbours choosing
 inside the group: the votes across the group add up, and the total competes against every

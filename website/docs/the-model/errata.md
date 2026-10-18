@@ -41,7 +41,8 @@ between "assign to some cell" and "assign to the background". Dropping it, as th
 expression does, removes that asymmetry and lets a low-efficiency gene compete against the
 background as if it were perfectly detected, the distortion above.
 
-This is the form used on the [spot-to-cell assignment](spot-assignment.md) page.
+The current score, which also includes the cell scale term of the extended model, is on
+the [spot-to-cell assignment](spot-assignment.md) page.
 
 ## 2. Typo in the gamma prior
 

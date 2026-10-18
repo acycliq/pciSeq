@@ -730,7 +730,7 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def gaussian_upd(self) -> None:
-        """Update the cell geometry, the NIW posterior over each cell's centre
+        """Update the cell geometry, the NIW posterior over each cell's centroid
         and covariance. The maths is on the-model/gaussian.md.
 
         centroid_upd does kappa_hat and m_hat, cov_upd does nu_hat and V_hat.

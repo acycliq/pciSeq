@@ -1,10 +1,9 @@
 
 # Derivation: the gene-indexed misread density
 
-A spot is either claimed by a nearby cell or treated as an artefact (a misread) and
-assigned to the background. A cell claims a spot through its position term combined with
-how well the spot fits the cell's likely class; the background claims it through the
-expectation (in log-space) of the misread density. Here the misread density varies
+A spot is assigned either to a nearby cell or, as an artefact (a misread), to the
+background. A cell scores the spot by the Gaussian fit plus four expression terms; the
+background scores it by the expectation (in log-space) of the misread density. Here the misread density varies
 **per gene**: each gene $g$ has its own background rate $\rho_g$. The
 [how it works page](../how-it-works/misread-density.md) describes the step; this page
 derives the variational posterior.
@@ -177,5 +176,5 @@ empirical estimate ($r_\rho \to 0$), with $\rho_0$ as the anchor in both limits.
 
 In the [spot-to-cell assignment](spot-assignment.md) the background scores a spot with
 $\rho_g$ alone, through $\mathbb{E}[\log\rho_g] = \psi(\hat{r}_g) - \log\hat{\beta}_g$,
-with $\psi$ the digamma function. A gene with a high $\rho_g$ sets a higher bar for its
-spots to be assigned to a cell.
+with $\psi$ the digamma function. A gene with a high $\rho_g$ assigns a larger
+share of each of its spots to the background.

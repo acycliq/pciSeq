@@ -165,7 +165,7 @@ class Cells(object):
 
     @property
     def kappa(self) -> np.ndarray:
-        """kappa_hat, the pseudo-count behind each cell's centre, (nC,)."""
+        """kappa_hat, the pseudo-count of the posterior on each cell's centroid, (nC,)."""
         return self._kappa
 
     @kappa.setter
@@ -174,7 +174,7 @@ class Cells(object):
 
     @property
     def nu(self) -> np.ndarray:
-        """nu_hat, the degrees of freedom behind each cell's covariance, (nC,)."""
+        """nu_hat, the degrees of freedom of the posterior on each cell's covariance, (nC,)."""
         return self._nu
 
     @nu.setter
@@ -236,12 +236,12 @@ class Cells(object):
 
     @property
     def theta_bar(self):
-        """Returns the eta bar values for genes."""
+        """Returns theta_bar, the cell scale factor per cell and class, (nC, nK)."""
         return self._theta_bar
 
     @property
     def logtheta_bar(self):
-        """Returns the log eta bar for genes (estimated mean of the posterior)."""
+        """Returns E[log theta] per cell and class, (nC, nK)."""
         return self._logtheta_bar
 
     @property
@@ -257,11 +257,11 @@ class Cells(object):
 
     def init_theta(self, a, b):
         """
-        Initializes eta values for genes.
+        Initializes theta, the cell scale factor, for every cell and class.
 
         Parameters:
-            a (float): Parameter a for eta calculation.
-            b (float): Parameter b for eta calculation.
+            a (float): Shape of the Gamma prior on theta.
+            b (float): Rate of the Gamma prior on theta.
         """
         nK = self.class_names.shape[0]
         self._theta_bar = np.ones([self.nC, nK], dtype=np.float32) * (a / b)

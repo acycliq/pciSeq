@@ -103,9 +103,9 @@ layout.
 | `obs['cell_num']` | The same number as an int, for convenience. |
 | `obs['region']`, `obs['class_name']`, `obs['class_prob']` | The annotating table wiring, the argmax class, and its probability. |
 | `obs['is_pinned']`, `obs['pinned_at_iteration']` | Only written when a tie freezer is attached to the run. The freezer is not part of the current model, so these columns are normally absent. |
-| `obsm['spatial']` | Centroid `(X, Y, Z)`. `X`, `Y` equal `cellData`'s; `Z` is in plane units, see the tip below. |
+| `obsm['spatial']` | Fitted cell centroid `(X, Y, Z)`. `X`, `Y` equal `cellData`'s; `Z` is in plane units, see the tip below. |
 | `obsm['class_prob']` | The full class posterior, shape `(n_cells, n_classes)`. Columns line up with `uns['class_names']`. |
-| `uns['class_names']` | Class names, the reference taxonomy plus `'Zero'`, the background class, appended last. |
+| `uns['class_names']` | Class names, the reference taxonomy plus `'Zero'`, the class that expects no expression, appended last. |
 | `X` | Sparse cell by gene matrix of expected counts, csr, the same values as `cellData.CellGeneCount`. |
 | `var_names` | The gene panel, matching `cellData.Genenames`. |
 
@@ -155,7 +155,7 @@ cid = 12265
 pos = int(np.flatnonzero(adata.obs.index.values == str(cid))[0])
 
 obs = adata.obs.iloc[pos]        # class_name, class_prob, ...
-xyz = adata.obsm['spatial'][pos] # centroid, Z in plane units
+xyz = adata.obsm['spatial'][pos] # fitted cell centroid, Z in plane units
 prob = adata.obsm['class_prob'][pos]
 names = np.asarray(adata.uns['class_names'])
 top3 = np.argsort(-prob)[:3]
@@ -168,14 +168,14 @@ adata.var_names[np.argmax(counts)], counts.max()   # top gene in this cell
 ```
 
 Spots whose most likely parent is this cell, and the label image check at the
-centroid:
+fitted cell centroid:
 
 ```python
 tr = sdata['transcripts'].compute()
 tr[tr.neighbour == cid]
 
 x, y, z = adata.obsm['spatial'][pos]
-int(sdata['cell_labels'][int(z), int(y), int(x)])   # == cid
+int(sdata['cell_labels'][int(z), int(y), int(x)])   # usually cid; the fitted centroid need not lie inside the mask
 # single-plane run: sdata['cell_labels'][int(y), int(x)]
 ```
 

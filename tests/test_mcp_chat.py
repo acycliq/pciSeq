@@ -76,7 +76,7 @@ def test_a_turn_runs_the_tool_and_hands_the_result_back(live):
     assert kw['headers']['x-api-key'] == 'sk-test'
     assert 'authorization' not in kw['headers']
     assert [t['name'] for t in kw['json']['tools']] == [t['name'] for t in chat.TOOLS]
-    assert 'live viewer' in kw['json']['system'] and 'mentor' in kw['json']['system']
+    assert 'live viewer' in kw['json']['system'] and 'neuroscientist' in kw['json']['system']
     # the tool ran against the live model and its answer went back as a tool_result
     result = sent[1][1]['json']['messages'][2]['content'][0]
     assert result['type'] == 'tool_result' and result['tool_use_id'] == 't1'

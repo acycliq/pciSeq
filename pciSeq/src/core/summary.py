@@ -74,7 +74,7 @@ def cells_summary(cells, spots, genes, is3D):
                        'Prob': prob_list,
                        'gaussian_contour': contour
                        })
-    # the segmentation centroid as well, X0, Y0, Z0. X, Y, Z is the fitted centre
+    # the segmentation centroid as well, X0, Y0, Z0. X, Y, Z is the fitted centroid
     # and the two drift apart when cell_centroid_prior is small, so keep where
     # the cell started
     m0 = cells.ini_centroids()

@@ -391,8 +391,8 @@ def add_boundaries(store_path: str,
     Shapes in SpatialData are strictly 2D, so a 3D run gets one shapes element
     per plane, cell_boundaries_plane_000 and so on, each a set of polygons
     indexed by the cell label. A cell spanning 12 planes appears as 12
-    polygons, one per element, all under its own label, which is exactly how
-    pciSeq thinks of boundaries anyway. A 2D run gets a single element.
+    polygons, one per element, all under its own label, which matches the
+    per-plane boundary files pciSeq writes. A 2D run gets a single element.
 
     Args:
         store_path: path to an existing spatialdata.zarr written by pciSeq.

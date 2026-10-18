@@ -119,7 +119,7 @@ and those counts differ by orders of magnitude between the three levels.
   theta. It has to stay above 1: theta is
   $(\text{spots} + r_\theta - 1) / (r_\theta + \text{expected})$, so at 1 or below a cell with no
   spots gives a theta of zero or less. A low `rTheta` also lets a cell with very few spots be
-  claimed by a real class on one or two spots, see
+  assigned to a real class on one or two spots, see
   [the prior strength](../the-model/scale-factors.md#r-theta) for what
   that costs.
 - **gamma** is estimated from a given gene in a given cell, usually a fraction of a spot. The default

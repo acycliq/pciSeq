@@ -39,7 +39,7 @@ The first Poisson part, $-\!\int\!\lambda\,dx$ (the expected total count, and th
 $\rho_g A_{\text{total}}$ for the background), contains **no** $z_{s,c}$. It is the same
 whichever cell the spot is assigned to, so it is constant across the assignment and drops
 out under the normalisation below. The extent of the tissue therefore does not enter the
-assignment.
+assignment directly; it enters only through the estimate of $\rho_g$.
 
 ## The update for a cell ($c > 0$)
 
@@ -145,17 +145,19 @@ It does not depend on the gene. The closed form is on the
 **Class expression** ($\sum_k \bar\zeta_{c,k}\log\mu_{g_s,k}$). The gene's log
 expected expression averaged over the cell's class posterior $\bar\zeta_c$. It is large
 when the cell is confidently of a type that expresses the gene. It is the same for every
-cell of a given type.
+cell with the same class posterior.
 
 **Cell scale** ($\sum_k \bar\zeta_{c,k}\log\bar\theta_{c\mid k}$). The same average of
 $\bar\theta_{c\mid k}$, the cell's total observed count over what class $k$ predicts.
-Above 1 for a cell holding more transcripts than its type expects, below 1 for a sparse
-one. It does not depend on the gene.
+$\bar\theta$ is above 1 for a cell holding more transcripts than its type expects and
+below 1 for a sparse one; the term is then positive or negative. It does not depend on
+the gene.
 
 **Cell-gene scale** ($\sum_k \bar\zeta_{c,k}\overline{\log\gamma}_{g_s,c\mid k}$). The
 same average of the cell's observed-over-expected for this gene. Since the rate
-factorises as $\mu \times \gamma$, this is the residual the class expression leaves, and
-it is what separates two cells of the same type.
+factorises as $\mu \times \gamma$, this is the residual the class expression leaves.
+Between two cells with the same class posterior, it is the only gene-dependent term that
+differs; the cell scale differs too, but equally for every gene.
 
 **Gene efficiency** ($\overline{\log\eta}_{g_s}$). The gene's detection efficiency.
 It depends on the gene only, so it cancels between cells and acts only against the

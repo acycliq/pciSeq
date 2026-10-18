@@ -2,7 +2,7 @@
 
 pciSeq treats every unknown as a latent variable of one Bayesian model: the cell of
 origin of each spot, the class of each cell, the detection efficiency of each gene, and
-the per-cell and per-gene scale factors. Each has a prior. The target of inference is
+the per-cell and per-cell-gene scale factors. Each has a prior. The target of inference is
 their joint posterior given the spots and the cell type definitions.
 
 The posterior has no closed form. It is approximated by variational inference: the

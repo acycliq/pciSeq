@@ -117,7 +117,7 @@ TOOLS = [
             'page. The search matches words literally, so when your words may not be '
             'the ones the docs use, read a page instead. Use this before answering any '
             'question about how pciSeq works, a term, or a setting such as rTheta, '
-            'mrf_beta or Inefficiency, and name the page you took the answer from.',
+            'mrf_beta or Inefficiency.',
         'input_schema': {
             'type': 'object',
             'properties': {

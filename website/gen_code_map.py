@@ -43,9 +43,9 @@ MAP = [
      "Per gene rate of spots per unit volume not attributable to any cell. The background candidate in the spot assignment.",
      [("core/main.py", "VarBayes.rho_upd"), ("core/datatypes/genes.py", "Genes.calc_rho"),
       ("core/datatypes/genes.py", "Genes.calc_misread_density"), ("core/datatypes/spots.py", "Spots.misread_density")]),
-    ("eta, the gene inefficiency",
-     "Per gene factor scaling the reference expression to the detected counts. The gene inefficiency "
-     "(Genes.inefficiency) is eta times the Inefficiency setting, not its reciprocal.",
+    ("eta, the gene efficiency",
+     "Per gene detection efficiency relative to the Inefficiency setting, scaling the reference expression "
+     "to the detected counts. Genes.inefficiency is eta times the Inefficiency setting, not its reciprocal.",
      [("core/main.py", "VarBayes.eta_upd"), ("core/datatypes/genes.py", "Genes.calc_eta"),
       ("core/datatypes/genes.py", "Genes.init_eta"), ("core/datatypes/genes.py", "Genes.inefficiency")]),
     ("theta, the cell scale",
@@ -73,7 +73,7 @@ MAP = [
      [("core/datatypes/cells.py", "Cells.calc_mrf"), ("core/datatypes/cells.py", "Cells.mrf_support"),
       ("core/datatypes/cells.py", "Cells.nearest_neighbours"), ("core/datatypes/cells.py", "Cells.class_pooling")]),
     ("Spot assignments",
-     "Per spot, the softmax over the nearby cells and the background of the Gaussian term at the cell centre and the expression terms.",
+     "Per spot, the softmax over the nearby cells and the background of the Gaussian term at the fitted cell centroid and the expression terms.",
      [("core/main.py", "VarBayes.spots_to_cell"), ("core/main.py", "VarBayes.spots_to_cell_numba"),
       ("core/utils/numba_kernels.py", "spots_to_cell_numba_kernel"), ("core/datatypes/spots.py", "Spots.mvn_loglik"),
       ("core/datatypes/spots.py", "Spots.cells_nearby")]),
