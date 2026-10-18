@@ -584,7 +584,7 @@ One block per module, in source order. Methods are listed as `Class.method`; nam
 
 | Name | Line | Description |
 |---|---|---|
-| `tool_rules` | 406 | The persona's rules for one tool, as one paragraph, or '' when it has none. |
+| `tool_rules` | 437 | The persona's rules for one tool, as one paragraph, or '' when it has none. |
 
 </details>
 
