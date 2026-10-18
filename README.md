@@ -11,7 +11,8 @@
 
 [Documentation](https://acycliq.github.io/pciSeq_3d/) ·
 [Installation](#installation) ·
-[Quick start](#quick-start)
+[Quick start](#quick-start) ·
+[pciSeq Viewer](#pciseq-viewer)
 
 </div>
 
@@ -68,17 +69,20 @@ pciSeq saves with its results the terms from which every assignment was computed
 agent, or the methods `check_cell` and `check_spot`, read them to explain why a cell was
 assigned to its class or why a spot was assigned to a cell.
 
+## pciSeq Viewer
+
+[pciSeq Viewer](https://github.com/acycliq/pciSeq_viewer) is a desktop application,
+available for Windows, macOS and Linux, for the visualisation of the output of pciSeq.
+Spots and cells are displayed over the background image one plane at a time, and
+selected regions are rendered in three dimensions. The application also provides the
+diagnostics of the cell and spot assignments and access to the AI agent. Its input is
+the `viewer_data` folder, which is written to the output directory when `save_data` is
+enabled (the default). Installers are available from the
+[releases page](https://github.com/acycliq/pciSeq_viewer/releases/latest).
+
 ## Documentation
 
-| Section | Description |
-| --- | --- |
-| [Running pciSeq](https://acycliq.github.io/pciSeq_3d/running-pciseq) | from Python, from the command line, the settings and how to tune them |
-| [How it works](https://acycliq.github.io/pciSeq_3d/how-it-works/overview) | the building blocks of the algorithm |
-| [Explaining the calls](https://acycliq.github.io/pciSeq_3d/explaining-the-calls/overview) | `check_cell` and `check_spot`, followed through on one cell and one spot |
-| [Accessing the AI agent](https://acycliq.github.io/pciSeq_3d/accessing-the-ai-agent) | the AI agent: answers questions about the results or about how pciSeq works |
-| [Viewer](https://acycliq.github.io/pciSeq_3d/viewer/overview) | pciSeq Viewer, the desktop application to visualise the results |
-| [The model](https://acycliq.github.io/pciSeq_3d/the-model/overview) | the Bayesian model, stated formally, and the derivation of its update equations |
-| [API](https://acycliq.github.io/pciSeq_3d/api/reference) | the reference, and a [code map](https://acycliq.github.io/pciSeq_3d/api/code-map) from each model quantity to the line that computes it |
+Full documentation is available [here](https://acycliq.github.io/pciSeq_3d/).
 
 ## Licence
 
