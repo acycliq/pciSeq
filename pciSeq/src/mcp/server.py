@@ -233,7 +233,8 @@ def spots_of_cell(label: int, min_prob: Optional[float] = None, gene: Optional[s
 
 @_tool
 def gene(name: str) -> dict:
-    """One gene across the run: its efficiency eta and inefficiency, its misread
+    """One gene across the run: its eta and eta times the
+    Inefficiency setting, its misread
     density, how many spots it has and how many were called misreads, its soft
     counts in cells split by class (soft, and summed over the cells called each
     class), and the ten cells holding most of it.

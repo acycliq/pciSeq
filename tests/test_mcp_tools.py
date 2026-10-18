@@ -806,7 +806,7 @@ def test_gene_counts_add_up(fitted):
     g = run.gene(str(run.gene_panel[0]))
     assert g['counts_in_cells'] == pytest.approx(sum(r['soft'] for r in g['counts_per_class']), abs=1e-2)
     assert g['counts_in_cells'] == pytest.approx(sum(r['in_cells_called'] for r in g['counts_per_class']), abs=1e-2)
-    assert g['eta'] > 0 and g['inefficiency'] > 0 and g['total_spots'] > 0
+    assert g['eta'] > 0 and g['eta_times_Inefficiency'] > 0 and g['total_spots'] > 0
     counts = [c['counts'] for c in g['top_cells']]
     assert counts == sorted(counts, reverse=True)
     assert g['top_cells'][0]['counts'] == pytest.approx(

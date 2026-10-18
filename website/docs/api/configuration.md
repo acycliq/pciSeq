@@ -107,7 +107,9 @@ cells of the same type than a Poisson allows. rSpot is also the prior
 strength for gamma, the per-cell, per-gene scale factor, which has a
 Gamma(rSpot, rSpot) prior; integrating gamma out gives the negative binomial.
 Lower values allow more variation in a gene's count between cells of the
-same type; higher values allow less, and the model approaches a Poisson.
+same type; higher values allow less. The model approaches a Poisson only for
+genes whose expected count in a cell is well below rSpot; for the genes a
+class expects most, that would take a value in the hundreds.
 
 ### `InsideCellBonus`
 

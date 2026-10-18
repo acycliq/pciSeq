@@ -876,10 +876,11 @@ class Run:
         return {
             'gene': name,
             'eta': eta,
-            'eta_is': 'eta_bar, the posterior mean of the gene inefficiency; the reference '
+            'eta_is': 'eta_bar, the posterior mean of eta, the gene\'s detection efficiency '
+                      'relative to the Inefficiency setting; the reference '
                       'expression of every class is multiplied by it',
-            'inefficiency': eta * cfg['Inefficiency'] if cfg.get('Inefficiency') is not None else None,
-            'inefficiency_is': 'eta_bar times the Inefficiency setting, as Genes.inefficiency '
+            'eta_times_Inefficiency': eta * cfg['Inefficiency'] if cfg.get('Inefficiency') is not None else None,
+            'eta_times_Inefficiency_is': 'eta_bar times the Inefficiency setting, as Genes.inefficiency '
                                'defines it; None on runs without the settings record',
             'misread_density': self._meta('rho_bar', parse=True, default={}).get(name),
             'misread_density_prior': self._meta('misread_density', parse=True, default={}).get(name),

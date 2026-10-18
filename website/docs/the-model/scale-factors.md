@@ -297,7 +297,11 @@ with mean $\lambda_{g,c}$ and variance $\lambda_{g,c} + \lambda_{g,c}^2/r_\gamma
 variance exceeds the mean, which a Poisson cannot produce; the Gamma mixing is what
 accommodates the **overdispersion** of real counts. The shape $r_\gamma$ sets how much:
 small $r_\gamma$ allows large deviations, large $r_\gamma$ approaches a Poisson at
-$\lambda_{g,c}$.
+$\lambda_{g,c}$. How large is relative to the expected count: the excess variance
+$\lambda_{g,c}^2/r_\gamma$ is small next to $\lambda_{g,c}$ only when
+$r_\gamma \gg \lambda_{g,c}$, so a gene the class barely expects is close to a Poisson
+already at $r_\gamma = 2$, while a strongly expressed gene remains overdispersed at
+values far above it.
 
 This Negative Binomial is the per-gene likelihood that the
 [cell-class assignment](cell-class.md) multiplies across genes to score a cell against each
