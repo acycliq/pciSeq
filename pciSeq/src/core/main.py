@@ -278,7 +278,7 @@ class VarBayes:
         record its wall-time into self._step_times. When neither, this is just fn()
         with no overhead.
 
-        Scoring here rather than on the methods themselves is deliberate. The eight
+        Scoring here rather than on the methods themselves is deliberate. The nine
         steps carve the iteration into slices that do not overlap, so their deltas
         add up to the change over the whole iteration. Some steps call others (
         spots_to_cell runs geneCount_upd at the end), so scoring the methods would
