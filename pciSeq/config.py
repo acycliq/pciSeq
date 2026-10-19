@@ -198,8 +198,9 @@ DEFAULT = {
 
     # Steps of the variational loop at which the ELBO is evaluated, before and
     # after the step, with the change logged. Valid names are geneCount_upd,
-    # rho_upd, eta_upd, theta_upd, gamma_upd, cell_to_cellType, dalpha_upd and
-    # spots_to_cell; "all" selects every step. An empty list disables it.
+    # rho_upd, eta_upd, theta_upd, gamma_upd, cell_to_cellType, dalpha_upd,
+    # spots_to_cell and gaussian_upd; "all" selects every step. An empty list
+    # disables it.
     # Evaluating the ELBO is expensive, so selecting many steps slows the run
     # considerably. Intended for development.
     "elbo_per_step": [],

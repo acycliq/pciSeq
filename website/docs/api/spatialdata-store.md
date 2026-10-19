@@ -102,11 +102,10 @@ layout.
 | `obs` index | `Cell_Num`, **as a string**. `.loc[12265]` fails, `.loc['12265']` works. |
 | `obs['cell_num']` | The same number as an int, for convenience. |
 | `obs['region']`, `obs['class_name']`, `obs['class_prob']` | The annotating table wiring, the argmax class, and its probability. |
-| `obs['is_pinned']`, `obs['pinned_at_iteration']` | Only written when a tie freezer is attached to the run. The freezer is not part of the current model, so these columns are normally absent. |
 | `obsm['spatial']` | Fitted cell centroid `(X, Y, Z)`. `X`, `Y` equal `cellData`'s; `Z` is in plane units, see the tip below. |
 | `obsm['class_prob']` | The full class posterior, shape `(n_cells, n_classes)`. Columns line up with `uns['class_names']`. |
 | `uns['class_names']` | Class names, the reference taxonomy plus `'Zero'`, the class that expects no expression, appended last. |
-| `X` | Sparse cell by gene matrix of expected counts, csr, the same values as `cellData.CellGeneCount`. |
+| `X` | Sparse cell by gene matrix (csr) of soft counts, the same values as `cellData.CellGeneCount`. |
 | `var_names` | The gene panel, matching `cellData.Genenames`. |
 
 ::: tip Z units differ from cellData on purpose

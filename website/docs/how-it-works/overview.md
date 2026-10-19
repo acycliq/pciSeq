@@ -1,8 +1,9 @@
 # How it works
 
 pciSeq treats every unknown as a latent variable of one Bayesian model: the cell of
-origin of each spot, the class of each cell, the detection efficiency of each gene, and
-the per-cell and per-cell-gene scale factors. Each has a prior. The target of inference is
+origin of each spot, the class of each cell, the misread density and the detection
+efficiency of each gene, the per-cell and per-cell-gene scale factors, and the position and
+shape of each cell. Each has a prior. The target of inference is
 their joint posterior given the spots and the cell type definitions.
 
 The posterior has no closed form. It is approximated by variational inference: the
@@ -60,7 +61,8 @@ repeats until the estimates stop changing. The steps below are these updates.
 
    With `cell_type_prior='weighted'` the [class weights](../the-model/class-prior.md),
    the prior share of each class, are then updated from these probabilities. With the
-   default, `'uniform'`, they stay equal and this step is skipped.
+   default, `'uniform'`, they stay fixed at their initial values, set by
+   `cell_type_weights`, and this step is skipped.
 
 4. **[Spots to cells.](spots-to-cells.md)** Every spot is assigned to one of its
    neighbouring cells or to the background, as a probability, given the cell class

@@ -9,7 +9,8 @@ description: Tiling the background image for the viewer, reading it back, and ad
 segmentation alone. The functions on this page handle the image separately: they tile it
 for the viewer, read it back, and add it to the SpatialData store.
 
-All of them take the image as a numpy array: `(H, W)` for a single plane, `(Z, H, W)` for a
+The functions that take the image, `stage_image`, `tile_maker` and `add_image`, take it as
+a numpy array: `(H, W)` for a single plane, `(Z, H, W)` for a
 stack, or `(Z, H, W, C)` for a stack with channels.
 
 ## The `.mbtiles` file
@@ -114,7 +115,8 @@ pciSeq Viewer enlarges the deepest level when zooming in past it. See
 ## `tile_maker`
 
 Makes the same pyramid as plain image files on disk, one folder per plane, without packing
-it into an `.mbtiles` file. `stage_image` calls it; it is also useful on its own for any
+it into an `.mbtiles` file. `stage_image` calls it only with `use_buffer=False`; by default
+it tiles in memory. It is also useful on its own for any
 slippy-map viewer that reads a folder of tiles. The tiling is done by libvips.
 
 ```python

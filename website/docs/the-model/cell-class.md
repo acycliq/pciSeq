@@ -58,6 +58,12 @@ Under `cell_type_prior` set to `weighted`, $\pi$ is itself a random variable and
 $\log \pi_k$ in the score is its expectation $\mathbb{E}[\log \pi_k]$ under the
 [Dirichlet posterior](class-prior.md).
 
+<!-- Simplified on purpose: the sentence above leaves out the Zero class. Zero is not
+part of the Dirichlet; it keeps the fixed weight w from cell_type_weights, and the real
+classes share 1 - w. The prior term is therefore log(1 - w) + E[log pi_k] for a real
+class and log w for Zero. The code does this correctly (datatypes/cellClass.py, the
+log prior property), and class-prior.md gives the full form. -->
+
 ## The spatial prior (MRF)
 
 The spatial term comes from a Markov Random Field prior on the class assignments. In the

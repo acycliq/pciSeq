@@ -31,7 +31,7 @@ cell.
 | --- | --- | --- |
 | `Cell_Num` | int | Cell label. The cell's identity, matching the label image. |
 | `X`, `Y`, `Z` | float | Fitted cell centroid, the centre of the cell's Gaussian after the [cell geometry](../the-model/gaussian.md) update. `Z` is 0 for 2D data. |
-| `X0`, `Y0`, `Z0` | float | Segmentation centroid, where the cell started. Equal to `X`, `Y`, `Z` up to rounding at the default `cell_centroid_prior`; with a small value the two differ. `Z0` is 0 for 2D data. |
+| `X0`, `Y0`, `Z0` | float | The cell's centroid as given by the segmentation. It can differ from `X`, `Y`, `Z`; how much depends on the prior on the cell's centre, [`cell_centroid_prior`](./configuration.md#cell-centroid-prior), and on the number of spots in the cell. `Z0` is 0 for 2D data. |
 | `ClassName` | list of str | Candidate cell classes, sorted by descending probability. |
 | `Prob` | list of float | Probability of each class, lined up with `ClassName`. |
 | `Genenames` | list of str | Genes assigned to the cell, sorted by descending count. |
@@ -198,9 +198,9 @@ image passed to `fit`. The **internal label** is its row index in the arrays in 
 file, `1` to `nC - 1`, with row `0` the background.
 
 The two are the same number unless the segmentation labels were not sequential, in which
-case pciSeq renumbers them. That is the usual case rather than the exception, since it
-happens whenever [`remove_flat_cells`](./configuration.md#remove-flat-cells), on by
-default, drops the cells that appear on a single plane.
+case pciSeq renumbers them. For 3D data that is the usual case rather than the exception,
+since [`remove_flat_cells`](./configuration.md#remove-flat-cells), on by default, drops the
+cells that appear on a single plane.
 
 When pciSeq saves the data then the cell identifiers have been mapped back to the original
 segmentation label. Hence the rule to remember is:

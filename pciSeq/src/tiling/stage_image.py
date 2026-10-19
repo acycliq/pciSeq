@@ -307,8 +307,8 @@ def stage_image(img, out_dir=None, zoom_levels=None, name=None, description=None
 
     Notes
     -----
-    Requires libvips. If it is not installed, `pciSeq.stage_image()` falls back
-    to a stub that only logs a warning.
+    Requires libvips. If it is not installed, `pciSeq.stage_image()` raises an
+    ImportError that explains how to install it.
     """
     # Determine output directory
     if out_dir is None:

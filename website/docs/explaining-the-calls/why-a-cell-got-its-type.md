@@ -105,14 +105,14 @@ from, and the figure itself. The first is shown here:
 
 Its columns are:
 
-- **Cells typed as a class, mean counts.** Measured, across the run: the average counts of
+- **Cells typed as a class, mean counts.** Estimated from the spots, across the run: the average counts of
   the gene over all cells, each weighted by its probability of the class.
 - **Predicted counts for cell 18223.** Expected, for this cell: the counts of the gene the
   model expects if the cell were of that class, the cell type definition rescaled by the
   [scaling factors](../how-it-works/warping-the-reference.md), see the
   [example below](#the-predicted-counts-are-not-the-mean-counts). A gene favours the class whose
   prediction is closer to those counts.
-- **Cell 18223, counts.** Measured, in this cell: the counts of the gene.
+- **Cell 18223, counts.** Estimated from the spots, in this cell: the counts of the gene.
 
 Synpr is the strongest gene. The Synpr count of the cell is 1.7. `037 DG Glut` predicts
 0.76 and `030 L6 CT CTX Glut` predicts 0.10. The count is small, but the prediction under

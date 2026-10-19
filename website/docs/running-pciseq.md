@@ -35,7 +35,7 @@ the same results are also written under `<output_path>/pciSeq/data/`.
 | --- | --- | --- | --- |
 | `spots` | DataFrame | yes | One row per spot. Columns `gene_name`, `x`, `y`, and `z_plane` for 3D data. `score` and `intensity` are optional; they are carried through to the output and default to 1.0. |
 | `coo` | list of `scipy.sparse.coo_matrix`, or a numpy array | yes | The segmentation as a label image: each pixel holds the label of the cell it belongs to, and background pixels are labelled 0. Pass it as one sparse matrix per z-plane, or as a dense numpy array of shape `(h, w)` or `(planes, h, w)`, which is converted to sparse internally. |
-| `scRNAseq` | DataFrame | yes | Mean expression per gene and cell type, genes as rows and cell types as columns, gene names in the index. Genes absent from the panel are dropped from the spots with a warning. |
+| `scRNAseq` | DataFrame | yes | Mean expression per gene and cell type, genes as rows and cell types as columns, gene names in the index. Spots whose gene is absent from `scRNAseq` are dropped, with a warning. |
 | `opts` | dict | no | Settings to override, see [Configuration](api/configuration.md). Anything left out keeps its default. |
 
 Coordinates in `spots` are in pixels of the label image. Spots and segmentation have to

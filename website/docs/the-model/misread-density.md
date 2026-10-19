@@ -50,8 +50,9 @@ $$
 = \sum_{s:\, g_s = g} z_{s,0}\, \log \rho_g - \int_{\text{ROI}} \rho_g\, dx .
 $$
 
-Writing $A_{\text{total}} = \int_{\text{ROI}} dx$ for the total area of the tissue
-section, the integral simplifies to $\rho_g A_{\text{total}}$.
+Writing $A_{\text{total}} = \int_{\text{ROI}} dx$ for the extent of the image, which
+normally coincides with the tissue section (its area in 2D, its volume in 3D), the
+integral simplifies to $\rho_g A_{\text{total}}$.
 
 ### $A_{\text{total}}$ in 3D: correcting for voxel anisotropy
 
@@ -166,13 +167,13 @@ data move $\rho_g$ away from the prior mean $\rho_0$ (the `MisreadDensity` setti
   $$
   \mathbb{E}[\rho_g] \approx \frac{\bar{N}_{0,g}}{A_{\text{total}}}
   \;=\;
-  \frac{\text{background spots of gene } g}{\text{tissue area}} ,
+  \frac{\text{background spots of gene } g}{\text{extent of the image}} ,
   $$
 
   each gene's rate is its background spot count divided by the extent.
 
-So $r_\rho$ interpolates between a shared constant ($r_\rho \to \infty$) and a per-gene
-empirical estimate ($r_\rho \to 0$), with $\rho_0$ as the anchor in both limits.
+So $r_\rho$ interpolates between a shared constant, $\rho_0$ ($r_\rho \to \infty$), and a
+per-gene empirical estimate ($r_\rho \to 0$).
 
 In the [spot-to-cell assignment](spot-assignment.md) the background scores a spot with
 $\rho_g$ alone, through $\mathbb{E}[\log\rho_g] = \psi(\hat{r}_g) - \log\hat{\beta}_g$,

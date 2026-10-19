@@ -12,7 +12,7 @@ raw cell type definitions, and produces a warped expected expression rescaled at
 level. [Cell typing](cell-to-celltype.md) scores cells against classes using it.
 
 The correction factors are nuisance parameters. They are estimated because the cell
-classes and spot assignments depend on them, they are not in the output, and nothing
+classes and spot assignments depend on them, and nothing
 observed corresponds to them directly. They are identified through the agreement they
 produce between cells and their assigned classes.
 
@@ -37,8 +37,9 @@ most specific:
 
 Inefficiency and eta do not depend on the cell's class. theta and gamma do, since the
 expectation they correct is class-specific, and they are computed for every candidate
-class. That is what lets [cell typing](cell-to-celltype.md) score a cell against every
-class.
+class. theta is what lets [cell typing](cell-to-celltype.md) score a cell against every
+class; gamma does not enter cell typing directly: it is integrated out, which gives the
+negative binomial.
 
 ## Granularity of the factors
 

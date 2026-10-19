@@ -25,10 +25,10 @@ on the saved output.
 
 Two things, both written by a run with `save_data` on:
 
-- **`viewer_data/`**, under `output_path`, see
-  [working with results](../api/working-with-results.md#saved-files). It holds the spots, the
-  cells and the cell boundaries as feather files, one per plane, and
-  `diagnostics/diagnostics.db`.
+- **`viewer_data/`**, under `<output_path>/pciSeq/data`, see
+  [working with results](../api/working-with-results.md#saved-files). It holds the spots and
+  the cell boundaries as feather files, one per plane, the cells as feather files of up to
+  100,000 rows each, and `diagnostics/diagnostics.db`.
 - **An `.mbtiles` file**, the tiled background image, written by
   [`stage_image`](../api/working-with-the-image.md#stage-image). Without it the viewer asks for
   the image dimensions and draws everything on a blank background.

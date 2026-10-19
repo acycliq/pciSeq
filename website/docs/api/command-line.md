@@ -139,8 +139,8 @@ result. Each run also records its provenance in the output, see
 
 ## Numbers in YAML
 
-Numbers may be written in exponent form, `1.0e6`. YAML requires a signed exponent,
-so plain PyYAML reads the unsigned form as the string `"1.0e6"`; pciSeq accepts it
+Numbers may be written in exponent form, `1.0e6`. PyYAML follows YAML 1.1, which
+requires a signed exponent, so it reads the unsigned form as the string `"1.0e6"`; pciSeq accepts it
 as a number.
 
 ## The Python API

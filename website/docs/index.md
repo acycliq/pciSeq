@@ -45,7 +45,7 @@ This version extends the method of
   background.
 
 `fit` returns both as pandas DataFrames. If `save_data` is `True`, they are also written
-to `output_path` as tsv and feather files and as a SpatialData zarr store, and the fitted
+under `<output_path>/pciSeq/data` as tsv and feather files and as a SpatialData zarr store, and the fitted
 model is pickled. See [Working with results](api/working-with-results.md).
 
 ## Probabilistic output

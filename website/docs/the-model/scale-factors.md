@@ -157,7 +157,7 @@ $0.44$. Before scaling, Oligo expects $356$ spots in the cell and Zero expects $
 | | $\hat\theta$ at $r_\theta = 2$ | prediction | $\hat\theta$ at $r_\theta = 25$ | prediction |
 |---|---|---|---|---|
 | Oligo | $0.0041$ | $1.47$ | $0.064$ | $22.9$ |
-| Zero | $0.026$ | $1.43$ | $0.306$ | $16.9$ |
+| Zero | $0.026$ | $1.43$ | $0.306$ | $16.8$ |
 
 At $r_\theta = 2$ both classes predict about $1.5$ spots, Oligo expects that spot to be Plp1,
 and Oligo wins at $0.94$. At $r_\theta = 25$ Oligo predicts $23$ spots for half a spot, loses
@@ -320,7 +320,7 @@ setting, default $0.2$) stays as an explicit constant next to the reference mean
 intensity carries the product $\eta_0\,\mu_{g,k}$, not a renamed symbol:
 
 $$
-\lambda_{g,c}(x) = \eta_0\,\mu_{g,k(c)}\, e^{-D_c(x)}\, \gamma_{g,c}\, \eta_g' .
+\lambda_{g,c}(x) = \theta_c\,\eta_0\,\mu_{g,k(c)}\, e^{-D_c(x)}\, \gamma_{g,c}\, \eta_g' .
 $$
 
 #### Per gene, shared across cells

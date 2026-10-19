@@ -5,9 +5,10 @@ This page is generated from the pciSeq source by `website/gen_api.py`.
 Edit the docstrings in the source, not this file.
 :::
 
-Everything here is reachable as `pciSeq.<name>` (plus `VarBayes`, the
-model object that [`fit`](#fit) and [`cell_type`](#cell-type) build and
-return). The main entry point is [`fit`](#fit). For what the output
+Everything here is reachable as `pciSeq.<name>`, except `open_run`,
+`VarBayes` and `Run`, whose import paths are given under their headings.
+`VarBayes` is the model object, returned by [`cell_type`](#cell-type).
+The main entry point is [`fit`](#fit). For what the output
 DataFrames hold and worked examples of the model attributes, see
 [Working with results](./working-with-results).
 
@@ -359,8 +360,8 @@ and it writes one `.mbtiles` file.
 
 **Notes**
 
-Requires libvips. If it is not installed, `pciSeq.stage_image()` falls back
-to a stub that only logs a warning.
+Requires libvips. If it is not installed, `pciSeq.stage_image()` raises an
+ImportError that explains how to install it.
 
 
 ## `tile_maker`

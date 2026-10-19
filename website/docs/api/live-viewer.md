@@ -81,8 +81,8 @@ The legend lists every class with its colour and how many cells are assigned to 
 
 ## Updates
 
-**All Cells** draws every cell. **Updated Only** draws only the cells whose probability for
-their top class moved by at least the threshold since the previous iteration. The slider
+**All Cells** draws every cell. **Updated Only** draws only the cells whose highest class
+probability changed by at least the threshold since the previous iteration. The slider
 sets the threshold, 1% by default. Two counts show how many cells were updated and how many
 changed class. On the first iteration every cell counts as updated.
 

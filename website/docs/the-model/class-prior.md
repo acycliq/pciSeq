@@ -99,8 +99,15 @@ $$
 \mathbb{E}[\log \pi_k] = \psi(\alpha_k) - \psi\Big(\sum_j \alpha_j\Big),
 $$
 
-with $\psi$ the digamma function. $\psi$ is increasing, so the term grows with the number
-of cells of the class, as the mean does. For the Zero class the term is $\log w$. Its
+with $\psi$ the digamma function. For a class with more than a few cells (about ten) it is
+close to $\log\big(\alpha_k / \sum_j \alpha_j\big)$, the log of the class's share of the cells. This uses
+
+$$
+\psi(x) \approx \log x - \frac{1}{2x} ,
+$$
+
+so the difference between $\psi$ and $\log$ is about $1/(2x)$: $0.05$ at $x = 10$, and
+smaller beyond. For the Zero class the term is $\log w$. Its
 weight is fixed and is not part of the Dirichlet.
 
 $\alpha$ is refitted from the new class probabilities after every class update.

@@ -29,7 +29,7 @@ OUT = HERE / "docs" / "api"
 #   - stage_image and tile_maker are reachable as pciSeq.stage_image and
 #     pciSeq.tile_maker, but only through a conditional import (they depend on
 #     libvips), so the top-level scan misses both.
-#   - VarBayes is the model object that cell_type/fit build and return.
+#   - VarBayes is the model object that cell_type returns.
 # The two plain functions go with the others; VarBayes (a class) stays last.
 EXTRA_API = [
     ("pciSeq.src.tiling.stage_image", "stage_image"),
@@ -482,9 +482,10 @@ def gen_reference():
         "Edit the docstrings in the source, not this file.",
         ":::",
         "",
-        "Everything here is reachable as `pciSeq.<name>` (plus `VarBayes`, the",
-        "model object that [`fit`](#fit) and [`cell_type`](#cell-type) build and",
-        "return). The main entry point is [`fit`](#fit). For what the output",
+        "Everything here is reachable as `pciSeq.<name>`, except `open_run`,",
+        "`VarBayes` and `Run`, whose import paths are given under their headings.",
+        "`VarBayes` is the model object, returned by [`cell_type`](#cell-type).",
+        "The main entry point is [`fit`](#fit). For what the output",
         "DataFrames hold and worked examples of the model attributes, see",
         "[Working with results](./working-with-results).",
         "",

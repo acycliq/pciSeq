@@ -94,8 +94,8 @@ for the background:
 <p class="table-note" id="table-3-1"><strong>Table 3.1.</strong> The output of
 <code>check_spot</code> for spot 1642419, in the fit with the spatial term.</p>
 
-- **Gaussian fit**. The log density of the spot's position under the cell's Gaussian
-  distribution. For simplicity, the fits of this example were run without the
+- **Gaussian fit**. The expected log density of the spot's position under the cell's Gaussian
+  distribution (averaged over the uncertainty in its centre and covariance). For simplicity, the fits of this example were run without the
   [cell geometry](../the-model/gaussian.md) update, so the Gaussians are fixed: spherical,
   with the same covariance for every cell and centred on the segmentation centroid. Only
   the distance to the cell's centroid counts then, and the three axes are independent. With
@@ -131,7 +131,7 @@ score. The second is the background's own rate for that gene, estimated from the
 assigned to the background. A gene can be well detected and still produce many misreads.</p>
 
 <p class="table-note">The inside-cell bonus is not shown: <code>InsideCellBonus</code> is 0
-in these runs, so the column was empty. When it is set, a spot whose pixel falls inside the
+in these runs, so <code>check_spot</code> leaves the column out. When it is set, a spot whose pixel falls inside the
 cell's segmentation gets that bonus added to its score.</p>
 
 Cell 18223 is the nearest candidate: its Gaussian fit is 1.7 above cell 17371 and 2.4

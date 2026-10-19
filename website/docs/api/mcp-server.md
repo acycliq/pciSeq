@@ -132,7 +132,7 @@ not appear; see [Cell identifiers](./working-with-results.md#cell-identifiers).
 
 - `open_run(path)`: opens a run. Returns the numbers of cells, spots, genes and classes, the pciSeq version that produced it, and whether containment data is present.
 - `run_info()`: provenance and settings. The pciSeq version, commit and commit date, the run date, the Python and package versions, the mean cell radius, the resolved settings, the number of iterations, and whether the loop converged.
-- `metadata(key=None)`: the keys of the `metadata` table of `diagnostics.db`, or the value of one, for quantities without a tool of their own such as the reference expression and the class prior.
+- `metadata(key=None)`: the keys of the `metadata` table of `diagnostics.db`, or the value of one, for quantities without a tool of their own such as the cell type definitions.
 
 ### Cells
 
@@ -147,6 +147,7 @@ not appear; see [Cell identifiers](./working-with-results.md#cell-identifiers).
 - `gamma(label, gene=None)`: the cell-gene scale factors under the assigned class, for every gene or for one.
 - `neighbours(label)`: the cells entering the spatial term of the cell, with their classes and the distances between their fitted centroids.
 - `class_counts(min_counts=None)`: the number of cells per class, hard and soft.
+- `class_prior()`: the prior weight of every class at the end of the run, the probability that a cell is of the class before its genes are considered. Zero is listed first, the rest by weight.
 - `find_cells(class_name=None, plane=None, min_counts=None, top_two_within=None, n=50)`: the cells matching the filters, by assigned class, plane, total counts, or the gap between the top two classes.
 
 ### Spots
@@ -195,7 +196,8 @@ which [Explaining the calls](../explaining-the-calls/overview.md) works through 
 
 ## Return values
 
-All tools return JSON-serialisable dictionaries. Errors, such as an unknown label or a
+All tools return JSON-serialisable dictionaries, except `cell_image` and `plane_image`,
+which return the PNG image and a JSON description of it. Errors, such as an unknown label or a
 run without containment data, are returned as tool errors with a message rather than
 raised.
 

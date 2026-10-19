@@ -1,8 +1,8 @@
 # 4. Assigning spots to cells
 
 Each spot is assigned to one of its nearest cells or to the background, as a
-probability. This is the last step of the sweep: the new assignments change the gene
-counts per cell, which are the input to the next sweep.
+probability. The cell geometry update follows it within the same sweep. The new
+assignments change the gene counts per cell, which are the input to the next sweep.
 
 ## The assignment score
 
@@ -68,8 +68,8 @@ omitted from the diagram and from the rest of this page, see
 ### Gaussian fit
 
 Each cell is described by a Gaussian centred on its fitted centroid, with the cell's
-fitted covariance. The term is the log density of the spot's position under that
-Gaussian: it is highest at the centre and decreases with distance, more rapidly along
+fitted covariance. The term is the expected log density of the spot's position under that
+Gaussian (averaged over the uncertainty in the cell's centre and covariance): it is highest at the centre and decreases with distance, more rapidly along
 the cell's short axes. It does not depend on the gene.
 
 ### Expression fit
@@ -97,7 +97,8 @@ which is not known exactly, so each is averaged over the cell's class probabilit
   gravity. Unlike physical gravity, it does not depend on distance; distance enters only
   through the Gaussian fit.
 - **Cell-gene scale.** Derived from gamma, this gene's observed count in the cell
-  relative to what its class and theta predict: its log, averaged in the same way. When
+  relative to the count its class predicts, adjusted for the gene's detection efficiency
+  (eta) and the cell's inefficiency (theta): its log, averaged in the same way. When
   gamma is above 1, the cell holds more of the gene than predicted; below 1, less. This
   term is referred to here as the enrichment, a name that covers depletion as well.
   Between two cells with the same class probabilities and the same theta, it is the only

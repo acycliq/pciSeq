@@ -29,8 +29,8 @@ $$
 
 which is exactly what lets $\theta_c$ pass through the $\gamma$ update as a constant and keep
 the Poisson-Gamma conjugacy intact. These are exact properties of the Dirac measure, not
-approximations. No Jensen-type inequality applies, because Jensen requires a non-degenerate
-measure and the Dirac is degenerate.
+approximations: for a point mass, Jensen's inequality holds with equality, so
+$\mathbb{E}[\log\theta_c] = \log\mathbb{E}[\theta_c] = \log\hat\theta_c$.
 
 ## Standard identities used
 

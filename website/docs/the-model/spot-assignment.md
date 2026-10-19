@@ -1,7 +1,8 @@
 
 # Derivation: the spot-to-cell assignment $q(z)$
 
-The last step of the sweep assigns each spot to a cell or to the background. The latent
+The step of the sweep before the cell geometry update assigns each spot to a cell or to the
+background. The latent
 variable is the indicator $z_{s,c}$, which is $1$ when spot $s$ belongs to cell $c$. Its
 variational posterior $q(z_{s,c})$ is derived as for the other factors: the terms of the
 log-joint that involve $z_{s,c}$ are kept, the expectation over the rest is taken, and the
