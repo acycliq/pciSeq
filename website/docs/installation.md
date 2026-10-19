@@ -37,7 +37,7 @@ message pointing at the libvips install page. `read_tiles` does not need libvips
 
 ```python
 import pciSeq
-pciSeq.__version__     # '0.0.66.dev0'
+pciSeq.__version__     # '0.1.0.dev0'
 pciSeq.__commit__      # short git hash, eg '6db6dc8'
 pciSeq.__branch__      # 'dev_3d'
 pciSeq.__commit_date__  # when that commit was made, eg '2026-09-25T15:02:11+01:00'
@@ -57,7 +57,7 @@ traced back to them:
 
 ```python
 varBayes.metadata
-# {'version':          '0.0.66.dev0',
+# {'version':          '0.1.0.dev0',
 #  'branch':           'dev_3d',
 #  'commit':           '6db6dc8',
 #  'commit_date':      '2026-09-04T11:30:02+01:00',
