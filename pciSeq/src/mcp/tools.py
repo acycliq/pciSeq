@@ -1069,8 +1069,6 @@ class Run:
             'cell_type_prior_is': 'weighted: the weights were learned from the cells and '
                                   'refitted at every iteration, Zero apart, whose weight is '
                                   'fixed. uniform: all of them were fixed by cell_type_weights',
-            'note': 'a cell that was pinned partway through the run kept the weights of that '
-                    'iteration, so its own prior term can differ from these',
         }
 
     def find_cells(self, class_name=None, plane=None, min_counts=None,

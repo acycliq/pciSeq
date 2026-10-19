@@ -193,16 +193,6 @@ def _cells_table(cellData: pd.DataFrame, varBayes, cfg, labels_name: str):
     })
     obs.index = cellData.Cell_Num.astype(str).values
 
-    # the tie freezing state: which cells had their class pinned, and when
-    freezer = getattr(varBayes, 'tie_freezer', None)
-    if freezer is not None:
-        obs['is_pinned'] = freezer.frozen[1:n + 1]
-        pinned_at = np.full(n, -1, dtype=np.int32)
-        for c, snap in freezer.snapshots.items():
-            if 1 <= c <= n:
-                pinned_at[c - 1] = snap['iteration']
-        obs['pinned_at_iteration'] = pinned_at
-
     # centroids in native space. cellData X, Y, Z are anisotropy scaled, which
     # only differs from pixels on the z axis while the pixels are square, so z
     # is divided back into plane units.

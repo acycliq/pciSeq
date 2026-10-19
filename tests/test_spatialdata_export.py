@@ -88,10 +88,6 @@ def _synthetic_run():
         columns=['A', 'B', 'Zero'],
     )
 
-    frozen = np.zeros(4, dtype=bool)
-    frozen[2] = True  # internal cell 2, segmentation label 20
-    freezer = types.SimpleNamespace(frozen=frozen, snapshots={2: {'iteration': 55}})
-
     varBayes = types.SimpleNamespace(
         cells=types.SimpleNamespace(
             classProb=classProb,
@@ -100,7 +96,6 @@ def _synthetic_run():
         spots=types.SimpleNamespace(parent_cell_prob=parent_cell_prob),
         genes=types.SimpleNamespace(gene_panel=np.array(['Pvalb', 'Sst', 'Vip'])),
         single_cell=types.SimpleNamespace(raw_data=ref),
-        tie_freezer=freezer,
         metadata={'version': '0.0.66.dev3', 'branch': 'test', 'commit': 'abc123',
                   'commit_date': 'today', 'created_at': 'now'},
     )
@@ -192,11 +187,6 @@ class TestElements:
         got = adata.obsm['class_prob'].argmax(axis=1)
         names = np.array(adata.uns['class_names'])[got]
         assert names.tolist() == adata.obs['class_name'].tolist()
-
-    def test_tie_freezing_state(self, sdata):
-        obs = sdata.tables['cells'].obs
-        assert obs['is_pinned'].tolist() == [False, True, False]
-        assert obs['pinned_at_iteration'].tolist() == [-1, 55, -1]
 
     def test_centroid_z_is_back_in_plane_units(self, sdata):
         spatial = sdata.tables['cells'].obsm['spatial']
