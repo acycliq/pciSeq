@@ -1,8 +1,8 @@
 
-# How a spot's call was made
+# Why a spot is assigned to its cell
 
 A spot is assigned to one of its `nNeighbors` nearest cells or to the background, as a
-probability. Each candidate cell gets a score, the background gets one too, and a softmax
+probability. Each candidate cell receives a score, as does the background, and a softmax
 over them gives the probabilities:
 
 $$
@@ -13,8 +13,8 @@ $$
 \end{aligned}
 $$
 
-The background scores the [misread density](../how-it-works/misread-density.md) of the
-spot's gene, the same at every position. The terms are described in
+The background's score is the expected log [misread density](../how-it-works/misread-density.md)
+of the spot's gene, the same at every position. The terms are described in
 [assigning spots to cells](../how-it-works/spots-to-cells.md).
 
 [`check_spot`](../api/reference.md#check-spot) shows these terms for every candidate of a
@@ -25,11 +25,6 @@ The examples use the same two fits as the [cell page](why-a-cell-got-its-type.md
 `mrf_beta = 1.5` and `mrf_beta = 0`, and one spot of cell 18223.
 
 ## Calling `check_spot`
-
-The example uses the same cell and the same two fits as
-[Figure 3.1](why-a-cell-got-its-type.md#fig-the-cell). The question is now on the spot
-side: which cell does the spot belong to, and how the answer changes when the spatial
-term (mrf) is switched off.
 
 Spot 1642419 is a Synpr spot. In the fit with the spatial term it goes to cell 18223:
 
@@ -49,8 +44,8 @@ term by term.</figcaption>
 </figure>
 
 The bars are the score of each candidate, term by term, with the candidates ordered by
-distance and the background last. The black tick is the total. A taller total means a
-better explanation of the spot.
+distance and the background last. The black tick is the total. A higher total means a
+higher assignment probability.
 
 <figure class="diagram" id="fig-check-spot-probs">
 <img src="/explaining-the-calls/spot-1642419-mrf-probs.png" alt="check_spot assignment probabilities for spot 1642419">
@@ -65,8 +60,8 @@ Each expression term is a log, and all but the gene efficiency are averaged over
 cell's class probabilities. For a cell confidently of one class, the sign of a term
 therefore says whether the quantity inside the log is above or below 1.
 
-Take the class expression, the orange segment of every bar in the score chart above. It sits
-above zero, so the quantity inside its log is above 1. The term is
+The class expression, the orange segment of every bar in the score chart above, is
+positive, so the quantity inside its log is above 1. The term is
 `log(mean expression x Inefficiency + SpotReg)`, averaged over the cell's class
 probabilities. Every candidate here is `037 DG Glut` with probability near 1, so the
 average reduces to the value for DG. Synpr has a mean of 24.68 in `037 DG Glut`, and with
@@ -101,24 +96,23 @@ for the background:
   the distance to the cell's centroid counts then, and the three axes are independent. With
   the update, the centre and the covariance follow the spots and the term changes with
   them.
-- **class expression, the alignment**. How well the cell's likely class matches the gene. When several cells
-  compete for the same spot and everything else is equal, it goes to the cell whose likely
-  class expresses that gene most. Two cells with the same class probabilities get the same
+- **class expression, the alignment**. How well the cell's likely class matches the gene. Among candidate cells
+  that are otherwise equal, the spot is more probably assigned to the cell whose likely
+  class expresses the gene most. Two cells with the same class probabilities get the same
   value, since the gene is the same for every candidate of a spot, which is why every
   candidate here shows 0.943.
-- **cell scale, the gravity**. It is derived from theta: how far a cell's total
-  counts sit above or below what its likely class predicts. When several cells compete for
-  the same spot and everything else is equal, it goes to the cell already holding more
-  reads in total. Only the totals count here, so the term is the same whatever the gene of
+- **cell scale, the gravity**. It is derived from theta: the ratio of a cell's total
+  count to what its likely class predicts. Among candidate cells that are otherwise equal,
+  the spot is more probably assigned to the cell with the higher ratio. Only the totals count here, so the term is the same whatever the gene of
   the spot.
 - **cell-gene scale, the enrichment**. It is derived from gamma: how much of a gene is
   observed in a cell relative to the amount predicted by its likely class and its theta.
-  When several cells compete for the same spot and all other factors are equal, the spot
-  is assigned to the cell with the higher observed-to-expected ratio for that gene.
+  Among candidate cells that are otherwise equal, the spot is more probably
+  assigned to the cell with the higher observed-to-expected ratio for that gene.
 - **gene efficiency**. It is derived from eta: how well the gene is detected across
-  the whole experiment. It is the same for every candidate cell, so it cannot choose
-  between them. It does weigh the cells against the background, which carries no such
-  term: a poorly detected gene lowers every cell's score and makes the background more
+  the whole experiment. It is the same for every candidate cell, so it does not change
+  their relative probabilities. It does affect the cells relative to the background, which
+  has no such term: a poorly detected gene lowers every cell's score and makes the background more
   likely.
 - **misread**. The background's whole score: the expected log misread density of the
   spot's gene. It is the same at every position. A cell scoring below it receives less
@@ -126,7 +120,7 @@ for the background:
 - **sum, prob**. The total and its softmax over the rows.
 
 <p class="table-note">Gene efficiency and misread density are not the same thing. The
-first scales what a cell is expected to hold of the gene, so it sits in every cell's
+first scales what a cell is expected to hold of the gene, so it enters every cell's
 score. The second is the background's own rate for that gene, estimated from the spots
 assigned to the background. A gene can be well detected and still produce many misreads.</p>
 
@@ -135,16 +129,16 @@ in these runs, so <code>check_spot</code> leaves the column out. When it is set,
 cell's segmentation gets that bonus added to its score.</p>
 
 Cell 18223 is the nearest candidate: its Gaussian fit is 1.7 above cell 17371 and 2.4
-above cell 21574. It does not win on the expression terms. It has the largest cell-gene
+above cell 21574. It does not have the larger expression terms. It has the largest cell-gene
 scale, 0.18 against 0.07 for cell 21574 and negative values for the rest, but a lower
-cell scale, -0.66 against 0.10, and over the three expression terms together cell 21574
-is ahead, 1.11 against 0.47. The Gaussian fit decides the assignment.
+cell scale, -0.66 against 0.10, and over the class expression, cell scale and cell-gene
+scale together cell 21574 is higher, 1.11 against 0.47. The Gaussian fit determines the
+assignment.
 
 ## The same spot without the spatial term
 
 In the fit with `mrf_beta = 0`, cell 18223 is `030 L6 CT CTX Glut` rather than
-`037 DG Glut`. The spot has not moved and the Gaussians are fixed, so its position terms
-are unchanged:
+`037 DG Glut`. The Gaussians are fixed, so the Gaussian fit is unchanged:
 
 ```python
 obj_nomrf = pd.read_pickle('pciSeq_nomrf.pickle')
@@ -188,24 +182,22 @@ genes with the largest counts, then Synpr, then the cell total.</p>
 
 - **`Gaussian fit`**, -10.405 in both fits. With the Gaussians fixed, it depends only on
   where the spot is.
-- **`class expression`**, +0.943 with the mrf, -2.203 without it. The term is high when the
+- **`class expression`**, +0.943 with the MRF, -2.203 without it. The term is high when the
   cell's likely class expresses the gene strongly, and the cell is confidently of that
-  class. Cell 18223 is now classified as `030 L6 CT CTX Glut`, which does not express
-  Synpr, while `037 DG Glut` does.
+  class. Cell 18223 is now classified as `030 L6 CT CTX Glut`, which expresses little
+  Synpr, while `037 DG Glut` expresses it strongly.
 
-The spot is now assigned to cell 18223 with probability 6%, against 73.7% with the mrf,
-and its most likely parent is cell 21574, a `037 DG Glut` cell, with 49.2%. Cell 21574 is
+The spot is now assigned to cell 18223 with probability 6%, against 73.7% with the MRF,
+and its most probable cell is cell 21574, a `037 DG Glut` cell, with 49.2%. Cell 21574 is
 only the third closest to the spot. Cell 17371 is the second closest and is `037 DG Glut`
-too, yet the spot does not go to it, because it holds fewer reads in total, 60.0 against
+too, yet the spot is less probably assigned to it, because it holds fewer reads in total, 60.0 against
 98.8, and holds less Synpr, 0.5 against 3.0, see [Table 3.4](#table-3-4). Between cells
 of the same class, a spot is more likely to come from the cell that holds more reads in
 total and more of the gene.
 
 
-Cell 18223 here is the same cell as in
-[Figure 3.1](why-a-cell-got-its-type.md#fig-the-cell), the
-same fits and the same plane, 57. There it was panel **b**, outlined in red among its
-neighbours.
+Figure 3.6 shows the same field as panel **b** of
+[Figure 3.1](why-a-cell-got-its-type.md#fig-the-cell), at plane 57.
 
 <figure class="diagram" id="fig-spot-panels">
 <div class="two-panel">

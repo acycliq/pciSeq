@@ -20,7 +20,7 @@ It appears in the model's own intensity function, so taking the expectation of t
 log-joint leaves it in the score for any cell $c > 0$.
 
 Because the assignment is normalised against the background density $\rho$ (the $c=0$
-class), which has no efficiency term, omitting $\eta$ does not cancel - it distorts the
+component), which has no efficiency term, omitting $\eta$ does not cancel; it distorts the
 signal-to-noise ratio. A low-efficiency gene ought to have its signal attenuated and be
 more readily assigned to the background; the original expression instead treats every gene
 as perfectly detected during assignment. The corrected expression restores the term:
@@ -34,12 +34,11 @@ $$
 The term changes the result in one place only. The efficiency
 $\overline{\log\eta}_{g_s}$ depends only on the spot's gene, not on the cell, so it takes
 the **same value for every candidate cell** $c > 0$. In a comparison between two genuine
-neighbouring cells it is a common offset that cancels: it never affects which cell wins.
+neighbouring cells it is a common offset that cancels: it does not change the relative probabilities of the
+candidate cells.
 It matters only in the **spot-versus-background** decision. The background option ($c = 0$)
 carries no efficiency term at all, so $\overline{\log\eta}_{g_s}$ is exactly the asymmetry
-between "assign to some cell" and "assign to the background". Dropping it, as the original
-expression does, removes that asymmetry and lets a low-efficiency gene compete against the
-background as if it were perfectly detected, the distortion above.
+between "assign to some cell" and "assign to the background".
 
 The current score, which also includes the cell scale term of the extended model, is on
 the [spot-to-cell assignment](spot-assignment.md) page.
@@ -47,10 +46,11 @@ the [spot-to-cell assignment](spot-assignment.md) page.
 ## 2. Typo in the gamma prior
 
 The text states $\gamma_{g,c} \sim \mathrm{Gamma}(r, 1)$ with shape $r = 2$. That gives
-prior mean $\mathbb{E}[\gamma] = 2$, implying the model expects twice the scRNA-seq
-expression by default. But the posterior rate update is $r + \mu_{g,k} A_c \bar\eta_g$,
+prior mean $\mathbb{E}[\gamma] = 2$, implying the model expects twice the expression of
+the cell type definitions by default. But the posterior rate update is $r + \mu_{g,k} A_c \bar\eta_g$,
 which implies a prior rate of $r$, not $1$. The prior was intended to be
-$\mathrm{Gamma}(r, r)$ (mean $1$), so the reference means $\mu$ are not incorrectly scaled.
+$\mathrm{Gamma}(r, r)$ (mean $1$), so that the prior does not rescale the mean
+expression $\mu$.
 
 ## 3. Structured dependency in the efficiency update
 
@@ -100,13 +100,12 @@ $$
 The relative factor is read against the baseline: $\eta_g' = 1$ is a gene detected
 at exactly the assumed rate, $\eta_g' > 1$ better than the baseline, $\eta_g' < 1$ worse.
 Pulling $\eta_0$ out of the prior also avoids the typo above: the prior on $\eta_g'$ is
-simply $\mathrm{Gamma}(r_\eta, r_\eta)$, whose mean is $1$ by construction, so there is no
-baseline constant left in the prior to get wrong.
+$\mathrm{Gamma}(r_\eta, r_\eta)$, whose mean is $1$ by construction, so the prior contains no
+baseline constant.
 
 The scale property links the two parameterisations: with $c = \eta_0$, the absolute variable
 $\eta_g = \eta_0\,\eta_g'$ recovers the prior $\mathrm{Gamma}(r_\eta, r_\eta/\eta_0)$ and
-divides the posterior rate by $\eta_0$. The two are the same model written two ways; the
-relative one is better conditioned.
+divides the posterior rate by $\eta_0$. The two are the same model written two ways.
 
 ### Summary
 

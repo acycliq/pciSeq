@@ -6,7 +6,7 @@ description: Run pciSeq from a config file with the pciseq command, override set
 # Command line
 
 `pciseq` runs a dataset described by a config file. It loads the inputs and calls
-[`fit`](./reference#fit); a run is then a file rather than a script.
+[`fit`](./reference#fit), so a run is defined by a file rather than by a script.
 
 ```bash
 pciseq run analysis.yaml
@@ -14,8 +14,8 @@ pciseq run analysis.yaml
 
 ## The config file
 
-Four sections. `spots`, `masks` and `scrnaseq` are required, `opts` is
-optional.
+The file has four sections: `spots`, `masks` and `scrnaseq` are required, `opts`
+is optional.
 
 ```yaml
 scrnaseq:
@@ -44,8 +44,7 @@ Everything under `opts` goes to `fit`, so the keys are the ones on the
 
 ### scrnaseq
 
-The cell type definitions, genes by cell types. `transpose` handles files stored
-the other way round.
+The cell type definitions, genes by cell types.
 
 | key | meaning |
 |-----|---------|
@@ -96,12 +95,11 @@ Values are parsed as JSON:
 --set output_path=default            # not valid JSON, so kept as a string
 ```
 
-A key that is not a real pciSeq setting raises rather than being ignored, so a
-typo stops the run instead of quietly doing the wrong thing.
+A key that is not a pciSeq setting raises an error and stops the run.
 
 ## Sweeps
 
-One config, a loop, one output directory per run:
+A sweep runs one config file in a shell loop, with one output directory per run:
 
 ```bash
 for t in 2 5 15 25; do
@@ -143,7 +141,7 @@ Numbers may be written in exponent form, `1.0e6`. PyYAML follows YAML 1.1, which
 requires a signed exponent, so it reads the unsigned form as the string `"1.0e6"`; pciSeq accepts it
 as a number.
 
-## The Python API
+## Config handling from Python
 
 The command is a wrapper over [`fit`](./reference#fit). The config handling is
 available without it:
@@ -160,5 +158,5 @@ cellData, geneData = fit(spots=spots, coo=coo, scRNAseq=scRNAseq, opts=opts)
 ## Beyond the config file
 
 The config covers renaming, filtering and selecting an array from an npz. Other
-preprocessing, a coordinate transform, merging files, stitching tiles, belongs in a
-script that writes out clean inputs for the config to point at.
+preprocessing, such as a coordinate transform, merging files or stitching tiles, belongs
+in a script that writes out clean inputs for the config to point at.

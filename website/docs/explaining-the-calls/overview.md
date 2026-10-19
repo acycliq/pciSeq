@@ -2,18 +2,18 @@
 # Explaining the calls
 
 pciSeq returns a probability for every cell type of every cell and for every candidate
-cell of every spot. This section shows how to find out why the model arrived at those
-probabilities: which genes, which prior and which neighbours made a cell a given type,
-and which terms sent a spot to a cell or to the background.
+cell of every spot. This section shows how to determine why the model arrived at those
+probabilities: which genes, which prior and which neighbours determined the class of a
+cell, and which terms determined the assignment of a spot to a cell or to the background.
 
 Two methods of the fitted model answer these questions:
 
 | question | method | page |
 | --- | --- | --- |
-| Why was this cell assigned this class, and not another? | [`check_cell`](../api/reference.md#check-cell) | [How a cell's call was made](why-a-cell-got-its-type.md) |
-| Why was this spot assigned to this cell, or to the background? | [`check_spot`](../api/reference.md#check-spot) | [How a spot's call was made](why-a-spot-got-its-cell.md) |
+| Why was this cell assigned this class, and not another? | [`check_cell`](../api/reference.md#check-cell) | [Why a cell is assigned its class](why-a-cell-got-its-type.md) |
+| Why was this spot assigned to this cell, or to the background? | [`check_spot`](../api/reference.md#check-spot) | [Why a spot is assigned to its cell](why-a-spot-got-its-cell.md) |
 
-Both read the values the model used in its last iteration, so what they show agrees with
+The scores they show are those the model used in its last iteration, so they agree with
 the probabilities in `cellData` and `geneData`.
 
 ## The fitted model
@@ -28,13 +28,14 @@ import pandas as pd
 obj = pd.read_pickle('<output_path>/pciSeq/data/debug/pciSeq.pickle')
 ```
 
-[`cell_type`](../api/reference.md#cell-type) returns the model directly. A model saved by
+[`cell_type`](../api/reference.md#cell-type) returns the model as the third element of its
+result. A model saved by
 an earlier version of pciSeq may lack the values these methods read.
 
 ## The example data
 
 The examples in this section use a 3D coppaFISH dataset of mouse hippocampus: 25,254
-segmented cells, 3,018,812 spots of the 205 genes shared with the single-cell reference,
+segmented cells, 3,018,812 spots of the 205 genes shared with the cell type definitions,
 and 38 cell types. The data were fitted twice with identical settings except `mrf_beta`,
 the strength of the spatial term: 1.5 and 0. The model from the fit with the spatial
 term is `obj`, the model from the fit without it is `obj_nomrf`:

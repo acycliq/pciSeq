@@ -3,7 +3,7 @@
 
 A spot is assigned either to a nearby cell or, as an artefact (a misread), to the
 background. A cell scores the spot by the Gaussian fit plus four expression terms; the
-background scores it by the expectation (in log-space) of the misread density. Here the misread density varies
+background scores it by the expected log of the misread density. Here the misread density varies
 **per gene**: each gene $g$ has its own background rate $\rho_g$. The
 [how it works page](../how-it-works/misread-density.md) describes the step; this page
 derives the variational posterior.
@@ -21,7 +21,7 @@ $$
 where $r_\rho$ is the shape and $\beta_\rho$ the rate, giving prior mean
 $\mathbb{E}[\rho_g] = r_\rho/\beta_\rho$.
 
-Two of these symbols map directly onto configuration settings in the code:
+The prior is set by two configuration settings:
 
 - $r_\rho$ is the **`rRho`** setting (the prior strength);
 - $\rho_0$ is the **`MisreadDensity`** setting (the prior mean misread density).
@@ -37,8 +37,8 @@ $$
 $$
 
 $r_\rho$ appears in both the shape and the rate and cancels in the prior mean, so it
-changes only the concentration of the prior around $\rho_0$. The choice
-$r_\rho = 1,\ \beta_\rho = 1/\rho_0$ of the source derivation is the unit-strength case.
+changes only the concentration of the prior around $\rho_0$. The default,
+$r_\rho = 1$, gives $\beta_\rho = 1/\rho_0$.
 
 ## Likelihood
 
@@ -61,11 +61,11 @@ the units the rest of the score uses. They do not match by default, because conf
 are not cubes: a typical `voxel_size` of `[0.28, 0.28, 0.7]` is two and a half times longer
 in $z$ than in $x$ or $y$.
 
-The position term for a spot belonging to a cell is a gaussian evaluated on
+The position term for a spot belonging to a cell is a Gaussian evaluated on
 **anisotropy-scaled** coordinates, with $z$ stretched by $s_z = \texttt{voxel\_size}[2] /
-\texttt{voxel\_size}[0]$ so that a micron is a micron in every direction. That gaussian is
+\texttt{voxel\_size}[0]$ so that $z$ is measured in the same units as $x$ and $y$. That Gaussian is
 therefore a density per unit *scaled* volume. The background term it is compared against
-inside the same softmax is $\bar N_{0,g} / A_{\text{total}}$, so $A_{\text{total}}$ must be a
+inside the same softmax is, to a close approximation, $\bar N_{0,g} / A_{\text{total}}$, so $A_{\text{total}}$ must be a
 scaled volume too:
 
 $$
@@ -73,8 +73,8 @@ A_{\text{total}} = W \cdot H \cdot n_{\text{planes}} \cdot s_z .
 $$
 
 Counting the ROI in raw voxels instead leaves the two sides in different units and makes the
-background too strong by exactly $s_z$, which for a `[0.28, 0.28, 0.7]` voxel is a factor of
-2.5. The visible symptom is spots being assigned to the background that should have gone to a
+background too strong by approximately $s_z$, which for a `[0.28, 0.28, 0.7]` voxel is a factor of
+2.5. The consequence is that spots are assigned to the background that should be assigned to a
 cell.
 
 Only $z$ is corrected here. The pixels are taken to be square in $x$ and $y$, which holds for
@@ -154,12 +154,12 @@ $\hat{r}_g = r_\rho + \bar{N}_{0,g}$, through the background count $\bar{N}_{0,g
 The parameter $r_\rho$ (the `rRho` setting) acts as a pseudo-count that sets how readily the
 data move $\rho_g$ away from the prior mean $\rho_0$ (the `MisreadDensity` setting):
 
-- **Large $r_\rho$ - the prior dominates and the misread density stops being gene-specific.**
+- **Large $r_\rho$: the prior dominates and the misread density stops being gene-specific.**
   The shape $r_\rho + \bar{N}_{0,g} \approx r_\rho$ for every gene, because the background
-  counts are swamped by the large pseudo-count, so every gene's posterior mean sits at
-  $\rho_0$ - the single global constant of the original model.
+  counts are swamped by the large pseudo-count, so every gene's posterior mean is close
+  to $\rho_0$, the single global constant of the original model.
 
-- **Small $r_\rho$ - the misread density is gene-specific and fully data driven.** With the
+- **Small $r_\rho$: the misread density is gene-specific and fully data driven.** With the
   prior contributing very weakly, the shape
   $r_\rho + \bar{N}_{0,g} \approx \bar{N}_{0,g}$ and the rate
   $r_\rho/\rho_0 + A_{\text{total}} \approx A_{\text{total}}$ (e.g. at $r_\rho = 1$), so
@@ -170,7 +170,7 @@ data move $\rho_g$ away from the prior mean $\rho_0$ (the `MisreadDensity` setti
   \frac{\text{background spots of gene } g}{\text{extent of the image}} ,
   $$
 
-  each gene's rate is its background spot count divided by the extent.
+  each gene's density is its background spot count divided by the extent.
 
 So $r_\rho$ interpolates between a shared constant, $\rho_0$ ($r_\rho \to \infty$), and a
 per-gene empirical estimate ($r_\rho \to 0$).

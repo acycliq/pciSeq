@@ -49,10 +49,10 @@ $$
 The two factors are:
 
 - a **Negative Binomial likelihood** over genes, with effective mean
-  $\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_{c\mid k}$ - how well the cell's gene counts match the
+  $\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_{c\mid k}$, which measures how well the cell's gene counts match the
   warped expectation for class $k$;
-- the **baseline prior** $\pi_k$ scaled by the **spatial term**
-  $\beta \sum_{c'\in\mathcal{N}_c} \bar\zeta_{c',k}$.
+- the **baseline prior** $\pi_k$ multiplied by the **spatial factor**
+  $\exp\big(\beta \sum_{c'\in\mathcal{N}_c} \bar\zeta_{c',k}\big)$.
 
 Under `cell_type_prior` set to `weighted`, $\pi$ is itself a random variable and the
 $\log \pi_k$ in the score is its expectation $\mathbb{E}[\log \pi_k]$ under the
@@ -83,7 +83,7 @@ $$
 Here $\mathcal{N}_c$ is the set of nearest neighbours of cell $c$ (there are
 `nNeighbors` of them, 9 by default) and $\beta \geq 0$ controls the strength of the
 coupling. A cell is more readily assigned to a class its neighbours share. The term is
-additive in log space, so it competes with the expression evidence rather than replacing
+additive in log space, so it is added to the expression evidence rather than replacing
 it.
 
 ### Weighting the neighbours by distance
@@ -96,7 +96,7 @@ $$
 S_{c,k} = \sum_{c' \in \mathcal{N}_c} w_{c,c'}\, \bar\zeta_{c',k} .
 $$
 
-The weight is a gaussian on the distance, with a width set per cell:
+The weight is a Gaussian function of the distance, with a width set per cell:
 
 $$
 w_{c,c'} \;\propto\; \exp\!\Big(-\big(d_{c,c'} / \sigma_c\big)^2\Big),
@@ -105,8 +105,8 @@ w_{c,c'} \;\propto\; \exp\!\Big(-\big(d_{c,c'} / \sigma_c\big)^2\Big),
 $$
 
 then rescaled so that $\sum_{c'} w_{c,c'} = |\mathcal{N}_c|$. That normalisation keeps the
-support on the same scale as the class probabilities it multiplies, so $\beta$ means the
-same thing everywhere, and it puts a ceiling on the whole term: since $\bar\zeta \le 1$,
+support on the same scale as the class probabilities it multiplies, so $\beta$ has the
+same scale for every cell, and it puts a ceiling on the whole term: since $\bar\zeta \le 1$,
 
 $$
 S_{c,k} \;\le\; |\mathcal{N}_c| \qquad\text{and so}\qquad
@@ -122,7 +122,7 @@ implementation uses `nNeighbors` of them; two are shown here:
 $$
 \sigma_A = \operatorname{median}(30, 60) = 45, \qquad
 w_B = e^{-(30/45)^2} = 0.641, \qquad
-w_C = e^{-(60/45)^2} = 0.169 ,
+w_C = e^{-(60/45)^2} = 0.169 .
 $$
 
 After rescaling to sum to 2, $w_B = 1.583$ and $w_C = 0.417$, so $B$ contributes to $A$'s
@@ -130,16 +130,18 @@ score with 3.8 times the weight of $C$.
 
 ### Pooling sister classes
 
-Some classes in the reference are close relatives. `037 DG Glut` and `038 DG-PIR Ex IMN` are
-an example: they share most of their markers, `037` is common in the dentate gyrus and `038`
-is rare. A `038` cell usually sits inside a patch of `037` cells, so the MRF works against it.
+Some classes in the cell type definitions are close relatives. `037 DG Glut` and
+`038 DG-PIR Ex IMN`, written `037` and `038` below, are an example: they are the only two
+subclasses of the same class in the Allen taxonomy, `04 DG-IMN Glut`, and both occupy the
+dentate gyrus, where `037` is far more common. The neighbours of a `038` cell are therefore
+mostly `037` cells, so the MRF term favours `037`.
 
 **Example.** Take a cell whose 9 neighbours are 8 confident `037` cells and 1 confident `038`
 cell. To keep the numbers simple, say all 9 are equally close (weight 1 each) and
 $\beta = 1$. The neighbour bonus is then
 
-- `037`: 8 (eight neighbours back it)
-- `038`: 1 (one neighbour backs it)
+- `037`: 8
+- `038`: 1
 
 Now say the cell's own reads fit `038` better: its log-likelihood is $-100$ under `038` and
 $-103$ under `037`. Adding the bonus:
@@ -149,8 +151,8 @@ $-103$ under `037`. Adding the bonus:
 | `037` | $-103$ | $8$ | $-95$ |
 | `038` | $-100$ | $1$ | $-99$ |
 
-`037` wins by 4, and after the softmax the cell is `037` with probability 0.98. The
-neighbours overrode the reads, and they carry no information here: both classes occupy the
+`037` scores 4 higher, and after the softmax the cell is `037` with probability 0.98. The
+neighbour term outweighs the reads, although it carries no information here: both classes occupy the
 same place, so a surround of `037` cells says nothing about whether this cell is `037` or
 `038`.
 
@@ -162,20 +164,19 @@ opts = {
 }
 ```
 
-and a neighbour of either class backs both. The bonus becomes $8 + 1 = 9$ for each:
+and a neighbour of either class counts towards both. The bonus becomes $8 + 1 = 9$ for each:
 
 | | reads | bonus | total |
 |---|---|---|---|
 | `037` | $-103$ | $9$ | $-94$ |
 | `038` | $-100$ | $9$ | $-91$ |
 
-The bonus is the same for both so it cancels out, and the reads decide: `038` with
+The bonus is the same for both so it cancels out, and the reads determine the class: `038` with
 probability 0.95. The neighbours still count against every class outside the group, so a
 patch of DG cells still lowers the probability of, for example, an interneuron class.
 
-A group can hold more than two classes. Pooling does more than stop the neighbours choosing
-inside the group: the votes across the group add up, and the total competes against every
-class outside it. Take a cell whose 9 neighbours are 4 cells of a
+A group can hold more than two classes. Pooling also sums the neighbour support across the
+group, and the total is compared against every class outside it. Take a cell whose 9 neighbours are 4 cells of a
 pyramidal class `P` and 5 interneurons, each from a different interneuron class:
 
 | | bonus for `P` | bonus for each interneuron class |
@@ -186,9 +187,9 @@ pyramidal class `P` and 5 interneurons, each from a different interneuron class:
 Without pooling the neighbours favour `P`. With the interneurons pooled they favour
 "interneuron", although no single interneuron class has more than one neighbour. For a
 pair like `037` and `038`, which occupy the same place, this does not matter. A large group
-can win cells that none of its classes would have won alone, so groups should be kept small.
+can be assigned cells that none of its classes would be assigned alone, so groups should be kept small.
 
-**In the maths.** The MRF prior rewards two neighbours for having the same class. Pooling
+**In the maths.** The MRF prior favours two neighbours having the same class. Pooling
 changes that to "the same class, or two classes in the same group". The support that
 multiplies $\beta$ becomes
 

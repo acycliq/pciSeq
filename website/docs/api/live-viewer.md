@@ -1,6 +1,6 @@
 ---
 title: Live viewer
-description: Watch the cell typing in a browser while pciSeq.fit() runs, and what each control on the page does.
+description: Watch the cell typing in a browser while pciSeq.fit() runs, and the controls of the page.
 ---
 
 # Live viewer
@@ -8,7 +8,7 @@ description: Watch the cell typing in a browser while pciSeq.fit() runs, and wha
 The live viewer shows the cells in a browser while [`fit`](./reference#fit) is still
 running. Every cell is drawn at its position and coloured by the class it is currently
 assigned to, and the picture updates after each iteration. It shows which cells keep
-changing class and how quickly a run settles.
+changing class and how quickly a run converges.
 
 The viewer reads the class probabilities after each iteration and does not change them.
 A run gives the same result with the viewer on or off.
@@ -21,8 +21,8 @@ opened after a run, on the saved output.
 <video src="https://github.com/user-attachments/assets/ab9867e4-866e-4f81-88e5-359bdf7d7a64"
        poster="/live-viewer/live-viewer-poster.jpg"
        autoplay loop muted playsinline controls width="1200"></video>
-<figcaption>The first 14 iterations of a 3D dataset of 25,254 cells, recorded while the run
-went, with the waits between iterations cut. Cells are coloured by their current class, the
+<figcaption>The first 14 iterations of a 3D dataset of 25,254 cells, recorded during the run,
+with the intervals between iterations removed. Cells are coloured by their current class, the
 counts on the right follow the class sizes, and the chart at the bottom right is the
 convergence value against its tolerance.</figcaption>
 </figure>
@@ -60,14 +60,14 @@ ssh -L 5001:127.0.0.1:5001 user@server
 ## The page
 
 **Header.** Whether the page is connected to the run, the current iteration, the
-convergence value (see below) and the number of cells. The small box on the picture shows
-the connection and the cell count too.
+convergence value (see below) and the number of cells. An overlay on the plot also shows
+the connection status and the cell count.
 
 **Hover** over a cell for its label, class, position and the probability of that class.
 
 **Pan and zoom** with the mouse.
 
-**Cells that changed class** in the last iteration are enlarged briefly, for two seconds.
+**Cells that changed class** in the last iteration are enlarged for two seconds.
 
 ## Cell classes
 
@@ -92,8 +92,8 @@ is greyed out for 2D data.
 
 ## Convergence
 
-The chart plots the convergence value for every iteration: the biggest change in any
-spot's cell assignment probability since the previous iteration. The dashed line is
+The chart plots the convergence value for every iteration: the largest change in any
+spot's assignment probability, to a cell or to the background, since the previous iteration. The dashed line is
 `CellCallTolerance`, and the run stops once the value drops below it (or at `max_iter`).
 Hover over a point to read its value.
 
@@ -108,7 +108,7 @@ against**. The default is Zero.
 - The table has the counts of those genes in this cell next to the mean counts in the
   cells typed as each of the two classes.
 
-Comparing a class against itself gives an error in the drawer. The top edge of the
+Selecting the assigned class in **Compare against** gives an error in the drawer. The top edge of the
 drawer resizes it.
 
 ## Custom colours
@@ -137,7 +137,7 @@ In the file dialog, select the file and press **Open**. Double-clicking the file
 always pass it to the page in Chromium based browsers.
 :::
 
-## Opening it late
+## Opening the page during a run
 
 The server keeps the cell positions and the latest iteration, so a tab opened or reloaded
-during a run catches up at once. Closing the tab does not affect the run.
+during a run receives the current state immediately. Closing the tab does not affect the run.

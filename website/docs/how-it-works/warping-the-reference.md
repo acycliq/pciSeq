@@ -3,7 +3,8 @@
 
 The cell type definitions give the mean expression of each gene in each class. The
 observed counts are on a different scale: detection efficiency differs between genes,
-transcript yield differs between cells, and the two datasets differ in overall scale.
+transcript yield differs between cells, and the cell type definitions and the experiment
+differ in overall scale.
 pciSeq rescales the expected expression to the scale of the current experiment before
 comparing. The rescaling is the warp.
 
@@ -75,19 +76,20 @@ gamma to a given gene in a given cell under a given class.
 </figure>
 
 Four factors are needed because the mismatch occurs at all four levels at once: a
-global scale difference between the two datasets, a per-gene detection pattern, per-cell
-variation in yield, and gene-by-cell noise. Each factor absorbs the mismatch at its own
+global scale difference between the cell type definitions and the experiment, a per-gene detection pattern, per-cell
+variation in yield, and gene-by-cell noise. Each factor corrects the mismatch at its own
 scale.
 
 The factors are applied together. For each (cell, gene, class) triplet the expected
-expression is the reference value times Inefficiency, eta, theta and gamma.
+expression is the mean expression of the cell type definition times Inefficiency, eta,
+theta and gamma.
 
 The [demo](scale-factors-demo.md) puts three of them on sliders over five cells generated
 from known class definitions.
 
 ## Inefficiencies
 
-Every inefficiency is the same statistic, a ratio of observed over expected:
+Each of eta, theta and gamma is the same statistic, a ratio of observed over expected:
 
 $$
 \text{factor} \;=\;
@@ -113,16 +115,16 @@ depends on that hyperparameter against the number of counts available to estimat
 and those counts differ by orders of magnitude between the three levels.
 
 - **eta** is estimated from one gene's spots across the whole section, typically thousands. At
-  the default `rGene` of 20 the prior is negligible and the data determine the final (that is,
-  posterior) eta.
+  the default `rGene` of 20 the prior is negligible and the data determine the posterior
+  eta.
 - **theta** is estimated from one cell's spots, typically tens. At the default `rTheta` of 25 the
   prior is comparable to the data. Lower it to around 2 and the data determine the posterior
   theta. It has to stay above 1: theta is
   $(\text{spots} + r_\theta - 1) / (r_\theta + \text{expected})$, so at 1 or below a cell with no
   spots gives a theta of zero or less. A low `rTheta` also lets a cell with very few spots be
-  assigned to a real class on one or two spots, see
-  [the prior strength](../the-model/scale-factors.md#r-theta) for what
-  that costs.
+  assigned to a real class on one or two spots;
+  [the prior strength](../the-model/scale-factors.md#r-theta) describes the
+  consequences.
 - **gamma** is estimated from a given gene in a given cell, usually a fraction of a spot. The default
   `rSpot` of 2 therefore dominates, which is the intent: there is too little data at that level
   to estimate anything on its own. `rSpot` is also the dispersion of the negative binomial, since
@@ -133,12 +135,12 @@ starting value for `rTheta` is the typical number of counts in a cell.
 
 ## The spatial factor (the MRF)
 
-Cells of the same class cluster in space, in layers or regions. When a cell is scored
-against the classes, each class receives a bonus proportional to the weighted number of
-the cell's neighbours that carry it, closer neighbours weighted more. This is the
+Cells of the same class tend to cluster in space, in layers or regions. When a cell is scored
+against the classes, each class receives a bonus proportional to the sum of the
+neighbours' probabilities of that class, closer neighbours weighted more. This is the
 spatial term, a Markov random field (MRF), where a cell's label depends on its
 neighbours' labels. `mrf_beta` sets its strength; at `0` only the gene counts and the
-prior decide the class. It is described with the cell typing step in
+prior determine the class. It is described with the cell typing step in
 [cell to class](cell-to-celltype.md#the-class-prior-and-the-spatial-term).
 
 <!-- Parked, bring it back with the rest of the story:

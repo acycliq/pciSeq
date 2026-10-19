@@ -87,7 +87,7 @@ def read_tiles(mbtiles: str,
 
     The same region as a 1200 pixel wide panel. The box is 210 across, so `scale` is
     5.71 and the panel is magnified: the level read is the top of the pyramid, which
-    renders that box 10.2 times up, and it is resampled down to 5.71.
+    renders that box at 10.2 times magnification, and it is resampled down to 5.71.
 
     >>> im, scale = read_tiles('dapi.mbtiles', plane=57, bbox=(5393, 702, 5603, 842),
     ...                        width=1200)

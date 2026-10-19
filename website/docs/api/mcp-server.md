@@ -11,7 +11,7 @@ factors and images, and answers questions about the run in natural language. MCP
 ([Model Context Protocol](https://modelcontextprotocol.io)) is the protocol such
 assistants use to call outside programs.
 
-It is required for that way of asking only. The other three ways do not use it: an AI
+It is required only for that means of access; the other three do not use it: an AI
 assistant connected to pciSeq Viewer, the chat panel in pciSeq Viewer, and the chat of the
 live viewer. They include the same functions. `pciseq-mcp` needs no viewer and no screen,
 so it also serves a run on a remote machine. [Accessing the AI agent](../accessing-the-ai-agent.md)
@@ -51,7 +51,7 @@ expected behaviour, and Ctrl+C exits.
 ## Registering with an assistant
 
 The program is registered with the assistant once. The assistant then starts it by
-itself each time it is needed; it is never started by hand.
+itself each time it is needed; it need not be started by hand.
 
 ```bash
 claude mcp add --scope user pciseq -- pciseq-mcp             # Claude Code
@@ -138,14 +138,14 @@ not appear; see [Cell identifiers](./working-with-results.md#cell-identifiers).
 
 - `cell(label)`: the class probabilities, top genes, total counts and scale factor of one cell, and the neighbours that enter its spatial term.
 - `cell_shape(label)`: the fitted shape of the cell's Gaussian: round or elongated, the radii along its own axes, the direction of the longest, each radius against the mean cell radius, and the covariance. Runs saved before October 2026 do not keep the covariance.
-- `explain_cell(label, vs_class=None, top_n=10)`: the score of the assigned class against a second class, split into the gene log-likelihood, the class prior and the spatial term, with the genes contributing most to each side. Each gene is reported with the cell's count and the mean count over the cells assigned to either class. The shared genes are the cell's largest counts that the two classes fit about equally, the genes the two classes have in common. `vs_class` defaults to the runner-up.
+- `explain_cell(label, vs_class=None, top_n=10)`: the score of the assigned class against a second class, split into the gene log-likelihood, the class prior and the spatial term, with the genes contributing most to each side. Each gene is reported with the cell's count and the mean count over the cells assigned to either class. The shared genes are the cell's largest counts that the two classes fit about equally. `vs_class` defaults to the runner-up.
 - `cell_counts(label, gene=None)`: the counts of a cell, in total or for one gene.
 - `spots_in_cell(label, gene=None)`: the spots whose pixel lies inside the cell's segmentation mask.
 - `spots_of_cell(label, min_prob=None, gene=None)`: the spots whose most probable parent is the cell, each with its probability. With `min_prob`, every spot with probability above it; with `gene`, only that gene's spots.
 - `cell_row(label)`: the `cellData.tsv` row of one cell.
 - `theta(label)`: the cell scale factor, overall and under each of the top classes.
 - `gamma(label, gene=None)`: the cell-gene scale factors under the assigned class, for every gene or for one.
-- `neighbours(label)`: the cells entering the spatial term of the cell, with their classes and the distances between their fitted centroids.
+- `neighbours(label)`: the cells entering the spatial term of the cell, with their classes and, when the files for pciSeq Viewer are present, the distances between their fitted centroids.
 - `class_counts(min_counts=None)`: the number of cells per class, hard and soft.
 - `class_prior()`: the prior weight of every class at the end of the run, the probability that a cell is of the class before its genes are considered. Zero is listed first, the rest by weight.
 - `find_cells(class_name=None, plane=None, min_counts=None, top_two_within=None, n=50)`: the cells matching the filters, by assigned class, plane, total counts, or the gap between the top two classes.
@@ -248,9 +248,9 @@ and its `narrative`:
 > two classes alike. The neighbouring cells are mostly 048 RHP-COA Ndnf Gaba, which
 > strengthens the call. So the genes settled it, and the neighbourhood agreed.
 
-When the spatial term decides against the genes, the narrative states it. Cell 4308 is
+When the spatial term outweighs the genes, the narrative states it. Cell 4308 is
 assigned `022 L5 ET CTX Glut` although its genes favour `006 L4/5 IT CTX Glut` by about
-60 to one; the neighbouring cells are L5 ET and carry the assignment.
+60 to one; the neighbouring cells are L5 ET, and the spatial term determines the assignment.
 
 **Why did spot 1642419 go to cell 18223?** The assistant calls `explain_spot(1642419)`.
 The top three candidates:
@@ -283,14 +283,14 @@ and its `narrative`:
 The probabilities match [Table 3.1](../explaining-the-calls/why-a-spot-got-its-cell.md#table-3-1).
 All candidates are `037 DG Glut` and their class expression terms are equal (0.94), so
 that term does not separate them; cell 18223
-is the nearest and the Gaussian term decides. The narrative states this as *distance
-carries the call*; when a farther cell wins because its class expresses the gene, it
+is the nearest and the Gaussian term determines the assignment. The narrative states this as *distance
+carries the call*; when a farther cell is assigned the spot because its class expresses the gene, it
 states *expression carries the call*.
 
 **How many Ndnf counts does cell 2413 have?** `cell_counts(2413, gene='Ndnf')` returns
 7.77, marked as a soft count.
 
 **Which spots belong to cell 18223?** `spots_of_cell(18223)` returns the 31 spots whose
-most probable parent is the cell, with probabilities from 0.81 to 0.295. `cell_row(18223)`
+most probable parent is the cell, with probabilities from 0.810 to 0.295. `cell_row(18223)`
 lists 506 spots under `spot_id`, every spot with probability above 0.0001 on the cell;
-their probabilities sum to the cell's 38.5 counts.
+their probabilities sum, to within that cut-off, to the cell's 38.5 counts.

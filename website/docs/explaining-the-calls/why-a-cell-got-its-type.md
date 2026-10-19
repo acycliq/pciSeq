@@ -1,5 +1,5 @@
 
-# How a cell's call was made
+# Why a cell is assigned its class
 
 A cell is assigned the class with the highest posterior probability. For every class the
 model adds three terms, and a softmax over all classes turns the totals into
@@ -12,8 +12,9 @@ $$
 $$
 
 [`check_cell`](../api/reference.md#check-cell) compares the assigned class of a cell with
-a second class of your choice and shows how each of these terms contributes. It reads the
-values the model used in its last cell class update, so the figure agrees with the
+a second class chosen by the user and shows how each of these terms contributes. It reads
+the per-gene log-likelihoods, the prior and the MRF term the model used in its last cell
+class update, so the figure agrees with the
 probabilities in `cellData`.
 
 The examples on this page use the 3D dataset described in the [overview](overview.md),
@@ -25,7 +26,7 @@ fit without the spatial term, `mrf_beta = 0`.
 Cell 18223 lies in the dentate gyrus, at the tip of the upper blade. Panel **a** is the
 DAPI image of the section, with the cell circled. Panel **b** is a close-up of the same
 cell, with its outline in red and, in blue, the nine nearest cells that the spatial term
-reads. Neighbours are taken in 3D, so one of the nine sits on another plane and is not
+reads. Neighbours are taken in 3D, so one of the nine lies on another plane and is not
 drawn.
 
 <figure class="diagram" id="fig-the-cell">
@@ -51,8 +52,6 @@ obj = pd.read_pickle('pciSeq.pickle')
 obj.check_cell(18223, '030 L6 CT CTX Glut')
 ```
 
-`fit` saves the fitted model when `save_data` is `True`, the default, see
-[the fitted model](overview.md#the-fitted-model).
 The cell is given by its label in the segmentation passed to `fit`.
 
 <figure class="diagram" id="fig-check-cell-mrf">
@@ -73,8 +72,8 @@ The figure has four panels.
    shows up to `top_n` genes with the most negative differences.
 3. **Bottom left.** The three terms of the score for both classes: the gene log-likelihood
    summed over all genes (the top panels break this term down by gene), the log prior and
-   the MRF term. Higher is better: the class with
-   the larger total wins.
+   the MRF term. The class with the larger total
+   has the higher posterior probability.
 4. **Bottom right.** The posterior over all classes, for the `top_classes` most likely
    classes and the second class. The note gives the probability of the classes not shown.
 
@@ -84,12 +83,10 @@ For cell 18223:
   the ten genes on that side sum to 8.26. Neurod6 and Rgs4 favour `030 L6 CT CTX Glut`, by
   1.75 and 1.38; the ten genes on that side sum to -4.99.
 - **Bottom left.** The gene log-likelihood is -99.7 for `037 DG Glut` against -104.4 for
-  `030 L6 CT CTX Glut`, so the genes alone favour DG by 4.6. The priors are equal. The MRF
+  `030 L6 CT CTX Glut`, so the genes alone favour DG by 4.6 (from the unrounded values). The priors are equal. The MRF
   term is 13.5 for `037 DG Glut` and 0 for `030 L6 CT CTX Glut`: all nine neighbours of the
   cell are DG cells, and 13.5 is the largest value the term takes with nine neighbours.
 - **Bottom right.** The posterior is 100% on `037 DG Glut`.
-
-Both terms favour `037 DG Glut`, and the posterior is 1.00.
 
 ## The returned table
 
@@ -110,16 +107,16 @@ Its columns are:
 - **Predicted counts for cell 18223.** Expected, for this cell: the counts of the gene the
   model expects if the cell were of that class, the cell type definition rescaled by the
   [scaling factors](../how-it-works/warping-the-reference.md), see the
-  [example below](#the-predicted-counts-are-not-the-mean-counts). A gene favours the class whose
-  prediction is closer to those counts.
+  [example below](#the-predicted-counts-are-not-the-mean-counts). A gene favours the class under
+  which its count is more likely.
 - **Cell 18223, counts.** Estimated from the spots, in this cell: the counts of the gene.
 
-Synpr is the strongest gene. The Synpr count of the cell is 1.7. `037 DG Glut` predicts
+Synpr has the largest difference. The Synpr count of the cell is 1.7. `037 DG Glut` predicts
 0.76 and `030 L6 CT CTX Glut` predicts 0.10. The count is small, but the prediction under
-`030 L6 CT CTX Glut` is near zero, so each Synpr spot adds 1.74 in favour of
+`030 L6 CT CTX Glut` is near zero, so each unit of Synpr count adds 1.74 in favour of
 `037 DG Glut`. With a count of 1.7 Synpr contributes 2.38, the largest bar in the
-top-left panel. The cells assigned to `037 DG Glut` have a mean Synpr count of 0.61,
-those assigned to `030 L6 CT CTX Glut` 0.05.
+top-left panel. The cells typed as `037 DG Glut` have a mean Synpr count of 0.61,
+those typed as `030 L6 CT CTX Glut` 0.05.
 
 ::: details How the 2.38 is computed
 The gene log-likelihood is a negative binomial with mean $\mu$, the expected count, and
@@ -142,18 +139,18 @@ counts from the table:
 | class | $\mu$ | $\mu/(r+\mu)$ | $\log$ |
 | --- | --- | --- | --- |
 | `037 DG Glut` | 0.765 | 0.2767 | -1.2850 |
-| `030 L6 CT CTX Glut` | 0.102 | 0.0487 | -3.0212 |
+| `030 L6 CT CTX Glut` | 0.1025 | 0.0487 | -3.0212 |
 
-Each spot adds $-1.2850 - (-3.0212) = 1.7362$ in favour of `037 DG Glut`. The second term
-is $2 \log(2.102/2.765) = -0.548$ and favours `030 L6 CT CTX Glut`, which predicts fewer
+Each unit of count adds $-1.2850 - (-3.0212) = 1.7362$ in favour of `037 DG Glut`. The second term
+is $2 \log(2.1025/2.765) = -0.548$ and favours `030 L6 CT CTX Glut`, which predicts fewer
 spots overall. With $x = 1.689$:
 
 $$
 \Delta = 1.689 \times 1.7362 - 0.548 = 2.38
 $$
 
-With a Synpr count of 0, $\Delta = -0.55$: the absence of a gene favours the class that
-predicts fewer.
+With a Synpr count of 0, $\Delta = -0.55$: a count of zero favours the class with the
+lower prediction.
 :::
 
 ### The predicted counts are not the mean counts
@@ -161,25 +158,25 @@ predicts fewer.
 For Synpr the model predicts a count of 0.76 in cell 18223 as `037 DG Glut`, while the cells
 typed as `037 DG Glut` have 0.61 on average. The two numbers are different quantities.
 
-The prediction is built from the single-cell reference:
+The prediction is built from the cell type definition:
 
 | factor | value |
 | --- | --- |
-| reference mean of Synpr in `037 DG Glut` | 24.68 |
+| mean expression of Synpr in `037 DG Glut` | 24.68 |
 | × `Inefficiency` | 0.1 |
 | × eta of Synpr | 0.52 |
 | × theta of cell 18223 as `037 DG Glut` | 0.52 |
 | + `SpotReg` | 0.1 |
 | **prediction** | **0.76** |
 
-gamma, the factor for a given gene in a given cell, is not part of the product. It expresses the
+gamma, the cell-gene scale factor, is not part of the product. It expresses the
 discrepancy between the count in the cell and the prediction, regularised by
 `rSpot`.
 
 The prediction and the mean counts need not agree. eta is one number per gene, shared by
-all classes, so it cannot correct the reference for each class separately, and the
-reference does not match the in situ data exactly. For Sema5a in the same table the
-prediction as `037 DG Glut` is 3.96 against mean counts of 6.94. What decides the
+all classes, so it cannot correct the cell type definitions for each class separately,
+and the cell type definitions do not match the in situ data exactly. For Sema5a in the same table the
+prediction as `037 DG Glut` is 3.96 against mean counts of 6.94. What determines the
 call is the comparison within the cell: the observed Synpr count of 1.69 is closer to the
 prediction under `037 DG Glut`, 0.76, than under `030 L6 CT CTX Glut`, 0.10.
 
@@ -208,8 +205,8 @@ term.</figcaption>
 - **Bottom right.** The posterior is 98.7% `030 L6 CT CTX Glut`; `037 DG Glut` is below
   0.1%.
 
-In both fits the gene log-likelihood is larger for the assigned class. What differs is not how the evidence
-is weighed but the evidence itself: the two fits give the cell different spots.
+In both fits the gene log-likelihood is larger for the assigned class. The difference lies in the gene
+counts: the two fits assign different spots to the cell.
 
 | gene | favours | gene counts, without MRF | gene counts, with MRF |
 | --- | --- | --- | --- |
@@ -259,5 +256,5 @@ is assigned L6 CT. With it, the MRF term, from eight DG neighbours out of nine, 
 the difference of 0.5 and the cell stays DG. From then on the
 counts of each fit follow its class: as L6 CT the Neurod6 and Rgs4 counts rise and the
 Synpr and Sema5a counts fall, as DG the reverse. In the fit with the
-MRF the MRF term changes the class at iteration 1 only; from iteration 2 the gene
+MRF the MRF term determines the class at iteration 1 only; from iteration 2 the gene
 log-likelihood favours DG on its own.

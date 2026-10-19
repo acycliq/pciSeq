@@ -1,8 +1,8 @@
 """
 Settings for pciSeq.
 
-Pass any of these to pciSeq.fit() in an opts dictionary. Anything you leave out
-keeps the default below.
+Pass any of these to pciSeq.fit() in an opts dictionary. Omitted keys keep the
+defaults below.
 """
 
 
@@ -26,10 +26,10 @@ DEFAULT = {
 
     # Global scale factor on the cell type definitions, and the first
     # hyperparameter to tune on a new dataset. Every mean expression
-    # value is multiplied by it before cells are scored, so it sets the overall
-    # number of spots the model expects per cell. At 0.2, a gene with mean
-    # expression 100 in a cell type is expected to give about 20 spots in a cell
-    # of that type.
+    # value is multiplied by it before cells are scored, so it sets the baseline
+    # expected number of spots per cell, assuming no further correction is
+    # needed. At 0.2, a gene with mean expression 100 in a cell type has a
+    # baseline expected number of about 20 spots in a cell of that type.
     #
     # Higher values raise the expected counts, so cells with few spots are more
     # often assigned to the Zero class. Lower values have the opposite effect.
@@ -50,7 +50,7 @@ DEFAULT = {
     "Inefficiency": 0.2,
 
 
-    # Prior strength for eta, the per-gene detection factor. eta is the ratio of
+    # Prior strength for eta, the gene efficiency. eta is the ratio of
     # the gene's observed count to its expected count over all cells, with a
     # Gamma(rGene, rGene) prior of mean 1. The estimate is
     # `eta = (observed + rGene) / (expected + rGene)`.
@@ -73,10 +73,10 @@ DEFAULT = {
     # classes. It is an indication only; the value that suits a dataset depends on
     # the data and can be much lower.
     #
-    # A low value lets a cell with very few spots be claimed by a real class on
-    # one or two spots; see
+    # A low value allows a cell with one or two spots to be assigned to a real
+    # class; see
     # [the prior strength](../the-model/scale-factors.md#r-theta)
-    # for what that costs.
+    # for the consequences.
     "rTheta": 25.0,
 
 
@@ -125,7 +125,7 @@ DEFAULT = {
     "mrf_pooled_classes": None,
 
 
-    # Prior mean of the background density, in spots per unit volume. Spots not
+    # Prior mean of the misread density, in spots per unit volume. Spots not
     # explained by any cell, such as RNA in cell processes or technical misreads,
     # are modelled as a uniform background over the imaged region, and each spot
     # is assigned to one of its neighbouring cells or to the background. Higher
@@ -146,7 +146,7 @@ DEFAULT = {
     "MisreadDensity": 0.00001,
 
 
-    # Prior strength for the per-gene background density. The prior is
+    # Prior strength for the per-gene misread density. The prior is
     # Gamma(rRho, rRho / MisreadDensity), with mean MisreadDensity, and rRho acts
     # as a pseudo-count against the number of spots of the gene assigned to the
     # background. When rRho is small relative to that number, the density is

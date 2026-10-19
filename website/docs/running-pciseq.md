@@ -34,7 +34,7 @@ the same results are also written under `<output_path>/pciSeq/data/`.
 | argument | type | required | content |
 | --- | --- | --- | --- |
 | `spots` | DataFrame | yes | One row per spot. Columns `gene_name`, `x`, `y`, and `z_plane` for 3D data. `score` and `intensity` are optional; they are carried through to the output and default to 1.0. |
-| `coo` | list of `scipy.sparse.coo_matrix`, or a numpy array | yes | The segmentation as a label image: each pixel holds the label of the cell it belongs to, and background pixels are labelled 0. Pass it as one sparse matrix per z-plane, or as a dense numpy array of shape `(h, w)` or `(planes, h, w)`, which is converted to sparse internally. |
+| `coo` | a `scipy.sparse.coo_matrix`, a list of them, or a numpy array | yes | The segmentation as a label image: each pixel holds the label of the cell it belongs to, and background pixels are labelled 0. Pass it as one sparse matrix per z-plane, or as a dense numpy array of shape `(h, w)` or `(planes, h, w)`, which is converted to sparse internally. |
 | `scRNAseq` | DataFrame | yes | Mean expression per gene and cell type, genes as rows and cell types as columns, gene names in the index. Spots whose gene is absent from `scRNAseq` are dropped, with a warning. |
 | `opts` | dict | no | Settings to override, see [Configuration](api/configuration.md). Anything left out keeps its default. |
 
@@ -46,7 +46,7 @@ be in the same frame.
 The dimensionality is read off `coo`. A single matrix, or a list with one element, is 2D.
 A list with more than one plane is 3D.
 
-- **2D.** `z_plane` may be left out of `spots`, it is set to 0. The legacy column name
+- **2D.** `z_plane` may be omitted from `spots`; it is then set to 0. The legacy column name
   `Gene` is accepted for `gene_name`. `voxel_size` stays at its default `[1, 1, 1]`.
 - **3D.** `z_plane` is required and indexes the plane in `coo`. `voxel_size` should be
   set to the physical size of a voxel as `[x, y, z]`, since the z step is usually
@@ -63,9 +63,8 @@ The settings are of two kinds:
 
 - Experiment settings describe the data and follow from it: `voxel_size`,
   `exclude_genes`, `output_path`, the viewer options.
-- Hyperparameters set the behaviour of the model. The user picks them, and
-  usually tries a few values before settling on one. The next section goes
-  through them.
+- Hyperparameters set the behaviour of the model. They are chosen by the user, usually after
+  comparing several values.
 
 ## Fine-tuning
 
@@ -73,8 +72,8 @@ The hyperparameters below are listed in the order in which they are typically ad
 
 | Setting | Controls |
 | --- | --- |
-| [`Inefficiency`](api/configuration.md#inefficiency) | The ratio of the sensitivities of the two technologies: the fraction of a cell's transcripts the spatial assay detects, over the fraction scRNA-seq detects. It scales the expected counts of every class. At 0.2, for example, the spatial assay is taken to detect one fifth of what scRNA-seq reports. |
-| [`rTheta`](api/configuration.md#rtheta) | Each cell has a scale factor $\theta_c$ that rescales the expected counts of every class to the cell's own total count; `rTheta` sets how strongly $\theta_c$ is held at 1. A low value, towards 1, lets the data set $\theta_c$; a high value, in practice an order of magnitude above the typical number of counts in a cell, pushes $\theta_c$ to 1, so that it no longer changes the expected counts. A low value lets a near-empty cell take a real class on one or two spots; see [the prior strength](the-model/scale-factors.md#r-theta). |
-| [`mrf_beta`](api/configuration.md#mrf-beta) | Spatial regularization strength. Larger values pull a cell's class towards the classes of its neighbours. The bonus a class receives is `mrf_beta` times the sum of the neighbours' probabilities for that class, each neighbour weighted by its distance; the weights sum to `nNeighbors`. `0` disables the term. Useful where cell types are strongly localised, in layers or regions, as in the hippocampus. |
-| [`MisreadDensity`](api/configuration.md#misreaddensity), [`rRho`](api/configuration.md#rrho) | The prior mean of the per-gene background density, in spots per unit volume, and the strength of that prior. `rRho` counts as that many spots against the gene's background count, so at the default of 1 the prior has very little effect and the density is set by the data. |
+| [`Inefficiency`](api/configuration.md#inefficiency) | Global scale factor applied to the cell type definitions. Every mean expression value is multiplied by it, which sets the baseline expected number of spots per cell, assuming no further correction is needed. With definitions from scRNA-seq, it is the sensitivity of the spatial assay relative to scRNA-seq. At 0.2, a gene with mean expression 100 in a class has a baseline expected number of about 20 spots in a cell of that class. |
+| [`rTheta`](api/configuration.md#rtheta) | Strength of the prior on the cell scale factor $\theta_c$, which rescales the expected counts of every class to the cell's own total count. Low values, towards 1, let the data set $\theta_c$; high values, in practice an order of magnitude above the typical count of a cell, hold $\theta_c$ at 1. A low value lets a near-empty cell be assigned a real class on one or two spots; see [the prior strength](the-model/scale-factors.md#r-theta). |
+| [`mrf_beta`](api/configuration.md#mrf-beta) | Strength of the spatial term. Larger values give more weight to the classes of a cell's neighbours. The bonus a class receives is `mrf_beta` times the sum of the neighbours' probabilities for that class, each neighbour weighted by a Gaussian function of its distance; the weights sum to `nNeighbors`. `0` disables the term. Useful where cell types are strongly localised, in layers or regions, as in the hippocampus. |
+| [`MisreadDensity`](api/configuration.md#misreaddensity), [`rRho`](api/configuration.md#rrho) | The prior mean of the per-gene misread density, in spots per unit volume, and the strength of that prior. `rRho` counts as that many spots against the gene's background count, so at the default of 1 the prior has very little effect and the density is set by the data. |
 | [`cell_type_weights`](api/configuration.md#cell-type-weights) | The prior probability of each class. Types not listed share the remaining probability equally, so the default `{'Zero': 0.5}` gives Zero half the prior mass and splits the other half among the real types. There is no `default` key. |

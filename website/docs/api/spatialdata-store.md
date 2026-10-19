@@ -19,9 +19,7 @@ The zarr store is an optional export for tools that read the scverse formats. It
 duplicates results that are already available in the tsv files and the viewer, so it
 is not required to inspect a run.
 
-Three typical uses:
-
-**Inspection.** The viewer and the tsv files cover this; the store is not needed.
+Two typical uses:
 
 **3D visualisation.** Requires
 [napari-spatialdata](https://spatialdata.scverse.org/projects/napari/)
@@ -31,9 +29,7 @@ Three typical uses:
 python -m napari_spatialdata view <output_path>/pciSeq/data/spatialdata.zarr
 ```
 
-**Programmatic access.** See the [worked example](#worked-example) below. That
-example and `print(sdata)` cover most cases; the remainder of this page is
-reference material.
+**Programmatic access.** See the [worked example](#worked-example) below.
 
 ## Opening the store
 
@@ -86,10 +82,10 @@ pandas DataFrame.
 | `neighbour_prob` | float32 | Probability of that assignment. |
 | `inside_cell` | int | The cell whose segmentation mask the spot falls in, as a `Cell_Num`, `0` for none. Physical containment, not an assignment. |
 | `omp_score`, `omp_intensity` | float32 | Per-spot OMP diagnostics. 1.0 when the input spots had no such columns. |
-| `is_hard_misread` | bool | The spot's most likely parent is the background class. |
+| `is_hard_misread` | bool | The spot's most likely parent is the background, not a cell. |
 
 The list columns of `geneData`, `neighbour_array` and `neighbour_prob`, are not stored,
-since parquet handles ragged lists badly. The probability of the assigned cell is kept
+because parquet does not store variable-length lists efficiently. The probability of the assigned cell is kept
 as a scalar.
 
 ### `tables['cells']` (AnnData)
@@ -100,15 +96,15 @@ layout.
 | Where | What |
 | --- | --- |
 | `obs` index | `Cell_Num`, **as a string**. `.loc[12265]` fails, `.loc['12265']` works. |
-| `obs['cell_num']` | The same number as an int, for convenience. |
-| `obs['region']`, `obs['class_name']`, `obs['class_prob']` | The annotating table wiring, the argmax class, and its probability. |
+| `obs['cell_num']` | The same number as an int. |
+| `obs['region']`, `obs['class_name']`, `obs['class_prob']` | The labels element each row annotates (`'cell_labels'`), the most probable class, and its probability. |
 | `obsm['spatial']` | Fitted cell centroid `(X, Y, Z)`. `X`, `Y` equal `cellData`'s; `Z` is in plane units, see the tip below. |
 | `obsm['class_prob']` | The full class posterior, shape `(n_cells, n_classes)`. Columns line up with `uns['class_names']`. |
-| `uns['class_names']` | Class names, the reference taxonomy plus `'Zero'`, the class that expects no expression, appended last. |
+| `uns['class_names']` | Class names, the classes of the cell type definitions plus `'Zero'`, the class that expects no expression, appended last. |
 | `X` | Sparse cell by gene matrix (csr) of soft counts, the same values as `cellData.CellGeneCount`. |
 | `var_names` | The gene panel, matching `cellData.Genenames`. |
 
-::: tip Z units differ from cellData on purpose
+::: tip Z units differ from cellData
 `cellData.Z` is scaled by `voxel_size[2] / voxel_size[0]` so that distances are
 Euclidean. The store's `obsm['spatial']` divides it back, because the store also
 holds the label image, which indexes by plane. To go from the store to the
@@ -116,14 +112,14 @@ holds the label image, which indexes by plane. To go from the store to the
 two are the same number.
 :::
 
-The table is a proper annotating table (`region = 'cell_labels'`,
+The table is an annotating table (`region = 'cell_labels'`,
 `instance_key = 'cell_num'`), so scanpy and napari-spatialdata can join it
 against the segmentation automatically.
 
 ### `tables['reference']` (AnnData)
 
 The cell type definitions the run was scored against, transposed to classes as rows and
-genes as columns: `X[i, j]` is the reference expression of gene `j` in class `i`.
+genes as columns: `X[i, j]` is the mean expression of gene `j` in class `i`.
 
 ## Provenance
 

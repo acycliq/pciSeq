@@ -1,8 +1,7 @@
 
 # The scale factors
 
-Three corrections sit between the cell type definitions and the observed counts, each
-rescaling the expected expression at a different level of detail. The
+Three correction factors relate the cell type definitions to the observed counts. The
 [warping the cell type definitions](../how-it-works/warping-the-reference.md) page
 describes them; this page derives them.
 
@@ -12,8 +11,8 @@ describes them; this page derives them.
 | **[$\gamma_{g,c\mid k}$](#gamma)** | gene, cell, class | a given gene in a given cell, under a given class |
 | **[$\eta_g$](#eta)** | gene only (global) | one gene across the whole experiment |
 
-$\theta_c$ is one number for a cell, $\gamma_{g,c}$ one per gene in that cell, and
-$\eta_g$ one per gene shared by every cell. Each absorbs the mismatch at its own scale.
+Each corrects the mismatch between the predicted and the observed counts at its own level of
+detail.
 
 $\gamma_{g,c}$ is kept as a full Gamma random variable so it can be **integrated out**,
 which collapses the Poisson count model into the Negative Binomial the
@@ -33,9 +32,8 @@ $\theta_c \sim \mathrm{Gamma}(r_\theta, r_\theta)$, mean $1$.
 **Conditional on the class.** Both $\theta_c$ and the cell-gene factor
 [$\gamma_{g,c}$](#gamma) are computed **conditional on a candidate class $k$**. The
 predicted count a cell is compared against depends on which class the cell is assumed to be,
-so the correction is class-specific. The estimate is written $\hat\theta_{c\mid k}$, and the
-[cell-class assignment](cell-class.md) recomputes it for every class $k$ it tests the cell
-against.
+so the correction is class-specific. The estimate is written $\hat\theta_{c\mid k}$, and it is computed for
+every class $k$.
 
 #### The point estimate
 
@@ -58,7 +56,7 @@ estimate, shrinking it toward the baseline $1.0$ when the data for a cell are sp
 
 #### The objective
 
-This is a maximisation step. Conditioning on the class ($\zeta_{c,k} = 1$), the terms of
+Conditioning on the class ($\zeta_{c,k} = 1$), the terms of
 the log-joint that depend on $\theta_c$ are
 
 $$
@@ -130,7 +128,7 @@ The **Zero class**, which expects no expression, is the class for such cells (se
 weak and $\theta$ collapses, the cell can instead be assigned to a real class scaled down
 to predict almost nothing, and the cell gets a spurious class.
 
-Why the shrunk class wins comes out of the estimate. The total count the model predicts for
+Equation (1) explains why the shrunk class is preferred. The total count the model predicts for
 cell $c$ under class $k$ is $\theta$ times the sum over genes of the expected counts,
 
 $$
@@ -160,19 +158,19 @@ $0.44$. Before scaling, Oligo expects $356$ spots in the cell and Zero expects $
 | Zero | $0.026$ | $1.43$ | $0.306$ | $16.8$ |
 
 At $r_\theta = 2$ both classes predict about $1.5$ spots, Oligo expects that spot to be Plp1,
-and Oligo wins at $0.94$. At $r_\theta = 25$ Oligo predicts $23$ spots for half a spot, loses
-on the amount, and the cell goes to Zero.
+and the cell is assigned to Oligo with probability $0.94$. At $r_\theta = 25$ Oligo predicts $23$
+spots against the cell's $0.48$, and the cell is assigned to Zero.
 
 The same $\theta$ enters the [spot assignment](spot-assignment.md#reading-the-terms):
-$\sum_k \bar\zeta_{c,k}\log\hat\theta_{c\mid k}$ is added to the score of every spot the cell
-competes for. The background has no such term. For the cell above, as Oligo at
-$r_\theta = 2$, the term is $\log 0.0041 \approx -5.5$, and the one spot it holds sits at
-probability $0.44$, close to level with the background. At $r_\theta = 25$ the cell is Zero
+$\sum_k \bar\zeta_{c,k}\log\hat\theta_{c\mid k}$ is added to the cell's score for every spot for
+which it is a candidate. The background has no such term. For the cell above, as Oligo at
+$r_\theta = 2$, the term is $\log 0.0041 \approx -5.5$, and its one spot is assigned to it
+with probability $0.44$, comparable to that of the background. At $r_\theta = 25$ the cell is Zero
 and the term is $\log 0.306 \approx -1.2$.
 
 The weak prior has a use too. A real cell with poor capture, a thin slice or a cell at the
-edge of the section, holds far fewer spots than its class usually gives, and a free $\theta$
-still finds its class from the composition of those spots.
+edge of the section, holds far fewer spots than its class usually gives, and with a weak prior
+its class is still determined by the composition of those spots.
 
 A weaker prior lets the data set $\theta$ at the risk of near-empty cells being explained
 by a collapsed class; a stronger prior holds $\theta$ near $1$ so those cells go to Zero.
@@ -182,8 +180,8 @@ sets its own scale, at $25$ it needs of the order of $25$. The default `rTheta` 
 ### Derivation: the cell-gene scale factor $\gamma_{g,c}$ {#gamma}
 
 The cell-gene scale factor $\gamma_{g,c}$ adjusts a single gene in a single cell. It is the
-most fine-grained of the three [scale factors](#the-scale-factors), but it also plays a
-special structural role: it is the factor that turns the Poisson count model into a
+most fine-grained of the three [scale factors](#the-scale-factors), and it is the factor
+that turns the Poisson count model into a
 **Negative Binomial**, and that Negative Binomial is what the
 [cell-class assignment](cell-class.md) scores each cell against. Unlike the cell scale
 $\theta_c$, which is a [point estimate](#theta), $\gamma_{g,c}$ is kept as a full
@@ -216,7 +214,7 @@ N_{c,g} \mid \gamma_{g,c} \;\sim\; \mathrm{Poisson}\big(\lambda_{g,c}\, \gamma_{
 \gamma_{g,c} \sim \mathrm{Gamma}(r_\gamma, r_\gamma) .
 $$
 
-The prior $\mathrm{Gamma}(r_\gamma, r_\gamma)$ has mean $1$, so a priori the count sits at
+The prior $\mathrm{Gamma}(r_\gamma, r_\gamma)$ has mean $1$, so a priori the expected count is
 $\lambda_{g,c}$ and deviates cell by cell through $\gamma_{g,c}$. A Poisson whose rate is a
 Gamma random variable is a **Poisson-Gamma mixture**, which accommodates the overdispersion
 of transcript counts.
@@ -235,7 +233,7 @@ Conditioning on the class assignments $\zeta$, the class prior, the spatial term
 $\bar N_{c,g}\,\overline{\log\theta_c}$ are all constant in $\gamma_{g,c}$. Three pieces
 survive: the spatial integral contributes the linear term $-\lambda_{g,c}\,\gamma_{g,c}$, the
 $\bar N_{c,g}$ expected spots each contribute a $\log\gamma_{g,c}$, and the prior
-$\log p(\gamma_{g,c}) = (r_\gamma - 1)\log\gamma_{g,c} - r_\gamma\,\gamma_{g,c}$ adds two more:
+$\log p(\gamma_{g,c}) = (r_\gamma - 1)\log\gamma_{g,c} - r_\gamma\,\gamma_{g,c}$ contributes two terms:
 
 $$
 \log q(\gamma_{g,c} \mid k)
@@ -297,7 +295,7 @@ with mean $\lambda_{g,c}$ and variance $\lambda_{g,c} + \lambda_{g,c}^2/r_\gamma
 variance exceeds the mean, which a Poisson cannot produce; the Gamma mixing is what
 accommodates the **overdispersion** of real counts. The shape $r_\gamma$ sets how much:
 small $r_\gamma$ allows large deviations, large $r_\gamma$ approaches a Poisson at
-$\lambda_{g,c}$. How large is relative to the expected count: the excess variance
+$\lambda_{g,c}$. Whether $r_\gamma$ counts as large depends on the expected count: the excess variance
 $\lambda_{g,c}^2/r_\gamma$ is small next to $\lambda_{g,c}$ only when
 $r_\gamma \gg \lambda_{g,c}$, so a gene the class barely expects is close to a Poisson
 already at $r_\gamma = 2$, while a strongly expressed gene remains overdispersed at
@@ -307,8 +305,7 @@ This Negative Binomial is the per-gene likelihood that the
 [cell-class assignment](cell-class.md) multiplies across genes to score a cell against each
 candidate class. Keeping $\gamma_{g,c}$ conjugate, so that it can be integrated out in closed
 form, is therefore what keeps cell typing tractable. It is also why $\theta_c$ is held as a
-[point estimate](#theta): if it were a full random variable too, the rate would be a product
-of two mixing distributions and this clean Poisson-Gamma collapse would be lost.
+[point estimate](#theta).
 
 ### Derivation: the in situ efficiency $\eta_g$ {#eta}
 
@@ -316,8 +313,8 @@ The efficiency $\eta_g$ is the most global of the three [scale factors](#the-sca
 per-gene parameter shared across all cells and classes, answering how efficiently gene $g$
 is detected across the whole experiment. It is estimated as a **relative** factor $\eta_g'$
 with prior mean $1.0$, while the baseline detection rate $\eta_0$ (the `Inefficiency`
-setting, default $0.2$) stays as an explicit constant next to the reference mean - the
-intensity carries the product $\eta_0\,\mu_{g,k}$, not a renamed symbol:
+setting, default $0.2$) stays as an explicit constant next to the reference mean; the
+intensity contains the product $\eta_0\,\mu_{g,k}$, not a renamed symbol:
 
 $$
 \lambda_{g,c}(x) = \theta_c\,\eta_0\,\mu_{g,k(c)}\, e^{-D_c(x)}\, \gamma_{g,c}\, \eta_g' .
@@ -362,7 +359,7 @@ $$
 
 Now simplify the $\log\eta_g'$ coefficient, the double sum over the gene-$g$ spots and over
 the cell-class pairs. Both $z_{s,c}$ and $\zeta_{c,k}$ are latent indicators: a cell has one
-true class and a spot one true parent cell, but neither is known, so inference carries the
+true class and a spot one true parent cell, but neither is known, so inference uses the
 posterior probabilities over them, the soft assignments $\bar z_{s,c}$ and the class
 probabilities $\bar\zeta_{c,k}$. Taking the expectation splits the product under the mean-field
 factorisation, $\mathbb{E}[z_{s,c}\,\zeta_{c,k}] = \bar z_{s,c}\,\bar\zeta_{c,k}$, and the
@@ -408,7 +405,7 @@ $\eta_g' > 1$ means gene $g$ is detected better than the baseline, $\eta_g' < 1$
 $\eta_g$ depends only on the gene, so it takes the same value for every candidate cell in
 a [spot-to-cell assignment](spot-assignment.md) and cancels between cells. It acts in one
 place: the comparison between a cell and the **background**. The background scores a spot
-with the [misread density](misread-density.md) $\rho_g$ alone, which carries no efficiency
+with the [misread density](misread-density.md) $\rho_g$ alone, which has no efficiency
 term, so $\eta_g$ is the one factor on the cell's side without a counterpart. A gene with a
 small $\eta_g$ has its signal attenuated against the background and its spots are more
 readily called misreads.

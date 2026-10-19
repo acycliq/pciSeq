@@ -17,10 +17,10 @@ equation. It follows *The extended pciSeq model* (v0.3), which is the version th
 | $\mu_{g,k}$ | mean expression of gene $g$ in class $k$ (from the cell type definitions) |
 | $\gamma_{g,c}$ | per-gene, per-cell scale factor |
 | $\eta_g$ | in situ detection efficiency of gene $g$ |
-| $\eta_0$ | global prior mean of detection efficiency (typically 0.2) |
+| $\eta_0$ | global prior mean of detection efficiency (the `Inefficiency` setting, default 0.2) |
 | $\theta_c$ | per-cell scale factor (extension) |
 | $\rho_g$ | per-gene background (misread) density (extension) |
-| $A_c=\int e^{-D_c(x)}\,dx$ | a per-cell normalising factor tied to the inside-cell bonus. It equals $1$ when the bonus is off |
+| $A_c=\int e^{-D_c(x)}\,dx$ | a per-cell normalising factor that differs from $1$ only when the inside-cell bonus (`InsideCellBonus`) is on |
 | $D_c(x)$ | negative log density of point $x$ under the Gaussian of cell $c$ |
 | $m_c,\ \Sigma_c$ | centre and covariance of that Gaussian (extension) |
 | $d$ | number of spatial dimensions, $2$ or $3$ |
@@ -77,7 +77,7 @@ $$
 $$
 
 The final term is the MRF: since $\zeta_{c,k}\in\{0,1\}$, the indicator
-$\mathbf{1}(\zeta_{c,k}=\zeta_{c',k}=1)$ is simply the product $\zeta_{c,k}\zeta_{c',k}$,
+$\mathbf{1}(\zeta_{c,k}=\zeta_{c',k}=1)$ equals the product $\zeta_{c,k}\zeta_{c',k}$,
 and the product form is used in all derivations.
 
 ### The background
@@ -217,15 +217,15 @@ $\gamma_{g,c}$.
 
 ## Derivations
 
-- **[Misread density $\rho_g$](misread-density.md)** - the per-gene background rate.
-- **[The scale factors $\theta_c$, $\gamma_{g,c}$, $\eta_g$](scale-factors.md)** - the
-  per-cell, per-gene-per-cell, and per-gene corrections to the reference.
-- **[Cell-class assignment $q(\zeta)$](cell-class.md)** - the Negative Binomial likelihood,
+- **[Misread density $\rho_g$](misread-density.md)**: the per-gene background rate.
+- **[The scale factors $\theta_c$, $\gamma_{g,c}$, $\eta_g$](scale-factors.md)**: the
+  per-cell, per-gene-per-cell, and per-gene corrections to the cell type definitions.
+- **[Cell-class assignment $q(\zeta)$](cell-class.md)**: the Negative Binomial likelihood,
   the class prior, and the MRF spatial term.
-- **[Cell geometry $q(m_c, \Sigma_c)$](gaussian.md)** - the centre and
+- **[Cell geometry $q(m_c, \Sigma_c)$](gaussian.md)**: the centre and
   covariance of each cell's Gaussian, and the expected log density the spot assignment
   uses.
-- **[Spot-to-cell assignment $q(z)$](spot-assignment.md)** - which cell (or the background)
+- **[Spot-to-cell assignment $q(z)$](spot-assignment.md)**: which cell (or the background)
   each spot is assigned to.
-- **[Class prior $q(\pi)$](class-prior.md)** - the Dirichlet posterior of the class
+- **[Class prior $q(\pi)$](class-prior.md)**: the Dirichlet posterior of the class
   probabilities under `weighted`.

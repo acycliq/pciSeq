@@ -51,20 +51,19 @@ import logging
 
 def attach_to_log():
     """
-    exists only for backwards compatibility.
-    Replaced by setup_logger
+    Exists only for backwards compatibility. Replaced by setup_logger.
     """
     setup_logger()
 
 
 def setup_logger(level=None):
     """
-    Configure pciSeq logging with colored console output.
+    Configure pciSeq logging with coloured console output.
 
     WARNING: This function clears all existing root logger handlers and replaces
     them with pciSeq's own handler. If pciSeq is embedded inside a larger
-    application that has its own logging setup, do NOT call this function,
-    the parent application's handlers will be wiped out. Only call setup_logger()
+    application that has its own logging setup, do not call this function,
+    as it removes the parent application's handlers. Only call setup_logger()
     when pciSeq is the top-level application.
 
     Args:

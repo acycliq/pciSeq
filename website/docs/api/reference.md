@@ -34,7 +34,7 @@ keywords. Keyword form is preferred.
 - **`scRNAseq`** *(pd.DataFrame)*
   Cell type definitions: mean expression per gene and cell type, genes as rows and cell types as columns. Required.
 - **`opts`** *(dict, optional)*
-  Any config values you want to override, e.g. {'max_iter': 500}. See the configuration page for the full list of keys and their defaults.
+  Config values to override, e.g. {'max_iter': 500}. See the configuration page for the full list of keys and their defaults.
 
 **Returns**
 
@@ -133,8 +133,7 @@ Process spots and label images for cell typing analysis.
 attach_to_log()
 ```
 
-exists only for backwards compatibility.
-Replaced by setup_logger
+Exists only for backwards compatibility. Replaced by setup_logger.
 
 
 ## `setup_logger`
@@ -145,12 +144,12 @@ Replaced by setup_logger
 setup_logger(level=None)
 ```
 
-Configure pciSeq logging with colored console output.
+Configure pciSeq logging with coloured console output.
 
 WARNING: This function clears all existing root logger handlers and replaces
 them with pciSeq's own handler. If pciSeq is embedded inside a larger
-application that has its own logging setup, do NOT call this function,
-the parent application's handlers will be wiped out. Only call setup_logger()
+application that has its own logging setup, do not call this function,
+as it removes the parent application's handlers. Only call setup_logger()
 when pciSeq is the top-level application.
 
 Args:
@@ -175,7 +174,7 @@ Args:
     geneData: spot results, one row per spot, original labels.
     coo: the segmentation, one sparse plane per z. Either the list fit()
         renumbered in place or a copy with the original labels; which of the
-        two it is gets detected, and the store always ends up with the
+        two is detected, and the store always ends up with the
         original labels.
     varBayes: the fitted model, read for the arrays the two frames do not
         carry (class posterior, spot probabilities, gene panel, reference).
@@ -203,10 +202,9 @@ add_image(store_path: str, img, name: str='background', voxel_size=None, scale_f
 
 Add a background image to an existing SpatialData store.
 
-Works like inserting into a database: the store already holds the run
-(spots, labels, tables) and this writes one more element into it, without
-touching anything else. Kept separate from write_spatialdata because fit()
-never sees the image, the same reason stage_image is its own entry point.
+The store already holds the run (spots, labels, tables); this writes one
+more element into it and leaves the rest unchanged. It is separate from
+write_spatialdata because fit() does not receive the image.
 
 Args:
     store_path: path to an existing spatialdata.zarr written by pciSeq.
@@ -231,11 +229,11 @@ add_boundaries(store_path: str, labels_name: str='cell_labels', name: str='cell_
 
 Add per-plane cell boundary polygons to an existing SpatialData store.
 
-Same insert pattern as add_image, but this one needs no data at all: the
+Like add_image, but it takes no input besides the store: the
 boundaries are derived from the segmentation, and the store already holds
 the segmentation as the labels element. They are extracted here with the
-same chain code tracing the pipeline uses, so what goes in matches what
-pciSeq would have drawn.
+same chain code tracing the pipeline uses, so the polygons match those
+pciSeq writes.
 
 Shapes in SpatialData are strictly 2D, so a 3D run gets one shapes element
 per plane, cell_boundaries_plane_000 and so on, each a set of polygons
@@ -304,7 +302,7 @@ A cell and its surroundings, one pixel per image pixel:
 
 The same region as a 1200 pixel wide panel. The box is 210 across, so `scale` is
 5.71 and the panel is magnified: the level read is the top of the pyramid, which
-renders that box 10.2 times up, and it is resampled down to 5.71.
+renders that box at 10.2 times magnification, and it is resampled down to 5.71.
 
 >>> im, scale = read_tiles('dapi.mbtiles', plane=57, bbox=(5393, 702, 5603, 842),
 ...                        width=1200)
@@ -329,8 +327,8 @@ stage_image(img, out_dir=None, zoom_levels=None, name=None, description=None, pl
 Turn an image (or z-stack) into an MBTiles file the viewer can read.
 
 This builds the tiled, multi-resolution background that pciSeq Viewer uses
-as its slippy-map base layer. Give it a single 2D image or a whole 3D stack
-and it writes one `.mbtiles` file.
+as its slippy-map base layer. It takes a single 2D image or a 3D stack and
+writes one `.mbtiles` file.
 
 **Parameters**
 
@@ -607,7 +605,7 @@ Columns that hold lists or dicts are parsed back from text.
 heatmap_counts_per_class()
 ```
 
-Display the interactive heatmap.
+Display an interactive heatmap of the mean gene counts per class.
 
 #### `cells.gene_reads_per_class`
 
@@ -685,7 +683,7 @@ run.explain_cell(2413)
 summary()
 ```
 
-What this run is: its size, the code that made it, and what it can answer.
+A summary of the run: its size, the code version that produced it, and the data it contains.
 
 #### `cell`
 
@@ -693,7 +691,7 @@ What this run is: its size, the code that made it, and what it can answer.
 cell(label)
 ```
 
-The headline facts about one cell.
+The main properties of one cell.
 
 #### `cell_shape`
 
@@ -716,7 +714,7 @@ answer says so.
 explain_cell(label, vs_class=None, top_n=10)
 ```
 
-Why this cell got its class, gene by gene.
+Why a cell is assigned its class, gene by gene.
 
 The class score is the sum of the per gene negative binomial contributions,
 plus the class prior, plus the spatial term. This recomputes those from the
@@ -730,9 +728,9 @@ probabilities can be off in the second decimal.
 **Parameters**
 
 - **`label`** *(int)*
-  Cell label, as in your segmentation.
+  Cell label, as in the input segmentation.
 - **`vs_class`** *(str, optional)*
-  The class to compare against. Defaults to the runner up.
+  The class to compare against. Defaults to the runner-up.
 - **`top_n`** *(int, default 10)*
   How many genes to report on each side.
 
@@ -742,7 +740,7 @@ probabilities can be off in the second decimal.
 explain_spot(spot_id)
 ```
 
-Why this spot went to the cell it did, term by term.
+Why a spot is assigned to its cell, term by term.
 
 One row per candidate cell plus the background. The terms are the ones the
 model used in its last spot update, so the probabilities here are the ones
@@ -755,7 +753,7 @@ keeps. Use this rather than spot_row when a probability below 0.0005 matters.
 cell_counts(label, gene=None)
 ```
 
-How many reads a cell holds. Soft, and the answer says so.
+The soft read count of a cell; the result states that it is soft.
 
 #### `spots_in_cell`
 
@@ -763,9 +761,9 @@ How many reads a cell holds. Soft, and the answer says so.
 spots_in_cell(label, gene=None)
 ```
 
-How many spots physically sit inside a cell's segmentation mask.
+The number of spots inside a cell's segmentation mask.
 
-Hard containment, no probabilities. A spot can sit outside every cell and
+Hard containment, no probabilities. A spot can lie outside every cell and
 still be assigned to one, so this is a different number from `cell_counts`.
 
 #### `spots_of_cell`
@@ -789,13 +787,11 @@ so the number of spots is computed by the tool, not by the agent.
 cell_row(label)
 ```
 
-The cellData row of one cell, value for value.
+The cellData row of one cell, unmodified.
 
-Everything the tsv has except the two drawing columns. Read straight out of
-cellData.tsv when it is there, which is both exact and fast, a targeted grep
-on a 250 MB file takes about 30 ms. Without the tsv the row is rebuilt from
-the viewer files, which matches on every column except the boundary cases of
-spot_id; see `_exact_spot_ids`.
+Every cellData.tsv column except sphere_scale and sphere_rotation. Read from
+cellData.tsv when present; otherwise rebuilt from the viewer files, which
+agree on every column except spot_id at the 0.0001 cut-off.
 
 #### `spot_row`
 
@@ -810,9 +806,8 @@ files; `source` says which. Both give the same numbers, the viewer files are
 written from the same frame.
 
 neighbour_prob is rounded to 3 decimals here because that is how geneData
-stores it (summary.py:111), so a candidate holding 0.0004 shows up as 0.0 and
-you cannot tell it apart from one holding nothing at all. That is fine for
-reporting what the file says, and it is why cell_row's spot_id list can
+stores it, so a candidate holding 0.0004 shows as 0.0 and is indistinguishable
+from one holding none. This is also why cell_row's spot_id list can
 contain spots whose probability reads 0.0: the cut-off there is 0.0001,
 applied before the rounding. When the small probabilities matter use
 explain_spot, which recomputes them from diagnostics.db at full precision.
@@ -831,8 +826,8 @@ kinds of picture:
 
 * close-up (context=False): the cell outlined in red and every other cell on
   that plane in blue, in a 3:2 window about four and a half times the size of
-  the cell. With neighbours=True only the cells the mrf term listens to are
-  outlined, the picture for 'why did its neighbours make it this class'. Those
+  the cell. With neighbours=True only the cells that enter the spatial term are
+  outlined. Those
   on another plane have no outline here and the answer lists them.
 * context (context=True): the whole plane trimmed to 3:2 with a ring round the
   cell, to show where in the tissue it sits.
@@ -840,7 +835,7 @@ kinds of picture:
 The plane is the one given, else the plane of the fitted cell centroid when the run
 carries voxel_size, else the plane where the cell outline is biggest. Returns
 the image (PIL) and a dict of what was drawn. The MCP tool also takes
-save_as; here just call .save on the image.
+save_as; here, call .save on the image.
 
 channel picks the background image when the run has more than one (DAPI,
 GCaMP, ...); with several and no channel it refuses and lists them. With one
@@ -860,7 +855,7 @@ it is a close copy of the image, not the raw pixels. The plane defaults to
 the middle one of the stack. bbox is (x0, y0, x1, y1) in image pixels, the
 same coordinates as the cells and spots, and is clamped to the image; leave
 it out for the whole plane, untrimmed. Returns the image (PIL) and a dict of
-what was read. The MCP tool also takes save_as; here just call .save on the
+what was read. The MCP tool also takes save_as; here, call .save on the
 image. channel works as in cell_image.
 
 #### `to_internal`

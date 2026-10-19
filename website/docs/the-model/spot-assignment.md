@@ -23,14 +23,14 @@ $$
 $$
 
 The indicator $z_{s,c}$ appears **only in the second part**: it picks out the log-intensity
-of the cell each spot is assigned to. Keeping just those terms of the
+of the cell each spot is assigned to. Keeping only those terms of the
 [full log-joint](overview.md#the-generative-model),
 
 $$
-\log p(\dots) \supset
+\log p(\dots) =
 \sum_{s,c,k} z_{s,c}\, \zeta_{c,k}\,
   \log\!\big[\theta_c\, \mu_{g_s,k}\, e^{-D_c(x_s)}\, \gamma_{g_s,c}\, \eta_{g_s}\big]
-\;+\; \sum_s z_{s,0}\, \log\rho_{g_s} ,
+\;+\; \sum_s z_{s,0}\, \log\rho_{g_s} + \text{const} ,
 $$
 
 where the last sum is the background option ($c = 0$), whose intensity is the per-gene
@@ -66,8 +66,8 @@ $\mathbb{E}[\log\eta_{g_s}] = \overline{\log\eta}_{g_s}$ is gene-only, with no $
 $\mathbb{E}[\zeta_{c,k}] = \bar\zeta_{c,k}$ is the cell-class posterior. The position term
 is averaged over the cell's geometry, $\mathbb{E}_{m,\Sigma}[-D_c(x_s)] =
 -\overline{D}_c(x_s)$, derived on the [cell geometry](gaussian.md) page. It
-carries no $k$, and $\sum_k \bar\zeta_{c,k} = 1$, so the position and efficiency terms sit
-outside the sum. Writing the assignment-dependent part as the score $S_{s,c}$, one named
+carries no $k$, and $\sum_k \bar\zeta_{c,k} = 1$, so the position and efficiency terms factor
+out of the sum. Writing the assignment-dependent part as the score $S_{s,c}$, one named
 term per line:
 
 $$
@@ -82,7 +82,7 @@ S_{s,c} = {}
 $$
 
 so $\log q(z_{s,c}=1) = S_{s,c} + \text{const}$, and exponentiating, cell $c$ contributes
-$\exp(S_{s,c})$ to the competition.
+$\exp(S_{s,c})$ to the normaliser of the softmax below.
 
 ## The background option ($c = 0$)
 
@@ -96,10 +96,10 @@ $$
 the **expected log** misread density of the spot's gene, $\overline{\log\rho_{g_s}} =
 \psi(\hat r_{g_s}) - \log\hat\beta_{g_s}$ (the digamma form derived on the
 [misread density](misread-density.md) page). Exponentiated, the background contributes
-$\exp(\overline{\log\rho_{g_s}})$ to the competition, with no distance, scale, or efficiency
-term attached. Note this is **not** the posterior mean rate $\bar\rho_{g_s} = \mathbb{E}[\rho_{g_s}]$:
+$\exp(\overline{\log\rho_{g_s}})$ to the normaliser, with no distance, scale, or efficiency
+term attached. This is **not** the posterior mean rate $\bar\rho_{g_s} = \mathbb{E}[\rho_{g_s}]$:
 because $\mathbb{E}[\log\rho] \neq \log\mathbb{E}[\rho]$, the term $\exp(\overline{\log\rho_{g_s}})$
-sits strictly below $\bar\rho_{g_s}$. This is the exact quantity the code uses for the
+is strictly less than $\bar\rho_{g_s}$. This is the exact quantity the code uses for the
 background column (`genes.log_rho_bar`).
 
 ## Normalisation
@@ -113,7 +113,8 @@ q\big(c(s)=c\big) = \frac{\exp(S_{s,c})}{Z},
 q\big(c(s)=0\big) = \frac{\exp(\overline{\log\rho_{g_s}})}{Z},
 $$
 
-with the shared normaliser $Z = \sum_{c'>0}\exp(S_{s,c'}) + \exp(\overline{\log\rho_{g_s}})$.
+with the shared normaliser $Z = \sum_{c'>0}\exp(S_{s,c'}) + \exp(\overline{\log\rho_{g_s}})$,
+where $c'$ runs over the spot's candidate cells.
 Dropping it, the posterior is
 
 $$
@@ -150,13 +151,13 @@ cell with the same class posterior.
 
 **Cell scale** ($\sum_k \bar\zeta_{c,k}\log\bar\theta_{c\mid k}$). The same average of
 $\bar\theta_{c\mid k}$, the cell's total observed count over what class $k$ predicts.
-$\bar\theta$ is above 1 for a cell holding more transcripts than its type expects and
+$\bar\theta$ is above 1 for a cell holding more counts than its type expects and
 below 1 for a sparse one; the term is then positive or negative. It does not depend on
 the gene.
 
 **Cell-gene scale** ($\sum_k \bar\zeta_{c,k}\overline{\log\gamma}_{g_s,c\mid k}$). The
 same average of the cell's observed-over-expected for this gene. Since the rate
-factorises as $\mu \times \gamma$, this is the residual the class expression leaves.
+factorises as $\mu \times \gamma$, it is the gene-specific deviation from the class expression.
 Between two cells with the same class posterior, it is the only gene-dependent term that
 differs; the cell scale differs too, but equally for every gene.
 
@@ -171,7 +172,7 @@ background and its spots are more readily called misreads, see
 Although the efficiency term $\overline{\log\eta}_{g_s}$ is the same for every cell
 $c > 0$, it does **not** cancel
 during normalisation, because the assignment is also compared against the background
-$\rho_{g_s}$, which carries no efficiency term. A low-efficiency gene therefore has its
+$\rho_{g_s}$, which has no efficiency term. A low-efficiency gene therefore has its
 signal attenuated relative to the background, making its spots more likely to be deemed
 misreads. The original paper omitted this term, effectively treating every gene as perfectly
 detected during assignment; including it lets $\eta$ act as a gene-specific scaling of the

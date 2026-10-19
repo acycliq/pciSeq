@@ -540,7 +540,7 @@ def gen_configuration():
         ":::",
         "",
         "Pass any of these as an `opts` dictionary to [`fit`](./reference#fit).",
-        "Anything you leave out keeps its default shown below.",
+        "Omitted keys keep the defaults shown below.",
         "",
         "```python",
         "import pciSeq",

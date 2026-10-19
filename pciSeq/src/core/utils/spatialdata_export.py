@@ -277,7 +277,7 @@ def to_spatialdata(cellData: pd.DataFrame,
         geneData: spot results, one row per spot, original labels.
         coo: the segmentation, one sparse plane per z. Either the list fit()
             renumbered in place or a copy with the original labels; which of the
-            two it is gets detected, and the store always ends up with the
+            two is detected, and the store always ends up with the
             original labels.
         varBayes: the fitted model, read for the arrays the two frames do not
             carry (class posterior, spot probabilities, gene panel, reference).
@@ -322,10 +322,9 @@ def add_image(store_path: str,
               scale_factors=(2, 2, 2)) -> None:
     """Add a background image to an existing SpatialData store.
 
-    Works like inserting into a database: the store already holds the run
-    (spots, labels, tables) and this writes one more element into it, without
-    touching anything else. Kept separate from write_spatialdata because fit()
-    never sees the image, the same reason stage_image is its own entry point.
+    The store already holds the run (spots, labels, tables); this writes one
+    more element into it and leaves the rest unchanged. It is separate from
+    write_spatialdata because fit() does not receive the image.
 
     Args:
         store_path: path to an existing spatialdata.zarr written by pciSeq.
@@ -382,11 +381,11 @@ def add_boundaries(store_path: str,
                    voxel_size=None) -> None:
     """Add per-plane cell boundary polygons to an existing SpatialData store.
 
-    Same insert pattern as add_image, but this one needs no data at all: the
+    Like add_image, but it takes no input besides the store: the
     boundaries are derived from the segmentation, and the store already holds
     the segmentation as the labels element. They are extracted here with the
-    same chain code tracing the pipeline uses, so what goes in matches what
-    pciSeq would have drawn.
+    same chain code tracing the pipeline uses, so the polygons match those
+    pciSeq writes.
 
     Shapes in SpatialData are strictly 2D, so a 3D run gets one shapes element
     per plane, cell_boundaries_plane_000 and so on, each a set of polygons

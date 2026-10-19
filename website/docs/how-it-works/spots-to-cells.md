@@ -75,7 +75,7 @@ the cell's short axes. It does not depend on the gene.
 ### Expression fit
 
 Together, the four expression terms are the log of the expected count of the spot's gene
-in the candidate cell, taken from the [warped definitions](warping-the-reference.md);
+in the candidate cell (averaged over the uncertainty in the factors), taken from the [warped definitions](warping-the-reference.md);
 each term is derived from one of its factors. The first three depend on the cell's class,
 which is not known exactly, so each is averaged over the cell's class probabilities from
 [cell typing](cell-to-celltype.md). The fourth depends on the gene alone.
@@ -92,7 +92,7 @@ which is not known exactly, so each is averaged over the cell's class probabilit
   the log.
 - **Cell scale.** Derived from theta, the cell's total observed count relative to what
   its class predicts: its log, averaged in the same way. It does not depend on the gene:
-  a cell holding more transcripts than its class predicts scores higher for every gene,
+  a cell holding more counts than its class predicts scores higher for every gene,
   and so attracts nearby spots of any gene. This term is referred to here as the
   gravity. Unlike physical gravity, it does not depend on distance; distance enters only
   through the Gaussian fit.
@@ -117,15 +117,15 @@ shape and the centroid of each cell are taken as fixed.
 
 - **Gaussian fit.** Take two cells of the same shape that differ only in position. The
   spot goes to the nearer cell.
-- **Alignment.** Consider a Plp1 spot equidistant from two cells of the same shape and
-  total count, one an oligodendrocyte and the other a CA1 pyramidal cell. Plp1 is an
-  oligodendrocyte gene, so the spot goes to the oligodendrocyte. If both cells are
+- **Alignment.** Consider a Plp1 spot equidistant from two cells of the same shape, one an
+  oligodendrocyte and the other a CA1 pyramidal cell, and suppose every other term of the
+  score is the same for both. Plp1 is an oligodendrocyte gene, so the spot goes to the oligodendrocyte. If both cells are
   oligodendrocytes, it goes to the cell more confidently typed as one.
 - **Gravity.** Place a spot at the same distance from two oligodendrocytes of the same
-  shape, equally confidently typed, one holding more transcripts in total than the
-  other. The spot goes to the cell with more transcripts: a cell that has produced more
+  shape, equally confidently typed, one holding more counts in total than the
+  other, and suppose every other term of the score is the same for both. The spot goes to the cell with more counts: a cell that has produced more
   reads is the more likely source of one more. Because the two cells share a class, more
-  transcripts means a higher theta. Between cells of different classes, theta compares
+  counts means a higher theta. Between cells of different classes, theta compares
   each cell with what its own class predicts, not with the other cell's count.
 - **Enrichment.** Suppose a Plp1 spot is equally close to two oligodendrocytes alike in
   shape, typing confidence and total count, one holding more Plp1 than the other. The
@@ -144,7 +144,7 @@ The background is scored with the gene's [misread density](misread-density.md), 
 same at every position. The more a candidate cell's score falls below the background's,
 the smaller its share of the spot's probability; for a spot that no candidate cell
 explains better than the background, the background receives the largest share. This is
-how misreads are removed.
+how misreads are assigned to the background.
 
 ## Soft assignments
 
@@ -155,6 +155,8 @@ rather than committed to one.
 
 ## Feedback into the next sweep
 
-The updated counts per cell are the input to the [misread density](misread-density.md)
-and the [warping](warping-the-reference.md) of the next sweep. The loop stops when the
+The updated spot probabilities are the input to the cell geometry update in the same sweep
+and, through the background and per-cell counts, to the [misread density](misread-density.md),
+the [warping](warping-the-reference.md) and the [cell typing](cell-to-celltype.md) of the
+next. The loop stops when the
 spot probabilities stop changing, see [convergence](overview.md#convergence).

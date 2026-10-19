@@ -45,15 +45,15 @@ repeats until the estimates stop changing. The steps below are these updates.
     <text class="vl-text-label"><textPath href="#vlTxt5" startOffset="50%" text-anchor="middle">Cell geometry</textPath></text>
   </g>
 </svg>
-<figcaption>The updates, in the order they run. The class weights, dashed, are updated only with <code>cell_type_prior='weighted'</code>. The last feeds the first.</figcaption>
+<figcaption>The updates, in the order they run. The class weights, dashed, are updated only with <code>cell_type_prior='weighted'</code>. Each sweep starts from the output of the previous one.</figcaption>
 </figure>
 
 1. **[Misread density.](misread-density.md)** The rate of background spots per gene,
    estimated from the spots currently assigned to the background.
 
 2. **[Warping the cell type definitions.](warping-the-reference.md)** Per-gene detection
-   efficiencies and per-cell and per-cell-gene scale factors that rescale the reference
-   expression to this experiment. These are latent, with no observed counterpart, and
+   efficiencies and per-cell and per-cell-gene scale factors that rescale the cell type
+   definitions to this experiment. These are latent, with no observed counterpart, and
    are identified only through the fit between cells and classes.
 
 3. **[Cell to class.](cell-to-celltype.md)** Every cell is scored against every class
@@ -70,17 +70,17 @@ repeats until the estimates stop changing. The steps below are these updates.
 
 5. **[Cell geometry.](../the-model/gaussian.md)** The centre and the covariance of each
    cell's Gaussian are updated from the spots now assigned to it. This comes after the
-   spot assignment so that it sees real spot weights, never the uniform ones of the
-   first pass.
+   spot assignment so that it uses the fitted spot probabilities rather than the
+   uniform initial ones.
 
-The new spot assignments change the gene counts per cell, which enter step 1 of the next
-sweep, and the new geometry enters the next spot assignment. A single pass would leave each step conditioned on the initial values of the
+The new spot assignments change the background counts and the gene counts per cell, which
+enter steps 1 to 3 of the next sweep, and the new geometry enters the next spot assignment. A single pass would leave each step conditioned on the initial values of the
 others; iterating propagates each update to the rest.
 
 ## Convergence
 
 After each sweep the change in the spot-to-cell probabilities is measured as the maximum
-absolute change over all spots and candidate cells. The loop stops when this falls below
-`CellCallTolerance`, or at `max_iter`. The maximum is a strict criterion: one spot still
-moving between two cells keeps the loop running after every other spot has settled,
+absolute change over all spots, their candidate cells and the background. The loop stops when this falls below
+`CellCallTolerance`, or at `max_iter`. The maximum is a strict criterion: one spot whose
+probabilities still change keeps the loop running after every other spot has stopped changing,
 where a mean would have stopped earlier.

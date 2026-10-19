@@ -11,13 +11,13 @@ definitions from the previous step.
 The score of a cell for a class is the log probability of the cell's counts under that
 class's expected expression, summed over genes. A class that predicts genes the cell
 lacks, or omits genes the cell has, scores low. A few strong marker genes can dominate
-the sum, which is what separates closely related classes.
+the sum, and these are often what separates closely related classes.
 
 ## The softmax
 
 A softmax over the scores gives each cell a distribution over the classes, for example
 0.80 on one class, 0.15 on a close relative and 0.05 elsewhere. A confident assignment
-concentrates the mass on one class, an ambiguous one spreads it.
+concentrates the mass on one class, an ambiguous one distributes it over several classes.
 
 ## The class prior and the spatial term
 
@@ -29,21 +29,21 @@ Two further terms are added to the score.
   data with a [Dirichlet update](../the-model/class-prior.md), so common classes are
   favoured over rare ones.
 
-- **The spatial term (the MRF).** Cells of the same class cluster in space. Each class
-  receives a bonus proportional to the weighted number of the cell's neighbours that
-  carry it, with closer neighbours weighted more, on a scale set per cell from its own
+- **The spatial term (the MRF).** Cells of the same class tend to cluster in space. Each class
+  receives a bonus proportional to the sum of the neighbours' probabilities of that
+  class, with closer neighbours weighted more, on a scale set per cell from its own
   neighbour distances. The term is added to the score, so strong gene evidence can
   outweigh it, and it is bounded. Its strength is `mrf_beta`; `0` switches it off. The
   weights are derived in
   [the model](../the-model/cell-class.md#weighting-the-neighbours-by-distance).
-  Sister classes can be pooled so the neighbours support all of them equally and the
-  expression alone decides between them, see
+  Sister classes can be pooled so that the spatial term is the same for all of them and
+  the expression alone determines the class among them, see
   [pooling sister classes](../the-model/cell-class.md#pooling-sister-classes).
 
 ## The Zero class
 
-One class, Zero, expects no expression. It takes cells with zero or few reads that no
-real class explains; such a cell can be a real cell of a type the gene panel does not
+One class, Zero, expects no expression. Cells are assigned to it when they have zero or
+few reads that no real class explains; such a cell can be a real cell of a type the gene panel does not
 target.
 
 The output, a distribution over classes for every cell, is the input to

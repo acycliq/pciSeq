@@ -1,17 +1,17 @@
 # Installation
 
-Install straight from the repository:
+Install from the GitHub repository:
 
 ```bash
 pip install git+https://github.com/acycliq/pciSeq_3d.git@dev_3d
 ```
 
-That is the complete installation. It includes the live viewer and its chat.
+This installs pciSeq, including the live viewer and its chat.
 
-One optional extra exists, `mcp`. It adds `pciseq-mcp`, the program through which an AI
+There is one optional extra, `mcp`. It adds `pciseq-mcp`, the program through which an AI
 assistant such as Claude Code reads the files a completed run saved (see
-[MCP server](./api/mcp-server.md)). It is required for that way of asking only. The other
-three ways do not use it: an AI assistant connected to pciSeq Viewer, the chat panel in
+[MCP server](./api/mcp-server.md)). It is required only for that means of access; the other
+three do not use it: an AI assistant connected to pciSeq Viewer, the chat panel in
 pciSeq Viewer, and the chat of the live viewer.
 
 ```bash
@@ -19,7 +19,7 @@ pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3
 ```
 
 For development, clone it and install in editable mode so edits to the source are picked up
-without reinstalling. The extra goes after the dot:
+without reinstalling. The extra is given after the dot:
 
 ```bash
 git clone https://github.com/acycliq/pciSeq_3d.git
@@ -28,9 +28,9 @@ pip install -e .           # pciSeq
 pip install -e ".[mcp]"    # adds pciseq-mcp
 ```
 
-Python 3.10 or later. The dependencies are pulled in by pip. The image tiling functions need
-libvips, which arrives with the `pyvips[binary]` wheel; on a platform with no such wheel the
-rest of the package still imports and only `tile_maker` and `stage_image` raise, with a
+Python 3.10 or later. pip installs the dependencies. The image tiling functions require
+libvips, which is supplied by the `pyvips[binary]` wheel; on a platform with no such wheel the
+rest of the package still imports and only `tile_maker` and `stage_image` raise an ImportError, with a
 message pointing at the libvips install page. `read_tiles` does not need libvips.
 
 ## Versions
@@ -45,10 +45,10 @@ pciSeq.__commit_date__  # when that commit was made, eg '2026-09-25T15:02:11+01:
 
 The version string lives in `pciSeq/_version.py`. `__commit__`, `__branch__` and
 `__commit_date__` are read from git when the package is imported from a checkout,
-otherwise from the values baked in when it was built. On the command line, `pciseq --version` prints the version string.
+otherwise from the values recorded when it was built. On the command line, `pciseq --version` prints the version string.
 
 The model changes between commits. Two results are directly comparable only when the
-commit matches, or when the changes in between are known. Every run records it, see below.
+commit matches, or when the changes in between are known. Every run records the commit; see [Run provenance](#run-provenance).
 
 ## Run provenance
 
@@ -88,4 +88,4 @@ output in two more places, so it survives without the live object:
 - the [SpatialData store](api/spatialdata-store.md#provenance), as `sdata.attrs['pciseq']`,
   together with the resolved run config, without `label_map`.
 
-`commit` is the one to quote when comparing two runs.
+`commit` is the field to quote when comparing two runs.

@@ -8,10 +8,11 @@ being optimised. Nothing here changes the model or the algorithm.
 ## The optimum under a Dirac variational family
 
 Mean-field variational inference approximates the intractable posterior by the member of a
-tractable family closest in Kullback-Leibler divergence. The family is **structured**: the
-scale factors $\gamma_{g,c}$ and $\eta_g$ and the class assignments $\zeta_{c,k}$ keep full
-conjugate forms (Gamma, Gamma, and Categorical), while the per-cell scale $\theta_c$ is
-restricted to a Dirac point estimate:
+tractable family closest in Kullback-Leibler divergence. The family is **structured**: every
+factor keeps its full conjugate form (Gamma for $\gamma$, $\eta$ and $\rho$; Categorical for
+$\zeta$ and $z$; Normal-Inverse-Wishart for $(m, \Sigma)$; and Dirichlet for $\pi$ under
+`weighted`), except the per-cell scale $\theta_c$, which is restricted to a Dirac point
+estimate:
 
 $$
 q(\theta_c \mid k) = \delta(\theta_c - \hat\theta_{c\mid k}) .
@@ -36,16 +37,16 @@ $\mathbb{E}[\log\theta_c] = \log\mathbb{E}[\theta_c] = \log\hat\theta_c$.
 
 - **Poisson-Gamma as Negative Binomial.** If $N \mid \gamma \sim \mathrm{Poisson}(K\gamma)$
   and $\gamma \sim \mathrm{Gamma}(r, r)$, then marginally $N \sim \mathrm{NB}(r, K)$ with
-  mean $K$ and variance $K + K^2/r$ - the collapse that drives the cell-class update.
+  mean $K$ and variance $K + K^2/r$; this is the collapse that drives the cell-class update.
 - **Gamma log-moment.** If $X \sim \mathrm{Gamma}(a, b)$ then
-  $\mathbb{E}[\log X] = \psi(a) - \log b$, with $\psi$ the digamma function - the source of
-  every $\overline{\log\cdot}$ term in the updates ($\overline{\log\gamma}$,
+  $\mathbb{E}[\log X] = \psi(a) - \log b$, with $\psi$ the digamma function. This is the source
+  of every $\overline{\log\cdot}$ term in the updates ($\overline{\log\gamma}$,
   $\overline{\log\eta}$, $\overline{\log\rho}$).
 
 ## The objective: Variational EM, not pure VB
 
 The Evidence Lower Bound contains an entropy term $-\mathbb{E}_q[\log q]$. For a Dirac
-factor this differential entropy is not finite, so the ELBO is not literally well-defined
+factor this differential entropy is not finite, so the ELBO is not well-defined
 when the family contains a point mass.
 
 The resolution is standard. With a Dirac component the scheme is **Variational EM**: the
@@ -62,4 +63,4 @@ $$
 where the point estimate is $\hat\theta_{c\mid k}$ and the $\{q_i\}$ are the non-Dirac
 factors. The point estimate contributes no entropy term because it is a parameter, not a
 distribution. Each conjugate update and each MAP step performs coordinate ascent on
-$\mathcal{F}$, and the model treats $\theta_c$ in exactly this way.
+$\mathcal{F}$.

@@ -5,7 +5,7 @@ description: Tiling the background image for the viewer, reading it back, and ad
 
 # Working with the image
 
-[`fit`](./reference#fit) never sees the image. It works from the spots and the
+[`fit`](./reference#fit) does not receive the image. It works from the spots and the
 segmentation alone. The functions on this page handle the image separately: they tile it
 for the viewer, read it back, and add it to the SpatialData store.
 
@@ -16,7 +16,7 @@ stack, or `(Z, H, W, C)` for a stack with channels.
 ## The `.mbtiles` file
 
 An `.mbtiles` file is a single SQLite database that holds an image as a pyramid of small
-tiles at several zoom levels. A viewer asks only for the tiles on screen at the current
+tiles at several zoom levels. A viewer requests only the tiles on screen at the current
 zoom, so an image far too large to load at once can be panned and zoomed.
 [pciSeq Viewer](../viewer/overview.md) reads it as its background layer. It is written by
 [`stage_image`](#stage-image) and read back by [`read_tiles`](#read-tiles).
@@ -77,7 +77,7 @@ $$
 s_z = \frac{256 \cdot 2^{z}}{\max(\texttt{width}, \texttt{height})} .
 $$
 
-Being plain SQLite, the file can be opened directly:
+As a plain SQLite database, the file can be opened directly:
 
 ```python
 import io, sqlite3
@@ -159,7 +159,7 @@ other elements in microns. See [`add_image`](./reference#add-image).
 
 ## `add_boundaries`
 
-Adds the cell outlines to the store as shapes. It needs no data: the outlines are traced
+Adds the cell outlines to the store as shapes. It takes no input besides the store: the outlines are traced
 from the segmentation the store already holds.
 
 ```python

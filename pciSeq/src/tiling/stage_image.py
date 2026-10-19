@@ -265,8 +265,8 @@ def stage_image(img, out_dir=None, zoom_levels=None, name=None, description=None
     Turn an image (or z-stack) into an MBTiles file the viewer can read.
 
     This builds the tiled, multi-resolution background that pciSeq Viewer uses
-    as its slippy-map base layer. Give it a single 2D image or a whole 3D stack
-    and it writes one `.mbtiles` file.
+    as its slippy-map base layer. It takes a single 2D image or a 3D stack and
+    writes one `.mbtiles` file.
 
     Parameters
     ----------

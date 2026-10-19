@@ -328,7 +328,7 @@ class Run:
         return self._meta('pciSeq_provenance', parse=True, default={}).get('commit') or None
 
     def summary(self):
-        """What this run is: its size, the code that made it, and what it can answer."""
+        """A summary of the run: its size, the code version that produced it, and the data it contains."""
         prov = self._meta('pciSeq_provenance', parse=True, default={})
         return {
             'path': str(self.path),
@@ -448,7 +448,7 @@ class Run:
         return plane, 'the anisotropy scaled z the model works in; plane is the plane index it sits on'
 
     def cell(self, label):
-        """The headline facts about one cell."""
+        """The main properties of one cell."""
         c = self._cell(label)
         # stable: probabilities tie at exactly 0 and 1 in float32, and an unstable
         # sort would list the tied ones in an arbitrary order
@@ -500,7 +500,7 @@ class Run:
         return out
 
     def explain_cell(self, label, vs_class=None, top_n=10):
-        """Why this cell got its class, gene by gene.
+        """Why a cell is assigned its class, gene by gene.
 
         The class score is the sum of the per gene negative binomial contributions,
         plus the class prior, plus the spatial term. This recomputes those from the
@@ -514,9 +514,9 @@ class Run:
         Parameters
         ----------
         label : int
-            Cell label, as in your segmentation.
+            Cell label, as in the input segmentation.
         vs_class : str, optional
-            The class to compare against. Defaults to the runner up.
+            The class to compare against. Defaults to the runner-up.
         top_n : int, default 10
             How many genes to report on each side.
         """
@@ -573,7 +573,7 @@ class Run:
         log_prior = np.asarray(self._meta('log_prior', parse=True), dtype=np.float32)
         # (nG, nK): the average count of each gene over this run's cells, weighted by
         # their probability of being each class. The same numbers as the Gene
-        # Expression table of the viewer's Cell Inspector, and the figure behind 'a
+        # Expression table of the viewer's cell diagnostics, and the figure behind 'a
         # CA2 cell would hold some'. Not what the likelihood scores against, that is
         # the scRNAseq profile times the scale factors; this is a summary of the run.
         means = np.asarray(self._meta('mean_gene_reads_per_class', parse=True), dtype=np.float32)
@@ -655,7 +655,7 @@ class Run:
                 for g in biggest if abs(diff[g]) < within][:n]
 
     def explain_spot(self, spot_id):
-        """Why this spot went to the cell it did, term by term.
+        """Why a spot is assigned to its cell, term by term.
 
         One row per candidate cell plus the background. The terms are the ones the
         model used in its last spot update, so the probabilities here are the ones
@@ -705,7 +705,7 @@ class Run:
         return out
 
     def cell_counts(self, label, gene=None):
-        """How many reads a cell holds. Soft, and the answer says so."""
+        """The soft read count of a cell; the result states that it is soft."""
         c = self._cell(label)
         counts = c['gene_count']
         note = ('these are soft counts: each spot contributes its probability of '
@@ -726,9 +726,9 @@ class Run:
         }
 
     def spots_in_cell(self, label, gene=None):
-        """How many spots physically sit inside a cell's segmentation mask.
+        """The number of spots inside a cell's segmentation mask.
 
-        Hard containment, no probabilities. A spot can sit outside every cell and
+        Hard containment, no probabilities. A spot can lie outside every cell and
         still be assigned to one, so this is a different number from `cell_counts`.
         """
         if not self._has_containment():
@@ -1156,13 +1156,11 @@ class Run:
         raise KeyError('no metadata key %r, call metadata() for the list' % key)
 
     def cell_row(self, label):
-        """The cellData row of one cell, value for value.
+        """The cellData row of one cell, unmodified.
 
-        Everything the tsv has except the two drawing columns. Read straight out of
-        cellData.tsv when it is there, which is both exact and fast, a targeted grep
-        on a 250 MB file takes about 30 ms. Without the tsv the row is rebuilt from
-        the viewer files, which matches on every column except the boundary cases of
-        spot_id; see `_exact_spot_ids`.
+        Every cellData.tsv column except sphere_scale and sphere_rotation. Read from
+        cellData.tsv when present; otherwise rebuilt from the viewer files, which
+        agree on every column except spot_id at the 0.0001 cut-off.
         """
         label = int(label)
         self.to_internal(label)
@@ -1224,9 +1222,8 @@ class Run:
         written from the same frame.
 
         neighbour_prob is rounded to 3 decimals here because that is how geneData
-        stores it (summary.py:111), so a candidate holding 0.0004 shows up as 0.0 and
-        you cannot tell it apart from one holding nothing at all. That is fine for
-        reporting what the file says, and it is why cell_row's spot_id list can
+        stores it, so a candidate holding 0.0004 shows as 0.0 and is indistinguishable
+        from one holding none. This is also why cell_row's spot_id list can
         contain spots whose probability reads 0.0: the cut-off there is 0.0001,
         applied before the rounding. When the small probabilities matter use
         explain_spot, which recomputes them from diagnostics.db at full precision.
@@ -1521,8 +1518,8 @@ class Run:
 
         * close-up (context=False): the cell outlined in red and every other cell on
           that plane in blue, in a 3:2 window about four and a half times the size of
-          the cell. With neighbours=True only the cells the mrf term listens to are
-          outlined, the picture for 'why did its neighbours make it this class'. Those
+          the cell. With neighbours=True only the cells that enter the spatial term are
+          outlined. Those
           on another plane have no outline here and the answer lists them.
         * context (context=True): the whole plane trimmed to 3:2 with a ring round the
           cell, to show where in the tissue it sits.
@@ -1530,7 +1527,7 @@ class Run:
         The plane is the one given, else the plane of the fitted cell centroid when the run
         carries voxel_size, else the plane where the cell outline is biggest. Returns
         the image (PIL) and a dict of what was drawn. The MCP tool also takes
-        save_as; here just call .save on the image.
+        save_as; here, call .save on the image.
 
         channel picks the background image when the run has more than one (DAPI,
         GCaMP, ...); with several and no channel it refuses and lists them. With one
@@ -1664,7 +1661,7 @@ class Run:
         the middle one of the stack. bbox is (x0, y0, x1, y1) in image pixels, the
         same coordinates as the cells and spots, and is clamped to the image; leave
         it out for the whole plane, untrimmed. Returns the image (PIL) and a dict of
-        what was read. The MCP tool also takes save_as; here just call .save on the
+        what was read. The MCP tool also takes save_as; here, call .save on the
         image. channel works as in cell_image.
         """
         from ..tiling.read_tiles import read_tiles

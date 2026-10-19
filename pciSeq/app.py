@@ -42,7 +42,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         rows and cell types as columns. Required.
 
     opts : dict, optional
-        Any config values you want to override, e.g. {'max_iter': 500}. See the
+        Config values to override, e.g. {'max_iter': 500}. See the
         configuration page for the full list of keys and their defaults.
 
     Returns

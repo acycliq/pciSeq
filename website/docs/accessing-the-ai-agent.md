@@ -63,12 +63,12 @@ const extra = 'pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciS
 
 # Accessing the AI agent
 
-pciSeq saves with its results, for every cell and every spot, the terms from which its
+With its results, pciSeq saves, for every cell and every spot, the terms from which the
 assignment was computed. An agent, a language model equipped with functions that read
 those files, explains an assignment from them: why a cell was assigned to its class, why
 a spot was assigned to one cell rather than another, what value a setting took.
 
-There are four ways to put a question to it. The diagram shows what each one uses;
+The agent can be accessed in four ways. The diagram shows what each one uses;
 [Requirements](#requirements) lists what each one needs to be installed and registered.
 
 <DemoFrame src="/agent_access.html" wide :min="420"
@@ -140,7 +140,7 @@ Claude Code, Gemini CLI or Codex.
   <div class="pick-label">Registration</div>
   <div class="pick-v">
     <template v-if="result === 'live' || result === 'panel'"></template>
-    <template v-else-if="result === 'viewer'">{{ toolName[tool] }} is registered with pciSeq Viewer, once, by adding the address of pciSeq Viewer to {{ toolName[tool] }}:<div class="pick-cmd"><code>{{ register.viewer[tool] }}</code><button type="button" class="pick-copy" :class="{ done: copied === register.viewer[tool] }" @click="copy(register.viewer[tool])" aria-label="Copy"><template v-if="copied === register.viewer[tool]"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></template><template v-else><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></template></button></div></template>
+    <template v-else-if="result === 'viewer'">pciSeq Viewer is registered with {{ toolName[tool] }}, once, by adding its address:<div class="pick-cmd"><code>{{ register.viewer[tool] }}</code><button type="button" class="pick-copy" :class="{ done: copied === register.viewer[tool] }" @click="copy(register.viewer[tool])" aria-label="Copy"><template v-if="copied === register.viewer[tool]"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></template><template v-else><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></template></button></div></template>
     <template v-else>The <code>pciseq-mcp</code> program is registered with {{ toolName[tool] }}, once. {{ toolName[tool] }} starts it when needed.<div class="pick-cmd"><code>{{ register.mcp[tool] }}</code><button type="button" class="pick-copy" :class="{ done: copied === register.mcp[tool] }" @click="copy(register.mcp[tool])" aria-label="Copy"><template v-if="copied === register.mcp[tool]"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></template><template v-else><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></template></button></div></template>
   </div>
 </div>
@@ -148,7 +148,7 @@ Claude Code, Gemini CLI or Codex.
 <div class="pick-row" :class="{ off: result !== 'mcp' }">
   <div class="pick-label">Note</div>
   <div class="pick-v">
-    <template v-if="result === 'mcp'">The first question of a {{ toolName[tool] }} session gives the results folder; later questions in the same session do not.<div class="pick-cmd"><code>Open &lt;pciSeq results folder&gt; and explain why cell 100 is assigned to its class.</code><button type="button" class="pick-copy" :class="{ done: copied === 'Open <pciSeq results folder> and explain why cell 100 is assigned to its class.' }" @click="copy('Open <pciSeq results folder> and explain why cell 100 is assigned to its class.')" aria-label="Copy"><template v-if="copied === 'Open <pciSeq results folder> and explain why cell 100 is assigned to its class.'"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></template><template v-else><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></template></button></div></template>
+    <template v-if="result === 'mcp'">The first question of a {{ toolName[tool] }} session must name the results folder; later questions in the same session need not.<div class="pick-cmd"><code>Open &lt;pciSeq results folder&gt; and explain why cell 100 is assigned to its class.</code><button type="button" class="pick-copy" :class="{ done: copied === 'Open <pciSeq results folder> and explain why cell 100 is assigned to its class.' }" @click="copy('Open <pciSeq results folder> and explain why cell 100 is assigned to its class.')" aria-label="Copy"><template v-if="copied === 'Open <pciSeq results folder> and explain why cell 100 is assigned to its class.'"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></template><template v-else><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></template></button></div></template>
   </div>
 </div>
 
@@ -164,19 +164,19 @@ Claude Code, Gemini CLI or Codex.
 </div>
 </div>
 
-An AI assistant without pciSeq Viewer covers a machine where it is not installed or not
-used, for example a remote machine reached over ssh. The two ways to connect an
+An AI assistant without pciSeq Viewer is intended for a machine on which pciSeq Viewer is
+not installed or not used, for example a remote machine reached over ssh. The two ways to connect an
 assistant are independent: each has its own command and neither requires the other.
 Any other application that supports MCP connects the same way; only the form of the
 registration command differs, see the [MCP server](./api/mcp-server.md) page.
 
 ## The path of a question
 
-In every way a question is answered in the same five steps. The language model does
+In all four ways, a question is answered in the same five steps. The language model does
 not read the saved files. It names a function, and the function is run on the
-user's machine. Choosing a step keeps its parts and fades the rest.
+user's machine. Selecting a step highlights its parts and dims the rest.
 
-The language model has no knowledge of these functions of its own. The list of them is
+The language model has no prior knowledge of these functions. The list of them is
 sent with every question, and the language model chooses from the descriptions in it.
 
 <figure class="diagram">
@@ -268,15 +268,14 @@ sent with every question, and the language model chooses from the descriptions i
 
 Steps 2 to 4 are repeated when an answer needs more than one function.
 
-In every way the agent can also show the source code behind a quantity, for example
-the adjustment for anisotropy, and in every way the code shown is the code that produced
-the numbers. The live viewer's chat reads the installed files, which are the code
+In all four ways the agent can also show the source code of a quantity, for example the
+adjustment for anisotropy; the code shown is the code that produced the numbers. The live viewer's chat reads the installed files, which are the code
 running the fit. For a completed run, `pciseq-mcp` and pciSeq Viewer read the file at
 the commit the run recorded, from the pciSeq repository on GitHub. This needs a network
-connection; the request names a file and a commit and carries nothing from the run. A run that does not record its commit is refused rather than
-shown another version. The [code map](./api/code-map.md) names the function and line
+connection; the request names a file and a commit and carries nothing from the run. For a run that does not record its commit, no source is shown, rather
+than that of another version. The [code map](./api/code-map.md) names the function and line
 for each quantity.
 
 Where an API key is needed, it is saved on the user's machine. The files `pciSeq.fit`
-saved stay on that machine too; only the question and the results of the
-functions are sent to the language model.
+saved stay on that machine too; only the conversation (the questions and earlier
+answers) and the results of the functions are sent to the language model.

@@ -828,7 +828,7 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def heatmap_counts_per_class(self):
-        """Display the interactive heatmap."""
+        """Display an interactive heatmap of the mean gene counts per class."""
         return visualisation.heatmap_counts_per_class(self)
 
     def calculate_genes_log_likelihood_contr(self, label):

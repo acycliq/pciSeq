@@ -62,7 +62,7 @@ q(\pi) = \mathrm{Dir}(\pi \mid \alpha_1, \dots, \alpha_K), \qquad
 $$
 
 The prior had $\delta_k$ for class $k$; the posterior has $\alpha_k$, which is $\delta_k$
-plus $\sum_c \bar\zeta_{c,k}$, the number of cells of class $k$ under the current
+plus $\sum_c \bar\zeta_{c,k}$, the expected number of cells of class $k$ under the current
 assignment. $\alpha$ without a subscript is the list of all the $\alpha_k$.
 
 ## Reading the result
@@ -78,12 +78,12 @@ $$
 $$
 
 $\bar\zeta_{c,k}$ is the probability that cell $c$ has class $k$, so the sum
-$\sum_c \bar\zeta_{c,k}$ is the number of cells of class $k$. Equation (2) is then the
-share of the cells that are of class $k$: the more often a class appears, the greater its
-weight in the model.
+$\sum_c \bar\zeta_{c,k}$ is the expected number of cells of class $k$. Equation (2) is then
+the expected share of the cells that are of class $k$.
 
-The prior and the assignment feed each other. A class that gains cells gets a larger
-prior, which makes the next cell more likely to be assigned to it. Under `uniform` there
+The prior and the assignment depend on each other. A class that gains cells receives a
+larger prior, which raises the probability that any cell is assigned to it in the next
+update. Under `uniform` there
 is no such feedback.
 
 Including the Zero class, the prior probabilities are $w$ for Zero and
