@@ -493,7 +493,7 @@ def test_narrative_when_the_neighbourhood_overrules_the_genes():
     }
     story = narrate_cell(e)
     assert 'looks more like L4/5 IT, about 55 to one, mostly because of Car4' in story
-    assert 'The neighbourhood strongly favours L5 ET over L4/5 IT, which is what carries the call' in story
+    assert 'The neighbourhood strongly favours L5 ET over L4/5 IT, which is what decides it' in story
     # the spatial term compares two classes, it says nothing of how many neighbours
     # are of either (espio cell 2413: 'mostly Ndnf' with 2 of 9 Ndnf)
     assert 'neighbouring cells are' not in story and 'mostly L5 ET' not in story
@@ -545,7 +545,7 @@ def test_spot_narrative_tells_the_story_without_units(fitted):
             assert 'assigned to the background' in story
         else:
             assert 'assigned to cell %d' % e['assigned_to'] in story
-            assert re.search(r'carries the call|the call is clear|a narrow one', story), sid
+            assert re.search(r'decides it|the call is clear|a narrow one', story), sid
         assert not re.search(r'\bnats?\b', story)
         assert not re.search(r'-\d|\b\d{2,}\.\d', story), 'raw score leaked: %d' % sid
         assert '\u2014' not in story and '\u2013' not in story
@@ -581,7 +581,7 @@ def test_spot_narrative_when_distance_carries_it():
     assert 'Cell 18223 is the nearest candidate: about 5 to one over cell 17371 and about 11 to one over cell 21574' in s
     assert 'Every candidate is a DG cell' in s
     assert 'cell 21574 holds more reads overall than its class predicts' in s
-    assert 'distance carries the call' in s
+    assert 'distance decides it' in s
 
 
 def test_spot_narrative_when_expression_carries_it():
@@ -591,7 +591,7 @@ def test_spot_narrative_when_expression_carries_it():
     s = narrate_spot(e)
     assert 'Cell 2 is not the nearest: cell 1 is closer' in s
     assert 'Cell 2 is a CA2 cell, whose class expresses Synpr more than the class of cell 1, CA1' in s
-    assert 'expression carries the call' in s
+    assert 'expression decides it' in s
 
 
 def test_spot_narrative_when_the_background_wins():
@@ -601,7 +601,7 @@ def test_spot_narrative_when_the_background_wins():
     assert 'assigned to the background, with probability 0.95' in s
     assert 'takes it for a misread' in s
     assert 'cell 6482 is the nearest, and its class is VLMC' in s
-    assert 'carries the call' not in s
+    assert 'decides it' not in s
 
 
 # ----------------------------------------- settings, convergence and planes

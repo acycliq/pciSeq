@@ -1862,8 +1862,8 @@ def narrate_cell(e):
                'match what each class expresses according to the cell type definitions '
                '(the gene log-likelihood), how '
                'common each class is to begin with (the prior), and what the neighbouring '
-               'cells were called (the spatial term). The class that comes out best '
-               'overall wins.')
+               'cells were called (the spatial term). The class with the best total '
+               'receives the highest probability.')
 
     # the genes, ranked, no numbers
     if d['genes'] > 0:
@@ -1928,9 +1928,9 @@ def narrate_cell(e):
         # the spatial term says which of the two classes the neighbourhood favours,
         # not how many neighbours are of it: espio cell 2413 got 'the neighbouring
         # cells are mostly Ndnf' with 2 of its 9 neighbours Ndnf
-        out.append('The neighbourhood %s favours %s over %s, which %s the call.'
+        out.append('The neighbourhood %s favours %s over %s, which %s.'
                    % (_mostly(d['neighbours']), a, o,
-                      'strengthens' if d['genes'] > 0 else 'is what carries'))
+                      'strengthens the call' if d['genes'] > 0 else 'is what decides it'))
     else:
         out.append('The neighbourhood favours %s, which counts against the call.' % o)
 
@@ -1996,7 +1996,8 @@ def narrate_spot(e):
                'whether the cell holds more reads overall than its class predicts (cell '
                'scale), and whether it already holds more %s than its class predicts '
                '(cell-gene scale). The background is scored on how often %s spots turn out '
-               'to be misreads. The best total wins.' % (gene, gene, gene, gene))
+               'to be misreads. The candidate with the best total receives '
+               'the highest probability.' % (gene, gene, gene, gene))
 
     if to_bg:
         out.append('Here no cell scores well enough: cell %d is the nearest, and its class '
@@ -2083,12 +2084,12 @@ def narrate_spot(e):
                        'the call is clear.' % winner['cell'])
         elif d_pos > 0.4:
             out.append('So cell %d is the better fit for the gene, %s, but cell %d is closer, '
-                       '%s, and distance carries the call.'
+                       '%s, and distance decides it.'
                        % (runner['cell'], _strength(-d_exp) if d_exp < -0.4 else 'slightly',
                           winner['cell'], _strength(d_pos)))
         elif d_exp > 0.4:
             out.append('So cell %d is closer, %s, but cell %d fits the gene better, %s, and '
-                       'expression carries the call.'
+                       'expression decides it.'
                        % (runner['cell'], _strength(-d_pos) if d_pos < -0.4 else 'slightly',
                           winner['cell'], _strength(d_exp)))
         else:

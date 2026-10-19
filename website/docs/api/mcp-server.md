@@ -240,7 +240,8 @@ and its `narrative`:
 > three things: how well its gene counts match what each class expresses according to
 > the cell type definitions (the gene log-likelihood), how common each class is to begin
 > with (the prior), and what the neighbouring cells were called (the spatial term). The
-> class that comes out best overall wins. The genes point to 048 RHP-COA Ndnf Gaba,
+> class with the best total receives the highest probability. The genes point to 048
+> RHP-COA Ndnf Gaba,
 > overwhelmingly, beyond any doubt. The strongest evidence comes from Ndnf, Rgs5 and
 > Ttr: the cell holds these in amounts that fit what the cell type definitions give for
 > a 048 RHP-COA Ndnf Gaba cell, and not for a 047 Sncg Gaba cell. A few genes, Npy, Kit
@@ -273,19 +274,20 @@ and its `narrative`:
 > expression), whether the cell holds more reads overall than its class predicts (cell
 > scale), and whether it already holds more Synpr than its class predicts (cell-gene
 > scale). The background is scored on how often Synpr spots turn out to be misreads. The
-> best total wins. Cell 18223 is the nearest candidate: about 5 to one over cell 17371
+> candidate with the best total receives the highest probability. Cell 18223 is the
+> nearest candidate: about 5 to one over cell 17371
 > and about 11 to one over cell 21574 on position alone. Every candidate is a 037 DG
 > Glut cell, and on class alone Synpr fits them about equally; what separates them is
 > how much each already holds. Between the top two, cell 21574 holds more reads overall
 > than its class predicts. So cell 21574 is the better fit for the gene, slightly, but cell
-> 18223 is closer, about 11 to one, and distance carries the call.
+> 18223 is closer, about 11 to one, and distance decides it.
 
 The probabilities match [Table 3.1](../explaining-the-calls/why-a-spot-got-its-cell.md#table-3-1).
 All candidates are `037 DG Glut` and their class expression terms are equal (0.94), so
 that term does not separate them; cell 18223
 is the nearest and the Gaussian term determines the assignment. The narrative states this as *distance
-carries the call*; when a farther cell is assigned the spot because its class expresses the gene, it
-states *expression carries the call*.
+decides it*; when a farther cell is assigned the spot because its class expresses the gene, it
+states *expression decides it*.
 
 **How many Ndnf counts does cell 2413 have?** `cell_counts(2413, gene='Ndnf')` returns
 7.77, marked as a soft count.
